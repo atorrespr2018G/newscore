@@ -1,0 +1,14 @@
+supergraph:
+  listen: 0.0.0.0:4000
+  path: /graphql
+  introspection: true
+
+health_check:
+  listen: 0.0.0.0:8088
+
+cors:
+  allow_any_origin: true
+
+# Surface subgraph errors in local dev (router redacts them by default).
+include_subgraph_errors:
+  all: true

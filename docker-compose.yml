@@ -1,0 +1,150 @@
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD","mongosh","--eval","db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  admin_app:
+    build: ./backend/admin_app
+    command: sh -c "pip install -e /shared && uvicorn main:app --host 0.0.0.0 --port 5001 --reload"
+    ports:
+      - "5001:5001"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/shared
+      - ./media:/media
+
+  news_storage_app:
+    build: ./backend/news_storage_app
+    command: sh -c "pip install -e /shared && uvicorn main:app --host 0.0.0.0 --port 5002 --reload"
+    ports:
+      - "5002:5002"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/shared
+      - ./media:/media
+
+  layout_admin_app:
+    build: ./backend/layout_admin_app
+    command: sh -c "pip install -e /shared && uvicorn main:app --host 0.0.0.0 --port 5003 --reload"
+    ports:
+      - "5003:5003"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/shared
+
+  content_subgraph:
+    build: ./backend/subgraphs/content_subgraph
+    command: sh -c "pip install -e /shared && uvicorn main:app --host 0.0.0.0 --port 5011 --reload"
+    ports:
+      - "5011:5011"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/shared
+      - ./backend/subgraphs/content_subgraph:/app
+    networks:
+      default:
+        aliases:
+          - content-subgraph
+
+  layout_subgraph:
+    build: ./backend/subgraphs/layout_subgraph
+    command: sh -c "pip install -e /shared && uvicorn main:app --host 0.0.0.0 --port 5012 --reload"
+    ports:
+      - "5012:5012"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/shared
+      - ./backend/subgraphs/layout_subgraph:/app
+    networks:
+      default:
+        aliases:
+          - layout-subgraph
+
+  site_subgraph:
+    build: ./backend/subgraphs/site_subgraph
+    command: sh -c "pip install -e /shared && uvicorn main:app --host 0.0.0.0 --port 5013 --reload"
+    ports:
+      - "5013:5013"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend/shared:/shared
+      - ./backend/subgraphs/site_subgraph:/app
+    networks:
+      default:
+        aliases:
+          - site-subgraph
+
+  graphql_router:
+    build: ./backend/graphql_router
+    ports:
+      - "4000:4000"
+    depends_on:
+      content_subgraph:
+        condition: service_started
+      layout_subgraph:
+        condition: service_started
+      site_subgraph:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    env_file: .env
+    environment:
+      GRAPHQL_INTERNAL_URL: http://graphql_router:4000/graphql
+    depends_on:
+      graphql_router:
+        condition: service_started
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - admin_app
+      - news_storage_app
+      - layout_admin_app
+      - graphql_router
+
+volumes:
+  mongo_data:

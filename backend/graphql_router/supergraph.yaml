@@ -1,0 +1,14 @@
+federation_version: =2.11.0
+subgraphs:
+  content:
+    routing_url: http://content-subgraph:5011/graphql
+    schema:
+      subgraph_url: http://content-subgraph:5011/graphql
+  layout:
+    routing_url: http://layout-subgraph:5012/graphql
+    schema:
+      subgraph_url: http://layout-subgraph:5012/graphql
+  site:
+    routing_url: http://site-subgraph:5013/graphql
+    schema:
+      subgraph_url: http://site-subgraph:5013/graphql

@@ -1,0 +1,21 @@
+Layered Architecture — strictly enforced
+- routers/: Route definitions and input validation ONLY. Delegate to service immediately. Max 20 lines per route handler.
+- services/: All business logic. No FastAPI imports — must be testable without the HTTP server.
+- helpers/: Pure utility functions. No side effects, no DB, no network. Every helper has a unit test (where practical).
+- dependencies/: FastAPI Depends() functions only: get_db, get_current_user, require_role, get_pagination.
+
+Async Rules
+- ALL route handlers must be async def
+- ALL MongoDB calls must use Motor — never PyMongo sync
+- ALL Redis calls must use redis.asyncio
+- Never use time.sleep() — use asyncio.sleep()
+- Long tasks go in BackgroundTasks
+
+Exception Hierarchy
+Services raise domain exceptions. Routers convert to HTTPException.
+- NotFoundError → HTTP 404
+- PermissionError → HTTP 403
+- ConflictError → HTTP 409
+- ValidationError → HTTP 422
+- MediaUploadError → HTTP 500
+

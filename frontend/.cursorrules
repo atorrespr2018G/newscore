@@ -1,0 +1,25 @@
+Interface Pattern
+- All interfaces in interfaces/. Prefix I, suffix Type for unions.
+
+Component Pattern
+- components/ui/: purely presentational — no data fetching, props-only, works with mock data.
+- components/features/: data-connected — uses custom hooks, composes UI components, never duplicates UI markup.
+
+Data Fetching Pattern
+- All network calls flow: hook -> typed API client -> fetch()
+- No raw fetch() outside lib/api/*.ts
+- Components never consume raw fetch responses — only typed data.
+
+TypeScript Strictness
+- strict: true, never use any (use unknown + type guards)
+- Explicit return types on functions
+- Explicit Props interface on every component
+- No non-null assertions (!.) — use optional chaining / type guards
+- Handle errors in async functions — no floating promises
+
+Next.js App Router Rules
+- Server components by default — add "use client" only when needed
+- Every page exports generateMetadata() for SEO
+- Use next/image for images
+- Use next/link for internal navigation
+

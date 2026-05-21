@@ -1,0 +1,42 @@
+Principles
+- Single responsibility — every function, class, and module does ONE thing.
+- Pure functions where possible — no hidden side effects.
+- No magic numbers or strings — use named constants or enums.
+- Prefer explicit over implicit. No clever one-liners that obscure intent.
+- Fail loudly — raise/throw with a descriptive message, never swallow errors.
+- No commented-out code in commits — use git history.
+- All public functions, classes, and modules MUST have a docstring or JSDoc.
+
+Naming Conventions
+- Python functions & variables: snake_case
+- Python classes: PascalCase
+- Python constants: UPPER_SNAKE_CASE
+- Python private methods: _snake_case
+- Python files: snake_case
+- TypeScript functions & variables: camelCase
+- TypeScript interfaces: PascalCase with I prefix
+- TypeScript union types: PascalCase with Type suffix
+- TypeScript components: PascalCase
+- TypeScript files: kebab-case
+
+Function Rules
+- Maximum 30 lines per function
+- Maximum 4 parameters — use an options object if you need more
+- If you find yourself writing "and" in a function name: split it into two functions
+- Helper logic goes in helpers/ — not inline in route handlers or components
+
+Comment Requirements
+- Required on: all public functions and methods, all class definitions
+- Required on: all non-obvious business logic (explain WHY, not WHAT)
+- Required on: all regex patterns and MongoDB aggregation pipelines
+- Python format: Google-style docstrings with Args, Returns, and Raises sections
+- TypeScript format: JSDoc with @param, @returns, @throws tags
+- Forbidden: commented-out code, redundant restatements of the code, TODO without ticket reference
+
+Error Handling Rules
+- Python: always use custom exception classes from shared/core/exceptions.py
+- Python: never use bare except: — always catch a specific exception type
+- Python: log errors with logger.error(msg, exc_info=True)
+- TypeScript: use typed error objects, never plain strings
+- TypeScript: API errors caught and surfaced via the global error boundary
+

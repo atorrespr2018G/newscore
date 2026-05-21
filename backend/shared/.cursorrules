@@ -1,0 +1,7 @@
+Shared Package Rules
+- Contains zero business logic — only infrastructure and data contracts.
+- No FastAPI imports in shared/.
+- Models live in shared/models/ only.
+- Request/response schemas live in shared/schemas/ only.
+- Core infrastructure lives in shared/core/ only.
+

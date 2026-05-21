@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "newscore-shared"
+version = "0.1.0"
+description = "Shared infrastructure and data contracts for NewsCore."
+requires-python = ">=3.12"
+dependencies = [
+  "motor>=3.4",
+  "pydantic[email]>=2.6",
+  "python-jose[cryptography]>=3.3",
+  "redis[asyncio]>=5.0",
+  "python-multipart>=0.0.9",
+]
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["shared*"]
+
