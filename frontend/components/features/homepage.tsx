@@ -2,9 +2,19 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
+import type { IArticle } from '@/interfaces/article'
 import { useFeed } from '@/hooks/use-feed'
 import { placeholderImageDataUri } from '@/lib/helpers/placeholder-image'
 import { excerpt } from '@/lib/helpers/text-helpers'
+import {
+  EDITORIAL_BAND_SLOT_KEYS,
+  HomepageEditorialBand,
+  MIDTERM_ELECTIONS_KEY,
+  EDITORIAL_RAIL_KEY,
+  MORE_TOP_STORIES_KEY,
+} from '@/components/features/homepage-editorial-band'
+import { HomepageSection } from '@/components/features/homepage-section'
 
 interface IStoryCardProps {
   title: string
@@ -74,22 +84,17 @@ function RightPromo({ title, subtitle }: IRightPromoProps): JSX.Element {
   )
 }
 
+interface IHeroBlockProps {
+  articles: IArticle[]
+}
+
 /**
- * Homepage composition:
- * left story stack · center hero + strip · right promo rail.
+ * Top-of-page hero: left stack, center lead, right rail (CNN-style lead module).
  */
-export function Homepage(): JSX.Element {
-  const { data, loading, error } = useFeed()
-
-  if (loading) return <div className="text-neutral-600">Loading…</div>
-  if (error) return <div className="text-red-700">Failed to load: {error.message}</div>
-
-  const slot = data?.slots?.[0]
-  const articles = slot?.articles ?? []
+function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
   const hero = articles[0]
-
   if (!hero) {
-    return <div className="text-neutral-600">No stories yet. Run the seed script and refresh.</div>
+    return null
   }
 
   const left = [articles[1], articles[2], articles[3]].filter(Boolean)
@@ -98,7 +103,6 @@ export function Homepage(): JSX.Element {
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-      {/* Left column */}
       <aside className="lg:col-span-3">
         <div className="space-y-4">
           {left.map((a, idx) => (
@@ -114,7 +118,6 @@ export function Homepage(): JSX.Element {
         </div>
       </aside>
 
-      {/* Center column */}
       <section className="lg:col-span-6">
         <div className="border-b border-neutral-200 pb-5">
           <Link href={`/article/${encodeURIComponent(hero.slug)}`} className="group">
@@ -125,7 +128,13 @@ export function Homepage(): JSX.Element {
 
           <div className="mt-4 overflow-hidden rounded border border-neutral-200 bg-neutral-100">
             <div className="relative aspect-[16/9]">
-              <Image src={hero.thumbnailUrl ?? placeholderImageDataUri(hero.slug)} alt="" fill className="object-cover" unoptimized />
+              <Image
+                src={hero.thumbnailUrl ?? placeholderImageDataUri(hero.slug)}
+                alt=""
+                fill
+                className="object-cover"
+                unoptimized
+              />
             </div>
           </div>
 
@@ -137,16 +146,11 @@ export function Homepage(): JSX.Element {
           </p>
         </div>
 
-        {/* Sub-story strip */}
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
           {strip.map((a) => (
             <article key={a!.id} className="border-b border-neutral-200 pb-4 last:border-b-0 md:border-b-0 md:pb-0">
               <Link href={`/article/${encodeURIComponent(a!.slug)}`} className="group block">
-                <div className="overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-                  <div className="relative aspect-[16/10]">
-                    <Image src={placeholderImageDataUri(a!.slug)} alt="" fill className="object-cover" unoptimized />
-                  </div>
-                </div>
+                <HomepageStoryThumb article={a!} className="w-full" />
                 <p className="mt-3 text-[13px] font-extrabold leading-snug text-neutral-950 group-hover:text-[color:var(--brand-red)]">
                   {a!.title}
                 </p>
@@ -156,18 +160,14 @@ export function Homepage(): JSX.Element {
         </div>
       </section>
 
-      {/* Right column */}
       <aside className="lg:col-span-3">
         <div className="space-y-6">
           <RightPromo title="Headlines" subtitle="The big stories, fast." />
-
           <div className="space-y-4">
             {rightCards.map((a) => (
               <article key={a!.id} className="overflow-hidden rounded border border-neutral-200">
                 <Link href={`/article/${encodeURIComponent(a!.slug)}`} className="group block">
-                  <div className="relative aspect-[16/10] bg-neutral-100">
-                    <Image src={placeholderImageDataUri(a!.slug)} alt="" fill className="object-cover" unoptimized />
-                  </div>
+                  <HomepageStoryThumb article={a!} className="w-full border-0 rounded-none" />
                   <div className="p-4">
                     <p className="text-[13px] font-extrabold leading-snug text-neutral-950 group-hover:text-[color:var(--brand-red)]">
                       {a!.title}
@@ -183,3 +183,48 @@ export function Homepage(): JSX.Element {
   )
 }
 
+const HERO_POSITION_KEY = 'hero'
+
+/**
+ * Homepage: CNN-style lead hero plus one module per layout slot (US, World, Politics, …).
+ */
+export function Homepage(): JSX.Element {
+  const { data, loading, error } = useFeed()
+
+  if (loading) return <div className="text-neutral-600">Loading…</div>
+  if (error) return <div className="text-red-700">Failed to load: {error.message}</div>
+
+  const slots = data?.slots ?? []
+  if (slots.length === 0) {
+    return (
+      <div className="text-neutral-600">
+        No stories yet. Run <code className="text-sm">docker compose exec admin_app python seed_dev.py</code> and
+        refresh.
+      </div>
+    )
+  }
+
+  const heroSlot = slots.find((s) => s.positionKey === HERO_POSITION_KEY) ?? slots[0]
+  const moreTopStoriesSlot = slots.find((s) => s.positionKey === MORE_TOP_STORIES_KEY)
+  const midtermSlot = slots.find((s) => s.positionKey === MIDTERM_ELECTIONS_KEY)
+  const editorialRailSlot = slots.find((s) => s.positionKey === EDITORIAL_RAIL_KEY)
+  const sectionSlots = slots.filter(
+    (s) => s.id !== heroSlot.id && !EDITORIAL_BAND_SLOT_KEYS.has(s.positionKey.trim().toLowerCase()),
+  )
+
+  return (
+    <div className="space-y-2">
+      <HeroBlock articles={heroSlot.articles} />
+      {moreTopStoriesSlot && midtermSlot ? (
+        <HomepageEditorialBand
+          moreTopStoriesSlot={moreTopStoriesSlot}
+          spotlightSlot={midtermSlot}
+          rightRailSlot={editorialRailSlot}
+        />
+      ) : null}
+      {sectionSlots.map((slot) => (
+        <HomepageSection key={slot.id} slot={slot} />
+      ))}
+    </div>
+  )
+}

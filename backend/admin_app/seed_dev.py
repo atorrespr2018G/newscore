@@ -3,9 +3,9 @@
 This script is designed to be idempotent and safe to re-run. It creates:
 
 - An initial admin user (email/password from env or defaults)
-- One category
-- A handful of published articles
-- A homepage layout + a pinned slot pointing at the published articles
+- CNN-style categories (US, World, Politics, …)
+- Published articles per category
+- A homepage layout with hero + section slots (like cnn.com modules)
 - A breaking-news widget payload
 
 Run inside Docker:
@@ -37,6 +37,85 @@ ARTICLES_COLLECTION = "articles"
 LAYOUTS_COLLECTION = "layouts"
 SLOTS_COLLECTION = "slots"
 WIDGETS_COLLECTION = "widgets"
+
+# Categories aligned with masthead / CNN.com section nav.
+CNN_CATEGORIES: list[dict[str, str]] = [
+    {"name": "US", "slug": "us", "description": "United States news and politics."},
+    {"name": "World", "slug": "world", "description": "Global headlines and analysis."},
+    {"name": "Politics", "slug": "politics", "description": "Policy, elections, and government."},
+    {"name": "Business", "slug": "business", "description": "Markets, companies, and the economy."},
+    {"name": "Health", "slug": "health", "description": "Wellness, medicine, and public health."},
+    {"name": "Entertainment", "slug": "entertainment", "description": "Culture, TV, film, and celebrity."},
+    {"name": "Style", "slug": "style", "description": "Fashion, design, and living."},
+    {"name": "Travel", "slug": "travel", "description": "Destinations, tips, and aviation."},
+    {"name": "Sports", "slug": "sports", "description": "Scores, leagues, and athletes."},
+]
+
+# Demo headlines per category slug.
+CNN_ARTICLE_TITLES: dict[str, list[str]] = {
+    "us": [
+        "Congress faces deadline on budget standoff",
+        "Major cities roll out new transit safety plans",
+        "Supreme Court to hear landmark digital privacy case",
+    ],
+    "world": [
+        "Markets rally as inflation cools",
+        "New satellite images reveal rapid glacier retreat",
+        "Storm system causes major travel disruptions",
+    ],
+    "politics": [
+        "Election season begins with tight early polling",
+        "White House outlines new foreign policy framework",
+        "Campaign finance filings show record fundraising",
+    ],
+    "business": [
+        "Tech leaders announce open safety framework",
+        "Central bank signals cautious rate path ahead",
+        "Retail giants report mixed quarterly earnings",
+    ],
+    "health": [
+        "Study links screen time to sleep disruption in teens",
+        "FDA panel reviews next-generation vaccine candidates",
+        "Hospitals expand mental health access programs",
+    ],
+    "entertainment": [
+        "Streaming platform greenlights high-profile drama series",
+        "Award show ratings rebound with live format",
+        "Studio merger reshapes summer release calendar",
+    ],
+    "style": [
+        "Design week spotlights sustainable materials",
+        "Luxury brands lean into quiet luxury trend",
+        "Home editors share small-space makeover ideas",
+    ],
+    "travel": [
+        "Airlines add routes as international demand surges",
+        "National parks set new visitor capacity rules",
+        "Cruise industry unveils carbon-reduction targets",
+    ],
+    "sports": [
+        "Championship race goes to final lap thriller",
+        "Star player signs record-breaking extension",
+        "Olympic committee confirms venue shortlist",
+    ],
+}
+
+# Homepage slots: hero (pinned) + CNN-style section modules below.
+HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
+    {"position_key": "hero", "order_index": 0, "pinned": True, "limit": 6},
+    {"position_key": "more-top-stories", "order_index": 1, "limit": 7},
+    {"position_key": "midterm-elections", "order_index": 2, "category_slug": "politics", "limit": 4},
+    {"position_key": "editorial-rail", "order_index": 3, "limit": 4},
+    {"position_key": "politics", "order_index": 4, "category_slug": "politics", "limit": 4},
+    {"position_key": "world", "order_index": 5, "category_slug": "world", "limit": 4},
+    {"position_key": "us", "order_index": 6, "category_slug": "us", "limit": 4},
+    {"position_key": "business", "order_index": 7, "category_slug": "business", "limit": 4},
+    {"position_key": "health", "order_index": 8, "category_slug": "health", "limit": 4},
+    {"position_key": "entertainment", "order_index": 9, "category_slug": "entertainment", "limit": 4},
+    {"position_key": "style", "order_index": 10, "category_slug": "style", "limit": 4},
+    {"position_key": "travel", "order_index": 11, "category_slug": "travel", "limit": 4},
+    {"position_key": "sports", "order_index": 12, "category_slug": "sports", "limit": 4},
+]
 
 
 def _utc_now_iso() -> str:
@@ -92,56 +171,62 @@ async def _get_or_create_admin(db: AsyncIOMotorDatabase) -> dict[str, Any]:
     return doc
 
 
-async def _get_or_create_category(db: AsyncIOMotorDatabase) -> dict[str, Any]:
-    slug = "world"
-    existing = await db[CATEGORIES_COLLECTION].find_one({"slug": slug})
-    if existing is not None:
-        return existing
+async def _ensure_categories(db: AsyncIOMotorDatabase) -> dict[str, str]:
+    """Ensure CNN-style categories exist; return slug -> category_id map."""
 
-    category_id = str(uuid4())
-    doc = {
-        "_id": category_id,
-        "name": "World",
-        "slug": slug,
-        "parent_id": None,
-        "description": "Global headlines and analysis.",
-        "created_at": _utc_now_iso(),
-    }
-    await db[CATEGORIES_COLLECTION].insert_one(doc)
-    logger.info("Created category: %s", slug)
-    return doc
-
-
-async def _ensure_published_articles(
-    db: AsyncIOMotorDatabase, *, author_id: str, category_id: str
-) -> list[str]:
-    titles = [
-        "Markets rally as inflation cools",
-        "New satellite images reveal rapid glacier retreat",
-        "Election season begins with tight early polling",
-        "Tech leaders announce open safety framework",
-        "Storm system causes major travel disruptions",
-    ]
-
-    published_ids: list[str] = []
-    for t in titles:
-        existing = await db[ARTICLES_COLLECTION].find_one({"title": t})
+    slug_to_id: dict[str, str] = {}
+    for cat in CNN_CATEGORIES:
+        existing = await db[CATEGORIES_COLLECTION].find_one({"slug": cat["slug"]})
         if existing is not None:
-            published_ids.append(str(existing["_id"]))
+            slug_to_id[cat["slug"]] = str(existing["_id"])
+            continue
+
+        category_id = str(uuid4())
+        doc = {
+            "_id": category_id,
+            "name": cat["name"],
+            "slug": cat["slug"],
+            "parent_id": None,
+            "description": cat["description"],
+            "created_at": _utc_now_iso(),
+        }
+        await db[CATEGORIES_COLLECTION].insert_one(doc)
+        slug_to_id[cat["slug"]] = category_id
+        logger.info("Created category: %s", cat["slug"])
+
+    return slug_to_id
+
+
+async def _ensure_category_articles(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    category_slug: str,
+    category_id: str,
+) -> list[str]:
+    """Create demo articles for one category; return article ids."""
+
+    titles = CNN_ARTICLE_TITLES.get(category_slug, [])
+    article_ids: list[str] = []
+
+    for title in titles:
+        existing = await db[ARTICLES_COLLECTION].find_one({"title": title})
+        if existing is not None:
+            article_ids.append(str(existing["_id"]))
             continue
 
         article_id = str(uuid4())
         now = _utc_now_iso()
-        slug = f"seed-{article_id[:8]}"
+        slug = f"{category_slug}-{article_id[:8]}"
         doc = {
             "_id": article_id,
-            "title": t,
+            "title": title,
             "slug": slug,
-            "body": f"{t}\n\nThis is seeded demo content. Replace it with real reporting.",
+            "body": f"{title}\n\nSeeded demo content for the {category_slug} section.",
             "status": "published",
             "author_id": author_id,
             "category_id": category_id,
-            "tags": ["seed", "demo"],
+            "tags": ["seed", "demo", category_slug],
             "thumbnail_url": None,
             "media_ids": [],
             "view_count": 0,
@@ -150,13 +235,102 @@ async def _ensure_published_articles(
             "updated_at": now,
         }
         await db[ARTICLES_COLLECTION].insert_one(doc)
-        published_ids.append(article_id)
+        article_ids.append(article_id)
 
-    logger.info("Ensured %d published articles", len(published_ids))
-    return published_ids
+    return article_ids
 
 
-async def _ensure_homepage_layout_and_slot(db: AsyncIOMotorDatabase, *, pinned_article_ids: list[str]) -> None:
+async def _ensure_all_articles(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    slug_to_category_id: dict[str, str],
+) -> list[str]:
+    """Seed articles for every category; return all article ids."""
+
+    all_ids: list[str] = []
+    for slug, category_id in slug_to_category_id.items():
+        ids = await _ensure_category_articles(
+            db,
+            author_id=author_id,
+            category_slug=slug,
+            category_id=category_id,
+        )
+        all_ids.extend(ids)
+
+    logger.info("Ensured %d published articles across %d categories", len(all_ids), len(slug_to_category_id))
+    return all_ids
+
+
+async def _upsert_slot(
+    db: AsyncIOMotorDatabase,
+    *,
+    layout_id: str,
+    spec: dict[str, Any],
+    pinned_article_ids: list[str],
+    now: str,
+) -> str:
+    """Create or update one homepage slot from a spec dict."""
+
+    position_key = str(spec["position_key"])
+    slot = await db[SLOTS_COLLECTION].find_one({"layout_id": layout_id, "position_key": position_key})
+
+    query_rule: dict[str, Any] | None = None
+    pinned_ids: list[str] = []
+
+    if spec.get("pinned"):
+        pinned_ids = pinned_article_ids[: int(spec.get("limit") or 6)]
+    elif spec.get("category_slug"):
+        query_rule = {
+            "category_id": spec["category_id"],
+            "limit": int(spec.get("limit") or 4),
+        }
+    else:
+        query_rule = {"limit": int(spec.get("limit") or 4)}
+
+    if slot is None:
+        slot_id = str(uuid4())
+        doc = {
+            "_id": slot_id,
+            "layout_id": layout_id,
+            "position_key": position_key,
+            "content_type": "articles",
+            "pinned_ids": pinned_ids,
+            "query_rule": query_rule,
+            "order_index": int(spec["order_index"]),
+            "updated_at": now,
+        }
+        await db[SLOTS_COLLECTION].insert_one(doc)
+        await db[LAYOUTS_COLLECTION].update_one(
+            {"_id": layout_id},
+            {"$addToSet": {"slot_ids": slot_id}, "$set": {"is_active": True, "updated_at": now}},
+        )
+        logger.info("Created homepage slot: %s", position_key)
+        return slot_id
+
+    await db[SLOTS_COLLECTION].update_one(
+        {"_id": slot["_id"]},
+        {
+            "$set": {
+                "pinned_ids": pinned_ids,
+                "query_rule": query_rule,
+                "order_index": int(spec["order_index"]),
+                "updated_at": now,
+            }
+        },
+    )
+    logger.info("Updated homepage slot: %s", position_key)
+    return str(slot["_id"])
+
+
+async def _ensure_homepage_layout_and_slots(
+    db: AsyncIOMotorDatabase,
+    *,
+    slug_to_category_id: dict[str, str],
+    pinned_article_ids: list[str],
+) -> None:
+    """Ensure homepage layout with hero + CNN-style section slots."""
+
     layout = await db[LAYOUTS_COLLECTION].find_one({"page_name": "homepage"})
     now = _utc_now_iso()
 
@@ -166,35 +340,28 @@ async def _ensure_homepage_layout_and_slot(db: AsyncIOMotorDatabase, *, pinned_a
         await db[LAYOUTS_COLLECTION].insert_one(layout)
         logger.info("Created homepage layout")
 
-    # Find or create a hero slot
-    slot = await db[SLOTS_COLLECTION].find_one({"layout_id": str(layout["_id"]), "position_key": "hero"})
-    if slot is None:
-        slot_id = str(uuid4())
-        slot = {
-            "_id": slot_id,
-            "layout_id": str(layout["_id"]),
-            "position_key": "hero",
-            "content_type": "articles",
-            "pinned_ids": pinned_article_ids[:6],
-            "query_rule": None,
-            "order_index": 0,
-            "updated_at": now,
-        }
-        await db[SLOTS_COLLECTION].insert_one(slot)
-        await db[LAYOUTS_COLLECTION].update_one(
-            {"_id": layout["_id"]},
-            {"$addToSet": {"slot_ids": slot_id}, "$set": {"is_active": True, "updated_at": now}},
-        )
-        logger.info("Created homepage hero slot with pinned articles")
-        return
+    layout_id = str(layout["_id"])
+    slot_ids: list[str] = []
 
-    # Update existing slot to pin the current seeded articles
-    await db[SLOTS_COLLECTION].update_one(
-        {"_id": slot["_id"]},
-        {"$set": {"pinned_ids": pinned_article_ids[:6], "updated_at": now}},
+    for spec in HOMEPAGE_SLOT_SPECS:
+        entry = dict(spec)
+        category_slug = entry.pop("category_slug", None)
+        if category_slug:
+            entry["category_id"] = slug_to_category_id[category_slug]
+        slot_id = await _upsert_slot(
+            db,
+            layout_id=layout_id,
+            spec=entry,
+            pinned_article_ids=pinned_article_ids,
+            now=now,
+        )
+        slot_ids.append(slot_id)
+
+    await db[LAYOUTS_COLLECTION].update_one(
+        {"_id": layout_id},
+        {"$set": {"slot_ids": slot_ids, "is_active": True, "updated_at": now}},
     )
-    await db[LAYOUTS_COLLECTION].update_one({"_id": layout["_id"]}, {"$set": {"is_active": True, "updated_at": now}})
-    logger.info("Updated homepage hero slot pinned articles")
+    logger.info("Homepage layout has %d slots", len(slot_ids))
 
 
 async def _invalidate_homepage_feed_cache() -> None:
@@ -219,6 +386,7 @@ async def _ensure_breaking_widget(db: AsyncIOMotorDatabase) -> None:
         "items": [
             {"text": "Seeded: Breaking — major story developing", "severity": "high"},
             {"text": "Seeded: Update — details coming in", "severity": "medium"},
+            {"text": "Seeded: Politics — key vote expected tonight", "severity": "medium"},
         ]
     }
     doc = {"_id": "breaking", "payload": payload, "updated_at": _utc_now_iso()}
@@ -235,10 +403,18 @@ async def seed_dev() -> None:
         await _ensure_indexes(db)
 
         admin = await _get_or_create_admin(db)
-        category = await _get_or_create_category(db)
-        pinned_ids = await _ensure_published_articles(db, author_id=str(admin["_id"]), category_id=str(category["_id"]))
+        slug_to_id = await _ensure_categories(db)
+        all_article_ids = await _ensure_all_articles(
+            db,
+            author_id=str(admin["_id"]),
+            slug_to_category_id=slug_to_id,
+        )
 
-        await _ensure_homepage_layout_and_slot(db, pinned_article_ids=pinned_ids)
+        await _ensure_homepage_layout_and_slots(
+            db,
+            slug_to_category_id=slug_to_id,
+            pinned_article_ids=all_article_ids,
+        )
         await _ensure_breaking_widget(db)
 
         await _invalidate_homepage_feed_cache()
@@ -250,4 +426,3 @@ if __name__ == "__main__":
     import asyncio
 
     asyncio.run(seed_dev())
-

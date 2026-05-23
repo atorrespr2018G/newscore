@@ -1,4 +1,18 @@
 import Link from 'next/link'
+import { sectionAnchorId } from '@/lib/helpers/section-labels'
+
+/** Masthead nav entries aligned with CNN.com section modules. */
+const MASTHEAD_SECTIONS: Array<{ label: string; positionKey: string }> = [
+  { label: 'US', positionKey: 'us' },
+  { label: 'World', positionKey: 'world' },
+  { label: 'Politics', positionKey: 'politics' },
+  { label: 'Business', positionKey: 'business' },
+  { label: 'Health', positionKey: 'health' },
+  { label: 'Entertainment', positionKey: 'entertainment' },
+  { label: 'Style', positionKey: 'style' },
+  { label: 'Travel', positionKey: 'travel' },
+  { label: 'Sports', positionKey: 'sports' },
+]
 
 interface IMastheadProps {
   activeSection?: string
@@ -8,8 +22,6 @@ interface IMastheadProps {
  * Newsroom-style masthead with brand + section nav.
  */
 export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
-  const sections = ['US', 'World', 'Politics', 'Business', 'Health', 'Entertainment', 'Style', 'Travel', 'Sports', 'More']
-
   return (
     <header className="border-b border-neutral-200">
       <div className="bg-white">
@@ -21,21 +33,27 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
           </Link>
 
           <nav className="hidden flex-1 items-center gap-4 md:flex">
-            {sections.map((s) => {
-              const isActive = activeSection?.toLowerCase() === s.toLowerCase()
+            {MASTHEAD_SECTIONS.map((s) => {
+              const isActive = activeSection?.toLowerCase() === s.positionKey.toLowerCase()
               return (
                 <Link
-                  key={s}
-                  href="/"
+                  key={s.positionKey}
+                  href={`/#${sectionAnchorId(s.positionKey)}`}
                   className={[
                     'text-[13px] font-semibold text-neutral-800 hover:text-neutral-950',
                     isActive ? 'underline decoration-[color:var(--brand-red)] decoration-2 underline-offset-8' : '',
                   ].join(' ')}
                 >
-                  {s}
+                  {s.label}
                 </Link>
               )
             })}
+            <Link
+              href="/#section-more-top-stories"
+              className="text-[13px] font-semibold text-neutral-800 hover:text-neutral-950"
+            >
+              More
+            </Link>
           </nav>
 
           <div className="ml-auto flex items-center gap-3">

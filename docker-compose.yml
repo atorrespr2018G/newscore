@@ -27,6 +27,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/shared:/shared
+      - ./backend/admin_app:/app
       - ./media:/media
 
   news_storage_app:
