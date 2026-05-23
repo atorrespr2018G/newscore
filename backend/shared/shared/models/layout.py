@@ -19,6 +19,8 @@ class Slot(BaseModel):
     layout_id: str
     position_key: str
     content_type: SlotContentType = "articles"
+    display_name: str | None = None
+    presentation_type: str = "grid_4"
     pinned_ids: list[str] = []
     query_rule: dict | None = None
     order_index: int = 0
@@ -35,6 +37,7 @@ class Layout(BaseModel):
 
     id: str = Field(..., alias="_id")
     page_name: str
+    market_id: str | None = None
     slot_ids: list[str] = []
     is_active: bool = True
     updated_at: str = Field(default_factory=lambda: utc_now().isoformat())

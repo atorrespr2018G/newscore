@@ -9,14 +9,6 @@ import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { sectionAnchorId, sectionLabel } from '@/lib/helpers/section-labels'
 
 export const MORE_TOP_STORIES_KEY = 'more-top-stories'
-export const MIDTERM_ELECTIONS_KEY = 'midterm-elections'
-export const EDITORIAL_RAIL_KEY = 'editorial-rail'
-
-export const EDITORIAL_BAND_SLOT_KEYS = new Set([
-  MORE_TOP_STORIES_KEY,
-  MIDTERM_ELECTIONS_KEY,
-  EDITORIAL_RAIL_KEY,
-])
 
 interface IHomepageEditorialBandProps {
   moreTopStoriesSlot: IFeedSlot
@@ -47,7 +39,7 @@ export function HomepageEditorialBand({
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-8">
         {moreArticles.length > 0 ? (
           <EditorialColumn
-            title={sectionLabel(moreTopStoriesSlot.positionKey)}
+            title={moreTopStoriesSlot.displayName ?? sectionLabel(moreTopStoriesSlot.positionKey)}
             articles={moreArticles}
             leadImageCount={3}
           />
@@ -55,7 +47,7 @@ export function HomepageEditorialBand({
 
         {spotlightArticles.length > 0 ? (
           <EditorialColumn
-            title={sectionLabel(spotlightSlot.positionKey)}
+            title={spotlightSlot.displayName ?? sectionLabel(spotlightSlot.positionKey)}
             articles={spotlightArticles}
             leadImageCount={1}
           />
@@ -102,12 +94,12 @@ function EditorialColumn({ title, articles, leadImageCount }: IEditorialColumnPr
 
 function CompactSideStory({ article }: { article: IArticle }): JSX.Element {
   return (
-    <article className="overflow-hidden rounded border border-neutral-200">
+    <article>
       <Link
         href={`/article/${encodeURIComponent(article.slug)}`}
         className="group grid grid-cols-[112px_1fr] items-stretch gap-3"
       >
-        <HomepageStoryThumb article={article} className="shrink-0 rounded-none border-0" />
+        <HomepageStoryThumb article={article} className="shrink-0 border-0" />
         <div className="flex min-w-0 items-center py-3 pr-3">
           <p className="text-[13px] font-extrabold leading-snug text-neutral-950 group-hover:text-[color:var(--brand-red)]">
             {article.title}
@@ -141,12 +133,15 @@ function VerticalImageStory({ article }: { article: IArticle }): JSX.Element {
   )
 }
 
-function HeadlineListItem({ article }: { article: IArticle }): JSX.Element {
+function HeadlineListItem({ article, compact = false }: { article: IArticle; compact?: boolean }): JSX.Element {
   return (
     <li>
       <Link
         href={`/article/${encodeURIComponent(article.slug)}`}
-        className="block py-3 text-[14px] font-extrabold leading-snug text-neutral-950 hover:text-[color:var(--brand-red)]"
+        className={[
+          'block text-[14px] font-extrabold leading-snug text-neutral-950 hover:text-[color:var(--brand-red)]',
+          compact ? '' : 'py-3',
+        ].join(' ')}
       >
         {article.title}
       </Link>
@@ -176,9 +171,9 @@ function RightRailColumn({ articles }: { articles: IArticle[] }): JSX.Element {
       ) : null}
 
       {headlines.length > 0 ? (
-        <ul className="mt-4 divide-y divide-neutral-200">
+        <ul className="mt-4 space-y-3">
           {headlines.map((article) => (
-            <HeadlineListItem key={article.id} article={article} />
+            <HeadlineListItem key={article.id} article={article} compact />
           ))}
         </ul>
       ) : null}

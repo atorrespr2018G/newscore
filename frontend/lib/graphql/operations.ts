@@ -1,13 +1,15 @@
 import { gql } from '@apollo/client'
 
 export const HOMEPAGE_FEED_QUERY = gql`
-  query HomepageFeed {
-    homepageFeed {
+  query HomepageFeed($market: String!, $town: String) {
+    homepageFeed(market: $market, town: $town) {
       layoutId
       pageName
       slots {
         id
         positionKey
+        displayName
+        presentationType
         contentType
         articles {
           id
@@ -25,8 +27,8 @@ export const HOMEPAGE_FEED_QUERY = gql`
 `
 
 export const ARTICLE_BY_SLUG_QUERY = gql`
-  query ArticleBySlug($slug: String!) {
-    articleBySlug(slug: $slug) {
+  query ArticleBySlug($slug: String!, $market: String!) {
+    articleBySlug(slug: $slug, market: $market) {
       id
       slug
       title
@@ -45,7 +47,7 @@ export const ARTICLE_BY_SLUG_QUERY = gql`
 `
 
 export const BREAKING_NEWS_QUERY = gql`
-  query BreakingNews {
-    breakingNews
+  query BreakingNews($market: String!) {
+    breakingNews(market: $market)
   }
 `

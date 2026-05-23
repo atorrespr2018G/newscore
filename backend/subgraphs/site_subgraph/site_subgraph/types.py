@@ -10,9 +10,10 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from shared.core.cache import get_json, set_json
+from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.read import site_reads
 
-from site_subgraph.constants import HOMEPAGE_FEED_CACHE_KEY, HOMEPAGE_FEED_TTL_SECONDS
+from site_subgraph.constants import HOMEPAGE_FEED_TTL_SECONDS, homepage_feed_cache_key
 from site_subgraph.context import SiteContext
 
 
@@ -29,6 +30,8 @@ class HomepageSlot:
 
     id: strawberry.ID
     position_key: str
+    display_name: str | None
+    presentation_type: str
     content_type: str
     articles: list[Article]
 
@@ -52,6 +55,8 @@ def _feed_from_cache(raw: dict[str, Any]) -> HomepageFeed:
             HomepageSlot(
                 id=strawberry.ID(slot["id"]),
                 position_key=str(slot.get("position_key") or ""),
+                display_name=slot.get("display_name"),
+                presentation_type=str(slot.get("presentation_type") or "grid_4"),
                 content_type=str(slot.get("content_type") or ""),
                 articles=articles,
             )
@@ -69,22 +74,32 @@ class SiteQuery:
     """Root query for the site subgraph."""
 
     @strawberry.field
-    async def homepage_feed(self, info: Info[SiteContext]) -> HomepageFeed:
-        """Return the homepage feed (Redis-cached)."""
+    async def homepage_feed(
+        self,
+        info: Info[SiteContext],
+        market: str = DEFAULT_MARKET_CODE,
+        town: str | None = None,
+    ) -> HomepageFeed:
+        """Return the homepage feed for a market (Redis-cached)."""
 
-        cached = await get_json(HOMEPAGE_FEED_CACHE_KEY)
+        cache_key = homepage_feed_cache_key(market, town)
+        cached = await get_json(cache_key)
         if cached is not None:
             return _feed_from_cache(cached)
 
-        raw = await site_reads.get_home_feed(info.context.db)
-        await set_json(key=HOMEPAGE_FEED_CACHE_KEY, value=raw, ttl_seconds=HOMEPAGE_FEED_TTL_SECONDS)
+        raw = await site_reads.get_home_feed(info.context.db, market_code=market, town=town)
+        await set_json(key=cache_key, value=raw, ttl_seconds=HOMEPAGE_FEED_TTL_SECONDS)
         return _feed_from_cache(raw)
 
     @strawberry.field
-    async def breaking_news(self, info: Info[SiteContext]) -> JSON | None:
-        """Return breaking news widget payload."""
+    async def breaking_news(
+        self,
+        info: Info[SiteContext],
+        market: str = DEFAULT_MARKET_CODE,
+    ) -> JSON | None:
+        """Return breaking news widget payload for a market."""
 
-        payload = await site_reads.get_breaking(info.context.db)
+        payload = await site_reads.get_breaking(info.context.db, market_code=market)
         if payload is None:
             return None
         return json.loads(json.dumps(payload))

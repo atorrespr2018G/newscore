@@ -60,6 +60,8 @@ export function mapHomepageFeed(data: {
     slots: Array<{
       id: string
       positionKey: string
+      displayName: string | null
+      presentationType: string
       contentType: string
       articles: IGraphqlArticle[]
     }>
@@ -72,6 +74,8 @@ export function mapHomepageFeed(data: {
     slots: feed.slots.map((slot) => ({
       id: slot.id,
       positionKey: slot.positionKey,
+      displayName: slot.displayName,
+      presentationType: slot.presentationType,
       contentType: slot.contentType,
       articles: slot.articles.map(mapArticle),
     })),

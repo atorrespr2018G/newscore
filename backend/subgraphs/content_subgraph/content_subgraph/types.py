@@ -7,8 +7,9 @@ from strawberry.types import Info
 
 from content_subgraph.context import ContentContext
 from shared.core.exceptions import NotFoundError
+from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.core.pagination import PaginationParams
-from shared.read import article_reads
+from shared.read import article_reads, market_reads
 from shared.schemas.article_schemas import ArticleDetailOut, ArticleOut
 
 
@@ -104,20 +105,44 @@ class ContentQuery:
     """Root query for the content subgraph."""
 
     @strawberry.field
-    async def article_by_slug(self, info: Info[ContentContext], slug: str) -> Article | None:
-        """Load a published article by slug."""
+    async def article_by_slug(
+        self,
+        info: Info[ContentContext],
+        slug: str,
+        market: str = DEFAULT_MARKET_CODE,
+    ) -> Article | None:
+        """Load a published article by slug for a market."""
 
+        market_doc = await market_reads.get_market_by_code(info.context.db, market)
+        market_id = str(market_doc["_id"]) if market_doc else None
         try:
-            detail = await article_reads.get_article_by_slug(info.context.db, slug=slug, loader=info.context.authors)
+            detail = await article_reads.get_article_by_slug(
+                info.context.db,
+                slug=slug,
+                market_id=market_id,
+                loader=info.context.authors,
+            )
         except NotFoundError:
             return None
         return article_from_detail(detail)
 
     @strawberry.field
-    async def search_articles(self, info: Info[ContentContext], q: str) -> list[Article]:
-        """Search published articles."""
+    async def search_articles(
+        self,
+        info: Info[ContentContext],
+        q: str,
+        market: str = DEFAULT_MARKET_CODE,
+    ) -> list[Article]:
+        """Search published articles for a market."""
 
-        items = await article_reads.search_published(info.context.db, query=q, loader=info.context.authors)
+        market_doc = await market_reads.get_market_by_code(info.context.db, market)
+        market_id = str(market_doc["_id"]) if market_doc else None
+        items = await article_reads.search_published(
+            info.context.db,
+            query=q,
+            market_id=market_id,
+            loader=info.context.authors,
+        )
         return [article_from_out(i) for i in items]
 
     @strawberry.field
@@ -127,13 +152,17 @@ class ContentQuery:
         slug: str,
         page: int,
         page_size: int,
+        market: str = DEFAULT_MARKET_CODE,
     ) -> ArticleConnection:
-        """List published articles for a category."""
+        """List published articles for a category in a market."""
 
+        market_doc = await market_reads.get_market_by_code(info.context.db, market)
+        market_id = str(market_doc["_id"]) if market_doc else None
         result = await article_reads.list_category_articles(
             info.context.db,
             category_slug=slug,
             params=PaginationParams(page=page, page_size=page_size),
+            market_id=market_id,
             loader=info.context.authors,
         )
         items = [article_from_out(ArticleOut(**raw)) for raw in result.items]

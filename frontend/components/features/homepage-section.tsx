@@ -20,7 +20,7 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
     return null
   }
 
-  const title = sectionLabel(slot.positionKey)
+  const title = slot.displayName ?? sectionLabel(slot.positionKey)
   const anchorId = sectionAnchorId(slot.positionKey)
 
   return (

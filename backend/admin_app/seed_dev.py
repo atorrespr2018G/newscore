@@ -1,12 +1,6 @@
 """Seed development data for NewsCore.
 
-This script is designed to be idempotent and safe to re-run. It creates:
-
-- An initial admin user (email/password from env or defaults)
-- CNN-style categories (US, World, Politics, …)
-- Published articles per category
-- A homepage layout with hero + section slots (like cnn.com modules)
-- A breaking-news widget payload
+Creates admin user, categories, per-market articles, layouts, slots, and breaking widgets.
 
 Run inside Docker:
     docker compose exec admin_app python seed_dev.py
@@ -14,8 +8,8 @@ Run inside Docker:
 
 from __future__ import annotations
 
-import os
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -25,20 +19,17 @@ from redis.asyncio import Redis
 
 from admin_app.helpers.password_helpers import hash_password
 
-# Must match site_subgraph.constants.HOMEPAGE_FEED_CACHE_KEY
-HOMEPAGE_FEED_CACHE_KEY = "graphql:homepageFeed"
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 USERS_COLLECTION = "users"
 CATEGORIES_COLLECTION = "categories"
+MARKETS_COLLECTION = "markets"
 ARTICLES_COLLECTION = "articles"
 LAYOUTS_COLLECTION = "layouts"
 SLOTS_COLLECTION = "slots"
 WIDGETS_COLLECTION = "widgets"
 
-# Categories aligned with masthead / CNN.com section nav.
 CNN_CATEGORIES: list[dict[str, str]] = [
     {"name": "US", "slug": "us", "description": "United States news and politics."},
     {"name": "World", "slug": "world", "description": "Global headlines and analysis."},
@@ -51,8 +42,7 @@ CNN_CATEGORIES: list[dict[str, str]] = [
     {"name": "Sports", "slug": "sports", "description": "Scores, leagues, and athletes."},
 ]
 
-# Demo headlines per category slug.
-CNN_ARTICLE_TITLES: dict[str, list[str]] = {
+US_ARTICLE_TITLES: dict[str, list[str]] = {
     "us": [
         "Congress faces deadline on budget standoff",
         "Major cities roll out new transit safety plans",
@@ -100,21 +90,199 @@ CNN_ARTICLE_TITLES: dict[str, list[str]] = {
     ],
 }
 
-# Homepage slots: hero (pinned) + CNN-style section modules below.
+CO_ARTICLE_TITLES: dict[str, list[str]] = {
+    "us": [
+        "Congreso define plazo para debate de presupuesto nacional",
+        "Ciudades principales refuerzan seguridad en transporte público",
+        "Corte Constitucional revisará caso de privacidad digital",
+    ],
+    "world": [
+        "Mercados suben tras datos de inflación moderada",
+        "Imágenes satelitales muestran retroceso acelerado de glaciares",
+        "Tormenta tropical afecta vuelos en la región",
+    ],
+    "politics": [
+        "Arranca temporada electoral con encuestas reñidas",
+        "Gobierno presenta nuevo marco de política exterior",
+        "Financiación de campañas alcanza récord histórico",
+    ],
+    "business": [
+        "Empresas tech anuncian marco abierto de seguridad",
+        "Banco central mantiene ruta cautelosa de tasas",
+        "Retail reporta resultados trimestrales mixtos",
+    ],
+    "health": [
+        "Estudio vincula pantallas con alteraciones del sueño",
+        "Panel regulatorio evalúa nuevas vacunas",
+        "Hospitales amplían acceso a salud mental",
+    ],
+    "entertainment": [
+        "Plataforma de streaming aprueba nueva serie dramática",
+        "Premios recuperan audiencia con formato en vivo",
+        "Fusión de estudios cambia calendario de estrenos",
+    ],
+    "style": [
+        "Semana de diseño destaca materiales sostenibles",
+        "Marcas de lujo apuestan por estética sobria",
+        "Ideas de decoración para espacios pequeños",
+    ],
+    "travel": [
+        "Aerolíneas suman rutas por demanda internacional",
+        "Parques nacionales ajustan cupos de visitantes",
+        "Industria de cruceros fija metas de reducción de carbono",
+    ],
+    "sports": [
+        "Final de campeonato se define en última vuelta",
+        "Estrella del deporte firma extensión récord",
+        "Comité olímpico confirma sedes preseleccionadas",
+    ],
+}
+
 HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
-    {"position_key": "hero", "order_index": 0, "pinned": True, "limit": 6},
-    {"position_key": "more-top-stories", "order_index": 1, "limit": 7},
-    {"position_key": "midterm-elections", "order_index": 2, "category_slug": "politics", "limit": 4},
-    {"position_key": "editorial-rail", "order_index": 3, "limit": 4},
-    {"position_key": "politics", "order_index": 4, "category_slug": "politics", "limit": 4},
-    {"position_key": "world", "order_index": 5, "category_slug": "world", "limit": 4},
-    {"position_key": "us", "order_index": 6, "category_slug": "us", "limit": 4},
-    {"position_key": "business", "order_index": 7, "category_slug": "business", "limit": 4},
-    {"position_key": "health", "order_index": 8, "category_slug": "health", "limit": 4},
-    {"position_key": "entertainment", "order_index": 9, "category_slug": "entertainment", "limit": 4},
-    {"position_key": "style", "order_index": 10, "category_slug": "style", "limit": 4},
-    {"position_key": "travel", "order_index": 11, "category_slug": "travel", "limit": 4},
-    {"position_key": "sports", "order_index": 12, "category_slug": "sports", "limit": 4},
+    {
+        "position_key": "hero",
+        "order_index": 0,
+        "pinned": True,
+        "limit": 6,
+        "presentation_type": "hero",
+        "display_name_us": "Top Stories",
+        "display_name_co": "Titulares",
+    },
+    {
+        "position_key": "more-top-stories",
+        "order_index": 1,
+        "limit": 7,
+        "presentation_type": "editorial_lead",
+        "display_name_us": "More Top Stories",
+        "display_name_co": "Más titulares",
+    },
+    {
+        "position_key": "midterm-elections",
+        "order_index": 2,
+        "category_slug": "politics",
+        "limit": 4,
+        "presentation_type": "editorial_spotlight",
+        "display_name_us": "Midterm elections",
+        "display_name_co": "Elecciones",
+    },
+    {
+        "position_key": "editorial-rail",
+        "order_index": 3,
+        "limit": 4,
+        "presentation_type": "rail_compact",
+        "display_name_us": "Featured",
+        "display_name_co": "Destacados",
+    },
+    {
+        "position_key": "politics",
+        "order_index": 4,
+        "category_slug": "politics",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "Politics",
+        "display_name_co": "Política",
+    },
+    {
+        "position_key": "world",
+        "order_index": 5,
+        "category_slug": "world",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "World",
+        "display_name_co": "Mundo",
+    },
+    {
+        "position_key": "us",
+        "order_index": 6,
+        "category_slug": "us",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "US",
+        "display_name_co": "Colombia",
+    },
+    {
+        "position_key": "business",
+        "order_index": 7,
+        "category_slug": "business",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "Business",
+        "display_name_co": "Negocios",
+    },
+    {
+        "position_key": "health",
+        "order_index": 8,
+        "category_slug": "health",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "Health",
+        "display_name_co": "Salud",
+    },
+    {
+        "position_key": "entertainment",
+        "order_index": 9,
+        "category_slug": "entertainment",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "Entertainment",
+        "display_name_co": "Entretenimiento",
+    },
+    {
+        "position_key": "style",
+        "order_index": 10,
+        "category_slug": "style",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "Style",
+        "display_name_co": "Estilo",
+    },
+    {
+        "position_key": "travel",
+        "order_index": 11,
+        "category_slug": "travel",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "Travel",
+        "display_name_co": "Viajes",
+    },
+    {
+        "position_key": "sports",
+        "order_index": 12,
+        "category_slug": "sports",
+        "limit": 4,
+        "presentation_type": "grid_4",
+        "display_name_us": "Sports",
+        "display_name_co": "Deportes",
+    },
+]
+
+MARKET_DEFS: list[dict[str, Any]] = [
+    {
+        "code": "us",
+        "country": "United States",
+        "label": "USA",
+        "default_locale": "en-US",
+        "article_titles": US_ARTICLE_TITLES,
+        "display_name_key": "display_name_us",
+        "breaking_items": [
+            {"text": "Breaking: Major story developing in Washington", "severity": "high"},
+            {"text": "Update: Details emerging from the capital", "severity": "medium"},
+            {"text": "Politics: Key vote expected tonight", "severity": "medium"},
+        ],
+    },
+    {
+        "code": "co",
+        "country": "Colombia",
+        "label": "Colombia",
+        "default_locale": "es-CO",
+        "article_titles": CO_ARTICLE_TITLES,
+        "display_name_key": "display_name_co",
+        "breaking_items": [
+            {"text": "Última hora: Historia principal en desarrollo en Bogotá", "severity": "high"},
+            {"text": "Actualización: Nuevos detalles desde la capital", "severity": "medium"},
+            {"text": "Política: Votación clave prevista para esta noche", "severity": "medium"},
+        ],
+    },
 ]
 
 
@@ -139,9 +307,12 @@ def _mongo_db_name() -> str:
 async def _ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[USERS_COLLECTION].create_index("email", unique=True)
     await db[CATEGORIES_COLLECTION].create_index("slug", unique=True)
+    await db[MARKETS_COLLECTION].create_index("code", unique=True)
     await db[ARTICLES_COLLECTION].create_index("slug", unique=True)
     await db[ARTICLES_COLLECTION].create_index([("status", 1), ("published_at", -1)])
+    await db[ARTICLES_COLLECTION].create_index([("market_ids", 1), ("status", 1)])
     await db[ARTICLES_COLLECTION].create_index([("title", "text"), ("body", "text")])
+    await db[LAYOUTS_COLLECTION].create_index([("page_name", 1), ("market_id", 1), ("is_active", 1)])
 
 
 async def _get_or_create_admin(db: AsyncIOMotorDatabase) -> dict[str, Any]:
@@ -167,13 +338,38 @@ async def _get_or_create_admin(db: AsyncIOMotorDatabase) -> dict[str, Any]:
         "created_at": _utc_now_iso(),
     }
     await db[USERS_COLLECTION].insert_one(doc)
-    logger.info("Created admin user: %s (password from SEED_ADMIN_PASSWORD)", email)
+    logger.info("Created admin user: %s", email)
     return doc
 
 
-async def _ensure_categories(db: AsyncIOMotorDatabase) -> dict[str, str]:
-    """Ensure CNN-style categories exist; return slug -> category_id map."""
+async def _ensure_markets(db: AsyncIOMotorDatabase) -> dict[str, str]:
+    """Return market code -> market id."""
 
+    code_to_id: dict[str, str] = {}
+    for market in MARKET_DEFS:
+        code = str(market["code"])
+        existing = await db[MARKETS_COLLECTION].find_one({"code": code})
+        if existing is not None:
+            code_to_id[code] = str(existing["_id"])
+            continue
+
+        market_id = str(uuid4())
+        doc = {
+            "_id": market_id,
+            "code": code,
+            "country": market["country"],
+            "label": market["label"],
+            "default_locale": market["default_locale"],
+            "updated_at": _utc_now_iso(),
+        }
+        await db[MARKETS_COLLECTION].insert_one(doc)
+        code_to_id[code] = market_id
+        logger.info("Created market: %s", code)
+
+    return code_to_id
+
+
+async def _ensure_categories(db: AsyncIOMotorDatabase) -> dict[str, str]:
     slug_to_id: dict[str, str] = {}
     for cat in CNN_CATEGORIES:
         existing = await db[CATEGORIES_COLLECTION].find_one({"slug": cat["slug"]})
@@ -197,69 +393,53 @@ async def _ensure_categories(db: AsyncIOMotorDatabase) -> dict[str, str]:
     return slug_to_id
 
 
-async def _ensure_category_articles(
+async def _ensure_market_articles(
     db: AsyncIOMotorDatabase,
     *,
     author_id: str,
-    category_slug: str,
-    category_id: str,
-) -> list[str]:
-    """Create demo articles for one category; return article ids."""
-
-    titles = CNN_ARTICLE_TITLES.get(category_slug, [])
-    article_ids: list[str] = []
-
-    for title in titles:
-        existing = await db[ARTICLES_COLLECTION].find_one({"title": title})
-        if existing is not None:
-            article_ids.append(str(existing["_id"]))
-            continue
-
-        article_id = str(uuid4())
-        now = _utc_now_iso()
-        slug = f"{category_slug}-{article_id[:8]}"
-        doc = {
-            "_id": article_id,
-            "title": title,
-            "slug": slug,
-            "body": f"{title}\n\nSeeded demo content for the {category_slug} section.",
-            "status": "published",
-            "author_id": author_id,
-            "category_id": category_id,
-            "tags": ["seed", "demo", category_slug],
-            "thumbnail_url": None,
-            "media_ids": [],
-            "view_count": 0,
-            "published_at": now,
-            "created_at": now,
-            "updated_at": now,
-        }
-        await db[ARTICLES_COLLECTION].insert_one(doc)
-        article_ids.append(article_id)
-
-    return article_ids
-
-
-async def _ensure_all_articles(
-    db: AsyncIOMotorDatabase,
-    *,
-    author_id: str,
+    market_id: str,
+    market_code: str,
+    article_titles: dict[str, list[str]],
     slug_to_category_id: dict[str, str],
 ) -> list[str]:
-    """Seed articles for every category; return all article ids."""
+    article_ids: list[str] = []
 
-    all_ids: list[str] = []
-    for slug, category_id in slug_to_category_id.items():
-        ids = await _ensure_category_articles(
-            db,
-            author_id=author_id,
-            category_slug=slug,
-            category_id=category_id,
-        )
-        all_ids.extend(ids)
+    for category_slug, titles in article_titles.items():
+        category_id = slug_to_category_id[category_slug]
+        for title in titles:
+            existing = await db[ARTICLES_COLLECTION].find_one(
+                {"title": title, "market_ids": market_id},
+            )
+            if existing is not None:
+                article_ids.append(str(existing["_id"]))
+                continue
 
-    logger.info("Ensured %d published articles across %d categories", len(all_ids), len(slug_to_category_id))
-    return all_ids
+            article_id = str(uuid4())
+            now = _utc_now_iso()
+            slug = f"{market_code}-{category_slug}-{article_id[:8]}"
+            doc = {
+                "_id": article_id,
+                "title": title,
+                "slug": slug,
+                "body": f"{title}\n\nSeeded demo content for {market_code} / {category_slug}.",
+                "status": "published",
+                "author_id": author_id,
+                "category_id": category_id,
+                "market_ids": [market_id],
+                "town_id": None,
+                "tags": ["seed", "demo", market_code, category_slug],
+                "thumbnail_url": None,
+                "media_ids": [],
+                "view_count": 0,
+                "published_at": now,
+                "created_at": now,
+                "updated_at": now,
+            }
+            await db[ARTICLES_COLLECTION].insert_one(doc)
+            article_ids.append(article_id)
+
+    logger.info("Ensured %d articles for market %s", len(article_ids), market_code)
+    return article_ids
 
 
 async def _upsert_slot(
@@ -267,11 +447,10 @@ async def _upsert_slot(
     *,
     layout_id: str,
     spec: dict[str, Any],
+    display_name: str,
     pinned_article_ids: list[str],
     now: str,
 ) -> str:
-    """Create or update one homepage slot from a spec dict."""
-
     position_key = str(spec["position_key"])
     slot = await db[SLOTS_COLLECTION].find_one({"layout_id": layout_id, "position_key": position_key})
 
@@ -280,13 +459,22 @@ async def _upsert_slot(
 
     if spec.get("pinned"):
         pinned_ids = pinned_article_ids[: int(spec.get("limit") or 6)]
-    elif spec.get("category_slug"):
+    elif spec.get("category_id"):
         query_rule = {
             "category_id": spec["category_id"],
             "limit": int(spec.get("limit") or 4),
         }
     else:
         query_rule = {"limit": int(spec.get("limit") or 4)}
+
+    fields = {
+        "pinned_ids": pinned_ids,
+        "query_rule": query_rule,
+        "order_index": int(spec["order_index"]),
+        "display_name": display_name,
+        "presentation_type": str(spec.get("presentation_type") or "grid_4"),
+        "updated_at": now,
+    }
 
     if slot is None:
         slot_id = str(uuid4())
@@ -295,63 +483,66 @@ async def _upsert_slot(
             "layout_id": layout_id,
             "position_key": position_key,
             "content_type": "articles",
-            "pinned_ids": pinned_ids,
-            "query_rule": query_rule,
-            "order_index": int(spec["order_index"]),
-            "updated_at": now,
+            **fields,
         }
         await db[SLOTS_COLLECTION].insert_one(doc)
-        await db[LAYOUTS_COLLECTION].update_one(
-            {"_id": layout_id},
-            {"$addToSet": {"slot_ids": slot_id}, "$set": {"is_active": True, "updated_at": now}},
-        )
-        logger.info("Created homepage slot: %s", position_key)
+        logger.info("Created slot %s for layout %s", position_key, layout_id)
         return slot_id
 
-    await db[SLOTS_COLLECTION].update_one(
-        {"_id": slot["_id"]},
-        {
-            "$set": {
-                "pinned_ids": pinned_ids,
-                "query_rule": query_rule,
-                "order_index": int(spec["order_index"]),
-                "updated_at": now,
-            }
-        },
-    )
-    logger.info("Updated homepage slot: %s", position_key)
+    await db[SLOTS_COLLECTION].update_one({"_id": slot["_id"]}, {"$set": fields})
+    logger.info("Updated slot %s for layout %s", position_key, layout_id)
     return str(slot["_id"])
 
 
-async def _ensure_homepage_layout_and_slots(
+async def _ensure_market_homepage(
     db: AsyncIOMotorDatabase,
     *,
+    market_id: str,
+    market_code: str,
+    display_name_key: str,
     slug_to_category_id: dict[str, str],
     pinned_article_ids: list[str],
 ) -> None:
-    """Ensure homepage layout with hero + CNN-style section slots."""
-
-    layout = await db[LAYOUTS_COLLECTION].find_one({"page_name": "homepage"})
     now = _utc_now_iso()
+    layout = await db[LAYOUTS_COLLECTION].find_one(
+        {"page_name": "homepage", "market_id": market_id},
+    )
 
     if layout is None:
         layout_id = str(uuid4())
-        layout = {"_id": layout_id, "page_name": "homepage", "slot_ids": [], "is_active": True, "updated_at": now}
+        layout = {
+            "_id": layout_id,
+            "page_name": "homepage",
+            "market_id": market_id,
+            "slot_ids": [],
+            "is_active": True,
+            "updated_at": now,
+        }
         await db[LAYOUTS_COLLECTION].insert_one(layout)
-        logger.info("Created homepage layout")
+        logger.info("Created homepage layout for market %s", market_code)
+    else:
+        await db[LAYOUTS_COLLECTION].update_one(
+            {"_id": layout["_id"]},
+            {"$set": {"is_active": True, "updated_at": now}},
+        )
 
     layout_id = str(layout["_id"])
     slot_ids: list[str] = []
 
     for spec in HOMEPAGE_SLOT_SPECS:
         entry = dict(spec)
+        display_name = str(entry.pop(display_name_key))
         category_slug = entry.pop("category_slug", None)
         if category_slug:
             entry["category_id"] = slug_to_category_id[category_slug]
+        entry.pop("display_name_us", None)
+        entry.pop("display_name_co", None)
+
         slot_id = await _upsert_slot(
             db,
             layout_id=layout_id,
             spec=entry,
+            display_name=display_name,
             pinned_article_ids=pinned_article_ids,
             now=now,
         )
@@ -361,12 +552,23 @@ async def _ensure_homepage_layout_and_slots(
         {"_id": layout_id},
         {"$set": {"slot_ids": slot_ids, "is_active": True, "updated_at": now}},
     )
-    logger.info("Homepage layout has %d slots", len(slot_ids))
+    logger.info("Market %s homepage has %d slots", market_code, len(slot_ids))
+
+
+async def _ensure_breaking_widgets(db: AsyncIOMotorDatabase) -> None:
+    for market in MARKET_DEFS:
+        code = str(market["code"])
+        widget_id = f"breaking:{code}"
+        doc = {
+            "_id": widget_id,
+            "payload": {"items": market["breaking_items"]},
+            "updated_at": _utc_now_iso(),
+        }
+        await db[WIDGETS_COLLECTION].update_one({"_id": widget_id}, {"$set": doc}, upsert=True)
+        logger.info("Upserted breaking widget %s", widget_id)
 
 
 async def _invalidate_homepage_feed_cache() -> None:
-    """Drop cached homepage feed so GraphQL serves freshly seeded data."""
-
     redis_url = os.getenv("REDIS_URL")
     if not redis_url:
         logger.warning("REDIS_URL not set; skipping homepage feed cache clear")
@@ -374,49 +576,45 @@ async def _invalidate_homepage_feed_cache() -> None:
 
     client = Redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
     try:
-        deleted = await client.delete(HOMEPAGE_FEED_CACHE_KEY)
-        if deleted:
-            logger.info("Cleared stale GraphQL homepage feed cache")
+        keys = [k async for k in client.scan_iter("graphql:homepageFeed*")]
+        if keys:
+            await client.delete(*keys)
+            logger.info("Cleared %d homepage feed cache keys", len(keys))
     finally:
         await client.aclose()
 
 
-async def _ensure_breaking_widget(db: AsyncIOMotorDatabase) -> None:
-    payload = {
-        "items": [
-            {"text": "Seeded: Breaking — major story developing", "severity": "high"},
-            {"text": "Seeded: Update — details coming in", "severity": "medium"},
-            {"text": "Seeded: Politics — key vote expected tonight", "severity": "medium"},
-        ]
-    }
-    doc = {"_id": "breaking", "payload": payload, "updated_at": _utc_now_iso()}
-    await db[WIDGETS_COLLECTION].update_one({"_id": "breaking"}, {"$set": doc}, upsert=True)
-    logger.info("Upserted breaking widget")
-
-
 async def seed_dev() -> None:
-    """Seed the database with initial development content."""
-
     client = AsyncIOMotorClient(_mongo_uri())
     try:
         db = client[_mongo_db_name()]
         await _ensure_indexes(db)
 
         admin = await _get_or_create_admin(db)
-        slug_to_id = await _ensure_categories(db)
-        all_article_ids = await _ensure_all_articles(
-            db,
-            author_id=str(admin["_id"]),
-            slug_to_category_id=slug_to_id,
-        )
+        market_code_to_id = await _ensure_markets(db)
+        slug_to_category_id = await _ensure_categories(db)
 
-        await _ensure_homepage_layout_and_slots(
-            db,
-            slug_to_category_id=slug_to_id,
-            pinned_article_ids=all_article_ids,
-        )
-        await _ensure_breaking_widget(db)
+        for market in MARKET_DEFS:
+            code = str(market["code"])
+            market_id = market_code_to_id[code]
+            article_ids = await _ensure_market_articles(
+                db,
+                author_id=str(admin["_id"]),
+                market_id=market_id,
+                market_code=code,
+                article_titles=market["article_titles"],
+                slug_to_category_id=slug_to_category_id,
+            )
+            await _ensure_market_homepage(
+                db,
+                market_id=market_id,
+                market_code=code,
+                display_name_key=str(market["display_name_key"]),
+                slug_to_category_id=slug_to_category_id,
+                pinned_article_ids=article_ids,
+            )
 
+        await _ensure_breaking_widgets(db)
         await _invalidate_homepage_feed_cache()
     finally:
         client.close()

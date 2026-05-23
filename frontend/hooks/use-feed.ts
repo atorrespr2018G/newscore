@@ -1,13 +1,17 @@
 import { useQuery } from '@apollo/client'
+import { useMarket } from '@/context/market-context'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import { mapHomepageFeed } from '@/lib/graphql/mappers'
 import { HOMEPAGE_FEED_QUERY } from '@/lib/graphql/operations'
 
 /**
- * Fetches the homepage feed from the federated GraphQL API.
+ * Fetches the homepage feed for the active market from GraphQL.
  */
 export function useFeed() {
+  const { marketCode, town } = useMarket()
+
   const result = useQuery(HOMEPAGE_FEED_QUERY, {
+    variables: { market: marketCode, town: town ?? null },
     pollInterval: 1000 * 15,
     fetchPolicy: 'cache-and-network',
     ssr: false,

@@ -2,6 +2,7 @@
 
 import { ApolloProvider, type ApolloClient } from '@apollo/client'
 import { useEffect, useState, type ReactNode } from 'react'
+import { MarketProvider } from '@/context/market-context'
 import { makeApolloClient } from '@/lib/graphql/apollo-client'
 
 interface IProvidersProps {
@@ -27,5 +28,9 @@ export function Providers({ children }: IProvidersProps): JSX.Element {
     )
   }
 
-  return <ApolloProvider client={client}>{children}</ApolloProvider>
+  return (
+    <ApolloProvider client={client}>
+      <MarketProvider>{children}</MarketProvider>
+    </ApolloProvider>
+  )
 }

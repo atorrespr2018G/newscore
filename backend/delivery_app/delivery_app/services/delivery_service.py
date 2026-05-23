@@ -45,4 +45,4 @@ async def get_breaking(db: AsyncIOMotorDatabase) -> dict[str, Any] | None:
 async def get_home_feed(db: AsyncIOMotorDatabase) -> dict[str, Any]:
     """Assemble homepage feed."""
 
-    return await site_reads.get_home_feed(db)
+    return await site_reads.get_home_feed(db, market_code="us")

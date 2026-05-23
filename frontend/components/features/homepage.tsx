@@ -7,14 +7,16 @@ import type { IArticle } from '@/interfaces/article'
 import { useFeed } from '@/hooks/use-feed'
 import { placeholderImageDataUri } from '@/lib/helpers/placeholder-image'
 import { excerpt } from '@/lib/helpers/text-helpers'
-import {
-  EDITORIAL_BAND_SLOT_KEYS,
-  HomepageEditorialBand,
-  MIDTERM_ELECTIONS_KEY,
-  EDITORIAL_RAIL_KEY,
-  MORE_TOP_STORIES_KEY,
-} from '@/components/features/homepage-editorial-band'
+import { HomepageEditorialBand } from '@/components/features/homepage-editorial-band'
 import { HomepageSection } from '@/components/features/homepage-section'
+import type { IFeedSlot } from '@/interfaces/feed'
+import {
+  PRESENTATION_EDITORIAL_LEAD,
+  PRESENTATION_EDITORIAL_SPOTLIGHT,
+  PRESENTATION_GRID_4,
+  PRESENTATION_HERO,
+  PRESENTATION_RAIL_COMPACT,
+} from '@/lib/presentation-types'
 
 interface IStoryCardProps {
   title: string
@@ -183,10 +185,12 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
   )
 }
 
-const HERO_POSITION_KEY = 'hero'
+function findSlot(slots: IFeedSlot[], presentationType: string): IFeedSlot | undefined {
+  return slots.find((s) => s.presentationType === presentationType)
+}
 
 /**
- * Homepage: CNN-style lead hero plus one module per layout slot (US, World, Politics, …).
+ * Homepage: lead hero, editorial band, and grid sections driven by slot presentation types.
  */
 export function Homepage(): JSX.Element {
   const { data, loading, error } = useFeed()
@@ -204,25 +208,23 @@ export function Homepage(): JSX.Element {
     )
   }
 
-  const heroSlot = slots.find((s) => s.positionKey === HERO_POSITION_KEY) ?? slots[0]
-  const moreTopStoriesSlot = slots.find((s) => s.positionKey === MORE_TOP_STORIES_KEY)
-  const midtermSlot = slots.find((s) => s.positionKey === MIDTERM_ELECTIONS_KEY)
-  const editorialRailSlot = slots.find((s) => s.positionKey === EDITORIAL_RAIL_KEY)
-  const sectionSlots = slots.filter(
-    (s) => s.id !== heroSlot.id && !EDITORIAL_BAND_SLOT_KEYS.has(s.positionKey.trim().toLowerCase()),
-  )
+  const heroSlot = findSlot(slots, PRESENTATION_HERO) ?? slots[0]
+  const editorialLeadSlot = findSlot(slots, PRESENTATION_EDITORIAL_LEAD)
+  const editorialSpotlightSlot = findSlot(slots, PRESENTATION_EDITORIAL_SPOTLIGHT)
+  const railSlot = findSlot(slots, PRESENTATION_RAIL_COMPACT)
+  const gridSlots = slots.filter((s) => s.presentationType === PRESENTATION_GRID_4)
 
   return (
     <div className="space-y-2">
       <HeroBlock articles={heroSlot.articles} />
-      {moreTopStoriesSlot && midtermSlot ? (
+      {editorialLeadSlot && editorialSpotlightSlot ? (
         <HomepageEditorialBand
-          moreTopStoriesSlot={moreTopStoriesSlot}
-          spotlightSlot={midtermSlot}
-          rightRailSlot={editorialRailSlot}
+          moreTopStoriesSlot={editorialLeadSlot}
+          spotlightSlot={editorialSpotlightSlot}
+          rightRailSlot={railSlot}
         />
       ) : null}
-      {sectionSlots.map((slot) => (
+      {gridSlots.map((slot) => (
         <HomepageSection key={slot.id} slot={slot} />
       ))}
     </div>

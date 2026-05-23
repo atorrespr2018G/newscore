@@ -111,11 +111,14 @@ The router does not implement resolvers itself. It:
 Client query (simplified):
 
 ```graphql
-query HomepageFeed {
-  homepageFeed {
+query HomepageFeed($market: String!, $town: String) {
+  homepageFeed(market: $market, town: $town) {
     pageName
     slots {
       id
+      positionKey
+      displayName
+      presentationType
       articles {
         id
         title
@@ -127,12 +130,14 @@ query HomepageFeed {
 }
 ```
 
+Variables example: `{ "market": "us" }` or `{ "market": "co" }` for Colombia. Default market code is `us` when the argument is omitted on the server.
+
 Execution flow:
 
 1. **Router** receives the query at `POST /graphql`.
 2. **site_subgraph** resolves `homepageFeed`:
-   - Checks Redis key `graphql:homepageFeed` (15s TTL).
-   - On miss, calls `shared.read.site_reads.get_home_feed()` to assemble layout + article IDs from MongoDB, then caches JSON in Redis.
+   - Checks Redis key `graphql:homepageFeed:{market}:{town|_}` (15s TTL).
+   - On miss, calls `shared.read.site_reads.get_home_feed(market_code=…)` to assemble the market’s layout + article IDs from MongoDB, then caches JSON in Redis.
    - Returns slots with `articles: [{ id: "..." }, ...]` (stubs only).
 3. **Router** sees nested `Article` fields and batches **entity requests** to **content_subgraph**.
 4. **content_subgraph** runs `Article.resolve_reference` for each id (loads from Mongo, batches author names via `AuthorNameLoader`).
@@ -166,20 +171,20 @@ Subgraphs install the shared package at runtime: `pip install -e /shared` (see `
 
 Root queries on `ContentQuery`:
 
-- `articleBySlug(slug)` — full article detail
-- `searchArticles(q)` — published search
-- `categoryArticles(slug, page, pageSize)` — paginated category feed
+- `articleBySlug(slug, market)` — full article detail for a market edition
+- `searchArticles(q, market)` — published search scoped to market
+- `categoryArticles(slug, page, pageSize, market)` — paginated category feed for a market
 
 `Article` is the federated entity with `@strawberry.federation.type(keys=["id"])`.
 
 ### layout_subgraph
 
-- `activeHomepageLayout` — layout id, page name, slots (position, content type, pinned article ids)
+- `activeHomepageLayout(market)` — layout id, page name, slots for a market
 
 ### site_subgraph
 
-- `homepageFeed` — public homepage (cached)
-- `breakingNews` — JSON widget payload from MongoDB `widgets` collection
+- `homepageFeed(market, town)` — public homepage for a market (cached per market/town)
+- `breakingNews(market)` — JSON widget payload (`widgets` id `breaking:{market}`)
 
 Only site uses **Redis** (`REDIS_URL`) for feed caching.
 
@@ -307,3 +312,4 @@ cd frontend && npm run codegen
 | Router startup | `backend/graphql_router/entrypoint.sh` |
 | Nginx GraphQL proxy | `nginx/nginx.conf` |
 | Shorter architecture cheat sheet | `docs/graphql-federation-plan.md` |
+| Multi-market editions (USA, Colombia, towns) | `docs/MULTI_MARKET_PLAN.md` |

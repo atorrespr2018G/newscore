@@ -8,12 +8,14 @@ pyproject.toml
 ./shared/core/exceptions.py
 ./shared/core/file_storage.py
 ./shared/core/logger.py
+./shared/core/markets.py
 ./shared/core/pagination.py
 ./shared/models/__init__.py
 ./shared/models/article.py
 ./shared/models/category.py
 ./shared/models/common.py
 ./shared/models/layout.py
+./shared/models/market.py
 ./shared/models/media_asset.py
 ./shared/models/user.py
 ./shared/read/__init__.py
@@ -21,6 +23,7 @@ pyproject.toml
 ./shared/read/collections.py
 ./shared/read/layout_reads.py
 ./shared/read/loaders.py
+./shared/read/market_reads.py
 ./shared/read/site_reads.py
 ./shared/schemas/__init__.py
 ./shared/schemas/article_schemas.py
@@ -43,12 +46,14 @@ shared/core/db.py
 shared/core/exceptions.py
 shared/core/file_storage.py
 shared/core/logger.py
+shared/core/markets.py
 shared/core/pagination.py
 shared/models/__init__.py
 shared/models/article.py
 shared/models/category.py
 shared/models/common.py
 shared/models/layout.py
+shared/models/market.py
 shared/models/media_asset.py
 shared/models/user.py
 shared/read/__init__.py
@@ -56,6 +61,7 @@ shared/read/article_reads.py
 shared/read/collections.py
 shared/read/layout_reads.py
 shared/read/loaders.py
+shared/read/market_reads.py
 shared/read/site_reads.py
 shared/schemas/__init__.py
 shared/schemas/article_schemas.py

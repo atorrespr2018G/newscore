@@ -16,10 +16,12 @@ async def test_homepage_feed_query() -> None:
 
     query = """
     query {
-      homepageFeed {
+      homepageFeed(market: "us") {
         pageName
         slots {
           id
+          displayName
+          presentationType
           articles {
             id
             title

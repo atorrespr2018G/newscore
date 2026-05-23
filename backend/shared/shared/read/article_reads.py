@@ -63,11 +63,15 @@ async def get_article_by_slug(
     db: AsyncIOMotorDatabase,
     *,
     slug: str,
+    market_id: str | None = None,
     loader: AuthorNameLoader | None = None,
 ) -> ArticleDetailOut:
-    """Load a published article by slug."""
+    """Load a published article by slug, optionally scoped to a market."""
 
-    doc = await db[ARTICLES_COLLECTION].find_one({"slug": slug, "status": "published"})
+    q: dict[str, Any] = {"slug": slug, "status": "published"}
+    if market_id:
+        q["market_ids"] = market_id
+    doc = await db[ARTICLES_COLLECTION].find_one(q)
     if doc is None:
         raise NotFoundError("Article not found")
     names = loader or AuthorNameLoader(db)
@@ -80,6 +84,7 @@ async def list_category_articles(
     *,
     category_slug: str,
     params: PaginationParams,
+    market_id: str | None = None,
     loader: AuthorNameLoader | None = None,
 ) -> PaginatedResponse:
     """List published articles for a category slug."""
@@ -89,7 +94,9 @@ async def list_category_articles(
         raise NotFoundError("Category not found")
 
     category_id = str(category["_id"])
-    query = {"status": "published", "category_id": category_id}
+    query: dict[str, Any] = {"status": "published", "category_id": category_id}
+    if market_id:
+        query["market_ids"] = market_id
     total = await db[ARTICLES_COLLECTION].count_documents(query)
     cursor = (
         db[ARTICLES_COLLECTION]
@@ -121,13 +128,17 @@ async def search_published(
     db: AsyncIOMotorDatabase,
     *,
     query: str,
+    market_id: str | None = None,
     loader: AuthorNameLoader | None = None,
 ) -> list[ArticleOut]:
     """Full-text search over published articles."""
 
+    q: dict[str, Any] = {"status": "published", "$text": {"$search": query}}
+    if market_id:
+        q["market_ids"] = market_id
     cursor = (
         db[ARTICLES_COLLECTION]
-        .find({"status": "published", "$text": {"$search": query}}, {"score": {"$meta": "textScore"}})
+        .find(q, {"score": {"$meta": "textScore"}})
         .sort([("score", {"$meta": "textScore"})])
         .limit(50)
     )
@@ -146,6 +157,8 @@ async def list_published_by_ids(
     db: AsyncIOMotorDatabase,
     *,
     article_ids: list[str],
+    market_id: str | None = None,
+    town: str | None = None,
     loader: AuthorNameLoader | None = None,
 ) -> list[ArticleOut]:
     """Load published articles by id list, preserving input order where possible."""
@@ -153,9 +166,12 @@ async def list_published_by_ids(
     if not article_ids:
         return []
 
-    cursor = db[ARTICLES_COLLECTION].find(
-        {"_id": {"$in": article_ids}, "status": "published"},
-    ).limit(50)
+    q: dict[str, Any] = {"_id": {"$in": article_ids}, "status": "published"}
+    if market_id:
+        q["market_ids"] = market_id
+    if town:
+        q["town_id"] = town.strip()
+    cursor = db[ARTICLES_COLLECTION].find(q).limit(50)
     docs = {str(d["_id"]): d async for d in cursor}
     names = loader or AuthorNameLoader(db)
     await names.load_many([str(d["author_id"]) for d in docs.values()])

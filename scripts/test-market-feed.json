@@ -1,0 +1,1 @@
+{"query":"{ us: homepageFeed(market: \"us\") { slots { displayName articles { title } } } co: homepageFeed(market: \"co\") { slots { displayName articles { title } } } }"}

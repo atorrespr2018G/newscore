@@ -5,6 +5,7 @@ from __future__ import annotations
 import strawberry
 from strawberry.types import Info
 
+from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.read import layout_reads
 
 from layout_subgraph.context import LayoutContext
@@ -34,10 +35,14 @@ class LayoutQuery:
     """Root query for the layout subgraph."""
 
     @strawberry.field
-    async def active_homepage_layout(self, info: Info[LayoutContext]) -> Layout | None:
-        """Return the active homepage layout and slot metadata."""
+    async def active_homepage_layout(
+        self,
+        info: Info[LayoutContext],
+        market: str = DEFAULT_MARKET_CODE,
+    ) -> Layout | None:
+        """Return the active homepage layout and slot metadata for a market."""
 
-        layout = await layout_reads.get_active_homepage_layout(info.context.db)
+        layout = await layout_reads.get_active_homepage_layout(info.context.db, market_code=market)
         if layout is None:
             return None
 
