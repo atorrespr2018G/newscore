@@ -58,3 +58,46 @@ async def delete_key(key: str) -> bool:
 
     deleted = await get_redis().delete(key)
     return bool(deleted)
+
+
+LEGACY_HOMEPAGE_FEED_CACHE_KEY = "graphql:homepageFeed"
+
+HOMEPAGE_FEED_TTL_SECONDS = 15
+
+
+def homepage_feed_cache_key(market: str, town: str | None = None) -> str:
+    """Redis cache key for a market-scoped homepage feed."""
+
+    market_part = (market or "us").strip().lower()
+    town_part = (town or "_").strip().lower()
+    return f"graphql:homepageFeed:{market_part}:{town_part}"
+
+
+async def invalidate_homepage_feed(market_code: str) -> int:
+    """Delete all homepage feed cache keys for a market. Returns keys removed."""
+
+    market_part = market_code.strip().lower()
+    pattern = f"graphql:homepageFeed:{market_part}:*"
+    redis = get_redis()
+    keys = [key async for key in redis.scan_iter(match=pattern)]
+    deleted = 0
+    if keys:
+        deleted = int(await redis.delete(*keys))
+    if market_part == "us":
+        if await delete_key(LEGACY_HOMEPAGE_FEED_CACHE_KEY):
+            deleted += 1
+    if deleted:
+        logger.info("Invalidated %d homepage feed cache keys for market=%s", deleted, market_part)
+    return deleted
+
+
+async def invalidate_all_homepage_feeds() -> int:
+    """Delete every homepage feed cache key. Returns keys removed."""
+
+    redis = get_redis()
+    keys = [key async for key in redis.scan_iter(match="graphql:homepageFeed*")]
+    if not keys:
+        return 0
+    deleted = int(await redis.delete(*keys))
+    logger.info("Invalidated %d homepage feed cache keys (all markets)", deleted)
+    return deleted

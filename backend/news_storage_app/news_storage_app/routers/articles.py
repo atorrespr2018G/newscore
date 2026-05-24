@@ -21,7 +21,7 @@ async def create_article(
 ) -> ArticleOut:
     """Create a new article draft."""
 
-    return await article_service.create(db, body, author_id=current_user.sub)
+    return await article_service.create(db, body, author_id=current_user.sub, actor_id=current_user.sub)
 
 
 @router.get("", response_model=list[ArticleOut])
@@ -54,7 +54,7 @@ async def update_article(
 ) -> ArticleDetailOut:
     """Update an article."""
 
-    return await article_service.update(db, article_id=article_id, body=body)
+    return await article_service.update(db, article_id=article_id, body=body, actor_id=current_user.sub)
 
 
 @router.post("/{article_id}/publish", response_model=ArticleDetailOut)
@@ -65,7 +65,7 @@ async def publish_article(
 ) -> ArticleDetailOut:
     """Publish an article."""
 
-    return await article_service.publish(db, article_id=article_id)
+    return await article_service.publish(db, article_id=article_id, actor_id=current_user.sub)
 
 
 @router.post("/{article_id}/archive", response_model=ArticleDetailOut)
@@ -76,5 +76,5 @@ async def archive_article(
 ) -> ArticleDetailOut:
     """Archive an article."""
 
-    return await article_service.archive(db, article_id=article_id)
+    return await article_service.archive(db, article_id=article_id, actor_id=current_user.sub)
 

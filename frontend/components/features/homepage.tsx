@@ -9,7 +9,7 @@ import { placeholderImageDataUri } from '@/lib/helpers/placeholder-image'
 import { excerpt } from '@/lib/helpers/text-helpers'
 import { HomepageEditorialBand } from '@/components/features/homepage-editorial-band'
 import { HomepageSection } from '@/components/features/homepage-section'
-import type { IFeedSlot } from '@/interfaces/feed'
+import type { IFeedSlot, IHomepageFeed } from '@/interfaces/feed'
 import {
   PRESENTATION_EDITORIAL_LEAD,
   PRESENTATION_EDITORIAL_SPOTLIGHT,
@@ -43,7 +43,7 @@ function StoryCard({
       >
         <div className="overflow-hidden rounded border border-neutral-200 bg-neutral-100">
           <div className={['relative', layout === 'side' ? 'aspect-[4/3]' : 'aspect-[16/10]'].join(' ')}>
-            <Image src={placeholderImageDataUri(imageSeed)} alt="" fill className="object-cover" unoptimized />
+            <Image src={placeholderImageDataUri(imageSeed)} alt={title} fill className="object-cover" unoptimized />
           </div>
         </div>
         <div className={layout === 'side' ? '' : 'mt-3'}>
@@ -132,7 +132,7 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
             <div className="relative aspect-[16/9]">
               <Image
                 src={hero.thumbnailUrl ?? placeholderImageDataUri(hero.slug)}
-                alt=""
+                alt={hero.title}
                 fill
                 className="object-cover"
                 unoptimized
@@ -192,13 +192,14 @@ function findSlot(slots: IFeedSlot[], presentationType: string): IFeedSlot | und
 /**
  * Homepage: lead hero, editorial band, and grid sections driven by slot presentation types.
  */
-export function Homepage(): JSX.Element {
+export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { data, loading, error } = useFeed()
+  const feedData = data ?? initialFeed
 
-  if (loading) return <div className="text-neutral-600">Loading…</div>
-  if (error) return <div className="text-red-700">Failed to load: {error.message}</div>
+  if (loading && !feedData) return <div className="text-neutral-600">Loading…</div>
+  if (error && !feedData) return <div className="text-red-700">Failed to load: {error.message}</div>
 
-  const slots = data?.slots ?? []
+  const slots = feedData?.slots ?? []
   if (slots.length === 0) {
     return (
       <div className="text-neutral-600">

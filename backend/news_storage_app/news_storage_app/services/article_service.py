@@ -9,7 +9,9 @@ from uuid import uuid4
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
+from shared.core.audit import write_event
 from news_storage_app.helpers.slug_helpers import slugify_title
+from shared.core.cache_invalidation import invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.schemas.article_schemas import ArticleCreate, ArticleDetailOut, ArticleOut, ArticleUpdate
 
@@ -67,7 +69,18 @@ async def _ensure_unique_slug(db: AsyncIOMotorDatabase, *, slug: str, exclude_id
         suffix += 1
 
 
-async def create(db: AsyncIOMotorDatabase, body: ArticleCreate, *, author_id: str) -> ArticleOut:
+async def _invalidate_article_feed(db: AsyncIOMotorDatabase, doc: dict[str, Any]) -> None:
+    market_ids = [str(mid) for mid in (doc.get("market_ids") or [])]
+    await invalidate_homepage_for_market_ids(db, market_ids)
+
+
+async def create(
+    db: AsyncIOMotorDatabase,
+    body: ArticleCreate,
+    *,
+    author_id: str,
+    actor_id: str | None = None,
+) -> ArticleOut:
     """Create a new article draft."""
 
     base_slug = slugify_title(body.title)
@@ -94,6 +107,14 @@ async def create(db: AsyncIOMotorDatabase, body: ArticleCreate, *, author_id: st
         "updated_at": now,
     }
     await db[ARTICLES_COLLECTION].insert_one(doc)
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="article.create",
+            resource_type="article",
+            resource_id=article_id,
+        )
     return _to_article_out(doc, author_name=await _author_name(db, author_id))
 
 
@@ -117,7 +138,14 @@ async def list_all(db: AsyncIOMotorDatabase) -> list[ArticleOut]:
     return items
 
 
-async def update(db: AsyncIOMotorDatabase, *, article_id: str, body: ArticleUpdate) -> ArticleDetailOut:
+async def update(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    body: ArticleUpdate,
+    actor_id: str | None = None,
+) -> ArticleDetailOut:
+    existing = await get_by_id(db, article_id)
     update_doc: dict[str, Any] = {k: v for k, v in body.model_dump().items() if v is not None}
     if not update_doc:
         raise ValidationError("No fields to update")
@@ -136,10 +164,28 @@ async def update(db: AsyncIOMotorDatabase, *, article_id: str, body: ArticleUpda
     )
     if doc is None:
         raise NotFoundError("Article not found")
+
+    status_changed = "status" in update_doc and update_doc["status"] != existing.get("status")
+    if doc.get("status") == "published" or status_changed:
+        await _invalidate_article_feed(db, doc)
+
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="article.update",
+            resource_type="article",
+            resource_id=article_id,
+        )
     return _to_article_detail_out(doc, author_name=await _author_name(db, str(doc["author_id"])))
 
 
-async def publish(db: AsyncIOMotorDatabase, *, article_id: str) -> ArticleDetailOut:
+async def publish(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    actor_id: str | None = None,
+) -> ArticleDetailOut:
     doc = await get_by_id(db, article_id)
     if doc["status"] == "archived":
         raise ConflictError("Cannot publish an archived article")
@@ -152,10 +198,26 @@ async def publish(db: AsyncIOMotorDatabase, *, article_id: str) -> ArticleDetail
     )
     if updated is None:
         raise NotFoundError("Article not found")
+
+    await _invalidate_article_feed(db, updated)
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="article.publish",
+            resource_type="article",
+            resource_id=article_id,
+        )
     return _to_article_detail_out(updated, author_name=await _author_name(db, str(updated["author_id"])))
 
 
-async def archive(db: AsyncIOMotorDatabase, *, article_id: str) -> ArticleDetailOut:
+async def archive(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    actor_id: str | None = None,
+) -> ArticleDetailOut:
+    existing = await get_by_id(db, article_id)
     now = _utc_now_iso()
     updated = await db[ARTICLES_COLLECTION].find_one_and_update(
         {"_id": article_id},
@@ -164,5 +226,16 @@ async def archive(db: AsyncIOMotorDatabase, *, article_id: str) -> ArticleDetail
     )
     if updated is None:
         raise NotFoundError("Article not found")
-    return _to_article_detail_out(updated, author_name=await _author_name(db, str(updated["author_id"])))
 
+    if existing.get("status") == "published":
+        await _invalidate_article_feed(db, updated)
+
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="article.archive",
+            resource_type="article",
+            resource_id=article_id,
+        )
+    return _to_article_detail_out(updated, author_name=await _author_name(db, str(updated["author_id"])))

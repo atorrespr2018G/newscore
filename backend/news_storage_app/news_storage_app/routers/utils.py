@@ -10,6 +10,7 @@ from shared.core.exceptions import (
     MediaUploadError,
     NewsCoreBaseException,
     NotFoundError,
+    PayloadTooLargeError,
     PermissionError,
     ValidationError,
 )
@@ -27,6 +28,8 @@ def _to_http_exception(exc: NewsCoreBaseException) -> HTTPException:
         return HTTPException(status_code=409, detail=exc.detail)
     if isinstance(exc, ValidationError):
         return HTTPException(status_code=422, detail=exc.detail)
+    if isinstance(exc, PayloadTooLargeError):
+        return HTTPException(status_code=413, detail=exc.detail)
     if isinstance(exc, MediaUploadError):
         return HTTPException(status_code=500, detail=exc.detail)
     return HTTPException(status_code=500, detail=exc.detail)

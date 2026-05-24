@@ -36,3 +36,7 @@ class ValidationError(NewsCoreBaseException):
 class MediaUploadError(NewsCoreBaseException):
     """Raised when media upload or processing fails."""
 
+
+class PayloadTooLargeError(NewsCoreBaseException):
+    """Raised when an uploaded file exceeds the configured size limit."""
+

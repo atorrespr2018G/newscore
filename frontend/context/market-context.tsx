@@ -10,18 +10,16 @@ import {
   type ReactNode,
 } from 'react'
 
-export interface IMarketOption {
-  code: string
-  label: string
-}
+import {
+  DEFAULT_MARKET_CODE,
+  isValidMarketCode,
+  MARKET_COOKIE_NAME,
+  MARKET_OPTIONS,
+  MARKET_STORAGE_KEY,
+  type IMarketOption,
+} from '@/lib/market-constants'
 
-export const MARKET_OPTIONS: IMarketOption[] = [
-  { code: 'us', label: 'USA' },
-  { code: 'co', label: 'Colombia' },
-]
-
-const STORAGE_KEY = 'newscore_market'
-const DEFAULT_MARKET_CODE = 'us'
+export { MARKET_OPTIONS, type IMarketOption }
 
 interface IMarketContextValue {
   marketCode: string
@@ -36,8 +34,8 @@ function readStoredMarket(): string {
   if (typeof window === 'undefined') {
     return DEFAULT_MARKET_CODE
   }
-  const stored = window.localStorage.getItem(STORAGE_KEY)
-  if (stored && MARKET_OPTIONS.some((m) => m.code === stored)) {
+  const stored = window.localStorage.getItem(MARKET_STORAGE_KEY)
+  if (stored && isValidMarketCode(stored)) {
     return stored
   }
   return DEFAULT_MARKET_CODE
@@ -48,7 +46,7 @@ interface IMarketProviderProps {
 }
 
 /**
- * Active news market (country edition). Persisted in localStorage.
+ * Active news market (country edition). Persisted in localStorage and cookie.
  */
 export function MarketProvider({ children }: IMarketProviderProps): JSX.Element {
   const [marketCode, setMarketCodeState] = useState(DEFAULT_MARKET_CODE)
@@ -60,11 +58,12 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
 
   const setMarketCode = useCallback((code: string) => {
     const normalized = code.trim().toLowerCase()
-    if (!MARKET_OPTIONS.some((m) => m.code === normalized)) {
+    if (!isValidMarketCode(normalized)) {
       return
     }
     setMarketCodeState(normalized)
-    window.localStorage.setItem(STORAGE_KEY, normalized)
+    window.localStorage.setItem(MARKET_STORAGE_KEY, normalized)
+    document.cookie = `${MARKET_COOKIE_NAME}=${normalized};path=/;max-age=31536000;samesite=lax`
   }, [])
 
   const value = useMemo(

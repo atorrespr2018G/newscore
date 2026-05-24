@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from shared.core.cors import cors_allow_credentials, cors_allow_origins
+
 from layout_admin_app.routers.layouts import router as layouts_router
 from layout_admin_app.routers.slots import router as slots_router
 from layout_admin_app.routers.utils import register_exception_handlers
@@ -38,8 +40,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="NewsCore Layout Admin API", version="1.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
+        allow_origins=cors_allow_origins(),
+        allow_credentials=cors_allow_credentials(),
         allow_methods=["*"],
         allow_headers=["*"],
     )

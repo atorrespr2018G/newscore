@@ -35,3 +35,15 @@ h3 {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ticker-animate {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+@layer base {
+  :focus-visible {
+    @apply outline-none ring-2 ring-[color:var(--brand-red)] ring-offset-2;
+  }
+}

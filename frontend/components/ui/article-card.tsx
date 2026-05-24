@@ -27,7 +27,7 @@ export function ArticleCard({ article, variant = 'standard' }: IArticleCardProps
         {variant === 'standard' ? (
           <div className="mb-3 overflow-hidden rounded-md border border-neutral-200 bg-neutral-100">
             <div className="relative aspect-[16/9]">
-              <Image src={imgSrc} alt="" fill className="object-cover" unoptimized />
+              <Image src={imgSrc} alt={article.title} fill className="object-cover" unoptimized />
             </div>
           </div>
         ) : null}

@@ -33,9 +33,9 @@ async def assign_role(
     user_id: str,
     body: AssignRoleRequest,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("admin")),
+    current_user: TokenPayload = Depends(require_role("admin")),
 ) -> UserOut:
     """Assign a role to a user (admin only)."""
 
-    return await user_service.assign_role(db, user_id=user_id, role=body.role)
+    return await user_service.assign_role(db, user_id=user_id, role=body.role, actor_id=current_user.sub)
 

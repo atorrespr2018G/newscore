@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
 from admin_app.helpers.password_helpers import hash_password
+from shared.core.audit import write_event
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.models.user import UserRoleType
 from shared.schemas.user_schemas import UserCreate, UserOut, UserUpdate
@@ -30,19 +31,13 @@ def _to_user_out(doc: dict[str, Any]) -> UserOut:
     )
 
 
-async def create_user(db: AsyncIOMotorDatabase, body: UserCreate) -> UserOut:
-    """Create a new user.
-
-    Args:
-        db: MongoDB database handle.
-        body: Validated request body.
-
-    Returns:
-        Created user output schema.
-
-    Raises:
-        ConflictError: If email already exists.
-    """
+async def create_user(
+    db: AsyncIOMotorDatabase,
+    body: UserCreate,
+    *,
+    actor_id: str | None = None,
+) -> UserOut:
+    """Create a new user."""
 
     existing = await db[USERS_COLLECTION].find_one({"email": body.email})
     if existing is not None:
@@ -61,38 +56,32 @@ async def create_user(db: AsyncIOMotorDatabase, body: UserCreate) -> UserOut:
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db[USERS_COLLECTION].insert_one(doc)
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="user.create",
+            resource_type="user",
+            resource_id=user_id,
+        )
     return _to_user_out(doc)
 
 
 async def list_users(db: AsyncIOMotorDatabase) -> list[UserOut]:
-    """List all users.
-
-    Args:
-        db: MongoDB database handle.
-
-    Returns:
-        List of users.
-    """
+    """List all users."""
 
     cursor = db[USERS_COLLECTION].find({}).sort("created_at", -1)
     return [_to_user_out(doc) async for doc in cursor]
 
 
-async def update_user(db: AsyncIOMotorDatabase, *, user_id: str, body: UserUpdate) -> UserOut:
-    """Update a user.
-
-    Args:
-        db: MongoDB database handle.
-        user_id: User id.
-        body: Update payload.
-
-    Returns:
-        Updated user.
-
-    Raises:
-        NotFoundError: If user does not exist.
-        ValidationError: If update is empty.
-    """
+async def update_user(
+    db: AsyncIOMotorDatabase,
+    *,
+    user_id: str,
+    body: UserUpdate,
+    actor_id: str | None = None,
+) -> UserOut:
+    """Update a user."""
 
     update: dict[str, Any] = {k: v for k, v in body.model_dump().items() if v is not None}
     if not update:
@@ -105,39 +94,46 @@ async def update_user(db: AsyncIOMotorDatabase, *, user_id: str, body: UserUpdat
     )
     if doc is None:
         raise NotFoundError("User not found")
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="user.update",
+            resource_type="user",
+            resource_id=user_id,
+        )
     return _to_user_out(doc)
 
 
-async def delete_user(db: AsyncIOMotorDatabase, *, user_id: str) -> None:
-    """Delete a user.
-
-    Args:
-        db: MongoDB database handle.
-        user_id: User id.
-
-    Raises:
-        NotFoundError: If user does not exist.
-    """
+async def delete_user(
+    db: AsyncIOMotorDatabase,
+    *,
+    user_id: str,
+    actor_id: str | None = None,
+) -> None:
+    """Delete a user."""
 
     result = await db[USERS_COLLECTION].delete_one({"_id": user_id})
     if result.deleted_count == 0:
         raise NotFoundError("User not found")
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="user.delete",
+            resource_type="user",
+            resource_id=user_id,
+        )
 
 
-async def assign_role(db: AsyncIOMotorDatabase, *, user_id: str, role: UserRoleType) -> UserOut:
-    """Assign a role to a user.
-
-    Args:
-        db: MongoDB database handle.
-        user_id: User id.
-        role: New role.
-
-    Returns:
-        Updated user.
-
-    Raises:
-        NotFoundError: If user does not exist.
-    """
+async def assign_role(
+    db: AsyncIOMotorDatabase,
+    *,
+    user_id: str,
+    role: UserRoleType,
+    actor_id: str | None = None,
+) -> UserOut:
+    """Assign a role to a user."""
 
     doc = await db[USERS_COLLECTION].find_one_and_update(
         {"_id": user_id},
@@ -146,23 +142,19 @@ async def assign_role(db: AsyncIOMotorDatabase, *, user_id: str, role: UserRoleT
     )
     if doc is None:
         raise NotFoundError("User not found")
+    if actor_id:
+        await write_event(
+            db,
+            user_id=actor_id,
+            action="user.assign_role",
+            resource_type="user",
+            resource_id=user_id,
+        )
     return _to_user_out(doc)
 
 
 async def update_reporter_bio(db: AsyncIOMotorDatabase, *, reporter_id: str, bio: str) -> UserOut:
-    """Update the bio for a reporter user.
-
-    Args:
-        db: MongoDB database handle.
-        reporter_id: Reporter user id.
-        bio: New bio text.
-
-    Returns:
-        Updated user.
-
-    Raises:
-        NotFoundError: If user does not exist.
-    """
+    """Update the bio for a reporter user."""
 
     doc = await db[USERS_COLLECTION].find_one_and_update(
         {"_id": reporter_id},
@@ -172,4 +164,3 @@ async def update_reporter_bio(db: AsyncIOMotorDatabase, *, reporter_id: str, bio
     if doc is None:
         raise NotFoundError("User not found")
     return _to_user_out(doc)
-

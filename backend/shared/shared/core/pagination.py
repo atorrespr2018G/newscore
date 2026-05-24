@@ -14,6 +14,12 @@ class PaginationParams(BaseModel):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE)
 
+    @property
+    def skip(self) -> int:
+        """Number of documents to skip for the current page."""
+
+        return (self.page - 1) * self.page_size
+
 
 def get_pagination(
     page: int = Query(1, ge=1),

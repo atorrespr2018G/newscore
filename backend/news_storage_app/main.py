@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from shared.core.cors import cors_allow_credentials, cors_allow_origins
+
 from news_storage_app.routers.articles import router as articles_router
 from news_storage_app.routers.categories import router as categories_router
 from news_storage_app.routers.media import router as media_router
@@ -40,8 +42,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="NewsCore News Storage API", version="1.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
+        allow_origins=cors_allow_origins(),
+        allow_credentials=cors_allow_credentials(),
         allow_methods=["*"],
         allow_headers=["*"],
     )

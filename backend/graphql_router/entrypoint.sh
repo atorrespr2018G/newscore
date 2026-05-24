@@ -21,5 +21,6 @@ node /usr/local/lib/node_modules/@apollo/rover/run.js supergraph compose \
   --elv2-license accept \
   > /dist/supergraph.graphql
 
-echo "Starting Apollo Router..."
-exec /dist/router --config /config/router.yaml --supergraph /dist/supergraph.graphql
+CONFIG="${ROUTER_CONFIG:-/config/router.yaml}"
+echo "Starting Apollo Router with config ${CONFIG}..."
+exec /dist/router --config "${CONFIG}" --supergraph /dist/supergraph.graphql

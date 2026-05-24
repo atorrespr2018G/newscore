@@ -1,9 +1,12 @@
 pyproject.toml
 ./shared/__init__.py
 ./shared/core/__init__.py
+./shared/core/audit.py
 ./shared/core/auth.py
 ./shared/core/cache.py
+./shared/core/cache_invalidation.py
 ./shared/core/constants.py
+./shared/core/cors.py
 ./shared/core/db.py
 ./shared/core/exceptions.py
 ./shared/core/file_storage.py

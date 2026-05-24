@@ -17,11 +17,11 @@ router = APIRouter(prefix="/layouts")
 async def create_layout(
     body: LayoutCreate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> LayoutOut:
     """Create a layout."""
 
-    return await layout_service.create(db, body)
+    return await layout_service.create(db, body, actor_id=current_user.sub)
 
 
 @router.get("", response_model=list[LayoutOut])
@@ -70,20 +70,20 @@ async def update_layout(
     layout_id: str,
     body: LayoutUpdate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> LayoutOut:
     """Update a layout."""
 
-    return await layout_service.update(db, layout_id=layout_id, body=body)
+    return await layout_service.update(db, layout_id=layout_id, body=body, actor_id=current_user.sub)
 
 
 @router.delete("/{layout_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_layout(
     layout_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> None:
     """Delete a layout and its slots."""
 
-    await layout_service.delete(db, layout_id=layout_id)
+    await layout_service.delete(db, layout_id=layout_id, actor_id=current_user.sub)
 

@@ -11,6 +11,7 @@ COPY --from=rover /usr/local/lib/node_modules /usr/local/lib/node_modules
 # Do not copy /usr/local/bin/rover — that shim requires ./binary beside it.
 # entrypoint.sh invokes @apollo/rover/run.js instead.
 COPY router.yaml /config/router.yaml
+COPY router.prod.yaml /config/router.prod.yaml
 COPY supergraph.yaml /config/supergraph.yaml
 COPY entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh

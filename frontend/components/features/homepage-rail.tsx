@@ -44,7 +44,7 @@ export function HomepageRail(): JSX.Element {
 
           <div className="mt-5 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
             <div className="relative aspect-[16/9]">
-              <Image src={hero.thumbnailUrl ?? placeholderImageDataUri(hero.slug)} alt="" fill className="object-cover" unoptimized />
+              <Image src={hero.thumbnailUrl ?? placeholderImageDataUri(hero.slug)} alt={hero.title} fill className="object-cover" unoptimized />
             </div>
           </div>
 

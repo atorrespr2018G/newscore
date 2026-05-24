@@ -1,7 +1,7 @@
 'use client'
 
 import { ApolloProvider, type ApolloClient } from '@apollo/client'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { MarketProvider } from '@/context/market-context'
 import { makeApolloClient } from '@/lib/graphql/apollo-client'
 
@@ -10,22 +10,19 @@ interface IProvidersProps {
 }
 
 /**
- * Apollo provider that only mounts in the browser.
- * Avoids SSR querying localhost:4000 from inside Docker and empty-cache hydration.
+ * Apollo provider for client-side queries (market switch, polling).
+ * Server components fetch initial data; no global loading gate.
  */
 export function Providers({ children }: IProvidersProps): JSX.Element {
-  const [client, setClient] = useState<ApolloClient<unknown> | null>(null)
-
-  useEffect(() => {
-    setClient(makeApolloClient())
-  }, [])
+  const [client] = useState<ApolloClient<unknown> | null>(() => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+    return makeApolloClient()
+  })
 
   if (!client) {
-    return (
-      <div className="mx-auto max-w-6xl px-6 py-8 text-neutral-600" aria-busy="true">
-        Loading…
-      </div>
-    )
+    return <MarketProvider>{children}</MarketProvider>
   }
 
   return (

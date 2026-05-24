@@ -27,11 +27,11 @@ async def login(
 async def create_user(
     body: UserCreate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("admin")),
+    current_user: TokenPayload = Depends(require_role("admin")),
 ) -> UserOut:
     """Create a new user (admin only)."""
 
-    return await user_service.create_user(db, body)
+    return await user_service.create_user(db, body, actor_id=current_user.sub)
 
 
 @router.get("/users", response_model=list[UserOut])
@@ -49,20 +49,20 @@ async def update_user(
     user_id: str,
     body: UserUpdate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("admin")),
+    current_user: TokenPayload = Depends(require_role("admin")),
 ) -> UserOut:
     """Update a user (admin only)."""
 
-    return await user_service.update_user(db, user_id=user_id, body=body)
+    return await user_service.update_user(db, user_id=user_id, body=body, actor_id=current_user.sub)
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("admin")),
+    current_user: TokenPayload = Depends(require_role("admin")),
 ) -> None:
     """Delete a user (admin only)."""
 
-    await user_service.delete_user(db, user_id=user_id)
+    await user_service.delete_user(db, user_id=user_id, actor_id=current_user.sub)
 

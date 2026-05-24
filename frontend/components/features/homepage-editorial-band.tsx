@@ -118,7 +118,7 @@ function VerticalImageStory({ article }: { article: IArticle }): JSX.Element {
           <div className="relative aspect-[16/10]">
             <Image
               src={article.thumbnailUrl ?? placeholderImageDataUri(article.slug)}
-              alt=""
+              alt={article.title}
               fill
               className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
               unoptimized

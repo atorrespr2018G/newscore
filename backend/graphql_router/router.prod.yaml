@@ -1,0 +1,15 @@
+supergraph:
+  listen: 0.0.0.0:4000
+  path: /graphql
+  introspection: false
+
+health_check:
+  listen: 0.0.0.0:8088
+
+cors:
+  origins:
+    - "http://localhost:3000"
+  allow_credentials: true
+
+include_subgraph_errors:
+  all: false

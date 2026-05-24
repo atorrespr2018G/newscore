@@ -15,7 +15,6 @@ from typing import Any
 from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from redis.asyncio import Redis
 
 from admin_app.helpers.password_helpers import hash_password
 
@@ -569,22 +568,18 @@ async def _ensure_breaking_widgets(db: AsyncIOMotorDatabase) -> None:
 
 
 async def _invalidate_homepage_feed_cache() -> None:
-    redis_url = os.getenv("REDIS_URL")
-    if not redis_url:
-        logger.warning("REDIS_URL not set; skipping homepage feed cache clear")
-        return
+    from shared.core.cache import invalidate_all_homepage_feeds
 
-    client = Redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
     try:
-        keys = [k async for k in client.scan_iter("graphql:homepageFeed*")]
-        if keys:
-            await client.delete(*keys)
-            logger.info("Cleared %d homepage feed cache keys", len(keys))
-    finally:
-        await client.aclose()
+        await invalidate_all_homepage_feeds()
+    except Exception:
+        logger.warning("Failed to clear homepage feed cache", exc_info=True)
 
 
 async def seed_dev() -> None:
+    if os.getenv("ALLOW_DEV_SEED", "true").lower() not in {"1", "true", "yes"}:
+        raise RuntimeError("Dev seed disabled. Set ALLOW_DEV_SEED=true to run seed_dev.py.")
+
     client = AsyncIOMotorClient(_mongo_uri())
     try:
         db = client[_mongo_db_name()]

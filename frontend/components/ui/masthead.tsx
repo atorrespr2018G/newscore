@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
 import { useFeed } from '@/hooks/use-feed'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
@@ -12,14 +13,30 @@ interface IMastheadProps {
 }
 
 /**
- * Newsroom masthead with market selector and section nav from the active feed.
+ * Newsroom masthead with market selector, mobile nav, and section links from the active feed.
  */
 export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
   const { marketCode, setMarketCode } = useMarket()
   const { data: feed } = useFeed()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const navSlots =
     feed?.slots.filter((s) => s.presentationType === PRESENTATION_GRID_4 && s.displayName) ?? []
+
+  const navLinks = [
+    ...navSlots.map((s) => ({
+      key: s.id,
+      href: `/#${sectionAnchorId(s.positionKey)}`,
+      label: s.displayName ?? s.positionKey,
+      active: activeSection?.toLowerCase() === s.positionKey.toLowerCase(),
+    })),
+    {
+      key: 'more',
+      href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
+      label: 'More',
+      active: false,
+    },
+  ]
 
   return (
     <header className="border-b border-neutral-200">
@@ -31,28 +48,29 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
             </span>
           </Link>
 
-          <nav className="hidden flex-1 items-center gap-4 md:flex">
-            {navSlots.map((s) => {
-              const isActive = activeSection?.toLowerCase() === s.positionKey.toLowerCase()
-              return (
-                <Link
-                  key={s.id}
-                  href={`/#${sectionAnchorId(s.positionKey)}`}
-                  className={[
-                    'text-[13px] font-semibold text-neutral-800 hover:text-neutral-950',
-                    isActive ? 'underline decoration-[color:var(--brand-red)] decoration-2 underline-offset-8' : '',
-                  ].join(' ')}
-                >
-                  {s.displayName}
-                </Link>
-              )
-            })}
-            <Link
-              href={`/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`}
-              className="text-[13px] font-semibold text-neutral-800 hover:text-neutral-950"
-            >
-              More
-            </Link>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-sm border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-900 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav"
+            onClick={() => setMobileOpen((open) => !open)}
+          >
+            {mobileOpen ? 'Close menu' : 'Menu'}
+          </button>
+
+          <nav className="hidden flex-1 items-center gap-4 md:flex" aria-label="Sections">
+            {navLinks.map((link) => (
+              <Link
+                key={link.key}
+                href={link.href}
+                className={[
+                  'text-[13px] font-semibold text-neutral-800 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2',
+                  link.active ? 'underline decoration-[color:var(--brand-red)] decoration-2 underline-offset-8' : '',
+                ].join(' ')}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
@@ -61,7 +79,7 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
               <select
                 value={marketCode}
                 onChange={(e) => setMarketCode(e.target.value)}
-                className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900"
+                className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
                 aria-label="Select news market"
               >
                 {MARKET_OPTIONS.map((m) => (
@@ -82,6 +100,28 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
             </span>
           </div>
         </div>
+
+        {mobileOpen ? (
+          <nav
+            id="mobile-nav"
+            className="border-t border-neutral-200 bg-white px-6 py-3 md:hidden"
+            aria-label="Mobile sections"
+          >
+            <ul className="space-y-2">
+              {navLinks.map((link) => (
+                <li key={link.key}>
+                  <Link
+                    href={link.href}
+                    className="block py-2 text-sm font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
       </div>
     </header>
   )

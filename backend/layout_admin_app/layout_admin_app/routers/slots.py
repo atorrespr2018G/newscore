@@ -17,11 +17,11 @@ router = APIRouter(prefix="/slots")
 async def create_slot(
     body: SlotCreate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> SlotOut:
     """Create a slot."""
 
-    return await slot_service.create(db, body)
+    return await slot_service.create(db, body, actor_id=current_user.sub)
 
 
 @router.patch("/{slot_id}", response_model=SlotOut)
@@ -29,20 +29,19 @@ async def update_slot(
     slot_id: str,
     body: SlotUpdate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> SlotOut:
     """Update a slot."""
 
-    return await slot_service.update(db, slot_id=slot_id, body=body)
+    return await slot_service.update(db, slot_id=slot_id, body=body, actor_id=current_user.sub)
 
 
 @router.delete("/{slot_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_slot(
     slot_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> None:
     """Delete a slot."""
 
-    await slot_service.delete(db, slot_id=slot_id)
-
+    await slot_service.delete(db, slot_id=slot_id, actor_id=current_user.sub)

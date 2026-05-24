@@ -27,7 +27,7 @@ export function HomepageStoryThumb({ article, className }: IHomepageStoryThumbPr
       <div className="relative aspect-[16/10] w-full">
         <Image
           src={article.thumbnailUrl ?? placeholderImageDataUri(article.slug)}
-          alt=""
+          alt={article.title}
           fill
           className="object-cover"
           unoptimized
