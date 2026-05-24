@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from shared.core.cache import invalidate_all_homepage_feeds, invalidate_homepage_feed
+from shared.core.events import publish_homepage_feed_invalidation
 from shared.core.markets import DEFAULT_MARKET_CODE
 
 MARKETS_COLLECTION = "markets"
@@ -29,14 +29,13 @@ async def invalidate_homepage_for_market_ids(
     db: AsyncIOMotorDatabase,
     market_ids: list[str],
 ) -> None:
-    """Invalidate homepage feed cache for the given market ids."""
+    """Publish homepage feed cache invalidation for the given market ids."""
 
     codes = await market_codes_for_ids(db, market_ids)
     if not codes:
-        await invalidate_all_homepage_feeds()
+        await publish_homepage_feed_invalidation(all_markets=True)
         return
-    for code in codes:
-        await invalidate_homepage_feed(code)
+    await publish_homepage_feed_invalidation(market_codes=codes)
 
 
 async def invalidate_homepage_for_layout(db: AsyncIOMotorDatabase, layout_id: str) -> None:
@@ -44,10 +43,10 @@ async def invalidate_homepage_for_layout(db: AsyncIOMotorDatabase, layout_id: st
 
     layout = await db[LAYOUTS_COLLECTION].find_one({"_id": layout_id}, {"market_id": 1})
     if layout is None:
-        await invalidate_all_homepage_feeds()
+        await publish_homepage_feed_invalidation(all_markets=True)
         return
     market_id = layout.get("market_id")
     if market_id:
         await invalidate_homepage_for_market_ids(db, [str(market_id)])
     else:
-        await invalidate_homepage_feed(DEFAULT_MARKET_CODE)
+        await publish_homepage_feed_invalidation(market_codes=[DEFAULT_MARKET_CODE])

@@ -233,7 +233,6 @@ Invalidate pattern on seed/publish: `graphql:homepageFeed:*` plus legacy `graphq
 | `backend/subgraphs/site_subgraph/site_subgraph/types.py` | Args on resolvers; `HomepageSlot.display_name`, `presentation_type` |
 | `backend/subgraphs/content_subgraph/content_subgraph/types.py` | `article_by_slug(..., market="us")` |
 | `backend/subgraphs/layout_subgraph/layout_subgraph/types.py` | `active_homepage_layout(market="us")` (optional consistency) |
-| `backend/delivery_app/...` | Pass `market` through if REST feed kept |
 
 ### Phase 4 — Seed
 

@@ -49,7 +49,7 @@ flowchart LR
 
 **REST docs:** `http://localhost:5001/docs` … `5003/docs`
 
-**Via Nginx:** `/graphql`, `/api/admin/`, `/api/news/`, `/api/layout/`
+**Via Nginx:** `/graphql`, `/api/v1/admin/`, `/api/v1/news/`, `/api/v1/layout/` (legacy `/api/admin/` etc. still proxied)
 
 ---
 
@@ -63,7 +63,9 @@ The frontend loads news via **Apollo Client** → **Apollo Router** → three **
 | layout | `Layout`, `Slot`, `activeHomepageLayout` |
 | site | `homepageFeed`, `breakingNews` (feed cached in Redis) |
 
-**Deprecated:** Delivery REST on port 5004 (removed from Compose).
+**Deprecated:** Delivery REST on port 5004 (removed from Compose and codebase; use GraphQL).
+
+**Health:** All REST apps expose `GET /health` (liveness) and `GET /health/ready` (MongoDB ping). Subgraphs expose `GET /health`.
 
 ---
 

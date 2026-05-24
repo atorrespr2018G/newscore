@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 
+from shared.core.cache_listener import start_cache_listener
 from shared.core.db import close_db, open_db
 from site_subgraph.context import get_context
 from site_subgraph.schema import schema
@@ -15,12 +17,18 @@ from site_subgraph.schema import schema
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Open and close MongoDB for the app lifetime."""
+    """Open MongoDB and start cache invalidation listener."""
 
     open_db()
+    listener_task = start_cache_listener()
     try:
         yield
     finally:
+        listener_task.cancel()
+        try:
+            await listener_task
+        except asyncio.CancelledError:
+            pass
         close_db()
 
 

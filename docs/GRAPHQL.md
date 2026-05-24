@@ -55,9 +55,11 @@ REST apps (unchanged for writes):
 
 ## Startup: how the gateway comes online
 
-When you run `docker compose up`, subgraphs start first. The router container runs `backend/graphql_router/entrypoint.sh`:
+When you run `docker compose up`, Compose waits for each subgraph’s **healthcheck** (`GET /health` on ports 5011–5013) before starting `graphql_router`. The frontend and nginx wait until the router reports healthy on `http://127.0.0.1:8088/health`. If you `docker compose restart` a subgraph, `restart: true` on `depends_on` also restarts the router (and frontend) so federation does not keep calling a stale container IP.
 
-1. **Wait for health** — Polls `http://content-subgraph:5011/health`, layout `:5012`, site `:5013` until each subgraph responds.
+The router container then runs `backend/graphql_router/entrypoint.sh`:
+
+1. **Wait for health** — Polls `http://content-subgraph:5011/health`, layout `:5012`, site `:5013` until each subgraph responds (redundant with Compose healthchecks but ensures the entrypoint can compose even when the router service is started alone).
 2. **Compose supergraph** — Runs Apollo Rover:
 
    ```bash
@@ -299,7 +301,7 @@ cd frontend && npm run codegen
 ## What GraphQL does *not* cover
 
 - Creating or editing articles, layouts, users, or media — still **REST** on ports 5001–5003 via Nginx (`/api/admin/`, `/api/news/`, `/api/layout/`).
-- The legacy **delivery_app** (`:5004`) is deprecated; its health endpoint points clients to GraphQL instead.
+- The legacy **delivery_app** (`:5004`) has been removed; public reads use GraphQL only.
 
 ---
 

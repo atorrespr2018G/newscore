@@ -10,13 +10,15 @@ Full-stack news platform:
 
 - **GraphQL (public reads)**: Apollo Router on `http://localhost:4000/graphql` (also `http://localhost/graphql` via Nginx)
 
-- **Gateway**: Nginx on `http://localhost` (routes `/api/*` to REST services)
+- **Gateway**: Nginx on `http://localhost` (routes `/graphql` and `/api/v1/*` to services)
 
 - **Admin API**: FastAPI `http://localhost:5001/docs`
 
 - **News Storage API**: FastAPI `http://localhost:5002/docs`
 
 - **Layout Admin API**: FastAPI `http://localhost:5003/docs`
+
+- **Site subgraph (health)**: `http://localhost:5013/health` — liveness probe for the federated `site` service (`homepageFeed`, `breakingNews`). Docker Compose waits for this (and the other subgraph `/health` endpoints) before starting Apollo Router; if the homepage shows “Failed to load” from `site`, check this URL returns `{"status":"ok","service":"site_subgraph"}`.
 
 - **MongoDB**: `localhost:27017`
 
@@ -55,6 +57,12 @@ cp .env.example .env
 docker compose up --build
 
 ```
+
+The first start can take a few minutes while subgraphs install shared deps and pass healthchecks; the router and frontend start only after `site_subgraph` (and siblings) are listening.
+
+To confirm the site subgraph is up before opening the homepage:
+
+- `http://localhost:5013/health` — should return `{"status":"ok","service":"site_subgraph"}`. A connection error here means the router will fail `homepageFeed` queries until the container finishes starting (or you run `docker compose restart site_subgraph graphql_router`).
 
 
 
@@ -139,5 +147,11 @@ Suggested manual flow:
 - Create a `homepage` layout and one slot pinned to published articles
 
 - Refresh `/` in the frontend
+
+## Editorial admin UI
+
+A minimal admin route group is available at `http://localhost:3000/admin/login`. Sign in with seed credentials (or any admin/editor account). The dashboard lists articles and supports one-click publish via the News Storage REST API.
+
+REST APIs are versioned at `/api/v1/admin`, `/api/v1/news`, and `/api/v1/layout` through Nginx. Direct port access (`:5001`–`:5003`) remains available for local development.
 
 

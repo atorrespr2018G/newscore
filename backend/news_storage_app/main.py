@@ -18,6 +18,7 @@ from news_storage_app.routers.utils import register_exception_handlers
 from shared.core.db import close_db, get_database, open_db
 from shared.core.indexes import ensure_indexes
 from shared.core.logger import get_logger
+from shared.core.rest_app import register_health_routes, register_rest_middleware
 
 logger = get_logger(__name__)
 
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     """
 
     app = FastAPI(title="NewsCore News Storage API", version="1.0.0", lifespan=lifespan)
+    register_rest_middleware(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_allow_origins(),
@@ -56,6 +58,8 @@ def create_app() -> FastAPI:
     app.include_router(categories_router)
     app.include_router(tags_router)
     app.include_router(search_router)
+
+    register_health_routes(app, service_name="news_storage_app")
 
     logger.info("News storage app created")
     return app

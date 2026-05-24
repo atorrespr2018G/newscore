@@ -2,9 +2,31 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Final
+
+from shared.core.request_context import get_correlation_id
+
+
+class _JsonFormatter(logging.Formatter):
+    """Structured JSON log lines with optional correlation id."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        correlation_id = get_correlation_id()
+        if correlation_id:
+            payload["correlation_id"] = correlation_id
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -30,9 +52,7 @@ def get_logger(name: str) -> logging.Logger:
     fmt = os.getenv("LOG_FORMAT", "text").lower()
 
     if fmt == "json":
-        formatter = logging.Formatter(
-            fmt='{"ts":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}'
-        )
+        formatter = _JsonFormatter()
     else:
         formatter = logging.Formatter(fmt="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -40,4 +60,3 @@ def get_logger(name: str) -> logging.Logger:
     logger.addHandler(handler)
     logger.propagate = False
     return logger
-

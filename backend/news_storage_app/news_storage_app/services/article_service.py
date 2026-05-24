@@ -7,7 +7,6 @@ from typing import Any
 from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pymongo import ReturnDocument
 
 from shared.core.audit import write_event
 from news_storage_app.helpers.slug_helpers import slugify_title
@@ -15,9 +14,9 @@ from shared.core.cache_invalidation import invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.pagination import PaginationParams
 from shared.read.loaders import AuthorNameLoader
+from shared.repositories.article_repository import ArticleRepository
 from shared.schemas.article_schemas import ArticleCreate, ArticleDetailOut, ArticleOut, ArticleUpdate
 
-ARTICLES_COLLECTION = "articles"
 USERS_COLLECTION = "users"
 MARKETS_COLLECTION = "markets"
 
@@ -75,18 +74,18 @@ async def _validate_market_ids(db: AsyncIOMotorDatabase, market_ids: list[str]) 
     return normalized
 
 
-async def _ensure_unique_slug(db: AsyncIOMotorDatabase, *, slug: str, exclude_id: str | None = None) -> str:
+async def _ensure_unique_slug(
+    repo: ArticleRepository,
+    *,
+    slug: str,
+    exclude_id: str | None = None,
+) -> str:
     candidate = slug
     suffix = 2
-    while True:
-        query: dict[str, Any] = {"slug": candidate}
-        if exclude_id is not None:
-            query["_id"] = {"$ne": exclude_id}
-        exists = await db[ARTICLES_COLLECTION].find_one(query, {"_id": 1})
-        if exists is None:
-            return candidate
+    while await repo.slug_exists(candidate, exclude_id=exclude_id):
         candidate = f"{slug}-{suffix}"
         suffix += 1
+    return candidate
 
 
 async def _invalidate_article_feed(db: AsyncIOMotorDatabase, doc: dict[str, Any]) -> None:
@@ -103,10 +102,11 @@ async def create(
 ) -> ArticleOut:
     """Create a new article draft."""
 
+    repo = ArticleRepository(db)
     base_slug = slugify_title(body.title)
     if not base_slug:
         raise ValidationError("Title cannot produce a slug")
-    slug = await _ensure_unique_slug(db, slug=base_slug)
+    slug = await _ensure_unique_slug(repo, slug=base_slug)
     market_ids = await _validate_market_ids(db, body.market_ids)
 
     article_id = str(uuid4())
@@ -128,7 +128,7 @@ async def create(
         "created_at": now,
         "updated_at": now,
     }
-    await db[ARTICLES_COLLECTION].insert_one(doc)
+    await repo.insert(doc)
     if actor_id:
         await write_event(
             db,
@@ -141,7 +141,8 @@ async def create(
 
 
 async def get_by_id(db: AsyncIOMotorDatabase, article_id: str) -> dict[str, Any]:
-    doc = await db[ARTICLES_COLLECTION].find_one({"_id": article_id})
+    repo = ArticleRepository(db)
+    doc = await repo.find_by_id(article_id)
     if doc is None:
         raise NotFoundError("Article not found")
     return doc
@@ -156,15 +157,9 @@ async def list_all(
     db: AsyncIOMotorDatabase,
     pagination: PaginationParams,
 ) -> tuple[list[ArticleOut], int]:
-    total = await db[ARTICLES_COLLECTION].count_documents({})
-    cursor = (
-        db[ARTICLES_COLLECTION]
-        .find({})
-        .sort("created_at", -1)
-        .skip(pagination.skip)
-        .limit(pagination.page_size)
-    )
-    docs = [doc async for doc in cursor]
+    repo = ArticleRepository(db)
+    total = await repo.count_all()
+    docs = await repo.list_paginated(pagination)
     loader = AuthorNameLoader(db)
     await loader.load_many([str(doc["author_id"]) for doc in docs])
     items = [
@@ -181,6 +176,7 @@ async def update(
     body: ArticleUpdate,
     actor_id: str | None = None,
 ) -> ArticleDetailOut:
+    repo = ArticleRepository(db)
     existing = await get_by_id(db, article_id)
     update_doc: dict[str, Any] = {k: v for k, v in body.model_dump().items() if v is not None}
     if not update_doc:
@@ -193,14 +189,10 @@ async def update(
         base_slug = slugify_title(str(update_doc["title"]))
         if not base_slug:
             raise ValidationError("Title cannot produce a slug")
-        update_doc["slug"] = await _ensure_unique_slug(db, slug=base_slug, exclude_id=article_id)
+        update_doc["slug"] = await _ensure_unique_slug(repo, slug=base_slug, exclude_id=article_id)
 
     update_doc["updated_at"] = _utc_now_iso()
-    doc = await db[ARTICLES_COLLECTION].find_one_and_update(
-        {"_id": article_id},
-        {"$set": update_doc},
-        return_document=ReturnDocument.AFTER,
-    )
+    doc = await repo.find_one_and_update(article_id, update_doc)
     if doc is None:
         raise NotFoundError("Article not found")
 
@@ -232,15 +224,15 @@ async def publish(
     article_id: str,
     actor_id: str | None = None,
 ) -> ArticleDetailOut:
+    repo = ArticleRepository(db)
     doc = await get_by_id(db, article_id)
     if doc["status"] == "archived":
         raise ConflictError("Cannot publish an archived article")
 
     now = _utc_now_iso()
-    updated = await db[ARTICLES_COLLECTION].find_one_and_update(
-        {"_id": article_id},
-        {"$set": {"status": "published", "published_at": now, "updated_at": now}},
-        return_document=ReturnDocument.AFTER,
+    updated = await repo.find_one_and_update(
+        article_id,
+        {"status": "published", "published_at": now, "updated_at": now},
     )
     if updated is None:
         raise NotFoundError("Article not found")
@@ -264,11 +256,11 @@ async def archive(
     actor_id: str | None = None,
 ) -> ArticleDetailOut:
     existing = await get_by_id(db, article_id)
+    repo = ArticleRepository(db)
     now = _utc_now_iso()
-    updated = await db[ARTICLES_COLLECTION].find_one_and_update(
-        {"_id": article_id},
-        {"$set": {"status": "archived", "updated_at": now}},
-        return_document=ReturnDocument.AFTER,
+    updated = await repo.find_one_and_update(
+        article_id,
+        {"status": "archived", "updated_at": now},
     )
     if updated is None:
         raise NotFoundError("Article not found")

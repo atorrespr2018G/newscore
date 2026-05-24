@@ -1,3 +1,9 @@
+x-subgraph-healthcheck: &subgraph-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 120s
+
 services:
   mongodb:
     image: mongo:7
@@ -15,6 +21,11 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   admin_app:
     build: ./backend/admin_app
@@ -71,6 +82,15 @@ services:
       default:
         aliases:
           - content-subgraph
+    healthcheck:
+      <<: *subgraph-healthcheck
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5011/health', timeout=3).read()",
+        ]
 
   layout_subgraph:
     build: ./backend/subgraphs/layout_subgraph
@@ -88,6 +108,15 @@ services:
       default:
         aliases:
           - layout-subgraph
+    healthcheck:
+      <<: *subgraph-healthcheck
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5012/health', timeout=3).read()",
+        ]
 
   site_subgraph:
     build: ./backend/subgraphs/site_subgraph
@@ -99,7 +128,7 @@ services:
       mongodb:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./backend/shared:/shared
       - ./backend/subgraphs/site_subgraph:/app
@@ -107,6 +136,15 @@ services:
       default:
         aliases:
           - site-subgraph
+    healthcheck:
+      <<: *subgraph-healthcheck
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5013/health', timeout=3).read()",
+        ]
 
   graphql_router:
     build: ./backend/graphql_router
@@ -114,11 +152,20 @@ services:
       - "4000:4000"
     depends_on:
       content_subgraph:
-        condition: service_started
+        condition: service_healthy
+        restart: true
       layout_subgraph:
-        condition: service_started
+        condition: service_healthy
+        restart: true
       site_subgraph:
-        condition: service_started
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8088/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
 
   frontend:
     build: ./frontend
@@ -133,7 +180,8 @@ services:
       GRAPHQL_INTERNAL_URL: http://graphql_router:4000/graphql
     depends_on:
       graphql_router:
-        condition: service_started
+        condition: service_healthy
+        restart: true
 
   nginx:
     image: nginx:alpine
@@ -142,10 +190,14 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - admin_app
-      - news_storage_app
-      - layout_admin_app
-      - graphql_router
+      admin_app:
+        condition: service_started
+      news_storage_app:
+        condition: service_started
+      layout_admin_app:
+        condition: service_started
+      graphql_router:
+        condition: service_healthy
 
 volumes:
   mongo_data:

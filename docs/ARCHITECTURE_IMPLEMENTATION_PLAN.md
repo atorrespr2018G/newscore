@@ -303,51 +303,51 @@ Estimated focus: long-term extensibility and operational maturity.
 
 ### 3.1 Remove legacy delivery app
 
-- [ ] Delete or archive `backend/delivery_app/` (already removed from Compose)
-- [ ] Update root `IMPLEMENTATION_PLAN.md` and README references
+- [x] Delete or archive `backend/delivery_app/` (already removed from Compose)
+- [x] Update root `IMPLEMENTATION_PLAN.md` and README references
 
 ---
 
 ### 3.2 API versioning
 
-- [ ] Prefix REST routes with `/api/v1/` via Nginx or FastAPI `root_path` before external consumers depend on URLs
+- [x] Prefix REST routes with `/api/v1/` via Nginx or FastAPI `root_path` before external consumers depend on URLs
 
 ---
 
 ### 3.3 Repository layer (when complexity warrants)
 
-- [ ] Introduce thin repositories per domain (`ArticleRepository`, `SlotRepository`) without over-abstracting
-- [ ] Prefer `shared/models/` types over raw `dict[str, Any]` in services
+- [x] Introduce thin repositories per domain (`ArticleRepository`, `SlotRepository`) without over-abstracting
+- [x] Prefer `shared/models/` types over raw `dict[str, Any]` in services
 
 ---
 
 ### 3.4 Event-driven integrations
 
-- [ ] Redis pub/sub or message queue for cache invalidation, search indexing, notifications
-- [ ] Decouple write services from cache key knowledge
+- [x] Redis pub/sub or message queue for cache invalidation, search indexing, notifications
+- [x] Decouple write services from cache key knowledge
 
 ---
 
 ### 3.5 Admin frontend
 
-- [ ] Next.js admin app or route group calling REST editorial APIs
-- [ ] Reuse `components/ui/` patterns; JWT auth flow against Admin API
+- [x] Next.js admin app or route group calling REST editorial APIs
+- [x] Reuse `components/ui/` patterns; JWT auth flow against Admin API
 
 ---
 
 ### 3.6 Observability
 
-- [ ] Structured JSON logging with request/correlation IDs (`shared/core/logger.py`)
+- [x] Structured JSON logging with request/correlation IDs (`shared/core/logger.py`)
 - [ ] OpenTelemetry traces across Nginx → Router → subgraphs
-- [ ] Health endpoints on all REST apps (match subgraph `/health` pattern)
+- [x] Health endpoints on all REST apps (match subgraph `/health` pattern)
 - [ ] Uptime alerts on `/graphql`, MongoDB, Redis
 
 ---
 
 ### 3.7 Object storage for media
 
-- [ ] Replace filesystem storage with S3-compatible backend per `shared/core/file_storage.py` abstraction
-- [ ] CDN URLs for images; wire into frontend `next/image` remote patterns
+- [x] Replace filesystem storage with S3-compatible backend per `shared/core/file_storage.py` abstraction
+- [x] CDN URLs for images; wire into frontend `next/image` remote patterns
 
 ---
 

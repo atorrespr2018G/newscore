@@ -7,7 +7,7 @@ News platform designed for AI-assisted development in Cursor.
 | Layer | Tech |
 |---|---|
 | Frontend | Next.js 14 (App Router) · TypeScript · Tailwind CSS · React Query |
-| Backend | Python 3.12 · FastAPI (4 apps) |
+| Backend | Python 3.12 · FastAPI (3 editorial REST apps + GraphQL subgraphs) |
 | Database | MongoDB (Motor async driver) |
 | Cache | Redis (`redis.asyncio`) |
 | Auth | JWT (`python-jose`) · role-based access |
@@ -19,7 +19,7 @@ News platform designed for AI-assisted development in Cursor.
 - **Admin App (5001)**: users, reporters, roles, audit logs. Only service that issues JWT tokens.
 - **News Storage App (5002)**: articles, media upload, tags, categories, search; write operations require reporter/editor.
 - **Layout Admin App (5003)**: page layouts, slots, widget rules; enables editors to configure the homepage without code changes.
-- **Delivery App (5004)**: public read-only API (feed, articles, category, search, breaking); aggressively cached in Redis.
+- **GraphQL stack (4000 + subgraphs)**: federated public reads (`homepageFeed`, `articleBySlug`, search, breaking news); replaces the retired delivery REST service.
 - **Shared package (`backend/shared/`)**: infrastructure + data contracts used by all apps; no business logic.
 
 ## Monorepo Layout (target)
@@ -51,7 +51,7 @@ newscore/
 │   ├── admin_app/
 │   ├── news_storage_app/
 │   ├── layout_admin_app/
-│   └── delivery_app/
+│   └── subgraphs/
 └── media/
     ├── images/
     └── videos/

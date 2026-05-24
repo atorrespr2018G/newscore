@@ -558,12 +558,12 @@ async def _ensure_breaking_widgets(db: AsyncIOMotorDatabase) -> None:
 
 
 async def _invalidate_homepage_feed_cache() -> None:
-    from shared.core.cache import invalidate_all_homepage_feeds
+    from shared.core.events import publish_homepage_feed_invalidation
 
     try:
-        await invalidate_all_homepage_feeds()
+        await publish_homepage_feed_invalidation(all_markets=True)
     except Exception:
-        logger.warning("Failed to clear homepage feed cache", exc_info=True)
+        logger.warning("Failed to publish homepage feed cache invalidation", exc_info=True)
 
 
 async def seed_dev() -> None:

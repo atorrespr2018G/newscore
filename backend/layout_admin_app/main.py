@@ -16,6 +16,7 @@ from layout_admin_app.routers.widgets import router as widgets_router
 from shared.core.db import close_db, get_database, open_db
 from shared.core.indexes import ensure_indexes
 from shared.core.logger import get_logger
+from shared.core.rest_app import register_health_routes, register_rest_middleware
 
 logger = get_logger(__name__)
 
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     """
 
     app = FastAPI(title="NewsCore Layout Admin API", version="1.0.0", lifespan=lifespan)
+    register_rest_middleware(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_allow_origins(),
@@ -52,6 +54,8 @@ def create_app() -> FastAPI:
     app.include_router(layouts_router)
     app.include_router(slots_router)
     app.include_router(widgets_router)
+
+    register_health_routes(app, service_name="layout_admin_app")
 
     logger.info("Layout admin app created")
     return app
