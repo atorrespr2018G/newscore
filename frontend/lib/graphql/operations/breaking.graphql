@@ -1,0 +1,3 @@
+query BreakingNews($market: String!) {
+  breakingNews(market: $market)
+}

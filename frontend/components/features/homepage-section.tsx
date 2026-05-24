@@ -1,10 +1,8 @@
 'use client'
 
-import Image from 'next/image'
-import Link from 'next/link'
-import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
-import { placeholderImageDataUri } from '@/lib/helpers/placeholder-image'
+import { StoryCard } from '@/components/ui/story-card'
+import { cardVariantForPresentation } from '@/lib/presentation-registry'
 import { sectionAnchorId, sectionLabel } from '@/lib/helpers/section-labels'
 
 interface IHomepageSectionProps {
@@ -22,6 +20,7 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
 
   const title = slot.displayName ?? sectionLabel(slot.positionKey)
   const anchorId = sectionAnchorId(slot.positionKey)
+  const variant = cardVariantForPresentation(slot.presentationType)
 
   return (
     <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
@@ -31,37 +30,9 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {articles.map((article) => (
-          <SectionStoryCard key={article.id} article={article} />
+          <StoryCard key={article.id} article={article} variant={variant} showAuthor />
         ))}
       </div>
     </section>
-  )
-}
-
-interface ISectionStoryCardProps {
-  article: IArticle
-}
-
-function SectionStoryCard({ article }: ISectionStoryCardProps): JSX.Element {
-  return (
-    <article className="group">
-      <Link href={`/article/${encodeURIComponent(article.slug)}`} className="block">
-        <div className="overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-          <div className="relative aspect-[16/10]">
-            <Image
-              src={article.thumbnailUrl ?? placeholderImageDataUri(article.slug)}
-              alt={article.title}
-              fill
-              className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-              unoptimized
-            />
-          </div>
-        </div>
-        <h3 className="mt-3 text-[15px] font-extrabold leading-snug text-neutral-950 group-hover:text-[color:var(--brand-red)]">
-          {article.title}
-        </h3>
-        <p className="mt-1 text-xs font-semibold text-neutral-600">{article.authorName}</p>
-      </Link>
-    </article>
   )
 }

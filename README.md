@@ -106,7 +106,9 @@ docker compose exec redis redis-cli DEL graphql:homepageFeed
 
 Then hard-refresh `http://localhost:3000`.
 
+## Database indexes
 
+MongoDB indexes are created idempotently on REST app startup via `backend/shared/shared/core/indexes.py` (`ensure_indexes`). The dev seed script calls the same helper. In production, indexes are applied automatically when services start; no separate migration step is required unless you add new index definitions — deploy updated services and restart.
 
 Defaults (override via `.env`):
 

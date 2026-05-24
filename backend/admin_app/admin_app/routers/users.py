@@ -8,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from admin_app.services import auth_service, user_service
 from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
+from shared.core.pagination import PaginationDep, PaginationParams
+from shared.schemas.common import PaginatedResponse
 from shared.schemas.user_schemas import LoginRequest, TokenResponse, UserCreate, UserOut, UserUpdate
 
 router = APIRouter()
@@ -34,14 +36,22 @@ async def create_user(
     return await user_service.create_user(db, body, actor_id=current_user.sub)
 
 
-@router.get("/users", response_model=list[UserOut])
+@router.get("/users", response_model=PaginatedResponse)
 async def list_users(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    pagination: PaginationParams = PaginationDep,
     _: TokenPayload = Depends(require_role("admin")),
-) -> list[UserOut]:
-    """List all users (admin only)."""
+) -> PaginatedResponse:
+    """List users with pagination (admin only)."""
 
-    return await user_service.list_users(db)
+    items, total = await user_service.list_users(db, pagination)
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+        has_more=(pagination.skip + len(items)) < total,
+    )
 
 
 @router.patch("/users/{user_id}", response_model=UserOut)

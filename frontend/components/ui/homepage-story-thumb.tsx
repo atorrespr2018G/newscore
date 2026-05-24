@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import type { IArticle } from '@/interfaces/article'
-import { placeholderImageDataUri } from '@/lib/helpers/placeholder-image'
+import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
 
 /** Matches one cell in the hero sub-story strip (md:grid-cols-3 under the lead). */
 export const HERO_STRIP_THUMB_WIDTH_CLASS =
@@ -15,6 +15,8 @@ interface IHomepageStoryThumbProps {
  * Shared 16:10 story thumbnail (hero right rail, editorial third column, etc.).
  */
 export function HomepageStoryThumb({ article, className }: IHomepageStoryThumbProps): JSX.Element {
+  const imgSrc = articleImageSrc(article)
+
   return (
     <div
       className={[
@@ -26,11 +28,11 @@ export function HomepageStoryThumb({ article, className }: IHomepageStoryThumbPr
     >
       <div className="relative aspect-[16/10] w-full">
         <Image
-          src={article.thumbnailUrl ?? placeholderImageDataUri(article.slug)}
+          src={imgSrc}
           alt={article.title}
           fill
           className="object-cover"
-          unoptimized
+          unoptimized={isDataUri(imgSrc)}
         />
       </div>
     </div>

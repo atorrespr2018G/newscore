@@ -15,7 +15,8 @@ from news_storage_app.routers.media import router as media_router
 from news_storage_app.routers.search import router as search_router
 from news_storage_app.routers.tags import router as tags_router
 from news_storage_app.routers.utils import register_exception_handlers
-from shared.core.db import close_db, open_db
+from shared.core.db import close_db, get_database, open_db
+from shared.core.indexes import ensure_indexes
 from shared.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -26,6 +27,7 @@ async def lifespan(_: FastAPI):
     """Manage shared resources for the app lifetime."""
 
     open_db()
+    await ensure_indexes(get_database())
     try:
         yield
     finally:

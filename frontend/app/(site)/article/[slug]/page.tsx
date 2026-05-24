@@ -37,7 +37,7 @@ export default async function ArticlePage({ params }: IArticlePageProps): Promis
       <nav className="mb-6" aria-label="Breadcrumb">
         <Link
           href="/"
-          className="text-sm font-semibold text-neutral-600 hover:text-[color:var(--brand-red)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2"
+          className="text-sm font-semibold text-neutral-600 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
           ← Back to homepage
         </Link>

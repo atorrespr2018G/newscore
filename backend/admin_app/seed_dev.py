@@ -17,6 +17,7 @@ from uuid import uuid4
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from admin_app.helpers.password_helpers import hash_password
+from shared.core.indexes import ensure_indexes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -303,17 +304,6 @@ def _mongo_db_name() -> str:
     return name
 
 
-async def _ensure_indexes(db: AsyncIOMotorDatabase) -> None:
-    await db[USERS_COLLECTION].create_index("email", unique=True)
-    await db[CATEGORIES_COLLECTION].create_index("slug", unique=True)
-    await db[MARKETS_COLLECTION].create_index("code", unique=True)
-    await db[ARTICLES_COLLECTION].create_index("slug", unique=True)
-    await db[ARTICLES_COLLECTION].create_index([("status", 1), ("published_at", -1)])
-    await db[ARTICLES_COLLECTION].create_index([("market_ids", 1), ("status", 1)])
-    await db[ARTICLES_COLLECTION].create_index([("title", "text"), ("body", "text")])
-    await db[LAYOUTS_COLLECTION].create_index([("page_name", 1), ("market_id", 1), ("is_active", 1)])
-
-
 async def _get_or_create_admin(db: AsyncIOMotorDatabase) -> dict[str, Any]:
     email = os.getenv("SEED_ADMIN_EMAIL", "admin@newscore.local")
     password = os.getenv("SEED_ADMIN_PASSWORD", "admin123!")
@@ -583,7 +573,7 @@ async def seed_dev() -> None:
     client = AsyncIOMotorClient(_mongo_uri())
     try:
         db = client[_mongo_db_name()]
-        await _ensure_indexes(db)
+        await ensure_indexes(db)
 
         admin = await _get_or_create_admin(db)
         market_code_to_id = await _ensure_markets(db)

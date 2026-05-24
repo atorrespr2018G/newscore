@@ -1,0 +1,38 @@
+type Query {
+  homepageFeed(market: String!, town: String): HomepageFeed!
+  articleBySlug(slug: String!, market: String!): Article
+  breakingNews(market: String!): JSON
+}
+
+type HomepageFeed {
+  layoutId: ID
+  pageName: String!
+  slots: [HomepageSlot!]!
+}
+
+type HomepageSlot {
+  id: ID!
+  positionKey: String!
+  displayName: String
+  presentationType: String!
+  contentType: String!
+  articles: [Article!]!
+}
+
+type Article {
+  id: ID!
+  slug: String!
+  title: String!
+  status: String!
+  authorName: String!
+  thumbnailUrl: String
+  createdAt: String!
+  publishedAt: String
+  body: String
+  tags: [String!]
+  categoryId: ID
+  mediaIds: [String!]
+  viewCount: Int
+}
+
+scalar JSON

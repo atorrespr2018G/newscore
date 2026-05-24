@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from layout_admin_app.services import layout_service, slot_service
 from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
+from shared.core.exceptions import NotFoundError
+from shared.core.markets import DEFAULT_MARKET_CODE
+from shared.core.pagination import PaginationDep, PaginationParams
+from shared.read.market_reads import get_market_by_code
+from shared.schemas.common import PaginatedResponse
 from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate, SlotOut
 
 router = APIRouter(prefix="/layouts")
@@ -24,14 +29,22 @@ async def create_layout(
     return await layout_service.create(db, body, actor_id=current_user.sub)
 
 
-@router.get("", response_model=list[LayoutOut])
+@router.get("", response_model=PaginatedResponse)
 async def list_layouts(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    pagination: PaginationParams = PaginationDep,
     _: TokenPayload = Depends(require_role("editor", "admin")),
-) -> list[LayoutOut]:
-    """List layouts."""
+) -> PaginatedResponse:
+    """List layouts with pagination."""
 
-    return await layout_service.list_all(db)
+    items, total = await layout_service.list_all(db, pagination)
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+        has_more=(pagination.skip + len(items)) < total,
+    )
 
 
 @router.get("/{layout_id}", response_model=LayoutOut)
@@ -48,11 +61,15 @@ async def get_layout(
 @router.get("/page/{page_name}", response_model=LayoutOut)
 async def get_layout_for_page(
     page_name: str,
+    market: str = Query(DEFAULT_MARKET_CODE),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> LayoutOut:
-    """Get active layout for a page (public read)."""
+    """Get active layout for a page and market (public read)."""
 
-    return await layout_service.get_by_page_name(db, page_name)
+    market_doc = await get_market_by_code(db, market)
+    if market_doc is None:
+        raise NotFoundError("Market not found")
+    return await layout_service.get_by_page_name(db, page_name, market_id=str(market_doc["_id"]))
 
 
 @router.get("/{layout_id}/slots", response_model=list[SlotOut])
@@ -86,4 +103,3 @@ async def delete_layout(
     """Delete a layout and its slots."""
 
     await layout_service.delete(db, layout_id=layout_id, actor_id=current_user.sub)
-

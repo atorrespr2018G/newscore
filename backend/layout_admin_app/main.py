@@ -13,7 +13,8 @@ from layout_admin_app.routers.layouts import router as layouts_router
 from layout_admin_app.routers.slots import router as slots_router
 from layout_admin_app.routers.utils import register_exception_handlers
 from layout_admin_app.routers.widgets import router as widgets_router
-from shared.core.db import close_db, open_db
+from shared.core.db import close_db, get_database, open_db
+from shared.core.indexes import ensure_indexes
 from shared.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -24,6 +25,7 @@ async def lifespan(_: FastAPI):
     """Manage shared resources for the app lifetime."""
 
     open_db()
+    await ensure_indexes(get_database())
     try:
         yield
     finally:

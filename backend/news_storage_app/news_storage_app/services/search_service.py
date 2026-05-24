@@ -2,35 +2,38 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from news_storage_app.services.article_service import _to_article_out
+from shared.core.pagination import PaginationParams
+from shared.read.loaders import AuthorNameLoader
 from shared.schemas.article_schemas import ArticleOut
-from news_storage_app.services.article_service import _author_name, _to_article_out
 
 ARTICLES_COLLECTION = "articles"
 
 
-async def search_articles(db: AsyncIOMotorDatabase, *, query: str) -> list[ArticleOut]:
-    """Search articles by text query.
+async def search_articles(
+    db: AsyncIOMotorDatabase,
+    *,
+    query: str,
+    pagination: PaginationParams,
+) -> tuple[list[ArticleOut], int]:
+    """Search articles by text query."""
 
-    Args:
-        db: MongoDB database handle.
-        query: Search string.
-
-    Returns:
-        Matching articles sorted by textScore.
-    """
-
+    filter_doc = {"$text": {"$search": query}}
+    total = await db[ARTICLES_COLLECTION].count_documents(filter_doc)
     cursor = (
         db[ARTICLES_COLLECTION]
-        .find({"$text": {"$search": query}}, {"score": {"$meta": "textScore"}})
+        .find(filter_doc, {"score": {"$meta": "textScore"}})
         .sort([("score", {"$meta": "textScore"})])
-        .limit(50)
+        .skip(pagination.skip)
+        .limit(pagination.page_size)
     )
-    items: list[ArticleOut] = []
-    async for doc in cursor:
-        items.append(_to_article_out(doc, author_name=await _author_name(db, str(doc["author_id"]))))
-    return items
-
+    docs = [doc async for doc in cursor]
+    loader = AuthorNameLoader(db)
+    await loader.load_many([str(doc["author_id"]) for doc in docs])
+    items = [
+        _to_article_out(doc, author_name=await loader.load(str(doc["author_id"])))
+        for doc in docs
+    ]
+    return items, total

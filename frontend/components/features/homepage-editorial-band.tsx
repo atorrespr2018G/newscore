@@ -1,11 +1,8 @@
 'use client'
 
-import Image from 'next/image'
-import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
-import { placeholderImageDataUri } from '@/lib/helpers/placeholder-image'
-import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
+import { StoryCard } from '@/components/ui/story-card'
 import { sectionAnchorId, sectionLabel } from '@/lib/helpers/section-labels'
 
 export const MORE_TOP_STORIES_KEY = 'more-top-stories'
@@ -77,75 +74,18 @@ function EditorialColumn({ title, articles, leadImageCount }: IEditorialColumnPr
 
       <div className="mt-4 space-y-4">
         {leads.map((article) => (
-          <VerticalImageStory key={article.id} article={article} />
+          <StoryCard key={article.id} article={article} variant="rail" />
         ))}
       </div>
 
       {headlines.length > 0 ? (
         <ul className="mt-4 divide-y divide-neutral-200">
           {headlines.map((article) => (
-            <HeadlineListItem key={article.id} article={article} />
+            <StoryCard key={article.id} article={article} variant="headline-only" />
           ))}
         </ul>
       ) : null}
     </div>
-  )
-}
-
-function CompactSideStory({ article }: { article: IArticle }): JSX.Element {
-  return (
-    <article>
-      <Link
-        href={`/article/${encodeURIComponent(article.slug)}`}
-        className="group grid grid-cols-[112px_1fr] items-stretch gap-3"
-      >
-        <HomepageStoryThumb article={article} className="shrink-0 border-0" />
-        <div className="flex min-w-0 items-center py-3 pr-3">
-          <p className="text-[13px] font-extrabold leading-snug text-neutral-950 group-hover:text-[color:var(--brand-red)]">
-            {article.title}
-          </p>
-        </div>
-      </Link>
-    </article>
-  )
-}
-
-function VerticalImageStory({ article }: { article: IArticle }): JSX.Element {
-  return (
-    <article className="group">
-      <Link href={`/article/${encodeURIComponent(article.slug)}`} className="block">
-        <div className="overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-          <div className="relative aspect-[16/10]">
-            <Image
-              src={article.thumbnailUrl ?? placeholderImageDataUri(article.slug)}
-              alt={article.title}
-              fill
-              className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-              unoptimized
-            />
-          </div>
-        </div>
-        <h3 className="mt-2 text-[15px] font-extrabold leading-snug text-neutral-950 group-hover:text-[color:var(--brand-red)]">
-          {article.title}
-        </h3>
-      </Link>
-    </article>
-  )
-}
-
-function HeadlineListItem({ article, compact = false }: { article: IArticle; compact?: boolean }): JSX.Element {
-  return (
-    <li>
-      <Link
-        href={`/article/${encodeURIComponent(article.slug)}`}
-        className={[
-          'block text-[14px] font-extrabold leading-snug text-neutral-950 hover:text-[color:var(--brand-red)]',
-          compact ? '' : 'py-3',
-        ].join(' ')}
-      >
-        {article.title}
-      </Link>
-    </li>
   )
 }
 
@@ -165,7 +105,7 @@ function RightRailColumn({ articles }: { articles: IArticle[] }): JSX.Element {
       {leads.length > 0 || headlines.length > 0 ? (
         <div className="mt-4 space-y-4">
           {leads.map((article) => (
-            <CompactSideStory key={article.id} article={article} />
+            <StoryCard key={article.id} article={article} variant="compact" layout="side" />
           ))}
         </div>
       ) : null}
@@ -173,7 +113,7 @@ function RightRailColumn({ articles }: { articles: IArticle[] }): JSX.Element {
       {headlines.length > 0 ? (
         <ul className="mt-4 space-y-3">
           {headlines.map((article) => (
-            <HeadlineListItem key={article.id} article={article} compact />
+            <StoryCard key={article.id} article={article} variant="headline-only" compact />
           ))}
         </ul>
       ) : null}

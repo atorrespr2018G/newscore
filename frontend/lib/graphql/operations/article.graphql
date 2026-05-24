@@ -1,0 +1,17 @@
+query ArticleBySlug($slug: String!, $market: String!) {
+  articleBySlug(slug: $slug, market: $market) {
+    id
+    slug
+    title
+    status
+    authorName
+    thumbnailUrl
+    createdAt
+    publishedAt
+    body
+    tags
+    categoryId
+    mediaIds
+    viewCount
+  }
+}

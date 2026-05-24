@@ -12,6 +12,7 @@ from pymongo import ReturnDocument
 from admin_app.helpers.password_helpers import hash_password
 from shared.core.audit import write_event
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
+from shared.core.pagination import PaginationParams
 from shared.models.user import UserRoleType
 from shared.schemas.user_schemas import UserCreate, UserOut, UserUpdate
 
@@ -67,11 +68,24 @@ async def create_user(
     return _to_user_out(doc)
 
 
-async def list_users(db: AsyncIOMotorDatabase) -> list[UserOut]:
-    """List all users."""
+async def list_users(
+    db: AsyncIOMotorDatabase,
+    pagination: PaginationParams,
+) -> tuple[list[UserOut], int]:
+    """List users with pagination."""
 
-    cursor = db[USERS_COLLECTION].find({}).sort("created_at", -1)
-    return [_to_user_out(doc) async for doc in cursor]
+    total = await db[USERS_COLLECTION].count_documents({})
+    cursor = (
+        db[USERS_COLLECTION]
+        .find({})
+        .sort("created_at", -1)
+        .skip(pagination.skip)
+        .limit(pagination.page_size)
+    )
+    items: list[UserOut] = []
+    async for doc in cursor:
+        items.append(_to_user_out(doc))
+    return items, total
 
 
 async def update_user(

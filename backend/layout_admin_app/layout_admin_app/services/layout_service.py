@@ -11,11 +11,13 @@ from pymongo import ReturnDocument
 
 from shared.core.audit import write_event
 from shared.core.cache_invalidation import invalidate_homepage_for_layout, invalidate_homepage_for_market_ids
-from shared.core.exceptions import ConflictError, NotFoundError
+from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
+from shared.core.pagination import PaginationParams
 from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate
 
 LAYOUTS_COLLECTION = "layouts"
 SLOTS_COLLECTION = "slots"
+MARKETS_COLLECTION = "markets"
 
 
 def _utc_now_iso() -> str:
@@ -26,10 +28,21 @@ def _to_out(doc: dict[str, Any]) -> LayoutOut:
     return LayoutOut(
         id=str(doc["_id"]),
         page_name=doc["page_name"],
+        market_id=str(doc["market_id"]) if doc.get("market_id") else None,
         slot_ids=list(doc.get("slot_ids") or []),
         is_active=bool(doc.get("is_active", True)),
         updated_at=doc.get("updated_at", ""),
     )
+
+
+async def _validate_market_id(db: AsyncIOMotorDatabase, market_id: str) -> str:
+    normalized = market_id.strip()
+    if not normalized:
+        raise ValidationError("market_id is required")
+    exists = await db[MARKETS_COLLECTION].find_one({"_id": normalized}, {"_id": 1})
+    if exists is None:
+        raise ValidationError(f"Unknown market_id: {normalized}")
+    return normalized
 
 
 async def create(
@@ -38,13 +51,24 @@ async def create(
     *,
     actor_id: str | None = None,
 ) -> LayoutOut:
-    existing = await db[LAYOUTS_COLLECTION].find_one({"page_name": body.page_name}, {"_id": 1})
+    market_id = await _validate_market_id(db, body.market_id)
+    existing = await db[LAYOUTS_COLLECTION].find_one(
+        {"page_name": body.page_name, "market_id": market_id},
+        {"_id": 1},
+    )
     if existing is not None:
-        raise ConflictError("Layout for this page_name already exists")
+        raise ConflictError("Layout for this page_name and market already exists")
 
     layout_id = str(uuid4())
     now = _utc_now_iso()
-    doc = {"_id": layout_id, "page_name": body.page_name, "slot_ids": [], "is_active": body.is_active, "updated_at": now}
+    doc = {
+        "_id": layout_id,
+        "page_name": body.page_name,
+        "market_id": market_id,
+        "slot_ids": [],
+        "is_active": body.is_active,
+        "updated_at": now,
+    }
     await db[LAYOUTS_COLLECTION].insert_one(doc)
     if body.is_active:
         await invalidate_homepage_for_layout(db, layout_id)
@@ -59,9 +83,22 @@ async def create(
     return _to_out(doc)
 
 
-async def list_all(db: AsyncIOMotorDatabase) -> list[LayoutOut]:
-    cursor = db[LAYOUTS_COLLECTION].find({}).sort("updated_at", -1)
-    return [_to_out(doc) async for doc in cursor]
+async def list_all(
+    db: AsyncIOMotorDatabase,
+    pagination: PaginationParams,
+) -> tuple[list[LayoutOut], int]:
+    total = await db[LAYOUTS_COLLECTION].count_documents({})
+    cursor = (
+        db[LAYOUTS_COLLECTION]
+        .find({})
+        .sort("updated_at", -1)
+        .skip(pagination.skip)
+        .limit(pagination.page_size)
+    )
+    items: list[LayoutOut] = []
+    async for doc in cursor:
+        items.append(_to_out(doc))
+    return items, total
 
 
 async def get_by_id(db: AsyncIOMotorDatabase, layout_id: str) -> LayoutOut:
@@ -71,8 +108,15 @@ async def get_by_id(db: AsyncIOMotorDatabase, layout_id: str) -> LayoutOut:
     return _to_out(doc)
 
 
-async def get_by_page_name(db: AsyncIOMotorDatabase, page_name: str) -> LayoutOut:
-    doc = await db[LAYOUTS_COLLECTION].find_one({"page_name": page_name, "is_active": True})
+async def get_by_page_name(
+    db: AsyncIOMotorDatabase,
+    page_name: str,
+    *,
+    market_id: str,
+) -> LayoutOut:
+    doc = await db[LAYOUTS_COLLECTION].find_one(
+        {"page_name": page_name, "market_id": market_id, "is_active": True},
+    )
     if doc is None:
         raise NotFoundError("Active layout not found for page")
     return _to_out(doc)

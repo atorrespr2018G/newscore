@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
 import Image from 'next/image'
-import { placeholderImageDataUri } from '@/lib/helpers/placeholder-image'
+import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
 
 interface IArticleCardProps {
   article: IArticle
@@ -14,26 +14,21 @@ interface IArticleCardProps {
  */
 export function ArticleCard({ article, variant = 'standard' }: IArticleCardProps): JSX.Element {
   const date = new Date(article.publishedAt ?? article.createdAt).toLocaleString()
-  const imgSrc = article.thumbnailUrl ?? placeholderImageDataUri(article.slug)
+  const imgSrc = articleImageSrc(article)
 
   return (
-    <article
-      className={[
-        'border-b border-neutral-200 py-4',
-        variant === 'standard' ? 'last:border-b-0' : 'last:border-b-0',
-      ].join(' ')}
-    >
+    <article className="border-b border-neutral-200 py-4 last:border-b-0">
       <Link href={`/article/${encodeURIComponent(article.slug)}`} className="block">
         {variant === 'standard' ? (
           <div className="mb-3 overflow-hidden rounded-md border border-neutral-200 bg-neutral-100">
             <div className="relative aspect-[16/9]">
-              <Image src={imgSrc} alt={article.title} fill className="object-cover" unoptimized />
+              <Image src={imgSrc} alt={article.title} fill className="object-cover" unoptimized={isDataUri(imgSrc)} />
             </div>
           </div>
         ) : null}
         <h3
           className={[
-            'leading-snug text-neutral-950 hover:text-[color:var(--brand-red)]',
+            'leading-snug text-neutral-950 hover:text-brand',
             variant === 'compact' ? 'text-base font-semibold' : 'text-lg font-extrabold',
           ].join(' ')}
         >
@@ -46,4 +41,3 @@ export function ArticleCard({ article, variant = 'standard' }: IArticleCardProps
     </article>
   )
 }
-

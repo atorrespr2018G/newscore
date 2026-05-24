@@ -9,7 +9,9 @@ pyproject.toml
 ./shared/core/cors.py
 ./shared/core/db.py
 ./shared/core/exceptions.py
+./shared/core/fastapi_handlers.py
 ./shared/core/file_storage.py
+./shared/core/indexes.py
 ./shared/core/logger.py
 ./shared/core/markets.py
 ./shared/core/pagination.py
@@ -42,9 +44,12 @@ newscore_shared.egg-info/requires.txt
 newscore_shared.egg-info/top_level.txt
 shared/__init__.py
 shared/core/__init__.py
+shared/core/audit.py
 shared/core/auth.py
 shared/core/cache.py
+shared/core/cache_invalidation.py
 shared/core/constants.py
+shared/core/cors.py
 shared/core/db.py
 shared/core/exceptions.py
 shared/core/file_storage.py

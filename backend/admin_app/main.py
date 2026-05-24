@@ -9,7 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from shared.core.cors import cors_allow_credentials, cors_allow_origins
 
-from shared.core.db import close_db, open_db
+from shared.core.db import close_db, get_database, open_db
+from shared.core.indexes import ensure_indexes
 from shared.core.logger import get_logger
 
 from admin_app.routers.audit import router as audit_router
@@ -26,6 +27,7 @@ async def lifespan(_: FastAPI):
     """Manage shared resources for the app lifetime."""
 
     open_db()
+    await ensure_indexes(get_database())
     try:
         yield
     finally:

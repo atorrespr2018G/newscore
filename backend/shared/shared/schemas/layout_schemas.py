@@ -14,6 +14,7 @@ class LayoutCreate(BaseModel):
     """Request body for POST /layouts."""
 
     page_name: str = Field(..., min_length=1, max_length=120)
+    market_id: str = Field(..., min_length=1)
     is_active: bool = True
 
 
@@ -28,6 +29,7 @@ class LayoutOut(BaseModel):
 
     id: str
     page_name: str
+    market_id: str | None
     slot_ids: list[str]
     is_active: bool
     updated_at: str

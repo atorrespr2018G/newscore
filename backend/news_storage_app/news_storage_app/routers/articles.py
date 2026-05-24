@@ -8,7 +8,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from news_storage_app.services import article_service
 from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
+from shared.core.pagination import PaginationDep, PaginationParams
 from shared.schemas.article_schemas import ArticleCreate, ArticleDetailOut, ArticleOut, ArticleUpdate
+from shared.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/articles")
 
@@ -24,14 +26,22 @@ async def create_article(
     return await article_service.create(db, body, author_id=current_user.sub, actor_id=current_user.sub)
 
 
-@router.get("", response_model=list[ArticleOut])
+@router.get("", response_model=PaginatedResponse)
 async def list_articles(
     db: AsyncIOMotorDatabase = Depends(get_db),
+    pagination: PaginationParams = PaginationDep,
     _: TokenPayload = Depends(require_role("reporter", "editor", "admin")),
-) -> list[ArticleOut]:
-    """List all articles (internal use)."""
+) -> PaginatedResponse:
+    """List articles with pagination (internal use)."""
 
-    return await article_service.list_all(db)
+    items, total = await article_service.list_all(db, pagination)
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+        has_more=(pagination.skip + len(items)) < total,
+    )
 
 
 @router.get("/{article_id}", response_model=ArticleDetailOut)
@@ -50,7 +60,7 @@ async def update_article(
     article_id: str,
     body: ArticleUpdate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("reporter", "editor")),
+    current_user: TokenPayload = Depends(require_role("reporter", "editor")),
 ) -> ArticleDetailOut:
     """Update an article."""
 
@@ -61,7 +71,7 @@ async def update_article(
 async def publish_article(
     article_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> ArticleDetailOut:
     """Publish an article."""
 
@@ -72,9 +82,8 @@ async def publish_article(
 async def archive_article(
     article_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    _: TokenPayload = Depends(require_role("editor", "admin")),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> ArticleDetailOut:
     """Archive an article."""
 
     return await article_service.archive(db, article_id=article_id, actor_id=current_user.sub)
-

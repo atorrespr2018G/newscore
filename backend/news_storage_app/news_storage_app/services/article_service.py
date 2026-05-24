@@ -13,10 +13,13 @@ from shared.core.audit import write_event
 from news_storage_app.helpers.slug_helpers import slugify_title
 from shared.core.cache_invalidation import invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
+from shared.core.pagination import PaginationParams
+from shared.read.loaders import AuthorNameLoader
 from shared.schemas.article_schemas import ArticleCreate, ArticleDetailOut, ArticleOut, ArticleUpdate
 
 ARTICLES_COLLECTION = "articles"
 USERS_COLLECTION = "users"
+MARKETS_COLLECTION = "markets"
 
 
 def _utc_now_iso() -> str:
@@ -50,9 +53,26 @@ def _to_article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleD
         body=doc.get("body", ""),
         tags=list(doc.get("tags") or []),
         category_id=doc.get("category_id"),
+        market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],
         media_ids=list(doc.get("media_ids") or []),
         view_count=int(doc.get("view_count") or 0),
     )
+
+
+async def _validate_market_ids(db: AsyncIOMotorDatabase, market_ids: list[str]) -> list[str]:
+    if not market_ids:
+        raise ValidationError("At least one market_id is required")
+
+    normalized = [str(mid).strip() for mid in market_ids if str(mid).strip()]
+    if not normalized:
+        raise ValidationError("At least one market_id is required")
+
+    for market_id in normalized:
+        exists = await db[MARKETS_COLLECTION].find_one({"_id": market_id}, {"_id": 1})
+        if exists is None:
+            raise ValidationError(f"Unknown market_id: {market_id}")
+
+    return normalized
 
 
 async def _ensure_unique_slug(db: AsyncIOMotorDatabase, *, slug: str, exclude_id: str | None = None) -> str:
@@ -87,6 +107,7 @@ async def create(
     if not base_slug:
         raise ValidationError("Title cannot produce a slug")
     slug = await _ensure_unique_slug(db, slug=base_slug)
+    market_ids = await _validate_market_ids(db, body.market_ids)
 
     article_id = str(uuid4())
     now = _utc_now_iso()
@@ -98,6 +119,7 @@ async def create(
         "status": "draft",
         "author_id": author_id,
         "category_id": body.category_id,
+        "market_ids": market_ids,
         "tags": body.tags,
         "thumbnail_url": body.thumbnail_url,
         "media_ids": [],
@@ -130,12 +152,26 @@ async def get_detail_by_id(db: AsyncIOMotorDatabase, article_id: str) -> Article
     return _to_article_detail_out(doc, author_name=await _author_name(db, str(doc["author_id"])))
 
 
-async def list_all(db: AsyncIOMotorDatabase) -> list[ArticleOut]:
-    cursor = db[ARTICLES_COLLECTION].find({}).sort("created_at", -1)
-    items: list[ArticleOut] = []
-    async for doc in cursor:
-        items.append(_to_article_out(doc, author_name=await _author_name(db, str(doc["author_id"]))))
-    return items
+async def list_all(
+    db: AsyncIOMotorDatabase,
+    pagination: PaginationParams,
+) -> tuple[list[ArticleOut], int]:
+    total = await db[ARTICLES_COLLECTION].count_documents({})
+    cursor = (
+        db[ARTICLES_COLLECTION]
+        .find({})
+        .sort("created_at", -1)
+        .skip(pagination.skip)
+        .limit(pagination.page_size)
+    )
+    docs = [doc async for doc in cursor]
+    loader = AuthorNameLoader(db)
+    await loader.load_many([str(doc["author_id"]) for doc in docs])
+    items = [
+        _to_article_out(doc, author_name=await loader.load(str(doc["author_id"])))
+        for doc in docs
+    ]
+    return items, total
 
 
 async def update(
@@ -149,6 +185,9 @@ async def update(
     update_doc: dict[str, Any] = {k: v for k, v in body.model_dump().items() if v is not None}
     if not update_doc:
         raise ValidationError("No fields to update")
+
+    if "market_ids" in update_doc:
+        update_doc["market_ids"] = await _validate_market_ids(db, list(update_doc["market_ids"]))
 
     if "title" in update_doc:
         base_slug = slugify_title(str(update_doc["title"]))
@@ -166,8 +205,15 @@ async def update(
         raise NotFoundError("Article not found")
 
     status_changed = "status" in update_doc and update_doc["status"] != existing.get("status")
+    market_ids_changed = "market_ids" in update_doc and update_doc["market_ids"] != list(
+        existing.get("market_ids") or []
+    )
     if doc.get("status") == "published" or status_changed:
         await _invalidate_article_feed(db, doc)
+    if market_ids_changed and existing.get("status") == "published":
+        old_market_ids = [str(mid) for mid in (existing.get("market_ids") or [])]
+        combined = list({*old_market_ids, *[str(mid) for mid in (doc.get("market_ids") or [])]})
+        await invalidate_homepage_for_market_ids(db, combined)
 
     if actor_id:
         await write_event(

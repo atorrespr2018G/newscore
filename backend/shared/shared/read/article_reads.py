@@ -38,6 +38,7 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         body=str(doc.get("body") or ""),
         tags=list(doc.get("tags") or []),
         category_id=doc.get("category_id"),
+        market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],
         media_ids=list(doc.get("media_ids") or []),
         view_count=int(doc.get("view_count") or 0),
     )

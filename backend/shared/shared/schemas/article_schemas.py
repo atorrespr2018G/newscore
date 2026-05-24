@@ -16,6 +16,7 @@ class ArticleCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
     body: str = Field(..., min_length=10)
     category_id: str | None = None
+    market_ids: list[str] = Field(..., min_length=1)
     tags: list[str] = []
     thumbnail_url: str | None = None
 
@@ -26,6 +27,7 @@ class ArticleUpdate(BaseModel):
     title: str | None = Field(None, min_length=3, max_length=200)
     body: str | None = Field(None, min_length=10)
     category_id: str | None = None
+    market_ids: list[str] | None = Field(None, min_length=1)
     tags: list[str] | None = None
     thumbnail_url: str | None = None
     status: ArticleStatusType | None = None
@@ -50,6 +52,7 @@ class ArticleDetailOut(ArticleOut):
     body: str
     tags: list[str]
     category_id: str | None
+    market_ids: list[str]
     media_ids: list[str]
     view_count: int
 

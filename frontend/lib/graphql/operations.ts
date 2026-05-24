@@ -51,3 +51,6 @@ export const BREAKING_NEWS_QUERY = gql`
     breakingNews(market: $market)
   }
 `
+
+/** Typed document nodes generated from lib/graphql/operations/*.graphql — run npm run codegen. */
+export type { HomepageFeedQuery, ArticleBySlugQuery, BreakingNewsQuery } from './generated/graphql'
