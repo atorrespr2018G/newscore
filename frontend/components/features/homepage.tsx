@@ -7,6 +7,7 @@ import { Suspense } from 'react'
 import type { IArticle } from '@/interfaces/article'
 import { useFeed } from '@/hooks/use-feed'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
+import { isHomepageSectionVisible } from '@/lib/helpers/section-labels'
 import { excerpt } from '@/lib/helpers/text-helpers'
 import { StoryCard } from '@/components/ui/story-card'
 import type { IFeedSlot, IHomepageFeed } from '@/interfaces/feed'
@@ -199,7 +200,9 @@ export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.
   const editorialLeadSlot = findSlot(slots, PRESENTATION_EDITORIAL_LEAD)
   const editorialSpotlightSlot = findSlot(slots, PRESENTATION_EDITORIAL_SPOTLIGHT)
   const railSlot = findSlot(slots, PRESENTATION_RAIL_COMPACT)
-  const gridSlots = slots.filter((s) => s.presentationType === PRESENTATION_GRID_4)
+  const gridSlots = slots.filter(
+    (s) => s.presentationType === PRESENTATION_GRID_4 && isHomepageSectionVisible(s.positionKey),
+  )
 
   return (
     <div className="space-y-2">

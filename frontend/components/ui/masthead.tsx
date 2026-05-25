@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
 import { useFeed } from '@/hooks/use-feed'
-import { sectionAnchorId } from '@/lib/helpers/section-labels'
+import { isHomepageSectionVisible, sectionAnchorId } from '@/lib/helpers/section-labels'
 import { PRESENTATION_GRID_4 } from '@/lib/presentation-types'
 import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-band'
 
@@ -21,7 +21,12 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const navSlots =
-    feed?.slots.filter((s) => s.presentationType === PRESENTATION_GRID_4 && s.displayName) ?? []
+    feed?.slots.filter(
+      (s) =>
+        s.presentationType === PRESENTATION_GRID_4 &&
+        s.displayName &&
+        isHomepageSectionVisible(s.positionKey),
+    ) ?? []
 
   const navLinks = [
     ...navSlots.map((s) => ({

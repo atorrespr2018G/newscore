@@ -15,6 +15,8 @@ const SECTION_LABELS: Record<string, string> = {
   sports: 'Sports',
 }
 
+const HIDDEN_HOMEPAGE_SECTION_KEYS = new Set(['sport', 'sports', 'travel', 'style'])
+
 /**
  * Human-readable label for a homepage slot position key.
  */
@@ -34,4 +36,11 @@ export function sectionLabel(positionKey: string): string {
  */
 export function sectionAnchorId(positionKey: string): string {
   return `section-${positionKey.trim().toLowerCase()}`
+}
+
+/**
+ * Whether a homepage section should be rendered in section grids and nav.
+ */
+export function isHomepageSectionVisible(positionKey: string): boolean {
+  return !HIDDEN_HOMEPAGE_SECTION_KEYS.has(positionKey.trim().toLowerCase())
 }
