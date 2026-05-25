@@ -60,6 +60,7 @@ US_ARTICLE_TITLES: dict[str, list[str]] = {
         "Election season begins with tight early polling",
         "White House outlines new foreign policy framework",
         "Campaign finance filings show record fundraising",
+        "Governors press for compromises ahead of budget week",
     ],
     "business": [
         "Tech leaders announce open safety framework",
@@ -111,6 +112,7 @@ CO_ARTICLE_TITLES: dict[str, list[str]] = {
         "Arranca temporada electoral con encuestas reñidas",
         "Gobierno presenta nuevo marco de política exterior",
         "Financiación de campañas alcanza récord histórico",
+        "Gobernadores presionan por acuerdos antes de la semana presupuestal",
     ],
     "business": [
         "Empresas tech anuncian marco abierto de seguridad",
