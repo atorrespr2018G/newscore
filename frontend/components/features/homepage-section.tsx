@@ -10,14 +10,23 @@ interface IHomepageSectionProps {
   slot: IFeedSlot
 }
 
+const FEATURED_COLUMN_SECTION_KEYS = new Set(['politics', 'world'])
+const FEATURED_COLUMN_ARTICLE_LIMIT = 15
+const FEATURED_COLUMN_COUNT = 3
+const FEATURED_COLUMN_SECONDARY_COUNT = 4
+
+function usesFeaturedColumnLayout(positionKey: string): boolean {
+  return FEATURED_COLUMN_SECTION_KEYS.has(positionKey.trim().toLowerCase())
+}
+
 function gridColumnsClass(positionKey: string): string {
-  const normalizedKey = positionKey.trim().toLowerCase()
-  return normalizedKey === 'politics' || normalizedKey === 'world' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
+  return usesFeaturedColumnLayout(positionKey) ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
 }
 
 function visibleArticlesForSection(slot: IFeedSlot): IFeedSlot['articles'] {
-  const normalizedKey = slot.positionKey.trim().toLowerCase()
-  return normalizedKey === 'politics' ? slot.articles.slice(0, 15) : slot.articles
+  return usesFeaturedColumnLayout(slot.positionKey)
+    ? slot.articles.slice(0, FEATURED_COLUMN_ARTICLE_LIMIT)
+    : slot.articles
 }
 
 function repeatToLength<T>(items: T[], size: number): T[] {
@@ -28,15 +37,18 @@ function repeatToLength<T>(items: T[], size: number): T[] {
   return Array.from({ length: size }, (_, index) => items[index % items.length])
 }
 
-function buildPoliticsColumns(articles: IArticle[]): Array<{ leadArticle: IArticle; secondaryArticles: IArticle[] }> {
-  const leadArticles = repeatToLength(articles.slice(0, 3), 3)
+function buildFeaturedColumns(articles: IArticle[]): Array<{ leadArticle: IArticle; secondaryArticles: IArticle[] }> {
+  const leadArticles = repeatToLength(articles.slice(0, FEATURED_COLUMN_COUNT), FEATURED_COLUMN_COUNT)
 
   return leadArticles.map((leadArticle) => {
     const secondaryPool = articles.filter((article) => article.id !== leadArticle.id)
 
     return {
       leadArticle,
-      secondaryArticles: repeatToLength(secondaryPool.length > 0 ? secondaryPool : articles, 4),
+      secondaryArticles: repeatToLength(
+        secondaryPool.length > 0 ? secondaryPool : articles,
+        FEATURED_COLUMN_SECONDARY_COUNT,
+      ),
     }
   })
 }
@@ -50,13 +62,12 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
     return null
   }
 
-  const normalizedKey = slot.positionKey.trim().toLowerCase()
-  const isPoliticsSection = normalizedKey === 'politics'
+  const usesFeaturedColumns = usesFeaturedColumnLayout(slot.positionKey)
   const title = slot.displayName ?? sectionLabel(slot.positionKey)
   const anchorId = sectionAnchorId(slot.positionKey)
   const variant = cardVariantForPresentation(slot.presentationType)
   const desktopGridColumnsClass = gridColumnsClass(slot.positionKey)
-  const politicsColumns = isPoliticsSection ? buildPoliticsColumns(articles) : []
+  const featuredColumns = usesFeaturedColumns ? buildFeaturedColumns(articles) : []
 
   return (
     <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
@@ -65,8 +76,8 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
         <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Latest</span>
       </div>
       <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 ${desktopGridColumnsClass}`}>
-        {isPoliticsSection
-          ? politicsColumns.map((column, index) => {
+        {usesFeaturedColumns
+          ? featuredColumns.map((column, index) => {
               const { leadArticle, secondaryArticles } = column
               if (!leadArticle) {
                 return null
@@ -88,7 +99,14 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
                 </div>
               )
             })
-          : articles.map((article) => <StoryCard key={article.id} article={article} variant={variant} showAuthor />)}
+          : articles.map((article) => (
+              <StoryCard
+                key={article.id}
+                article={article}
+                variant={variant}
+                showAuthor
+              />
+            ))}
       </div>
     </section>
   )

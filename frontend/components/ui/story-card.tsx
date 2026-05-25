@@ -14,9 +14,12 @@ export interface IStoryCardProps {
   compact?: boolean
   showAuthor?: boolean
   className?: string
+  titleClassName?: string
 }
 
 const titleHover = 'group-hover:text-brand'
+const COMPACT_SIDE_TITLE_CLASS = 'text-[16px] font-extrabold'
+const DEFAULT_TITLE_CLASS = 'text-[15px] font-extrabold'
 
 export function StoryCard({
   article,
@@ -27,6 +30,7 @@ export function StoryCard({
   compact = false,
   showAuthor = false,
   className,
+  titleClassName,
 }: IStoryCardProps): JSX.Element {
   const href = `/article/${encodeURIComponent(article.slug)}`
   const imgSrc = articleImageSrc(article)
@@ -39,6 +43,7 @@ export function StoryCard({
           href={href}
           className={[
             'group block text-[14px] font-extrabold leading-snug text-neutral-950 hover:text-brand',
+            titleClassName ?? '',
             compact ? '' : 'py-3',
           ].join(' ')}
         >
@@ -65,8 +70,9 @@ export function StoryCard({
           <StoryTitle
             title={article.title}
             kicker={kicker}
-            dense
+            dense={layout === 'side'}
             className={layout === 'side' ? 'flex min-w-0 items-center py-3 pr-3' : 'mt-3'}
+            titleClassName={titleClassName}
             as="p"
           />
         </Link>
@@ -79,7 +85,7 @@ export function StoryCard({
       <article className={['group', className].filter(Boolean).join(' ')}>
         <Link href={href} className="block">
           <StoryThumb src={imgSrc} alt={article.title} unoptimized={unoptimized} hoverScale />
-          <StoryTitle title={article.title} kicker={kicker} dense className="mt-2" />
+          <StoryTitle title={article.title} kicker={kicker} className="mt-2" titleClassName={titleClassName} />
         </Link>
       </article>
     )
@@ -110,6 +116,7 @@ export function StoryCard({
             kicker={kicker}
             dense={dense}
             className={layout === 'side' ? '' : 'mt-3'}
+            titleClassName={titleClassName}
           />
         </Link>
       </article>
@@ -120,7 +127,7 @@ export function StoryCard({
     <article className={['group', className].filter(Boolean).join(' ')}>
       <Link href={href} className="block">
         <StoryThumb src={imgSrc} alt={article.title} unoptimized={unoptimized} hoverScale />
-        <StoryTitle title={article.title} dense className="mt-3" />
+        <StoryTitle title={article.title} className="mt-3" titleClassName={titleClassName} />
         {showAuthor ? (
           <p className="mt-1 text-xs font-semibold text-neutral-600">{article.authorName}</p>
         ) : null}
@@ -179,10 +186,18 @@ interface IStoryTitleProps {
   kicker?: string
   dense?: boolean
   className?: string
+  titleClassName?: string
   as?: 'h3' | 'p'
 }
 
-function StoryTitle({ title, kicker, dense = false, className, as: Tag = 'h3' }: IStoryTitleProps): JSX.Element {
+function StoryTitle({
+  title,
+  kicker,
+  dense = false,
+  className,
+  titleClassName,
+  as: Tag = 'h3',
+}: IStoryTitleProps): JSX.Element {
   return (
     <div className={className}>
       {kicker ? (
@@ -192,7 +207,8 @@ function StoryTitle({ title, kicker, dense = false, className, as: Tag = 'h3' }:
         className={[
           'mt-1 leading-snug text-neutral-950',
           titleHover,
-          dense ? 'text-[13px] font-extrabold' : 'text-[15px] font-extrabold',
+          dense ? COMPACT_SIDE_TITLE_CLASS : DEFAULT_TITLE_CLASS,
+          titleClassName ?? '',
         ].join(' ')}
       >
         {title}
