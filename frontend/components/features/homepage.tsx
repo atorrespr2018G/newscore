@@ -161,6 +161,23 @@ function findSlot(slots: IFeedSlot[], presentationType: string): IFeedSlot | und
   return slots.find((s) => s.presentationType === presentationType)
 }
 
+function normalizedPositionKey(slot: IFeedSlot): string {
+  return slot.positionKey.trim().toLowerCase()
+}
+
+function shouldRenderAdRibbon(previousSlot: IFeedSlot | undefined, slot: IFeedSlot): boolean {
+  const currentKey = normalizedPositionKey(slot)
+  if (currentKey === 'politics') {
+    return true
+  }
+
+  const previousKey = previousSlot ? normalizedPositionKey(previousSlot) : ''
+  return (
+    (previousKey === 'politics' && currentKey === 'world') ||
+    (previousKey === 'world' && currentKey === 'politics')
+  )
+}
+
 export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { data, loading, error } = useFeed()
   const feedData = data ?? initialFeed
@@ -197,10 +214,13 @@ export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.
           />
         </Suspense>
       ) : null}
-      {gridSlots.map((slot) => (
-        <Suspense key={slot.id} fallback={<SectionSkeleton />}>
-          <HomepageSection slot={slot} />
-        </Suspense>
+      {gridSlots.map((slot, index) => (
+        <div key={slot.id} className="space-y-2">
+          {shouldRenderAdRibbon(gridSlots[index - 1], slot) ? <AdRibbon /> : null}
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomepageSection slot={slot} />
+          </Suspense>
+        </div>
       ))}
     </div>
   )
