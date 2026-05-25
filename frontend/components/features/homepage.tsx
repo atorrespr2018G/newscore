@@ -54,6 +54,20 @@ function RightPromo({ title, subtitle }: IRightPromoProps): JSX.Element {
   )
 }
 
+function AdRibbon(): JSX.Element {
+  return (
+    <section aria-label="Advertisement" className="border-y border-neutral-200 py-4">
+      <div
+        className="flex min-h-[192px] items-center justify-center rounded border border-dashed border-neutral-300 bg-neutral-100 px-4"
+        role="img"
+        aria-label="Advertisement"
+      >
+        <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">ADVERTISEMENT</span>
+      </div>
+    </section>
+  )
+}
+
 interface IHeroBlockProps {
   articles: IArticle[]
 }
@@ -64,9 +78,10 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
     return null
   }
 
-  const left = [articles[1], articles[2], articles[3]].filter(Boolean) as IArticle[]
-  const strip = [articles[4], articles[1], articles[2]].filter(Boolean) as IArticle[]
-  const rightCards = [articles[3], articles[4]].filter(Boolean) as IArticle[]
+  const left = [articles[1], articles[2], articles[6]].filter(Boolean) as IArticle[]
+  const relatedLinks = articles.slice(3, 6).filter(Boolean) as IArticle[]
+  const strip = articles.slice(6, 9).filter(Boolean) as IArticle[]
+  const rightCards = [articles[7], articles[8]].filter(Boolean) as IArticle[]
   const heroImg = articleImageSrc(hero)
 
   return (
@@ -111,6 +126,14 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
               200,
             )}
           </p>
+
+          {relatedLinks.length > 0 ? (
+            <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200 pt-2">
+              {relatedLinks.map((article) => (
+                <StoryCard key={article.id} article={article} variant="headline-only" />
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -164,6 +187,7 @@ export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.
   return (
     <div className="space-y-2">
       <HeroBlock articles={heroSlot.articles} />
+      <AdRibbon />
       {editorialLeadSlot && editorialSpotlightSlot ? (
         <Suspense fallback={<SectionSkeleton />}>
           <HomepageEditorialBand
