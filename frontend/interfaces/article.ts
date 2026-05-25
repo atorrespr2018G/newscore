@@ -3,6 +3,7 @@ export interface IArticle {
   id: string
   title: string
   slug: string
+  summary: string | null
   status: ArticleStatusType
   authorName: string
   thumbnailUrl: string | null

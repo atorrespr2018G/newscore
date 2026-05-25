@@ -2,14 +2,38 @@ import type { IArticle, IArticleDetail } from '@/interfaces/article'
 import type { IHomepageFeed } from '@/interfaces/feed'
 
 interface IGraphqlArticle {
-  id: string
-  slug: string
-  title: string
-  status: string
-  authorName: string
-  thumbnailUrl: string | null
-  createdAt: string
-  publishedAt: string | null
+  id?: string | null
+  slug?: string | null
+  title?: string | null
+  body?: string | null
+  status?: string | null
+  authorName?: string | null
+  thumbnailUrl?: string | null
+  createdAt?: string | null
+  publishedAt?: string | null
+  tags?: string[] | null
+  categoryId?: string | null
+  mediaIds?: string[] | null
+  viewCount?: number | null
+}
+
+function normalizedString(value: string | null | undefined, fallback: string): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+function normalizedList(value: string[] | null | undefined): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+}
+
+function normalizedStatus(value: string | null | undefined): IArticle['status'] {
+  const status = normalizedString(value, 'published')
+  return ['draft', 'review', 'published', 'archived'].includes(status)
+    ? (status as IArticle['status'])
+    : 'published'
 }
 
 /**
@@ -17,14 +41,15 @@ interface IGraphqlArticle {
  */
 export function mapArticle(a: IGraphqlArticle): IArticle {
   return {
-    id: a.id,
-    title: a.title,
-    slug: a.slug,
-    status: a.status as IArticle['status'],
-    authorName: a.authorName,
+    id: normalizedString(a.id, 'unknown-article'),
+    title: normalizedString(a.title, 'Untitled story'),
+    slug: normalizedString(a.slug, 'newscore'),
+    summary: a.body ?? null,
+    status: normalizedStatus(a.status),
+    authorName: normalizedString(a.authorName, 'NewsCore Staff'),
     thumbnailUrl: a.thumbnailUrl,
-    createdAt: a.createdAt,
-    publishedAt: a.publishedAt,
+    createdAt: normalizedString(a.createdAt, new Date(0).toISOString()),
+    publishedAt: a.publishedAt ?? null,
   }
 }
 
@@ -33,20 +58,20 @@ export function mapArticle(a: IGraphqlArticle): IArticle {
  */
 export function mapArticleDetail(
   a: IGraphqlArticle & {
-    body: string
-    tags: string[]
-    categoryId: string | null
-    mediaIds: string[]
-    viewCount: number
+    body?: string | null
+    tags?: string[] | null
+    categoryId?: string | null
+    mediaIds?: string[] | null
+    viewCount?: number | null
   },
 ): IArticleDetail {
   return {
     ...mapArticle(a),
-    body: a.body,
-    tags: a.tags,
-    categoryId: a.categoryId,
-    mediaIds: a.mediaIds,
-    viewCount: a.viewCount,
+    body: normalizedString(a.body, ''),
+    tags: normalizedList(a.tags),
+    categoryId: a.categoryId ?? null,
+    mediaIds: normalizedList(a.mediaIds),
+    viewCount: typeof a.viewCount === 'number' ? a.viewCount : 0,
   }
 }
 

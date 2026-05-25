@@ -84,6 +84,10 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
   const strip = articles.slice(6, 9).filter(Boolean) as IArticle[]
   const rightCards = [articles[7], articles[8]].filter(Boolean) as IArticle[]
   const heroImg = articleImageSrc(hero)
+  const heroSummary = excerpt(
+    hero.summary ?? 'Top developments from across the US and around the world.',
+    200,
+  )
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -121,12 +125,7 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
             </div>
           </div>
 
-          <p className="mt-4 text-[13px] leading-relaxed text-neutral-800">
-            {excerpt(
-              'Dense three-column homepage with a dominant hero, a sub-story strip, and a right promo rail.',
-              200,
-            )}
-          </p>
+          <p className="mt-4 text-[13px] leading-relaxed text-neutral-800">{heroSummary}</p>
 
           {relatedLinks.length > 0 ? (
             <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200 pt-2">

@@ -10,16 +10,17 @@ import { ARTICLE_BY_SLUG_QUERY } from '@/lib/graphql/operations'
 export function useArticle(slug: string) {
   const { marketCode } = useMarket()
 
-  return useQuery(ARTICLE_BY_SLUG_QUERY, {
+  const result = useQuery(ARTICLE_BY_SLUG_QUERY, {
     variables: { slug, market: marketCode },
     skip: !slug,
     ssr: false,
-    select: (data): IArticleDetail | undefined => {
-      const article = data.articleBySlug
-      if (!article) {
-        return undefined
-      }
-      return mapArticleDetail(article)
-    },
   })
+
+  const article: IArticleDetail | undefined = result.data?.articleBySlug
+    ? mapArticleDetail(result.data.articleBySlug)
+    : undefined
+
+  const loading = result.loading && article === undefined
+
+  return { ...result, data: article, loading }
 }

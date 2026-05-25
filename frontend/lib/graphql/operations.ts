@@ -15,6 +15,7 @@ export const HOMEPAGE_FEED_QUERY = gql`
           id
           slug
           title
+          body
           status
           authorName
           thumbnailUrl

@@ -1,5 +1,12 @@
-export function placeholderImageDataUri(seed: string): string {
-  const safe = seed.replace(/[^a-z0-9_-]/gi, '').slice(0, 24) || 'newscore'
+/**
+ * Build a stable SVG placeholder image for articles missing thumbnails.
+ *
+ * @param seed Optional text used to vary the placeholder label.
+ * @returns A data URI that can be used as an image source.
+ */
+export function placeholderImageDataUri(seed?: string | null): string {
+  const normalizedSeed = typeof seed === 'string' ? seed : 'newscore'
+  const safe = normalizedSeed.replace(/[^a-z0-9_-]/gi, '').slice(0, 24) || 'newscore'
   const svg = encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800">
       <defs>

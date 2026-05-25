@@ -8,9 +8,12 @@ import { BREAKING_NEWS_QUERY } from '@/lib/graphql/operations'
 export function useBreaking() {
   const { marketCode } = useMarket()
 
-  return useQuery(BREAKING_NEWS_QUERY, {
+  const result = useQuery(BREAKING_NEWS_QUERY, {
     variables: { market: marketCode },
     ssr: false,
-    select: (data) => data.breakingNews as Record<string, unknown> | null,
   })
+
+  const breakingNews = (result.data?.breakingNews ?? null) as Record<string, unknown> | null
+
+  return { ...result, data: breakingNews }
 }

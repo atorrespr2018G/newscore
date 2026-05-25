@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, TypeAlias, TypedDict
 from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -42,17 +42,70 @@ CNN_CATEGORIES: list[dict[str, str]] = [
     {"name": "Sports", "slug": "sports", "description": "Scores, leagues, and athletes."},
 ]
 
-US_ARTICLE_TITLES: dict[str, list[str]] = {
+
+class SeedStorySpec(TypedDict, total=False):
+    title: str
+    body: str
+    thumbnail_url: str | None
+    legacy_titles: list[str]
+    tags: list[str]
+
+
+SeedStory: TypeAlias = str | SeedStorySpec
+
+
+US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
     "us": [
-        "Congress faces deadline on budget standoff",
-        "Major cities roll out new transit safety plans",
-        "Supreme Court to hear landmark digital privacy case",
+        {
+            "title": "Baltimore bridge collapse snarls shipping and commuter traffic",
+            "body": (
+                "The Francis Scott Key Bridge collapsed after the container ship Dali struck "
+                "a support in Baltimore, killing six construction workers and shutting a key "
+                "shipping lane. Federal investigators are examining the ship's power systems "
+                "while crews race to clear the channel and rebuild a major East Coast freight route."
+            ),
+            "thumbnail_url": "/images/homepage/baltimore-bridge.webp",
+            "legacy_titles": ["Congress faces deadline on budget standoff"],
+            "tags": ["seed", "us", "us", "baltimore", "bridge-collapse"],
+        },
+        {
+            "title": "Millions gather as total solar eclipse sweeps across North America",
+            "body": (
+                "Crowds from Texas to Maine paused on April 8 as the moon's shadow turned "
+                "daylight into dusk along the path of totality. Scientists used the rare eclipse "
+                "to study the sun's corona while local officials managed packed viewing events and heavy traffic."
+            ),
+            "thumbnail_url": "/images/homepage/solar-eclipse-totality.jpg",
+            "legacy_titles": ["Major cities roll out new transit safety plans"],
+            "tags": ["seed", "us", "us", "solar-eclipse", "space"],
+        },
+        {
+            "title": "Boeing faces renewed scrutiny after Alaska Airlines blowout",
+            "body": (
+                "Investigators focused on manufacturing and oversight failures after a door plug "
+                "blew off an Alaska Airlines 737 Max 9 shortly after takeoff from Portland, forcing "
+                "an emergency landing. The incident triggered fresh inspections, delivery slowdowns, and new questions about FAA supervision."
+            ),
+            "thumbnail_url": "/images/homepage/alaska-737-max.jpg",
+            "legacy_titles": ["Supreme Court to hear landmark digital privacy case"],
+            "tags": ["seed", "us", "us", "boeing", "aviation"],
+        },
         "Senate prepares overnight vote on stopgap funding bill",
         "Agencies issue shutdown guidance as deadline nears",
         "Budget negotiators trade final offers before cutoff",
     ],
     "world": [
-        "Markets rally as inflation cools",
+        {
+            "title": "Notre-Dame reopens after years of restoration in Paris",
+            "body": (
+                "Notre-Dame Cathedral reopened to worshippers and visitors after a years-long restoration "
+                "campaign following the 2019 fire that destroyed its spire and ravaged the roof. The return "
+                "marked a symbolic milestone for Paris and for the craftspeople who rebuilt one of the world's best-known landmarks."
+            ),
+            "thumbnail_url": "/images/homepage/notre-dame.jpg",
+            "legacy_titles": ["Markets rally as inflation cools"],
+            "tags": ["seed", "us", "world", "notre-dame", "paris"],
+        },
         "New satellite images reveal rapid glacier retreat",
         "Storm system causes major travel disruptions",
     ],
@@ -94,7 +147,7 @@ US_ARTICLE_TITLES: dict[str, list[str]] = {
     ],
 }
 
-CO_ARTICLE_TITLES: dict[str, list[str]] = {
+CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
     "us": [
         "Congreso define plazo para debate de presupuesto nacional",
         "Ciudades principales refuerzan seguridad en transporte público",
@@ -270,7 +323,7 @@ MARKET_DEFS: list[dict[str, Any]] = [
         "country": "United States",
         "label": "USA",
         "default_locale": "en-US",
-        "article_titles": US_ARTICLE_TITLES,
+        "article_stories": US_ARTICLE_STORIES,
         "display_name_key": "display_name_us",
         "breaking_items": [
             {"text": "Breaking: Major story developing in Washington", "severity": "high"},
@@ -283,7 +336,7 @@ MARKET_DEFS: list[dict[str, Any]] = [
         "country": "Colombia",
         "label": "Colombia",
         "default_locale": "es-CO",
-        "article_titles": CO_ARTICLE_TITLES,
+        "article_stories": CO_ARTICLE_STORIES,
         "display_name_key": "display_name_co",
         "breaking_items": [
             {"text": "Última hora: Historia principal en desarrollo en Bogotá", "severity": "high"},
@@ -310,6 +363,34 @@ def _mongo_db_name() -> str:
     if not name:
         raise RuntimeError("Missing MONGO_DB_NAME")
     return name
+
+
+def _story_title(story: SeedStory) -> str:
+    return story if isinstance(story, str) else story["title"]
+
+
+def _story_body(story: SeedStory, *, title: str, market_code: str, category_slug: str) -> str:
+    if isinstance(story, dict) and story.get("body"):
+        return str(story["body"])
+    return f"{title}\n\nSeeded demo content for {market_code} / {category_slug}."
+
+
+def _story_thumbnail_url(story: SeedStory) -> str | None:
+    if isinstance(story, dict):
+        return story.get("thumbnail_url")
+    return None
+
+
+def _story_tags(story: SeedStory, *, market_code: str, category_slug: str) -> list[str]:
+    if isinstance(story, dict) and story.get("tags"):
+        return list(story["tags"])
+    return ["seed", "demo", market_code, category_slug]
+
+
+def _story_lookup_titles(story: SeedStory) -> list[str]:
+    if isinstance(story, str):
+        return [story]
+    return [story["title"], *list(story.get("legacy_titles") or [])]
 
 
 async def _get_or_create_admin(db: AsyncIOMotorDatabase) -> dict[str, Any]:
@@ -396,36 +477,68 @@ async def _ensure_market_articles(
     author_id: str,
     market_id: str,
     market_code: str,
-    article_titles: dict[str, list[str]],
+    article_stories: dict[str, list[SeedStory]],
     slug_to_category_id: dict[str, str],
 ) -> list[str]:
     article_ids: list[str] = []
 
-    for category_slug, titles in article_titles.items():
+    for category_slug, stories in article_stories.items():
         category_id = slug_to_category_id[category_slug]
-        for title in titles:
+        for story in stories:
+            title = _story_title(story)
             existing = await db[ARTICLES_COLLECTION].find_one(
-                {"title": title, "market_ids": market_id},
+                {
+                    "category_id": category_id,
+                    "market_ids": market_id,
+                    "title": {"$in": _story_lookup_titles(story)},
+                },
             )
+            now = _utc_now_iso()
             if existing is not None:
+                await db[ARTICLES_COLLECTION].update_one(
+                    {"_id": existing["_id"]},
+                    {
+                        "$set": {
+                            "title": title,
+                            "body": _story_body(
+                                story,
+                                title=title,
+                                market_code=market_code,
+                                category_slug=category_slug,
+                            ),
+                            "tags": _story_tags(
+                                story,
+                                market_code=market_code,
+                                category_slug=category_slug,
+                            ),
+                            "thumbnail_url": _story_thumbnail_url(story),
+                            "published_at": now,
+                            "updated_at": now,
+                        }
+                    },
+                )
                 article_ids.append(str(existing["_id"]))
                 continue
 
             article_id = str(uuid4())
-            now = _utc_now_iso()
             slug = f"{market_code}-{category_slug}-{article_id[:8]}"
             doc = {
                 "_id": article_id,
                 "title": title,
                 "slug": slug,
-                "body": f"{title}\n\nSeeded demo content for {market_code} / {category_slug}.",
+                "body": _story_body(
+                    story,
+                    title=title,
+                    market_code=market_code,
+                    category_slug=category_slug,
+                ),
                 "status": "published",
                 "author_id": author_id,
                 "category_id": category_id,
                 "market_ids": [market_id],
                 "town_id": None,
-                "tags": ["seed", "demo", market_code, category_slug],
-                "thumbnail_url": None,
+                "tags": _story_tags(story, market_code=market_code, category_slug=category_slug),
+                "thumbnail_url": _story_thumbnail_url(story),
                 "media_ids": [],
                 "view_count": 0,
                 "published_at": now,
@@ -595,7 +708,7 @@ async def seed_dev() -> None:
                 author_id=str(admin["_id"]),
                 market_id=market_id,
                 market_code=code,
-                article_titles=market["article_titles"],
+                article_stories=market["article_stories"],
                 slug_to_category_id=slug_to_category_id,
             )
             await _ensure_market_homepage(
