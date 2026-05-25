@@ -41,7 +41,7 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
   return (
     <header className="border-b border-neutral-200">
       <div className="bg-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-2">
+        <div className="site-container flex items-center gap-4 py-2">
           <Link href="/" className="flex items-center gap-2">
             <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
               NEWSCORE
@@ -104,7 +104,7 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
         {mobileOpen ? (
           <nav
             id="mobile-nav"
-            className="border-t border-neutral-200 bg-white px-6 py-3 md:hidden"
+            className="site-container border-t border-neutral-200 bg-white py-3 md:hidden"
             aria-label="Mobile sections"
           >
             <ul className="space-y-2">

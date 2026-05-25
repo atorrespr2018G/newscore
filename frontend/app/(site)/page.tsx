@@ -14,7 +14,7 @@ export default async function HomePage(): Promise<JSX.Element> {
   const initialFeed = await fetchHomepageFeed(market)
 
   return (
-    <main id="main-content" className="mx-auto max-w-6xl px-6 py-8">
+    <main id="main-content" className="site-container py-8">
       <Homepage initialFeed={initialFeed} />
     </main>
   )

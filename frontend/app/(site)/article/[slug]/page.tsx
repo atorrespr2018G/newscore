@@ -33,7 +33,7 @@ export default async function ArticlePage({ params }: IArticlePageProps): Promis
   const initialArticle = await fetchArticleBySlug(params.slug, market)
 
   return (
-    <main id="main-content" className="mx-auto max-w-3xl px-6 py-10">
+    <main id="main-content" className="mx-auto w-full max-w-3xl px-4 py-10">
       <nav className="mb-6" aria-label="Breadcrumb">
         <Link
           href="/"

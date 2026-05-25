@@ -18,7 +18,7 @@ export function BreakingTicker(): JSX.Element | null {
 
   return (
     <div className="border-b border-neutral-200 bg-neutral-50" aria-live="polite" aria-atomic="true">
-      <div className="mx-auto max-w-6xl px-6 py-2">
+      <div className="site-container py-2">
         <div className="flex items-center gap-3">
           <span className="rounded bg-[color:var(--brand-red)] px-2 py-1 text-xs font-extrabold tracking-wide text-white">
             BREAKING

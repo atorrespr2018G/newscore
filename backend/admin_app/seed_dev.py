@@ -47,6 +47,9 @@ US_ARTICLE_TITLES: dict[str, list[str]] = {
         "Congress faces deadline on budget standoff",
         "Major cities roll out new transit safety plans",
         "Supreme Court to hear landmark digital privacy case",
+        "Senate prepares overnight vote on stopgap funding bill",
+        "Agencies issue shutdown guidance as deadline nears",
+        "Budget negotiators trade final offers before cutoff",
     ],
     "world": [
         "Markets rally as inflation cools",
@@ -95,6 +98,9 @@ CO_ARTICLE_TITLES: dict[str, list[str]] = {
         "Congreso define plazo para debate de presupuesto nacional",
         "Ciudades principales refuerzan seguridad en transporte público",
         "Corte Constitucional revisará caso de privacidad digital",
+        "Senado prepara votación nocturna de financiamiento transitorio",
+        "Agencias publican guía de cierre ante vencimiento del plazo",
+        "Negociadores intercambian últimas ofertas antes del límite",
     ],
     "world": [
         "Mercados suben tras datos de inflación moderada",
@@ -143,7 +149,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "position_key": "hero",
         "order_index": 0,
         "pinned": True,
-        "limit": 6,
+        "limit": 9,
         "presentation_type": "hero",
         "display_name_us": "Top Stories",
         "display_name_co": "Titulares",
