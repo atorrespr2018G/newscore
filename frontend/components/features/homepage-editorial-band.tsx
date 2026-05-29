@@ -33,24 +33,30 @@ export function HomepageEditorialBand({
       id={sectionAnchorId(MORE_TOP_STORIES_KEY)}
       className="scroll-mt-24 border-t border-neutral-200 pt-10"
     >
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-8">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8">
         {moreArticles.length > 0 ? (
-          <EditorialColumn
-            title={moreTopStoriesSlot.displayName ?? sectionLabel(moreTopStoriesSlot.positionKey)}
-            articles={moreArticles}
-            leadImageCount={3}
-          />
+          <div className="lg:col-span-3">
+            <EditorialColumn
+              title={moreTopStoriesSlot.displayName ?? sectionLabel(moreTopStoriesSlot.positionKey)}
+              articles={moreArticles}
+              leadImageCount={3}
+            />
+          </div>
         ) : null}
 
         {spotlightArticles.length > 0 ? (
-          <EditorialColumn
-            title={spotlightSlot.displayName ?? sectionLabel(spotlightSlot.positionKey)}
-            articles={spotlightArticles}
-            leadImageCount={1}
-          />
+          <div className="lg:col-span-6">
+            <EditorialColumn
+              title={spotlightSlot.displayName ?? sectionLabel(spotlightSlot.positionKey)}
+              articles={spotlightArticles}
+              leadImageCount={1}
+            />
+          </div>
         ) : null}
 
-        <RightRailColumn articles={rightRailSlot?.articles ?? []} />
+        <div className="lg:col-span-3">
+          <RightRailColumn articles={rightRailSlot?.articles ?? []} />
+        </div>
       </div>
     </section>
   )

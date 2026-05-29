@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 
-import { BreakingTicker } from '@/components/features/breaking-ticker'
-import { Masthead } from '@/components/ui/masthead'
+const Masthead = dynamic(() => import('@/components/ui/masthead').then((mod) => mod.Masthead), {
+  ssr: false,
+})
+
+const BreakingTicker = dynamic(
+  () => import('@/components/features/breaking-ticker').then((mod) => mod.BreakingTicker),
+  { ssr: false },
+)
 
 interface ISiteLayoutProps {
   children: ReactNode

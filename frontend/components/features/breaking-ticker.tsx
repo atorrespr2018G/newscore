@@ -1,11 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useBreaking } from '@/hooks/use-breaking'
 
-/**
- * Breaking ticker with live region for screen readers.
- */
-export function BreakingTicker(): JSX.Element | null {
+function BreakingTickerContent(): JSX.Element | null {
   const { data } = useBreaking()
 
   const items = Array.isArray((data as { payload?: { items?: unknown[] } })?.payload?.items)
@@ -36,4 +34,17 @@ export function BreakingTicker(): JSX.Element | null {
       </div>
     </div>
   )
+}
+
+/**
+ * Breaking ticker with live region for screen readers.
+ */
+export function BreakingTicker(): JSX.Element | null {
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  return isMounted ? <BreakingTickerContent /> : null
 }

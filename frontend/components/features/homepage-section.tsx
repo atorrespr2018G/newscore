@@ -14,6 +14,7 @@ const FEATURED_COLUMN_SECTION_KEYS = new Set(['politics', 'world'])
 const FEATURED_COLUMN_ARTICLE_LIMIT = 15
 const FEATURED_COLUMN_COUNT = 3
 const FEATURED_COLUMN_SECONDARY_COUNT = 4
+const POLITICS_REPLACE_LEAD_WITH_AD_COLUMN_INDEX = 2
 
 function usesFeaturedColumnLayout(positionKey: string): boolean {
   return FEATURED_COLUMN_SECTION_KEYS.has(positionKey.trim().toLowerCase())
@@ -63,6 +64,7 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
   }
 
   const usesFeaturedColumns = usesFeaturedColumnLayout(slot.positionKey)
+  const isPolitics = slot.positionKey.trim().toLowerCase() === 'politics'
   const title = slot.displayName ?? sectionLabel(slot.positionKey)
   const anchorId = sectionAnchorId(slot.positionKey)
   const variant = cardVariantForPresentation(slot.presentationType)
@@ -85,7 +87,11 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
 
               return (
                 <div key={`${leadArticle.id}-${index}`} className="space-y-4">
-                  <StoryCard article={leadArticle} variant={variant} showAuthor />
+                  {isPolitics && index === POLITICS_REPLACE_LEAD_WITH_AD_COLUMN_INDEX ? (
+                    <InlineAdCard />
+                  ) : (
+                    <StoryCard article={leadArticle} variant={variant} showAuthor />
+                  )}
                   <div className="space-y-4">
                     {secondaryArticles.map((article, secondaryIndex) => (
                       <StoryCard
@@ -109,5 +115,21 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
             ))}
       </div>
     </section>
+  )
+}
+
+function InlineAdCard(): JSX.Element {
+  return (
+    <div
+      className="overflow-hidden rounded border border-neutral-200 bg-neutral-100"
+      role="img"
+      aria-label="Advertisement"
+    >
+      <div className="relative w-full aspect-[16/11.7]">
+        <div className="absolute inset-0 flex items-center justify-center px-4">
+          <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">ADVERTISEMENT</span>
+        </div>
+      </div>
+    </div>
   )
 }

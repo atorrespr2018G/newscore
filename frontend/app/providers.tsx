@@ -14,16 +14,7 @@ interface IProvidersProps {
  * Server components fetch initial data; no global loading gate.
  */
 export function Providers({ children }: IProvidersProps): JSX.Element {
-  const [client] = useState<ApolloClient<unknown> | null>(() => {
-    if (typeof window === 'undefined') {
-      return null
-    }
-    return makeApolloClient()
-  })
-
-  if (!client) {
-    return <MarketProvider>{children}</MarketProvider>
-  }
+  const [client] = useState<ApolloClient<unknown>>(() => makeApolloClient())
 
   return (
     <ApolloProvider client={client}>

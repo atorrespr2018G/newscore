@@ -174,7 +174,8 @@ function shouldRenderAdRibbon(previousSlot: IFeedSlot | undefined, slot: IFeedSl
   const previousKey = previousSlot ? normalizedPositionKey(previousSlot) : ''
   return (
     (previousKey === 'politics' && currentKey === 'world') ||
-    (previousKey === 'world' && currentKey === 'politics')
+    (previousKey === 'world' && currentKey === 'politics') ||
+    (previousKey === 'world' && currentKey === 'us')
   )
 }
 
