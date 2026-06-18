@@ -22,6 +22,7 @@ class Slot(BaseModel):
     display_name: str | None = None
     presentation_type: str = "grid_4"
     pinned_ids: list[str] = []
+    draft_pinned_ids: list[str] | None = None
     query_rule: dict | None = None
     order_index: int = 0
     updated_at: str = Field(default_factory=lambda: utc_now().isoformat())

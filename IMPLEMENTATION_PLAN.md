@@ -2,6 +2,11 @@
 
 News platform designed for AI-assisted development in Cursor.
 
+## Session Status Notes
+
+- Baseline verified (Jun 7, 2026): top ad ribbon + top horizontal nav behavior is working as intended with the 2s initial lock and synchronized hide/reveal flow.
+- Safety marker: treat this as a known-good checkpoint before additional header/scroll behavior changes.
+
 ## Stack
 
 | Layer | Tech |

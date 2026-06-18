@@ -34,7 +34,9 @@ pyproject.toml
 ./shared/read/layout_reads.py
 ./shared/read/loaders.py
 ./shared/read/market_reads.py
+./shared/read/placement_reads.py
 ./shared/read/site_reads.py
+./shared/read/slot_pinned_ids.py
 ./shared/repositories/__init__.py
 ./shared/repositories/article_repository.py
 ./shared/repositories/slot_repository.py
@@ -85,7 +87,9 @@ shared/read/collections.py
 shared/read/layout_reads.py
 shared/read/loaders.py
 shared/read/market_reads.py
+shared/read/placement_reads.py
 shared/read/site_reads.py
+shared/read/slot_pinned_ids.py
 shared/repositories/__init__.py
 shared/repositories/article_repository.py
 shared/repositories/slot_repository.py

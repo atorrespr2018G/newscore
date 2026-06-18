@@ -65,6 +65,13 @@ async def test_require_role_blocks_wrong_role() -> None:
         await dep(user=user)
 
 
+@pytest.mark.asyncio
+async def test_require_role_allows_admin_superuser() -> None:
+    dep = require_role("reporter", "editor")
+    admin = TokenPayload(sub="admin-1", role="admin", exp=9999999999)
+    assert await dep(user=admin) == admin
+
+
 def test_create_access_token_uses_secret() -> None:
     os.environ.setdefault("JWT_SECRET", "test-secret-for-unit-tests-only-32chars")
     token = create_access_token(subject="abc", role="admin", expires_minutes=5)

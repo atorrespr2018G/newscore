@@ -16,6 +16,9 @@ from shared.core.exceptions import PermissionError
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+# Admin may access any role-gated endpoint (superuser for editorial workflows).
+_ADMIN_ROLE: Final[str] = "admin"
+
 
 class TokenPayload(BaseModel):
     """Decoded JWT payload."""
@@ -91,7 +94,7 @@ def require_role(*allowed_roles: str):
     allowed: Final[set[str]] = set(allowed_roles)
 
     async def _dep(user: TokenPayload = Depends(get_current_user)) -> TokenPayload:
-        if user.role not in allowed:
+        if user.role != _ADMIN_ROLE and user.role not in allowed:
             raise PermissionError("Insufficient role")
         return user
 

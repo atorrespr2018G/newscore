@@ -79,15 +79,22 @@ class SiteQuery:
         info: Info[SiteContext],
         market: str = DEFAULT_MARKET_CODE,
         town: str | None = None,
+        page_name: str = "homepage",
     ) -> HomepageFeed:
-        """Return the homepage feed for a market (Redis-cached)."""
+        """Return a page feed for a market (Redis-cached)."""
 
-        cache_key = homepage_feed_cache_key(market, town)
+        normalized_page = page_name.strip().lower() or "homepage"
+        cache_key = homepage_feed_cache_key(market, town, page_name=normalized_page)
         cached = await get_json(cache_key)
         if cached is not None:
             return _feed_from_cache(cached)
 
-        raw = await site_reads.get_home_feed(info.context.db, market_code=market, town=town)
+        raw = await site_reads.get_home_feed(
+            info.context.db,
+            market_code=market,
+            town=town,
+            page_name=normalized_page,
+        )
         await set_json(key=cache_key, value=raw, ttl_seconds=HOMEPAGE_FEED_TTL_SECONDS)
         return _feed_from_cache(raw)
 

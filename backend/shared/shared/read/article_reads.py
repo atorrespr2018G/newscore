@@ -10,8 +10,15 @@ from shared.core.exceptions import NotFoundError
 from shared.core.pagination import PaginationParams
 from shared.read.collections import ARTICLES_COLLECTION, CATEGORIES_COLLECTION
 from shared.read.loaders import AuthorNameLoader
-from shared.schemas.article_schemas import ArticleDetailOut, ArticleOut
+from shared.schemas.article_schemas import (
+    DEFAULT_MAX_IMAGE_COUNT,
+    ArticleDetailOut,
+    ArticleOut,
+)
 from shared.schemas.common import PaginatedResponse
+
+SEARCH_RESULTS_LIMIT = 50
+PUBLISHED_IDS_LOOKUP_LIMIT = 50
 
 
 def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
@@ -24,6 +31,7 @@ def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
         status=doc["status"],
         author_name=author_name,
         thumbnail_url=doc.get("thumbnail_url"),
+        video_url=doc.get("video_url"),
         created_at=doc.get("created_at", ""),
         published_at=doc.get("published_at"),
     )
@@ -40,6 +48,7 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         category_id=doc.get("category_id"),
         market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],
         media_ids=list(doc.get("media_ids") or []),
+        max_image_count=int(doc.get("max_image_count") or DEFAULT_MAX_IMAGE_COUNT),
         view_count=int(doc.get("view_count") or 0),
     )
 
@@ -141,7 +150,7 @@ async def search_published(
         db[ARTICLES_COLLECTION]
         .find(q, {"score": {"$meta": "textScore"}})
         .sort([("score", {"$meta": "textScore"})])
-        .limit(50)
+        .limit(SEARCH_RESULTS_LIMIT)
     )
     docs = [d async for d in cursor]
     names = loader or AuthorNameLoader(db)
@@ -154,6 +163,59 @@ async def search_published(
     return items
 
 
+PREVIEWABLE_STATUSES = ("draft", "review", "published")
+
+
+async def list_by_ids_for_preview(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_ids: list[str],
+    market_id: str | None = None,
+    town: str | None = None,
+    loader: AuthorNameLoader | None = None,
+    require_market: bool = True,
+) -> list[ArticleOut]:
+    """Load draft, review, or published articles by id list for editor preview.
+
+    Args:
+        db: Database connection.
+        article_ids: Ordered article ids to resolve.
+        market_id: Optional market scope.
+        town: Optional town scope.
+        loader: Optional author name loader.
+        require_market: When False, pinned editorial ids resolve even if the
+            article is not tagged for the active market.
+
+    Returns:
+        Previewable articles in the same order as the requested ids.
+    """
+
+    if not article_ids:
+        return []
+
+    q: dict[str, Any] = {
+        "_id": {"$in": article_ids},
+        "status": {"$in": list(PREVIEWABLE_STATUSES)},
+    }
+    if market_id and require_market:
+        q["market_ids"] = market_id
+    if town:
+        q["town_id"] = town.strip()
+    cursor = db[ARTICLES_COLLECTION].find(q).limit(PUBLISHED_IDS_LOOKUP_LIMIT)
+    docs = {str(d["_id"]): d async for d in cursor}
+    names = loader or AuthorNameLoader(db)
+    await names.load_many([str(d["author_id"]) for d in docs.values()])
+
+    items: list[ArticleOut] = []
+    for aid in article_ids:
+        doc = docs.get(aid)
+        if doc is None:
+            continue
+        author = await names.load(str(doc["author_id"]))
+        items.append(article_out(doc, author_name=author))
+    return items
+
+
 async def list_published_by_ids(
     db: AsyncIOMotorDatabase,
     *,
@@ -161,18 +223,32 @@ async def list_published_by_ids(
     market_id: str | None = None,
     town: str | None = None,
     loader: AuthorNameLoader | None = None,
+    require_market: bool = True,
 ) -> list[ArticleOut]:
-    """Load published articles by id list, preserving input order where possible."""
+    """Load published articles by id list, preserving input order where possible.
+
+    Args:
+        db: Database connection.
+        article_ids: Ordered article ids to resolve.
+        market_id: Optional market scope for query-fill reads.
+        town: Optional town scope.
+        loader: Optional author name loader.
+        require_market: When False, pinned editorial ids resolve even if the
+            article is not tagged for the active market.
+
+    Returns:
+        Published articles in the same order as the requested ids.
+    """
 
     if not article_ids:
         return []
 
     q: dict[str, Any] = {"_id": {"$in": article_ids}, "status": "published"}
-    if market_id:
+    if market_id and require_market:
         q["market_ids"] = market_id
     if town:
         q["town_id"] = town.strip()
-    cursor = db[ARTICLES_COLLECTION].find(q).limit(50)
+    cursor = db[ARTICLES_COLLECTION].find(q).limit(PUBLISHED_IDS_LOOKUP_LIMIT)
     docs = {str(d["_id"]): d async for d in cursor}
     names = loader or AuthorNameLoader(db)
     await names.load_many([str(d["author_id"]) for d in docs.values()])

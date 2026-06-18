@@ -2,20 +2,31 @@
 
 import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
-import { StoryCard } from '@/components/ui/story-card'
+import { HomepageCompactSixBand } from '@/components/features/homepage-compact-six-band'
+import { HealthCarouselSection } from '@/components/features/homepage-health-carousel'
+import { HomepageUsBand } from '@/components/features/homepage-us-band'
+import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { cardVariantForPresentation } from '@/lib/presentation-registry'
-import { sectionAnchorId, sectionLabel } from '@/lib/helpers/section-labels'
+import { useSectionLabels } from '@/hooks/use-section-labels'
+import {
+  COMPACT_SIX_BAND_ARTICLE_LIMIT,
+  isCompactSixBandPositionKey,
+  isUsBandPositionKey,
+  sectionAnchorId,
+} from '@/lib/helpers/section-labels'
+import { useTranslations } from 'next-intl'
 
 interface IHomepageSectionProps {
   slot: IFeedSlot
+  /** Layout page name for page-specific section labels (e.g. world). */
+  pageName?: string
 }
 
-const FEATURED_COLUMN_SECTION_KEYS = new Set(['politics', 'world'])
+const FEATURED_COLUMN_SECTION_KEYS = new Set<string>()
 const FEATURED_COLUMN_ARTICLE_LIMIT = 15
+const HEALTH_CAROUSEL_ARTICLE_LIMIT = 6
 const FEATURED_COLUMN_COUNT = 3
 const FEATURED_COLUMN_SECONDARY_COUNT = 4
-const POLITICS_REPLACE_LEAD_WITH_AD_COLUMN_INDEX = 2
-
 function usesFeaturedColumnLayout(positionKey: string): boolean {
   return FEATURED_COLUMN_SECTION_KEYS.has(positionKey.trim().toLowerCase())
 }
@@ -57,15 +68,41 @@ function buildFeaturedColumns(articles: IArticle[]): Array<{ leadArticle: IArtic
 /**
  * CNN-style horizontal module: section heading plus a row of story cards.
  */
-export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | null {
+export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.Element | null {
+  const { homepageSectionTitle, sectionLabel } = useSectionLabels(pageName)
+  const t = useTranslations('common')
   const articles = visibleArticlesForSection(slot)
   if (articles.length === 0) {
     return null
   }
 
+  if (slot.positionKey.trim().toLowerCase() === 'health') {
+    return (
+      <HealthCarouselSection
+        slot={{ ...slot, articles: slot.articles.slice(0, HEALTH_CAROUSEL_ARTICLE_LIMIT) }}
+      />
+    )
+  }
+
+  if (isCompactSixBandPositionKey(slot.positionKey)) {
+    return (
+      <HomepageCompactSixBand
+        slot={{ ...slot, articles: slot.articles.slice(0, COMPACT_SIX_BAND_ARTICLE_LIMIT) }}
+        pageName={pageName}
+      />
+    )
+  }
+
+  if (isUsBandPositionKey(slot.positionKey)) {
+    return <HomepageUsBand slot={slot} />
+  }
+
+  if (slot.positionKey.trim().toLowerCase() === 'world') {
+    return <HomepageUsBand slot={slot} title={sectionLabel('world')} />
+  }
+
   const usesFeaturedColumns = usesFeaturedColumnLayout(slot.positionKey)
-  const isPolitics = slot.positionKey.trim().toLowerCase() === 'politics'
-  const title = slot.displayName ?? sectionLabel(slot.positionKey)
+  const title = homepageSectionTitle(slot.positionKey, slot.displayName)
   const anchorId = sectionAnchorId(slot.positionKey)
   const variant = cardVariantForPresentation(slot.presentationType)
   const desktopGridColumnsClass = gridColumnsClass(slot.positionKey)
@@ -74,8 +111,15 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
   return (
     <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
       <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
-        <h2 className="text-2xl font-black tracking-tight text-neutral-950">{title}</h2>
-        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Latest</span>
+        <h2
+          className={[
+            'text-2xl tracking-tight text-neutral-950',
+            pageName === 'world' ? 'font-normal' : 'font-black',
+          ].join(' ')}
+        >
+          {title}
+        </h2>
+        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
       </div>
       <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 ${desktopGridColumnsClass}`}>
         {usesFeaturedColumns
@@ -87,14 +131,10 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
 
               return (
                 <div key={`${leadArticle.id}-${index}`} className="space-y-4">
-                  {isPolitics && index === POLITICS_REPLACE_LEAD_WITH_AD_COLUMN_INDEX ? (
-                    <InlineAdCard />
-                  ) : (
-                    <StoryCard article={leadArticle} variant={variant} showAuthor />
-                  )}
+                  <HomepageStoryCard article={leadArticle} variant={variant} showAuthor />
                   <div className="space-y-4">
                     {secondaryArticles.map((article, secondaryIndex) => (
-                      <StoryCard
+                      <HomepageStoryCard
                         key={`${article.id}-${index}-${secondaryIndex}`}
                         article={article}
                         variant="compact"
@@ -106,7 +146,7 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
               )
             })
           : articles.map((article) => (
-              <StoryCard
+              <HomepageStoryCard
                 key={article.id}
                 article={article}
                 variant={variant}
@@ -115,21 +155,5 @@ export function HomepageSection({ slot }: IHomepageSectionProps): JSX.Element | 
             ))}
       </div>
     </section>
-  )
-}
-
-function InlineAdCard(): JSX.Element {
-  return (
-    <div
-      className="overflow-hidden rounded border border-neutral-200 bg-neutral-100"
-      role="img"
-      aria-label="Advertisement"
-    >
-      <div className="relative w-full aspect-[16/11.7]">
-        <div className="absolute inset-0 flex items-center justify-center px-4">
-          <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">ADVERTISEMENT</span>
-        </div>
-      </div>
-    </div>
   )
 }

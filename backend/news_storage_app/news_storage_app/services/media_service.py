@@ -11,7 +11,7 @@ from fastapi import UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.constants import SUPPORTED_IMAGE_TYPES, SUPPORTED_VIDEO_TYPES
-from shared.core.exceptions import MediaUploadError, PayloadTooLargeError
+from shared.core.exceptions import MediaUploadError, NotFoundError, PayloadTooLargeError
 from shared.core.file_storage import delete_media_file, save_image, save_video
 from shared.schemas.media_schemas import MediaOut
 
@@ -119,8 +119,28 @@ async def delete_media(db: AsyncIOMotorDatabase, *, media_id: str) -> None:
 
     doc = await db[MEDIA_COLLECTION].find_one({"_id": media_id})
     if doc is None:
-        return
+        raise NotFoundError("Media not found")
     url = str(doc.get("url") or "")
     if url:
         delete_media_file(relative_path=url)
     await db[MEDIA_COLLECTION].delete_one({"_id": media_id})
+
+
+async def get_by_id(db: AsyncIOMotorDatabase, *, media_id: str) -> MediaOut:
+    """Load a media asset by id.
+
+    Args:
+        db: Database connection.
+        media_id: Media id to load.
+
+    Returns:
+        Media payload.
+
+    Raises:
+        NotFoundError: If the media asset does not exist.
+    """
+
+    doc = await db[MEDIA_COLLECTION].find_one({"_id": media_id})
+    if doc is None:
+        raise NotFoundError("Media not found")
+    return _to_out(doc)

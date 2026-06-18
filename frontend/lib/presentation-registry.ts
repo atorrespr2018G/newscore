@@ -28,14 +28,32 @@ export const MODULE_KIND_BY_PRESENTATION: Record<string, SlotModuleKind> = {
   [PRESENTATION_GRID_4]: 'grid-section',
 }
 
+/**
+ * Resolve the default card variant for a slot presentation type.
+ *
+ * @param presentationType Backend slot presentation type.
+ * @returns Card variant used by UI components.
+ */
 export function cardVariantForPresentation(presentationType: string): StoryCardVariant {
   return CARD_VARIANT_BY_PRESENTATION[presentationType] ?? 'grid'
 }
 
+/**
+ * Resolve the top-level module renderer for a slot presentation type.
+ *
+ * @param presentationType Backend slot presentation type.
+ * @returns Module kind used in feed composition.
+ */
 export function moduleKindForPresentation(presentationType: string): SlotModuleKind {
   return MODULE_KIND_BY_PRESENTATION[presentationType] ?? 'grid-section'
 }
 
+/**
+ * Check whether a presentation type belongs to the editorial band family.
+ *
+ * @param presentationType Backend slot presentation type.
+ * @returns True when the presentation should render as editorial.
+ */
 export function isEditorialPresentation(presentationType: string): boolean {
   return EDITORIAL_PRESENTATION_TYPES.has(presentationType)
 }

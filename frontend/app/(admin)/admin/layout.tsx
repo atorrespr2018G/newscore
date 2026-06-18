@@ -1,60 +1,82 @@
 'use client'
 
-import Link from 'next/link'
+
+
+import dynamic from 'next/dynamic'
+
 import { usePathname, useRouter } from 'next/navigation'
+
 import { useEffect, type ReactNode } from 'react'
-import { clearToken, getStoredToken } from '@/lib/api/auth'
+
+import { ADMIN_WORKFLOW_ROUTES } from '@/lib/api/admin-routes'
+
+import { ensureDevEditorialSession } from '@/lib/api/auth'
+
+import { AdminWorkflowNav } from '@/components/ui/admin-workflow-nav'
+import { EditorialPreviewSyncProvider } from '@/context/editorial-preview-sync-context'
+
+
+
+const Masthead = dynamic(() => import('@/components/ui/masthead').then((mod) => mod.Masthead), {
+
+  ssr: false,
+
+})
+
+
 
 interface IAdminLayoutProps {
+
   children: ReactNode
+
 }
+
+
+
+/** Editorial workflow pages using the public masthead (Reporter / Editor / Preview tabs). */
 
 export default function AdminLayout({ children }: IAdminLayoutProps): JSX.Element {
+
   const pathname = usePathname()
+
   const router = useRouter()
-  const isLogin = pathname === '/admin/login'
+
+
 
   useEffect(() => {
-    if (isLogin) return
-    if (!getStoredToken()) {
-      router.replace('/admin/login')
-    }
-  }, [isLogin, router])
 
-  if (isLogin) {
-    return <>{children}</>
-  }
+    void ensureDevEditorialSession()
+
+
+
+    if (pathname === '/admin' || pathname === '/admin/login') {
+
+      router.replace(ADMIN_WORKFLOW_ROUTES[0])
+
+    }
+
+  }, [pathname, router])
+
+
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-6">
-            <Link href="/admin" className="font-serif text-xl font-bold text-brand">
-              NewsCore Admin
-            </Link>
-            <nav className="flex gap-4 text-sm">
-              <Link href="/admin" className="text-neutral-700 hover:text-brand">
-                Articles
-              </Link>
-              <Link href="/" className="text-neutral-500 hover:text-neutral-800">
-                Public site
-              </Link>
-            </nav>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              clearToken()
-              router.push('/admin/login')
-            }}
-            className="text-sm text-neutral-600 hover:text-brand"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
-    </div>
+
+    <EditorialPreviewSyncProvider>
+
+      <Masthead />
+
+      <main id="main-content" className="site-container py-8">
+
+        <AdminWorkflowNav />
+
+        {children}
+
+      </main>
+
+    </EditorialPreviewSyncProvider>
+
   )
+
 }
+
+

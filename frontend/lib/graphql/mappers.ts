@@ -9,6 +9,7 @@ interface IGraphqlArticle {
   status?: string | null
   authorName?: string | null
   thumbnailUrl?: string | null
+  videoUrl?: string | null
   createdAt?: string | null
   publishedAt?: string | null
   tags?: string[] | null
@@ -47,7 +48,8 @@ export function mapArticle(a: IGraphqlArticle): IArticle {
     summary: a.body ?? null,
     status: normalizedStatus(a.status),
     authorName: normalizedString(a.authorName, 'NewsCore Staff'),
-    thumbnailUrl: a.thumbnailUrl,
+    thumbnailUrl: a.thumbnailUrl ?? null,
+    videoUrl: a.videoUrl ?? null,
     createdAt: normalizedString(a.createdAt, new Date(0).toISOString()),
     publishedAt: a.publishedAt ?? null,
   }

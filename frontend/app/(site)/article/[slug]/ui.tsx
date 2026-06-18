@@ -1,10 +1,8 @@
 'use client'
 
-import Image from 'next/image'
-
 import type { IArticleDetail } from '@/interfaces/article'
 import { useArticle } from '@/hooks/use-article'
-import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
+import { ArticleLeadMedia, ArticleLeadMediaHasVideo } from '@/components/ui/article-lead-media'
 
 const BODY_CHUNK_SIZE = 4
 const MIN_BODY_SETS = 4
@@ -130,14 +128,13 @@ function ArticleHeader({ article }: { article: IArticleDetail }): JSX.Element {
   )
 }
 
-function ArticleLeadMedia({ article }: { article: IArticleDetail }): JSX.Element {
-  const imageSrc = articleImageSrc(article)
-  const headline = articleHeadline(article)
+function ArticleLeadMediaBlock({ article }: { article: IArticleDetail }): JSX.Element {
+  const hasVideo = ArticleLeadMediaHasVideo(article)
 
   return (
     <div className="mb-6 overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-      <div className="relative aspect-[16/9]">
-        <Image src={imageSrc} alt={headline} fill className="object-cover" unoptimized={isDataUri(imageSrc)} />
+      <div className={hasVideo ? 'relative aspect-[16/9] bg-black' : 'relative aspect-[16/9]'}>
+        <ArticleLeadMedia article={article} mode={hasVideo ? 'full' : 'teaser'} />
       </div>
     </div>
   )
@@ -155,7 +152,7 @@ function ArticleTextColumn({
   return (
     <section className="lg:col-span-2">
       <div className="border-l border-neutral-200 pl-6 sm:pl-8">
-        {showLeadMedia ? <ArticleLeadMedia article={article} /> : null}
+        {showLeadMedia ? <ArticleLeadMediaBlock article={article} /> : null}
         <div className="space-y-6">
           {paragraphs.map((paragraph, index) => (
             <p key={`${index}-${paragraph.slice(0, 24)}`} className="text-lg leading-8 text-neutral-900">
@@ -195,7 +192,7 @@ function ArticleAdRibbon({ index }: { index: number }): JSX.Element {
   const message = RIBBON_MESSAGES[index % RIBBON_MESSAGES.length]
 
   return (
-    <section aria-label="Advertisement" className="border-y border-neutral-200 py-4">
+    <section aria-label="Advertisement" className="border-b border-neutral-200 py-4">
       <div
         className="flex min-h-[192px] items-center justify-center rounded border border-dashed border-neutral-300 bg-neutral-100 px-4"
         role="img"

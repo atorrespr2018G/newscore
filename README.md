@@ -154,4 +154,4 @@ A minimal admin route group is available at `http://localhost:3000/admin/login`.
 
 REST APIs are versioned at `/api/v1/admin`, `/api/v1/news`, and `/api/v1/layout` through Nginx. Direct port access (`:5001`–`:5003`) remains available for local development.
 
-
+docker compose restart frontend

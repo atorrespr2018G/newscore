@@ -23,6 +23,7 @@ class Article:
     status: str | None = None
     author_name: str | None = None
     thumbnail_url: str | None = None
+    video_url: str | None = None
     created_at: str | None = None
     published_at: str | None = None
     body: str | None = None
@@ -59,6 +60,7 @@ def article_from_detail(detail: ArticleDetailOut) -> Article:
         status=detail.status,
         author_name=detail.author_name,
         thumbnail_url=detail.thumbnail_url,
+        video_url=detail.video_url,
         created_at=detail.created_at,
         published_at=detail.published_at,
         body=detail.body,
@@ -79,6 +81,7 @@ def article_from_out(out: ArticleOut) -> Article:
         status=out.status,
         author_name=out.author_name,
         thumbnail_url=out.thumbnail_url,
+        video_url=out.video_url,
         created_at=out.created_at,
         published_at=out.published_at,
         body=None,

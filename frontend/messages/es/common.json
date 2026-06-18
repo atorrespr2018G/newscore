@@ -1,0 +1,48 @@
+{
+  "breaking": "Última hora",
+  "skipToMain": "Saltar al contenido principal",
+  "loading": "Cargando…",
+  "failedToLoad": "Error al cargar: {message}",
+  "notFound": "No encontrado.",
+  "updatedRecently": "Actualizado recientemente",
+  "advertisement": "Publicidad",
+  "learnMore": "Más información",
+  "premiumPlacement": "Espacio premium disponible para la historia de su marca.",
+  "noStoriesYet": "Aún no hay noticias. Ejecute {command} y actualice.",
+  "seedCommand": "docker compose exec admin_app python seed_dev.py",
+  "backToHomepage": "← Volver a la portada",
+  "breadcrumb": "Ruta de navegación",
+  "byAuthor": "Por {author}",
+  "articleNotFoundTitle": "Artículo no encontrado — NewsCore",
+  "untitledStory": "Historia sin título",
+  "newsCoreStaff": "Redacción NewsCore",
+  "latestNews": "Últimas noticias",
+  "latest": "Reciente",
+  "section": "Sección",
+  "readTime": "{minutes} min",
+  "copyright": "© {year} NewsCore Media Group. Todos los derechos reservados.",
+  "disclaimer": "NewsCore ofrece noticias e información solo con fines de interés general. El contenido puede actualizarse sin previo aviso. Para correcciones o consultas editoriales, contacte a nuestra redacción.",
+  "tagline": "Periodismo independiente sobre política, asuntos internacionales, tecnología, salud y cultura. Información confiable, las 24 horas.",
+  "sectionsHeading": "Secciones",
+  "companyHeading": "Empresa",
+  "legalHeading": "Legal",
+  "footerCompany": {
+    "about": "Acerca de NewsCore",
+    "contact": "Contáctenos",
+    "careers": "Empleo",
+    "advertise": "Publicidad"
+  },
+  "footerLegal": {
+    "terms": "Términos de uso",
+    "privacy": "Política de privacidad",
+    "cookies": "Configuración de cookies",
+    "accessibility": "Accesibilidad"
+  },
+  "meta": {
+    "appTitle": "NewsCore",
+    "appDescription": "Plataforma de noticias",
+    "homeTitle": "NewsCore — Inicio",
+    "homeDescription": "Noticias principales y últimas actualizaciones.",
+    "worldDescription": "Noticias internacionales y últimas actualizaciones."
+  }
+}

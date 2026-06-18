@@ -1,6 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
 import Image from 'next/image'
+import { useFormatter, useTranslations } from 'next-intl'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
 
 interface IArticleCardProps {
@@ -13,7 +16,10 @@ interface IArticleCardProps {
  * No data fetching — all data via props.
  */
 export function ArticleCard({ article, variant = 'standard' }: IArticleCardProps): JSX.Element {
-  const date = new Date(article.publishedAt ?? article.createdAt).toLocaleString()
+  const format = useFormatter()
+  const t = useTranslations('common')
+  const timestamp = new Date(article.publishedAt ?? article.createdAt)
+  const date = format.dateTime(timestamp, { dateStyle: 'medium', timeStyle: 'short' })
   const imgSrc = articleImageSrc(article)
 
   return (
@@ -28,14 +34,15 @@ export function ArticleCard({ article, variant = 'standard' }: IArticleCardProps
         ) : null}
         <h3
           className={[
-            'leading-snug text-neutral-950 hover:text-brand',
+            'line-clamp-3 overflow-hidden leading-snug text-neutral-950 hover:text-brand',
             variant === 'compact' ? 'text-base font-semibold' : 'text-lg font-extrabold',
           ].join(' ')}
         >
           {article.title}
         </h3>
         <p className="mt-2 text-xs font-semibold text-neutral-600">
-          {article.authorName} <span className="font-normal text-neutral-400">• {date}</span>
+          {t('byAuthor', { author: article.authorName || t('newsCoreStaff') })}{' '}
+          <span className="font-normal text-neutral-400">• {date}</span>
         </p>
       </Link>
     </article>

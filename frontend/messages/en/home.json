@@ -1,0 +1,36 @@
+{
+  "hero": {
+    "topKicker": "Top"
+  },
+  "rightPromo": {
+    "title": "Headlines",
+    "subtitle": "The big stories, fast.",
+    "footer": "Catch up on today's headlines"
+  },
+  "healthCarousel": {
+    "scrollLeft": "Scroll health stories left",
+    "scrollRight": "Scroll health stories right"
+  },
+  "editorialBand": {
+    "sponsoredAndFeatured": "Sponsored and featured stories"
+  },
+  "articleAds": {
+    "sponsoredBriefing": {
+      "title": "Sponsored briefing",
+      "subtitle": "Premium placement for brands that want to sit beside the day's biggest stories."
+    },
+    "brandSpotlight": {
+      "title": "Brand spotlight",
+      "subtitle": "A tall, high-visibility slot designed for image-led campaigns and newsroom sponsorships."
+    },
+    "newswirePartner": {
+      "title": "Newswire partner",
+      "subtitle": "Reach readers while they move deeper through long-form coverage and feature reporting."
+    },
+    "ribbonMessages": {
+      "fullWidth": "Full-width campaign placement",
+      "crossScreen": "Cross-screen awareness unit",
+      "editorialPartner": "Editorial partner message"
+    }
+  }
+}

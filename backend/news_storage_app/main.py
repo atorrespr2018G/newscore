@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from shared.core.cors import cors_allow_credentials, cors_allow_origins
 
@@ -60,6 +63,14 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
 
     register_health_routes(app, service_name="news_storage_app")
+
+    media_root = Path(os.getenv("MEDIA_ROOT", "/media"))
+    images_dir = media_root / "images"
+    videos_dir = media_root / "videos"
+    if images_dir.is_dir():
+        app.mount("/media/images", StaticFiles(directory=str(images_dir)), name="media_images")
+    if videos_dir.is_dir():
+        app.mount("/media/videos", StaticFiles(directory=str(videos_dir)), name="media_videos")
 
     logger.info("News storage app created")
     return app

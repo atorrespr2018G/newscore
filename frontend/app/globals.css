@@ -18,6 +18,7 @@ a {
 
 :root {
   --brand-red: #cc0000;
+  --brand-navy: #000814;
 }
 
 h1,
@@ -44,7 +45,7 @@ h3 {
 
 @layer components {
   .site-container {
-    @apply mx-auto w-full max-w-7xl px-4;
+    @apply mx-auto w-full max-w-7xl px-6;
   }
 }
 

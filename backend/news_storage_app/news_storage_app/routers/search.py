@@ -19,7 +19,7 @@ async def search(
     db: AsyncIOMotorDatabase = Depends(get_db),
     pagination: PaginationParams = PaginationDep,
 ) -> PaginatedResponse:
-    """Search articles using MongoDB full-text search."""
+    """Search articles by title or slug substring."""
 
     items, total = await search_service.search_articles(db, query=q, pagination=pagination)
     return PaginatedResponse(

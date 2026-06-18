@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useBreaking } from '@/hooks/use-breaking'
 
 function BreakingTickerContent(): JSX.Element | null {
+  const t = useTranslations('common')
   const { data } = useBreaking()
 
   const items = Array.isArray((data as { payload?: { items?: unknown[] } })?.payload?.items)
@@ -19,7 +21,7 @@ function BreakingTickerContent(): JSX.Element | null {
       <div className="site-container py-2">
         <div className="flex items-center gap-3">
           <span className="rounded bg-[color:var(--brand-red)] px-2 py-1 text-xs font-extrabold tracking-wide text-white">
-            BREAKING
+            {t('breaking').toUpperCase()}
           </span>
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="relative">

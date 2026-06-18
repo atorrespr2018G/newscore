@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
 UserRoleType = Literal["admin", "editor", "reporter", "viewer"]
@@ -13,7 +13,7 @@ UserRoleType = Literal["admin", "editor", "reporter", "viewer"]
 class LoginRequest(BaseModel):
     """Request body for POST /auth/login."""
 
-    email: EmailStr
+    email: str = Field(..., min_length=3, max_length=200)
     password: str = Field(..., min_length=6, max_length=200)
 
 
@@ -27,7 +27,7 @@ class TokenResponse(BaseModel):
 class UserCreate(BaseModel):
     """Request body for POST /users."""
 
-    email: EmailStr
+    email: str = Field(..., min_length=3, max_length=200)
     password: str = Field(..., min_length=6, max_length=200)
     full_name: str = Field(..., min_length=2, max_length=200)
     role: UserRoleType = "viewer"
@@ -51,7 +51,7 @@ class UserOut(BaseModel):
     """Response schema for user objects."""
 
     id: str
-    email: EmailStr
+    email: str
     role: UserRoleType
     full_name: str
     avatar_url: str | None = None

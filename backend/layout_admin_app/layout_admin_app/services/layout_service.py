@@ -9,11 +9,14 @@ from uuid import uuid4
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
+from layout_admin_app.services.slot_service import publish_draft_pins_for_layout
 from shared.core.audit import write_event
 from shared.core.cache_invalidation import invalidate_homepage_for_layout, invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.pagination import PaginationParams
-from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate
+from shared.read.layout_reads import get_active_layout
+from shared.read.market_reads import get_market_by_code
+from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate, PublishPlacementsOut
 
 LAYOUTS_COLLECTION = "layouts"
 SLOTS_COLLECTION = "slots"
@@ -120,6 +123,51 @@ async def get_by_page_name(
     if doc is None:
         raise NotFoundError("Active layout not found for page")
     return _to_out(doc)
+
+
+async def publish_placements(
+    db: AsyncIOMotorDatabase,
+    *,
+    page_name: str,
+    market_code: str,
+    actor_id: str | None = None,
+) -> PublishPlacementsOut:
+    """Promote staged draft homepage placements to the live layout.
+
+    Args:
+        db: Database connection.
+        page_name: Layout page name such as `homepage`.
+        market_code: Market code such as `us`.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Publish summary for the active layout.
+
+    Raises:
+        NotFoundError: If the market or active layout does not exist.
+    """
+
+    normalized_page = page_name.strip().lower() or "homepage"
+    market = await get_market_by_code(db, market_code)
+    if market is None:
+        raise NotFoundError("Market not found")
+
+    market_id = str(market["_id"])
+    layout = await get_active_layout(db, market_id=market_id, page_name=normalized_page)
+    if layout is None:
+        raise NotFoundError("Active layout not found for page")
+
+    published_slot_count = await publish_draft_pins_for_layout(
+        db,
+        layout["layout_id"],
+        actor_id=actor_id,
+    )
+    return PublishPlacementsOut(
+        layout_id=layout["layout_id"],
+        page_name=normalized_page,
+        market_code=market_code,
+        published_slot_count=published_slot_count,
+    )
 
 
 async def update(

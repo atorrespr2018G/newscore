@@ -46,14 +46,31 @@ export async function fetchHomepageFeed(
   market: string,
   town?: string | null,
 ): Promise<IHomepageFeed | undefined> {
+  return fetchPageFeed(market, 'homepage', town)
+}
+
+/**
+ * Fetch a named page feed on the server for SSR.
+ */
+export async function fetchPageFeed(
+  market: string,
+  pageName: string,
+  town?: string | null,
+): Promise<IHomepageFeed | undefined> {
   try {
     const data = await fetchGraphql<{ homepageFeed: Parameters<typeof mapHomepageFeed>[0]['homepageFeed'] }>(
       print(HOMEPAGE_FEED_QUERY),
-      { market, town: town ?? null },
+      { market, town: town ?? null, pageName },
     )
     return mapHomepageFeed(data)
-  } catch {
-    return undefined
+  } catch (error) {
+    console.error('Failed to fetch page feed', {
+      market,
+      pageName,
+      town: town ?? null,
+      error,
+    })
+    throw error
   }
 }
 
@@ -72,7 +89,8 @@ export async function fetchArticleBySlug(
       return undefined
     }
     return mapArticleDetail(data.articleBySlug)
-  } catch {
-    return undefined
+  } catch (error) {
+    console.error('Failed to fetch article by slug', { slug, market, error })
+    throw error
   }
 }

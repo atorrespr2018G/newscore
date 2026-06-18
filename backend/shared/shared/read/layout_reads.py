@@ -42,6 +42,11 @@ async def get_active_layout(
                 "display_name": slot.get("display_name"),
                 "presentation_type": str(slot.get("presentation_type") or "grid_4"),
                 "pinned_ids": list(slot.get("pinned_ids") or []),
+                "draft_pinned_ids": (
+                    list(slot["draft_pinned_ids"])
+                    if slot.get("draft_pinned_ids") is not None
+                    else None
+                ),
                 "query_rule": slot.get("query_rule"),
             }
             for slot in slots

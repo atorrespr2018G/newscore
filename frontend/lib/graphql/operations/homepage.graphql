@@ -1,5 +1,5 @@
-query HomepageFeed($market: String!, $town: String) {
-  homepageFeed(market: $market, town: $town) {
+query HomepageFeed($market: String!, $town: String, $pageName: String) {
+  homepageFeed(market: $market, town: $town, pageName: $pageName) {
     layoutId
     pageName
     slots {
@@ -12,9 +12,11 @@ query HomepageFeed($market: String!, $town: String) {
         id
         slug
         title
+        body
         status
         authorName
         thumbnailUrl
+        videoUrl
         createdAt
         publishedAt
       }

@@ -7,6 +7,7 @@ export interface IArticle {
   status: ArticleStatusType
   authorName: string
   thumbnailUrl: string | null
+  videoUrl: string | null
   createdAt: string
   publishedAt: string | null
 }

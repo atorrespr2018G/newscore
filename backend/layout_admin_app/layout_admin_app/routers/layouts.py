@@ -13,7 +13,16 @@ from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.core.pagination import PaginationDep, PaginationParams
 from shared.read.market_reads import get_market_by_code
 from shared.schemas.common import PaginatedResponse
-from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate, SlotOut
+from shared.read.placement_reads import get_article_placements
+from shared.read.site_reads import get_home_feed_preview
+from shared.schemas.layout_schemas import (
+    ArticlePlacementsOut,
+    LayoutCreate,
+    LayoutOut,
+    LayoutUpdate,
+    PublishPlacementsOut,
+    SlotOut,
+)
 
 router = APIRouter(prefix="/layouts")
 
@@ -44,6 +53,46 @@ async def list_layouts(
         page=pagination.page,
         page_size=pagination.page_size,
         has_more=(pagination.skip + len(items)) < total,
+    )
+
+
+@router.get("/placements", response_model=ArticlePlacementsOut)
+async def get_layout_placements(
+    market: str = Query(DEFAULT_MARKET_CODE),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _: TokenPayload = Depends(require_role("editor", "admin")),
+) -> ArticlePlacementsOut:
+    """Resolve article placements across homepage and world layouts."""
+
+    return ArticlePlacementsOut(placements=await get_article_placements(db, market_code=market))
+
+
+@router.get("/preview-feed")
+async def get_preview_feed(
+    market: str = Query(DEFAULT_MARKET_CODE),
+    page_name: str = Query("homepage"),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _: TokenPayload = Depends(require_role("editor", "admin")),
+) -> dict:
+    """Return homepage feed preview with draft pins resolved (editor-only)."""
+
+    return await get_home_feed_preview(db, market_code=market, page_name=page_name)
+
+
+@router.post("/publish-placements", response_model=PublishPlacementsOut)
+async def publish_layout_placements(
+    market: str = Query(DEFAULT_MARKET_CODE),
+    page_name: str = Query("homepage"),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
+) -> PublishPlacementsOut:
+    """Promote staged homepage placements to the live layout."""
+
+    return await layout_service.publish_placements(
+        db,
+        page_name=page_name,
+        market_code=market,
+        actor_id=current_user.sub,
     )
 
 

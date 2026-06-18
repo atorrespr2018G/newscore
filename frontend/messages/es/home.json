@@ -1,0 +1,36 @@
+{
+  "hero": {
+    "topKicker": "Destacado"
+  },
+  "rightPromo": {
+    "title": "Titulares",
+    "subtitle": "Las grandes noticias, al instante.",
+    "footer": "Póngase al día con los titulares de hoy"
+  },
+  "healthCarousel": {
+    "scrollLeft": "Desplazar historias de salud a la izquierda",
+    "scrollRight": "Desplazar historias de salud a la derecha"
+  },
+  "editorialBand": {
+    "sponsoredAndFeatured": "Historias patrocinadas y destacadas"
+  },
+  "articleAds": {
+    "sponsoredBriefing": {
+      "title": "Informe patrocinado",
+      "subtitle": "Espacio premium para marcas que quieren estar junto a las noticias más importantes del día."
+    },
+    "brandSpotlight": {
+      "title": "Marca destacada",
+      "subtitle": "Un espacio alto y visible diseñado para campañas visuales y patrocinios editoriales."
+    },
+    "newswirePartner": {
+      "title": "Socio de agencia",
+      "subtitle": "Llegue a los lectores mientras avanzan por coberturas extensas y reportajes especiales."
+    },
+    "ribbonMessages": {
+      "fullWidth": "Campaña a ancho completo",
+      "crossScreen": "Unidad de visibilidad multiplataforma",
+      "editorialPartner": "Mensaje de socio editorial"
+    }
+  }
+}

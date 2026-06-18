@@ -14,18 +14,70 @@ from shared.core.exceptions import NotFoundError, ValidationError
 from shared.repositories.slot_repository import SlotRepository
 from shared.schemas.layout_schemas import SlotCreate, SlotOut, SlotUpdate
 
+HOMEPAGE_HERO_PINNED_LIMIT = 12
+HOMEPAGE_US_FEATURED_PINNED_LIMIT = 12
+HOMEPAGE_MORE_TOP_STORIES_PINNED_LIMIT = 7
+HERO_POSITION_KEY = "hero"
+US_FEATURED_POSITION_KEY = "us-featured"
+MORE_TOP_STORIES_POSITION_KEYS = frozenset({"more-top-stories", "more-top-stories-2"})
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _parse_positive_limit(value: Any) -> int | None:
+    """Parse a positive slot limit from query-rule metadata."""
+
+    if value is None:
+        return None
+    try:
+        limit = int(value)
+    except (TypeError, ValueError):
+        return None
+    return limit if limit > 0 else None
+
+
+def _resolve_slot_pinned_limit(slot: dict[str, Any]) -> int | None:
+    """Resolve the maximum pinned article count for a slot."""
+
+    query_rule = slot.get("query_rule")
+    if isinstance(query_rule, dict):
+        limit = _parse_positive_limit(query_rule.get("limit"))
+        if limit is not None:
+            return limit
+
+    if slot.get("position_key") == HERO_POSITION_KEY:
+        return HOMEPAGE_HERO_PINNED_LIMIT
+
+    if slot.get("position_key") == US_FEATURED_POSITION_KEY:
+        return HOMEPAGE_US_FEATURED_PINNED_LIMIT
+
+    if slot.get("position_key") in MORE_TOP_STORIES_POSITION_KEYS:
+        return HOMEPAGE_MORE_TOP_STORIES_PINNED_LIMIT
+
+    return None
+
+
+def _clamp_pinned_ids(pinned_ids: list[str], limit: int | None) -> list[str]:
+    """Trim pinned ids to a slot capacity when configured."""
+
+    if limit is None or len(pinned_ids) <= limit:
+        return list(pinned_ids)
+    return list(pinned_ids[:limit])
+
+
 def _to_out(doc: dict[str, Any]) -> SlotOut:
+    draft_pinned_ids = doc.get("draft_pinned_ids")
     return SlotOut(
         id=str(doc["_id"]),
         layout_id=str(doc["layout_id"]),
         position_key=doc["position_key"],
         content_type=doc["content_type"],
+        display_name=doc.get("display_name"),
+        presentation_type=str(doc.get("presentation_type") or "grid_4"),
         pinned_ids=list(doc.get("pinned_ids") or []),
+        draft_pinned_ids=list(draft_pinned_ids) if draft_pinned_ids is not None else None,
         query_rule=doc.get("query_rule"),
         order_index=int(doc.get("order_index") or 0),
         updated_at=doc.get("updated_at", ""),
@@ -38,6 +90,20 @@ async def create(
     *,
     actor_id: str | None = None,
 ) -> SlotOut:
+    """Create a slot and attach it to a layout.
+
+    Args:
+        db: Database connection.
+        body: New slot payload.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Created slot payload.
+
+    Raises:
+        NotFoundError: If the target layout does not exist.
+    """
+
     repo = SlotRepository(db)
     if not await repo.layout_exists(body.layout_id):
         raise NotFoundError("Layout not found")
@@ -49,6 +115,8 @@ async def create(
         "layout_id": body.layout_id,
         "position_key": body.position_key,
         "content_type": body.content_type,
+        "display_name": body.display_name,
+        "presentation_type": body.presentation_type,
         "pinned_ids": [],
         "query_rule": None,
         "order_index": body.order_index,
@@ -69,9 +137,69 @@ async def create(
 
 
 async def list_for_layout(db: AsyncIOMotorDatabase, layout_id: str) -> list[SlotOut]:
+    """List slots for a layout in display order.
+
+    Args:
+        db: Database connection.
+        layout_id: Layout id to query.
+
+    Returns:
+        Slot payloads for the layout.
+    """
+
     repo = SlotRepository(db)
     docs = await repo.list_for_layout(layout_id)
     return [_to_out(doc) for doc in docs]
+
+
+async def publish_draft_pins_for_layout(
+    db: AsyncIOMotorDatabase,
+    layout_id: str,
+    *,
+    actor_id: str | None = None,
+) -> int:
+    """Promote staged draft pins to live pins for all slots in a layout.
+
+    Args:
+        db: Database connection.
+        layout_id: Layout id whose slots should be published.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Number of slots whose draft pins were published.
+    """
+
+    repo = SlotRepository(db)
+    docs = await repo.list_for_layout(layout_id)
+    now = _utc_now_iso()
+    published_count = 0
+
+    for doc in docs:
+        if doc.get("draft_pinned_ids") is None:
+            continue
+        pinned_limit = _resolve_slot_pinned_limit(doc)
+        live_pins = _clamp_pinned_ids(list(doc.get("draft_pinned_ids") or []), pinned_limit)
+        updated = await repo.promote_draft_pins(
+            str(doc["_id"]),
+            pinned_ids=live_pins,
+            updated_at=now,
+        )
+        if updated is not None:
+            published_count += 1
+
+    if published_count > 0:
+        await repo.touch_layout(layout_id, now)
+        await invalidate_homepage_for_layout(db, layout_id)
+        if actor_id:
+            await write_event(
+                db,
+                user_id=actor_id,
+                action="layout.publish_placements",
+                resource_type="layout",
+                resource_id=layout_id,
+            )
+
+    return published_count
 
 
 async def update(
@@ -81,17 +209,55 @@ async def update(
     body: SlotUpdate,
     actor_id: str | None = None,
 ) -> SlotOut:
+    """Update mutable slot fields.
+
+    Args:
+        db: Database connection.
+        slot_id: Slot id to update.
+        body: Partial update payload.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Updated slot payload.
+
+    Raises:
+        ValidationError: If no update fields are provided.
+        NotFoundError: If the slot does not exist.
+    """
+
     repo = SlotRepository(db)
+    existing = await repo.find_by_id(slot_id)
+    if existing is None:
+        raise NotFoundError("Slot not found")
+
     update_doc = {k: v for k, v in body.model_dump().items() if v is not None}
     if not update_doc:
         raise ValidationError("No fields to update")
+
+    if "pinned_ids" in update_doc:
+        merged_slot = {**existing, **update_doc}
+        pinned_limit = _resolve_slot_pinned_limit(merged_slot)
+        update_doc["pinned_ids"] = _clamp_pinned_ids(
+            list(update_doc["pinned_ids"] or []),
+            pinned_limit,
+        )
+
+    if "draft_pinned_ids" in update_doc:
+        merged_slot = {**existing, **update_doc}
+        pinned_limit = _resolve_slot_pinned_limit(merged_slot)
+        update_doc["draft_pinned_ids"] = _clamp_pinned_ids(
+            list(update_doc["draft_pinned_ids"] or []),
+            pinned_limit,
+        )
+
     update_doc["updated_at"] = _utc_now_iso()
 
     doc = await repo.find_one_and_update(slot_id, update_doc)
     if doc is None:
         raise NotFoundError("Slot not found")
     await repo.touch_layout(str(doc["layout_id"]), update_doc["updated_at"])
-    await invalidate_homepage_for_layout(db, str(doc["layout_id"]))
+    if "pinned_ids" in update_doc:
+        await invalidate_homepage_for_layout(db, str(doc["layout_id"]))
     if actor_id:
         await write_event(
             db,
@@ -109,6 +275,17 @@ async def delete(
     slot_id: str,
     actor_id: str | None = None,
 ) -> None:
+    """Delete a slot and detach it from its layout.
+
+    Args:
+        db: Database connection.
+        slot_id: Slot id to delete.
+        actor_id: Optional auditing actor id.
+
+    Raises:
+        NotFoundError: If the slot does not exist.
+    """
+
     repo = SlotRepository(db)
     slot = await repo.find_by_id(slot_id)
     if slot is None:

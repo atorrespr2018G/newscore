@@ -65,19 +65,25 @@ LEGACY_HOMEPAGE_FEED_CACHE_KEY = "graphql:homepageFeed"
 HOMEPAGE_FEED_TTL_SECONDS = 15
 
 
-def homepage_feed_cache_key(market: str, town: str | None = None) -> str:
-    """Redis cache key for a market-scoped homepage feed."""
+def homepage_feed_cache_key(
+    market: str,
+    town: str | None = None,
+    *,
+    page_name: str = "homepage",
+) -> str:
+    """Redis cache key for a market-scoped page feed."""
 
+    page_part = (page_name or "homepage").strip().lower()
     market_part = (market or "us").strip().lower()
     town_part = (town or "_").strip().lower()
-    return f"graphql:homepageFeed:{market_part}:{town_part}"
+    return f"graphql:homepageFeed:{page_part}:{market_part}:{town_part}"
 
 
 async def invalidate_homepage_feed(market_code: str) -> int:
     """Delete all homepage feed cache keys for a market. Returns keys removed."""
 
-    market_part = market_code.strip().lower()
-    pattern = f"graphql:homepageFeed:{market_part}:*"
+    market_part = (market_code or "us").strip().lower()
+    pattern = f"graphql:homepageFeed:*:{market_part}:*"
     redis = get_redis()
     keys = [key async for key in redis.scan_iter(match=pattern)]
     deleted = 0

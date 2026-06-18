@@ -1,0 +1,48 @@
+{
+  "breaking": "Breaking",
+  "skipToMain": "Skip to main content",
+  "loading": "Loading…",
+  "failedToLoad": "Failed to load: {message}",
+  "notFound": "Not found.",
+  "updatedRecently": "Updated recently",
+  "advertisement": "Advertisement",
+  "learnMore": "Learn more",
+  "premiumPlacement": "Premium placement available for your brand story.",
+  "noStoriesYet": "No stories yet. Run {command} and refresh.",
+  "seedCommand": "docker compose exec admin_app python seed_dev.py",
+  "backToHomepage": "← Back to homepage",
+  "breadcrumb": "Breadcrumb",
+  "byAuthor": "By {author}",
+  "articleNotFoundTitle": "Article not found — NewsCore",
+  "untitledStory": "Untitled story",
+  "newsCoreStaff": "NewsCore Staff",
+  "latestNews": "Latest News",
+  "latest": "Latest",
+  "section": "Section",
+  "readTime": "{minutes} min",
+  "copyright": "© {year} NewsCore Media Group. All rights reserved.",
+  "disclaimer": "NewsCore provides news and information for general interest purposes only. Content may be updated without notice. For corrections or editorial inquiries, please contact our newsroom.",
+  "tagline": "Independent journalism covering politics, world affairs, technology, health, and culture. Trusted reporting, delivered around the clock.",
+  "sectionsHeading": "Sections",
+  "companyHeading": "Company",
+  "legalHeading": "Legal",
+  "footerCompany": {
+    "about": "About NewsCore",
+    "contact": "Contact Us",
+    "careers": "Careers",
+    "advertise": "Advertise"
+  },
+  "footerLegal": {
+    "terms": "Terms of Use",
+    "privacy": "Privacy Policy",
+    "cookies": "Cookie Settings",
+    "accessibility": "Accessibility"
+  },
+  "meta": {
+    "appTitle": "NewsCore",
+    "appDescription": "News platform",
+    "homeTitle": "NewsCore — Home",
+    "homeDescription": "Top stories and latest updates.",
+    "worldDescription": "World news and latest updates."
+  }
+}

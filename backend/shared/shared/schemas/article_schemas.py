@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 
 ArticleStatusType = Literal["draft", "review", "published", "archived"]
 
+DEFAULT_MAX_IMAGE_COUNT = 5
+
 
 class ArticleCreate(BaseModel):
     """Request body for POST /articles."""
@@ -19,6 +21,9 @@ class ArticleCreate(BaseModel):
     market_ids: list[str] = Field(..., min_length=1)
     tags: list[str] = []
     thumbnail_url: str | None = None
+    media_ids: list[str] = []
+    video_url: str | None = None
+    max_image_count: int | None = Field(None, ge=1, le=20)
 
 
 class ArticleUpdate(BaseModel):
@@ -30,6 +35,9 @@ class ArticleUpdate(BaseModel):
     market_ids: list[str] | None = Field(None, min_length=1)
     tags: list[str] | None = None
     thumbnail_url: str | None = None
+    media_ids: list[str] | None = None
+    video_url: str | None = None
+    max_image_count: int | None = Field(None, ge=1, le=20)
     status: ArticleStatusType | None = None
 
 
@@ -42,6 +50,7 @@ class ArticleOut(BaseModel):
     status: ArticleStatusType
     author_name: str
     thumbnail_url: str | None
+    video_url: str | None = None
     created_at: str
     published_at: str | None
 
@@ -54,5 +63,6 @@ class ArticleDetailOut(ArticleOut):
     category_id: str | None
     market_ids: list[str]
     media_ids: list[str]
+    max_image_count: int
     view_count: int
 

@@ -1,5 +1,5 @@
 type Query {
-  homepageFeed(market: String!, town: String): HomepageFeed!
+  homepageFeed(market: String!, town: String, pageName: String): HomepageFeed!
   articleBySlug(slug: String!, market: String!): Article
   breakingNews(market: String!): JSON
 }
@@ -26,6 +26,7 @@ type Article {
   status: String!
   authorName: String!
   thumbnailUrl: String
+  videoUrl: String
   createdAt: String!
   publishedAt: String
   body: String

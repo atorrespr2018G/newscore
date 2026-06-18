@@ -23,7 +23,13 @@ async def create_article(
 ) -> ArticleOut:
     """Create a new article draft."""
 
-    return await article_service.create(db, body, author_id=current_user.sub, actor_id=current_user.sub)
+    return await article_service.create(
+        db,
+        body,
+        author_id=current_user.sub,
+        actor_id=current_user.sub,
+        actor_role=current_user.role,
+    )
 
 
 @router.get("", response_model=PaginatedResponse)
@@ -64,7 +70,13 @@ async def update_article(
 ) -> ArticleDetailOut:
     """Update an article."""
 
-    return await article_service.update(db, article_id=article_id, body=body, actor_id=current_user.sub)
+    return await article_service.update(
+        db,
+        article_id=article_id,
+        body=body,
+        actor_id=current_user.sub,
+        actor_role=current_user.role,
+    )
 
 
 @router.post("/{article_id}/publish", response_model=ArticleDetailOut)

@@ -1,10 +1,20 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useLocale } from '@/context/locale-context'
 import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
 import { useFeed } from '@/hooks/use-feed'
-import { isHomepageSectionVisible, sectionAnchorId } from '@/lib/helpers/section-labels'
+import { useLanguageRegistry } from '@/hooks/use-language-registry'
+import { useSectionLabels } from '@/hooks/use-section-labels'
+import {
+  isHomepageSectionVisible,
+  sectionAnchorId,
+  sectionNavHref,
+  sectionPagePath,
+} from '@/lib/helpers/section-labels'
 import { PRESENTATION_GRID_4 } from '@/lib/presentation-types'
 import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-band'
 
@@ -23,16 +33,114 @@ interface ISectionNavigationProps {
   activeSection?: string
 }
 
-const SCROLL_DIRECTION_THRESHOLD_PX = 8
-const LAYOUT_SCROLL_SUPPRESS_MS = 500
+const MASTHEAD_UNLOCK_DELAY_MS = 2000
+const MASTHEAD_UNLOCK_TRANSITION_RESET_MS = 2200
+
+const DEFAULT_MASTHEAD_SECTION_KEYS = [
+  'politics',
+  'world',
+  'technology',
+  'health',
+  'finance',
+  'entertainment',
+] as const
+
+function useMounted(): boolean {
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  return isMounted
+}
+
+function useScrollY(): number {
+  const [scrollY, setScrollY] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const onScroll = (): void => {
+      setScrollY(window.scrollY)
+    }
+
+    setScrollY(window.scrollY)
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
+
+  return scrollY
+}
+
+function useMastheadUnlock(pathname: string): { lockActive: boolean; unlockTransitionActive: boolean } {
+  const [lockActive, setLockActive] = useState(true)
+  const [unlockTransitionActive, setUnlockTransitionActive] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    setLockActive(true)
+    setUnlockTransitionActive(false)
+
+    const lockTimer = window.setTimeout(() => {
+      setUnlockTransitionActive(true)
+      setLockActive(false)
+    }, MASTHEAD_UNLOCK_DELAY_MS)
+    const transitionTimer = window.setTimeout(() => {
+      setUnlockTransitionActive(false)
+    }, MASTHEAD_UNLOCK_TRANSITION_RESET_MS)
+
+    return () => {
+      window.clearTimeout(lockTimer)
+      window.clearTimeout(transitionTimer)
+    }
+  }, [pathname])
+
+  return { lockActive, unlockTransitionActive }
+}
+
+function useMeasuredHeights(
+  ribbonRef: RefObject<HTMLElement>,
+  navRef: RefObject<HTMLDivElement>,
+  deps: readonly unknown[],
+): { ribbonHeight: number; navHeight: number } {
+  const [ribbonHeight, setRibbonHeight] = useState(0)
+  const [navHeight, setNavHeight] = useState(0)
+
+  useEffect(() => {
+    const ribbonEl = ribbonRef.current
+    const navEl = navRef.current
+    if (!ribbonEl || !navEl) return
+
+    const updateHeights = (): void => {
+      setRibbonHeight(ribbonEl.offsetHeight)
+      setNavHeight(navEl.offsetHeight)
+    }
+
+    updateHeights()
+    const observer = new ResizeObserver(updateHeights)
+    observer.observe(ribbonEl)
+    observer.observe(navEl)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps)
+
+  return { ribbonHeight, navHeight }
+}
 
 function MastheadDesktopSectionNav({
   navLinks,
+  sectionsLabel,
 }: {
   navLinks: IMastheadNavLink[]
+  sectionsLabel: string
 }): JSX.Element {
   return (
-    <nav className="hidden flex-1 items-center gap-4 md:flex" aria-label="Sections">
+    <nav className="hidden flex-1 items-center gap-4 md:flex" aria-label={sectionsLabel}>
       {navLinks.map((link) => (
         <Link
           key={link.key}
@@ -53,10 +161,12 @@ function MastheadMobileSectionNav({
   navLinks,
   mobileOpen,
   onNavigate,
+  mobileSectionsLabel,
 }: {
   navLinks: IMastheadNavLink[]
   mobileOpen: boolean
   onNavigate: () => void
+  mobileSectionsLabel: string
 }): JSX.Element | null {
   if (!mobileOpen) return null
 
@@ -64,7 +174,7 @@ function MastheadMobileSectionNav({
     <nav
       id="mobile-nav"
       className="site-container border-t border-neutral-200 bg-white py-3 md:hidden"
-      aria-label="Mobile sections"
+      aria-label={mobileSectionsLabel}
     >
       <ul className="space-y-2">
         {navLinks.map((link) => (
@@ -83,8 +193,42 @@ function MastheadMobileSectionNav({
   )
 }
 
+function buildFallbackNavLinks(
+  pathname: string,
+  activeSection: string | undefined,
+  sectionLabel: (positionKey: string) => string,
+): IMastheadNavLink[] {
+  return DEFAULT_MASTHEAD_SECTION_KEYS.map((positionKey) => {
+    const pagePath = sectionPagePath(positionKey)
+    const href = sectionNavHref(positionKey)
+    const isPageRouteMatch = pagePath !== null && pathname === pagePath
+
+    return {
+      key: `fallback-${positionKey}`,
+      href,
+      label: sectionLabel(positionKey),
+      active: activeSection?.toLowerCase() === positionKey || isPageRouteMatch,
+    }
+  })
+}
+
+function withMoreLink(navLinks: IMastheadNavLink[], moreLabel: string): IMastheadNavLink[] {
+  return [
+    ...navLinks,
+    {
+      key: 'more',
+      href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
+      label: moreLabel,
+      active: false,
+    },
+  ]
+}
+
 function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
+  const pathname = usePathname()
   const { data: feed } = useFeed()
+  const { sectionLabel, homepageSectionTitle } = useSectionLabels()
+  const t = useTranslations('navigation')
 
   const navSlots =
     feed?.slots.filter(
@@ -94,26 +238,31 @@ function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
         isHomepageSectionVisible(s.positionKey),
     ) ?? []
 
-  return [
-    ...navSlots.map((s) => ({
+  const dynamicNavLinks = navSlots.map((s) => {
+    const positionKey = s.positionKey.toLowerCase()
+    const pagePath = sectionPagePath(s.positionKey)
+
+    return {
       key: s.id,
-      href: `/#${sectionAnchorId(s.positionKey)}`,
-      label: s.displayName ?? s.positionKey,
-      active: activeSection?.toLowerCase() === s.positionKey.toLowerCase(),
-    })),
-    {
-      key: 'more',
-      href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
-      label: 'More',
-      active: false,
-    },
-  ]
+      href: sectionNavHref(s.positionKey),
+      label: homepageSectionTitle(s.positionKey, s.displayName),
+      active:
+        activeSection?.toLowerCase() === positionKey ||
+        (pagePath !== null && pathname === pagePath),
+    }
+  })
+
+  const fallbackNavLinks = buildFallbackNavLinks(pathname, activeSection, sectionLabel)
+  const baseNavLinks = dynamicNavLinks.length > 0 ? dynamicNavLinks : fallbackNavLinks
+
+  return withMoreLink(baseNavLinks, t('more'))
 }
 
 function MastheadSectionNavigation({ activeSection }: ISectionNavigationProps): JSX.Element {
   const navLinks = useMastheadNavLinks(activeSection)
+  const t = useTranslations('navigation')
 
-  return <MastheadDesktopSectionNav navLinks={navLinks} />
+  return <MastheadDesktopSectionNav navLinks={navLinks} sectionsLabel={t('sections')} />
 }
 
 function MastheadMobileSectionNavigation({
@@ -122,44 +271,46 @@ function MastheadMobileSectionNavigation({
   onNavigate,
 }: ISectionNavigationProps & { mobileOpen: boolean; onNavigate: () => void }): JSX.Element | null {
   const navLinks = useMastheadNavLinks(activeSection)
+  const t = useTranslations('navigation')
 
-  return <MastheadMobileSectionNav navLinks={navLinks} mobileOpen={mobileOpen} onNavigate={onNavigate} />
+  return (
+    <MastheadMobileSectionNav
+      navLinks={navLinks}
+      mobileOpen={mobileOpen}
+      onNavigate={onNavigate}
+      mobileSectionsLabel={t('mobileSections')}
+    />
+  )
 }
 
-function MastheadSectionNavigationFallback(): JSX.Element {
+function MastheadSectionNavigationFallback({ activeSection }: ISectionNavigationProps): JSX.Element {
+  const pathname = usePathname()
+  const { sectionLabel } = useSectionLabels()
+  const t = useTranslations('navigation')
+
   return (
     <MastheadDesktopSectionNav
-      navLinks={[
-        {
-          key: 'more',
-          href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
-          label: 'More',
-          active: false,
-        },
-      ]}
+      navLinks={withMoreLink(buildFallbackNavLinks(pathname, activeSection, sectionLabel), t('more'))}
+      sectionsLabel={t('sections')}
     />
   )
 }
 
 function MastheadMobileSectionNavigationFallback({
+  activeSection,
   mobileOpen,
   onNavigate,
-}: {
-  mobileOpen: boolean
-  onNavigate: () => void
-}): JSX.Element | null {
+}: ISectionNavigationProps & { mobileOpen: boolean; onNavigate: () => void }): JSX.Element | null {
+  const pathname = usePathname()
+  const { sectionLabel } = useSectionLabels()
+  const t = useTranslations('navigation')
+
   return (
     <MastheadMobileSectionNav
-      navLinks={[
-        {
-          key: 'more',
-          href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
-          label: 'More',
-          active: false,
-        },
-      ]}
+      navLinks={withMoreLink(buildFallbackNavLinks(pathname, activeSection, sectionLabel), t('more'))}
       mobileOpen={mobileOpen}
       onNavigate={onNavigate}
+      mobileSectionsLabel={t('mobileSections')}
     />
   )
 }
@@ -168,194 +319,172 @@ function MastheadMobileSectionNavigationFallback({
  * Newsroom masthead with market selector, mobile nav, and section links from the active feed.
  */
 export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
+  const pathname = usePathname()
   const { marketCode, setMarketCode } = useMarket()
-  const [isMounted, setIsMounted] = useState(false)
+  const { locale, setLocale } = useLocale()
+  const languages = useLanguageRegistry()
+  const tNav = useTranslations('navigation')
+  const tCommon = useTranslations('common')
+  const isMounted = useMounted()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [adRibbonVisible, setAdRibbonVisible] = useState(true)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [layoutHeight, setLayoutHeight] = useState(0)
-  const layoutRef = useRef<HTMLDivElement>(null)
+  const scrollY = useScrollY()
+  const { lockActive, unlockTransitionActive } = useMastheadUnlock(pathname)
+  const ribbonRef = useRef<HTMLElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
-  const adRibbonVisibleRef = useRef(true)
-  const suppressScrollReactionsUntilRef = useRef(0)
-  const lastScrollYRef = useRef(0)
+  const { ribbonHeight, navHeight } = useMeasuredHeights(ribbonRef, navRef, [mobileOpen, isMounted])
 
-  adRibbonVisibleRef.current = adRibbonVisible
-
-  const setAdRibbonVisibleWithSuppress = (next: boolean) => {
-    if (adRibbonVisibleRef.current === next) return
-    // Avoid immediate "bounce" caused by header height changes shifting scrollY.
-    suppressScrollReactionsUntilRef.current = Date.now() + LAYOUT_SCROLL_SUPPRESS_MS
-    lastScrollYRef.current = window.scrollY
-    setAdRibbonVisible(next)
-  }
-
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  useEffect(() => {
-    const layout = layoutRef.current
-    if (!layout) return
-
-    const updateLayoutHeight = () => {
-      setLayoutHeight(layout.offsetHeight)
-    }
-
-    updateLayoutHeight()
-    const observer = new ResizeObserver(updateLayoutHeight)
-    observer.observe(layout)
-
-    return () => observer.disconnect()
-  }, [adRibbonVisible, mobileOpen, isMounted, isScrolled])
-
-  useEffect(() => {
-    lastScrollYRef.current = window.scrollY
-    setIsScrolled(window.scrollY > 0)
-
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      const previousScrollY = lastScrollYRef.current
-      const now = Date.now()
-
-      setIsScrolled(currentScrollY > 0)
-
-      if (currentScrollY <= 0) {
-        lastScrollYRef.current = currentScrollY
-        setAdRibbonVisibleWithSuppress(true)
-        return
-      }
-
-      const scrollDelta = currentScrollY - previousScrollY
-      if (scrollDelta === 0) {
-        return
-      }
-
-      const direction = scrollDelta > 0 ? 'down' : 'up'
-      const suppressScrollReactions = now < suppressScrollReactionsUntilRef.current
-
-      if (direction === 'down') {
-        if (!suppressScrollReactions && scrollDelta >= SCROLL_DIRECTION_THRESHOLD_PX) {
-          if (adRibbonVisibleRef.current) setAdRibbonVisibleWithSuppress(false)
-        }
-      } else {
-        if (!suppressScrollReactions && scrollDelta <= -SCROLL_DIRECTION_THRESHOLD_PX) {
-          if (!adRibbonVisibleRef.current) setAdRibbonVisibleWithSuppress(true)
-        }
-      }
-      lastScrollYRef.current = currentScrollY
-    }
-
-    handleScroll()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
+  const ribbonOffset = lockActive ? 0 : Math.min(ribbonHeight, Math.max(scrollY, 0))
+  const stackHeight = ribbonHeight + navHeight
 
   return (
-    <>
+    <header className="relative z-40">
+      {stackHeight > 0 ? <div aria-hidden="true" className="pointer-events-none" style={{ height: stackHeight }} /> : null}
+
       <div
-        ref={layoutRef}
-        className={isScrolled ? 'fixed top-0 left-0 right-0 z-40' : 'relative'}
+        className={[
+          'fixed inset-x-0 top-0 z-50',
+          unlockTransitionActive ? 'transition-transform duration-200 ease-out' : '',
+        ].join(' ')}
+        style={{ transform: `translateY(-${ribbonOffset}px)` }}
       >
-        <div
-          className={[
-            'grid overflow-hidden border-neutral-200 bg-neutral-100 text-neutral-900 transition-[grid-template-rows] duration-300 ease-out',
-            adRibbonVisible ? 'grid-rows-[1fr] border-b' : 'grid-rows-[0fr]',
-          ].join(' ')}
-          aria-hidden={!adRibbonVisible}
+        <section
+          ref={ribbonRef}
+          aria-label={tCommon('advertisement')}
+          className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
         >
-          <div className="min-h-0 overflow-hidden">
-            <div className="site-container flex items-center justify-between gap-12 py-8">
-              <div>
-                <p className="text-[2.5rem] font-black uppercase leading-none tracking-[0.28em] text-neutral-500">
-                  Advertisement
-                </p>
-                <p className="text-5xl font-semibold leading-tight text-neutral-700">
-                  Premium placement available for your brand story.
-                </p>
-              </div>
+          <div className="site-container flex items-center justify-between gap-12 py-8">
+            <div>
+              <p className="text-[2.5rem] font-black uppercase leading-none tracking-[0.28em] text-neutral-500">
+                {tCommon('advertisement')}
+              </p>
+              <p className="text-5xl font-semibold leading-tight text-neutral-700">
+                {tCommon('premiumPlacement')}
+              </p>
+            </div>
+            <Link
+              href="/"
+              className="shrink-0 rounded-sm border border-neutral-300 px-12 py-4 text-2xl font-bold uppercase tracking-[0.16em] text-neutral-900 hover:text-neutral-950"
+            >
+              {tCommon('learnMore')}
+            </Link>
+          </div>
+        </section>
+
+        <div
+          ref={navRef}
+          className="relative z-40 shrink-0 border-b border-neutral-200 bg-white shadow-sm"
+        >
+          <div className="site-container flex items-center gap-4 py-2">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
+                NEWSCORE
+              </span>
+            </Link>
+
+            <button
+              type="button"
+              className="inline-flex items-center rounded-sm border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-900 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2"
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-nav"
+              onClick={() => setMobileOpen((open) => !open)}
+            >
+              {mobileOpen ? tNav('closeMenu') : tNav('menu')}
+            </button>
+
+            {isMounted ? (
+              <MastheadSectionNavigation activeSection={activeSection} />
+            ) : (
+              <MastheadSectionNavigationFallback activeSection={activeSection} />
+            )}
+
+            <div className="ml-auto flex items-center gap-3">
+              <label className="flex items-center gap-2">
+                <span className="sr-only">{tNav('language')}</span>
+                <select
+                  value={locale}
+                  onChange={(e) => setLocale(e.target.value)}
+                  className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
+                  aria-label={tNav('selectLanguage')}
+                >
+                  {languages.map((language) => (
+                    <option key={language.code} value={language.code}>
+                      {language.nativeName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <span className="sr-only">{tNav('market')}</span>
+                <select
+                  value={marketCode}
+                  onChange={(e) => setMarketCode(e.target.value)}
+                  className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
+                  aria-label={tNav('selectMarket')}
+                >
+                  {MARKET_OPTIONS.map((m) => (
+                    <option key={m.code} value={m.code}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
+                {tNav('watch')}
+              </span>
+              <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
+                {tNav('listen')}
+              </span>
               <Link
-                href="/"
-                className="shrink-0 rounded-sm border border-neutral-300 px-12 py-4 text-2xl font-bold uppercase tracking-[0.16em] text-neutral-900 hover:text-neutral-950"
+                href="/admin/reporter"
+                className={[
+                  'rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
+                  pathname.startsWith('/admin/reporter')
+                    ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
+                    : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
+                ].join(' ')}
               >
-                Learn more
+                {tNav('reporter')}
+              </Link>
+              <Link
+                href="/admin/editor"
+                className={[
+                  'rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
+                  pathname.startsWith('/admin/editor')
+                    ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
+                    : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
+                ].join(' ')}
+              >
+                {tNav('editor')}
+              </Link>
+              <Link
+                href="/admin/preview"
+                className={[
+                  'rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
+                  pathname.startsWith('/admin/preview')
+                    ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
+                    : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
+                ].join(' ')}
+              >
+                {tNav('preview')}
               </Link>
             </div>
           </div>
-        </div>
-
-        <div ref={navRef} className="relative z-50 shrink-0 border-b border-neutral-200 bg-white">
-        <div className="site-container flex items-center gap-4 py-2">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
-              NEWSCORE
-            </span>
-          </Link>
-
-          <button
-            type="button"
-            className="inline-flex items-center rounded-sm border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-900 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2"
-            aria-expanded={mobileOpen}
-            aria-controls="mobile-nav"
-            onClick={() => setMobileOpen((open) => !open)}
-          >
-            {mobileOpen ? 'Close menu' : 'Menu'}
-          </button>
 
           {isMounted ? (
-            <MastheadSectionNavigation activeSection={activeSection} />
+            <MastheadMobileSectionNavigation
+              activeSection={activeSection}
+              mobileOpen={mobileOpen}
+              onNavigate={() => setMobileOpen(false)}
+            />
           ) : (
-            <MastheadSectionNavigationFallback />
+            <MastheadMobileSectionNavigationFallback
+              activeSection={activeSection}
+              mobileOpen={mobileOpen}
+              onNavigate={() => setMobileOpen(false)}
+            />
           )}
-
-          <div className="ml-auto flex items-center gap-3">
-            <label className="flex items-center gap-2">
-              <span className="sr-only">Market</span>
-              <select
-                value={marketCode}
-                onChange={(e) => setMarketCode(e.target.value)}
-                className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
-                aria-label="Select news market"
-              >
-                {MARKET_OPTIONS.map((m) => (
-                  <option key={m.code} value={m.code}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
-              Watch
-            </span>
-            <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
-              Listen
-            </span>
-            <span className="rounded-sm border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-900">
-              Sign in
-            </span>
-          </div>
-        </div>
-
-        {isMounted ? (
-          <MastheadMobileSectionNavigation
-            activeSection={activeSection}
-            mobileOpen={mobileOpen}
-            onNavigate={() => setMobileOpen(false)}
-          />
-        ) : (
-          <MastheadMobileSectionNavigationFallback
-            mobileOpen={mobileOpen}
-            onNavigate={() => setMobileOpen(false)}
-          />
-        )}
         </div>
       </div>
-      {isScrolled && layoutHeight > 0 ? (
-        <div className="w-full shrink-0" style={{ height: layoutHeight }} aria-hidden />
-      ) : null}
-    </>
+    </header>
   )
 }

@@ -7,6 +7,9 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.cache import get_redis
+from shared.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 async def liveness(service_name: str) -> dict[str, str]:
@@ -31,6 +34,7 @@ async def readiness(
         checks["mongodb"] = "ok"
     except Exception as exc:  # noqa: BLE001 — surface dependency status in probe
         ok = False
+        logger.error("Readiness check failed: mongodb", exc_info=True)
         checks["mongodb"] = f"error: {exc}"
 
     if check_redis:
@@ -39,6 +43,7 @@ async def readiness(
             checks["redis"] = "ok"
         except Exception as exc:  # noqa: BLE001
             ok = False
+            logger.error("Readiness check failed: redis", exc_info=True)
             checks["redis"] = f"error: {exc}"
 
     payload: dict[str, Any] = {

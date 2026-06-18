@@ -65,6 +65,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/shared:/shared
+      - ./backend/layout_admin_app:/app
 
   content_subgraph:
     build: ./backend/subgraphs/content_subgraph
@@ -178,6 +179,7 @@ services:
     env_file: .env
     environment:
       GRAPHQL_INTERNAL_URL: http://graphql_router:4000/graphql
+      MEDIA_INTERNAL_URL: http://news_storage_app:5002
     depends_on:
       graphql_router:
         condition: service_healthy

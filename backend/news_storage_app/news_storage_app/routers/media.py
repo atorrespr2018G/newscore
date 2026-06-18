@@ -13,6 +13,17 @@ from shared.schemas.media_schemas import MediaOut
 router = APIRouter(prefix="/media")
 
 
+@router.get("/{media_id}", response_model=MediaOut)
+async def get_media(
+    media_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _: TokenPayload = Depends(require_role("reporter", "editor", "admin")),
+) -> MediaOut:
+    """Get a media asset by id."""
+
+    return await media_service.get_by_id(db, media_id=media_id)
+
+
 @router.post("/image", response_model=MediaOut, status_code=status.HTTP_201_CREATED)
 async def upload_image(
     file: UploadFile = File(...),

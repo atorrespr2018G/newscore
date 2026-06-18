@@ -6,6 +6,7 @@ query ArticleBySlug($slug: String!, $market: String!) {
     status
     authorName
     thumbnailUrl
+    videoUrl
     createdAt
     publishedAt
     body
