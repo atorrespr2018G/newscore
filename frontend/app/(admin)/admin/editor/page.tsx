@@ -4,12 +4,10 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorStoryPool, type IEditorStoryRow } from '@/components/features/editor-story-pool'
 import { HomepagePlacementCanvas } from '@/components/features/homepage-placement-canvas'
-import { HomepagePreviewPane } from '@/components/features/homepage-preview-pane'
 import { apiConfig } from '@/lib/api/config'
 import {
   getArticlePlacements,
   getHomepageLayout,
-  getHomepagePreviewFeed,
   getLayoutSlots,
   type IArticlePlacementOut,
   ISlotOut,
@@ -32,7 +30,6 @@ import {
 import { layoutHasUnpublishedPlacementChanges } from '@/lib/helpers/slot-editor-pinned-ids'
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
 import type { IArticle } from '@/interfaces/article'
-import type { IHomepageFeed } from '@/interfaces/feed'
 
 interface IArticleDetail {
   id: string
@@ -53,8 +50,6 @@ interface IPaginatedArticles {
 const EDITOR_FETCH_PAGE_SIZE = 200
 const EDITOR_WORKSPACE_HEIGHT_CLASS = 'lg:max-h-[calc(100dvh-14rem)]'
 const EDITOR_CANVAS_STICKY_CLASS = 'lg:sticky lg:top-24 lg:self-start'
-
-type EditorPanelModeType = 'placement' | 'preview'
 
 interface ILoadedMedia {
   id: string
@@ -114,27 +109,10 @@ export default function EditorCurationPage(): JSX.Element {
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [panelMode, setPanelMode] = useState<EditorPanelModeType>('placement')
-  const [previewFeed, setPreviewFeed] = useState<IHomepageFeed | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [previewError, setPreviewError] = useState<string | null>(null)
   const hasUnpublishedPlacements = useMemo(
     () => layoutHasUnpublishedPlacementChanges(homepageSlots),
     [homepageSlots],
   )
-
-  const loadPreviewFeed = useCallback(async () => {
-    setPreviewLoading(true)
-    setPreviewError(null)
-    try {
-      const feed = await getHomepagePreviewFeed()
-      setPreviewFeed(feed)
-    } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : 'Failed to load homepage preview')
-    } finally {
-      setPreviewLoading(false)
-    }
-  }, [])
 
   const loadArticles = useCallback(async () => {
     const items = await fetchAllPaginatedArticles((page) => {
@@ -191,13 +169,6 @@ export default function EditorCurationPage(): JSX.Element {
       .finally(() => setLoading(false))
   }, [loadArticles, loadHomepageSlots, loadArticlePlacements])
 
-  useEffect(() => {
-    if (panelMode !== 'preview') {
-      return
-    }
-    void loadPreviewFeed()
-  }, [panelMode, loadPreviewFeed])
-
   async function loadArticleDetail(articleId: string) {
     setError(null)
     setMessage(null)
@@ -247,9 +218,6 @@ export default function EditorCurationPage(): JSX.Element {
       setMessage('Article media settings saved.')
       await loadArticles()
       notifyEditorialPreviewStale()
-      if (panelMode === 'preview') {
-        await loadPreviewFeed()
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save article')
     } finally {
@@ -269,9 +237,6 @@ export default function EditorCurationPage(): JSX.Element {
       await loadArticles()
       setDetail({ ...detail, status: 'published' })
       notifyEditorialPreviewStale()
-      if (panelMode === 'preview') {
-        await loadPreviewFeed()
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Publish failed')
     } finally {
@@ -332,9 +297,6 @@ export default function EditorCurationPage(): JSX.Element {
       }
       await Promise.all([loadHomepageSlots(), loadArticlePlacements()])
       notifyEditorialPreviewStale()
-      if (panelMode === 'preview') {
-        await loadPreviewFeed()
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to publish homepage placements')
     } finally {
@@ -389,9 +351,6 @@ export default function EditorCurationPage(): JSX.Element {
         setMessage(`Staged "${articleTitle}" in ${destinationLabel}. Publish homepage to go live.`)
       }
       notifyEditorialPreviewStale()
-      if (panelMode === 'preview') {
-        await loadPreviewFeed()
-      }
     } catch (err) {
       setHomepageSlots(previousSlots)
       homepageSlotsRef.current = previousSlots
@@ -490,51 +449,14 @@ export default function EditorCurationPage(): JSX.Element {
             className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${EDITOR_WORKSPACE_HEIGHT_CLASS} ${EDITOR_CANVAS_STICKY_CLASS}`}
           >
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
-              <div className="rounded-lg border border-neutral-200 bg-white p-1">
-                <div className="grid grid-cols-2 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setPanelMode('placement')}
-                    className={[
-                      'rounded px-3 py-2 text-sm font-medium',
-                      panelMode === 'placement'
-                        ? 'bg-brand text-white'
-                        : 'text-neutral-700 hover:bg-neutral-50',
-                    ].join(' ')}
-                  >
-                    Placement
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPanelMode('preview')}
-                    className={[
-                      'rounded px-3 py-2 text-sm font-medium',
-                      panelMode === 'preview'
-                        ? 'bg-brand text-white'
-                        : 'text-neutral-700 hover:bg-neutral-50',
-                    ].join(' ')}
-                  >
-                    Preview
-                  </button>
-                </div>
-              </div>
-
-              {panelMode === 'placement' ? (
-                <HomepagePlacementCanvas
-                  slots={homepageSlots}
-                  targets={placementTargets}
-                  articleById={articleById}
-                  selectedArticleId={selectedId}
-                  saving={saving}
-                  onDropPlacement={(articleId, target) => void applyDropPlacement(articleId, target)}
-                />
-              ) : (
-                <HomepagePreviewPane
-                  feed={previewFeed}
-                  loading={previewLoading}
-                  error={previewError}
-                />
-              )}
+              <HomepagePlacementCanvas
+                slots={homepageSlots}
+                targets={placementTargets}
+                articleById={articleById}
+                selectedArticleId={selectedId}
+                saving={saving}
+                onDropPlacement={(articleId, target) => void applyDropPlacement(articleId, target)}
+              />
 
               <section className="min-w-0 rounded-lg border border-neutral-200 bg-white p-4">
               {!detail ? (
