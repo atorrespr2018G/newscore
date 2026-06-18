@@ -15,7 +15,7 @@ import {
   editorialSlotIds,
   findSlot,
   normalizedPositionKey,
-  splitDefaultHeroArticles,
+  splitSectionHeroArticles,
 } from '@/lib/helpers/feed-layout'
 import { belowMediaTextClass, deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
@@ -153,93 +153,63 @@ interface IHeroBlockProps {
   plainStoryTitles?: boolean
 }
 
-function HeroBlock({ articles, layout, plainStoryTitles = false }: IHeroBlockProps): JSX.Element | null {
-  const hero = articles[0]
-  if (!hero) {
-    return null
+interface IResolvedHeroLayout {
+  swapSideColumns: boolean
+  rightRailLeadAd: boolean
+  leftRailCount: number
+  stripCount: number
+  centerScreenNewsCount: number
+  rightScreenNewsCount: number
+  gridColsClass: string | undefined
+  leftRailTextLinkCount: number
+  rightRailTextLinkCount: number
+  hideLastLeftRailTextLink: boolean
+  hideLastRightRailTextLink: boolean
+}
+
+const HERO_DEFAULT_LEFT_RAIL_COUNT = 3
+const HERO_DEFAULT_STRIP_COUNT = 3
+
+function resolveHeroLayoutConfig(layout?: IHeroLayoutConfig): IResolvedHeroLayout {
+  return {
+    swapSideColumns: layout?.swapSideColumns ?? false,
+    rightRailLeadAd: layout?.rightRailLeadAd ?? false,
+    leftRailCount: layout?.leftRailCount ?? HERO_DEFAULT_LEFT_RAIL_COUNT,
+    stripCount: layout?.stripCount ?? HERO_DEFAULT_STRIP_COUNT,
+    centerScreenNewsCount: layout?.centerScreenNewsCount ?? 0,
+    rightScreenNewsCount: layout?.rightScreenNewsCount ?? 0,
+    gridColsClass: layout?.gridColsClass,
+    leftRailTextLinkCount: layout?.leftRailTextLinkCount ?? 0,
+    rightRailTextLinkCount: layout?.rightRailTextLinkCount ?? 0,
+    hideLastLeftRailTextLink: layout?.hideLastLeftRailTextLink ?? false,
+    hideLastRightRailTextLink: layout?.hideLastRightRailTextLink ?? false,
   }
+}
 
-  const {
-    swapSideColumns = false,
-    rightRailLeadAd = false,
-    leftRailCount = 3,
-    stripCount = 3,
-    centerScreenNewsCount = 0,
-    rightScreenNewsCount = 0,
-    gridColsClass,
-    leftRailTextLinkCount = 0,
-    rightRailTextLinkCount = 0,
-    hideLastLeftRailTextLink = false,
-    hideLastRightRailTextLink = false,
-  } = layout ?? {}
-
-  const StoryCardComponent: ComponentType<IStoryCardProps> = plainStoryTitles
-    ? HomepageStoryCard
-    : StoryCard
-  const heroTitleClass = plainStoryTitles
+function heroTitleClassName(plainStoryTitles: boolean): string {
+  return plainStoryTitles
     ? 'text-3xl font-normal leading-tight text-neutral-950 group-hover:underline'
     : 'text-3xl font-black leading-tight text-neutral-950 group-hover:underline'
+}
 
-  const usesCenterScreenNews = centerScreenNewsCount > 0
-  const usesLeftRailTextLinks = leftRailTextLinkCount > 0
-  const usesRightRailTextLinks = rightRailTextLinkCount > 0
+interface IHeroColumnContext {
+  StoryCardComponent: ComponentType<IStoryCardProps>
+  usesCenterScreenNews: boolean
+  useFrColumns: boolean
+}
 
-  let left: IArticle[]
-  let leftTextLinks: IArticle[] = []
-  let screenNews: IArticle[] = []
-  let relatedLinks: IArticle[] = []
-  let strip: IArticle[] = []
-  let rightRailTextLinks: IArticle[] = []
-  let rightScreenNews: IArticle[] = []
-  let rightCards: IArticle[] = []
+function HeroLeftColumn({
+  context,
+  left,
+  leftTextLinks,
+}: {
+  context: IHeroColumnContext
+  left: IArticle[]
+  leftTextLinks: IArticle[]
+}): JSX.Element {
+  const { StoryCardComponent, usesCenterScreenNews, useFrColumns } = context
 
-  if (usesCenterScreenNews) {
-    let offset = 1
-    left = articles.slice(offset, offset + leftRailCount).filter(Boolean) as IArticle[]
-    offset += leftRailCount
-
-    if (usesLeftRailTextLinks) {
-      leftTextLinks = articles
-        .slice(offset, offset + leftRailTextLinkCount)
-        .filter(Boolean) as IArticle[]
-      offset += leftRailTextLinkCount
-    }
-
-    screenNews = articles
-      .slice(offset, offset + centerScreenNewsCount)
-      .filter(Boolean) as IArticle[]
-    offset += centerScreenNewsCount
-
-    if (usesRightRailTextLinks) {
-      rightRailTextLinks = articles
-        .slice(offset, offset + rightRailTextLinkCount)
-        .filter(Boolean) as IArticle[]
-      offset += rightRailTextLinkCount
-    }
-
-    rightScreenNews = articles
-      .slice(offset, offset + rightScreenNewsCount)
-      .filter(Boolean) as IArticle[]
-    offset += rightScreenNewsCount
-    rightCards = articles.slice(offset, offset + 2).filter(Boolean) as IArticle[]
-  } else {
-    const defaultSlices = splitDefaultHeroArticles(articles)
-    left = defaultSlices.left.slice(0, leftRailCount)
-    relatedLinks = defaultSlices.relatedLinks
-    strip = defaultSlices.strip.slice(0, stripCount)
-    rightCards = defaultSlices.rightCards
-  }
-  const heroHref = `/article/${encodeURIComponent(hero.slug)}`
-  const heroSummary = deckBelowTitle(hero.title, hero.summary, 220)
-
-  const visibleLeftTextLinks = hideLastLeftRailTextLink ? leftTextLinks.slice(0, -1) : leftTextLinks
-  const visibleRightRailTextLinks = hideLastRightRailTextLink
-    ? rightRailTextLinks.slice(0, -1)
-    : rightRailTextLinks
-
-  const useFrColumns = gridColsClass !== undefined
-
-  const leftColumn = (
+  return (
     <div className={useFrColumns ? 'min-w-0 space-y-4' : 'min-w-0 space-y-4 lg:col-span-3'}>
       {left.map((article) => (
         <StoryCardComponent
@@ -250,9 +220,9 @@ function HeroBlock({ articles, layout, plainStoryTitles = false }: IHeroBlockPro
           showSummary={!usesCenterScreenNews}
         />
       ))}
-      {visibleLeftTextLinks.length > 0 ? (
+      {leftTextLinks.length > 0 ? (
         <ul className="divide-y divide-neutral-200 border-t border-neutral-200 pt-4">
-          {visibleLeftTextLinks.map((article) => (
+          {leftTextLinks.map((article) => (
             <li key={article.id} className="py-3">
               <StoryCardComponent article={article} variant="text-link" />
             </li>
@@ -261,115 +231,180 @@ function HeroBlock({ articles, layout, plainStoryTitles = false }: IHeroBlockPro
       ) : null}
     </div>
   )
+}
 
-  const centerColumn = (
+interface IHeroCenterColumnProps {
+  context: IHeroColumnContext
+  hero: IArticle
+  heroTitleClass: string
+  heroSummary: string | null
+  relatedLinks: IArticle[]
+  screenNews: IArticle[]
+  strip: IArticle[]
+}
+
+function HeroCenterColumn({
+  context,
+  hero,
+  heroTitleClass,
+  heroSummary,
+  relatedLinks,
+  screenNews,
+  strip,
+}: IHeroCenterColumnProps): JSX.Element {
+  const { StoryCardComponent, usesCenterScreenNews, useFrColumns } = context
+  const heroHref = `/article/${encodeURIComponent(hero.slug)}`
+
+  return (
     <section className={useFrColumns ? 'min-w-0' : 'min-w-0 lg:col-span-6'}>
       <div>
         <Link href={heroHref} className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]">
-          {usesCenterScreenNews ? null : (
-            <h2 className={heroTitleClass}>
-              {hero.title}
-            </h2>
-          )}
+          {usesCenterScreenNews ? null : <h2 className={heroTitleClass}>{hero.title}</h2>}
 
           <div className={['overflow-hidden rounded border border-neutral-200 bg-neutral-100', usesCenterScreenNews ? '' : 'mt-4'].join(' ')}>
             <div className="relative aspect-[16/9]">
-              <ArticleLeadMedia
-                article={hero}
-                mode="teaser"
-                priority
-                imageSizes="(max-width: 1024px) 100vw, 50vw"
-              />
+              <ArticleLeadMedia article={hero} mode="teaser" priority imageSizes="(max-width: 1024px) 100vw, 50vw" />
             </div>
           </div>
 
-          {usesCenterScreenNews ? (
-            <h2 className={['mt-4', heroTitleClass].join(' ')}>
-              {hero.title}
-            </h2>
-          ) : null}
+          {usesCenterScreenNews ? <h2 className={['mt-4', heroTitleClass].join(' ')}>{hero.title}</h2> : null}
 
           {heroSummary ? (
-            <p className="mt-4 line-clamp-3 overflow-hidden text-sm leading-relaxed text-neutral-800">
-              {heroSummary}
-            </p>
+            <p className="mt-4 line-clamp-3 overflow-hidden text-sm leading-relaxed text-neutral-800">{heroSummary}</p>
           ) : null}
         </Link>
 
-      {relatedLinks.length > 0 ? (
-        <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200 pt-2">
-          {relatedLinks.map((article) => (
-            <StoryCardComponent key={article.id} article={article} variant="headline-only" />
-          ))}
-        </ul>
-      ) : null}
-    </div>
+        {relatedLinks.length > 0 ? (
+          <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200 pt-2">
+            {relatedLinks.map((article) => (
+              <StoryCardComponent key={article.id} article={article} variant="headline-only" />
+            ))}
+          </ul>
+        ) : null}
+      </div>
 
-    {screenNews.length > 0 ? (
-      <div className="mt-4 space-y-4 border-t border-neutral-200 pt-4">
-        {screenNews.map((article) => (
+      {screenNews.length > 0 ? (
+        <div className="mt-4 space-y-4 border-t border-neutral-200 pt-4">
+          {screenNews.map((article) => (
+            <StoryCardComponent
+              key={article.id}
+              article={article}
+              variant="compact"
+              layout="side"
+              sideThumbWidth={HERO_CENTER_SCREEN_THUMB_WIDTH}
+              sideThumbHeight={HERO_CENTER_SCREEN_THUMB_HEIGHT}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {strip.length > 0 ? (
+        <div className={['mt-4 grid grid-cols-1 gap-4', strip.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'].join(' ')}>
+          {strip.map((article) => (
+            <StoryCardComponent key={article.id} article={article} variant="compact" layout="stacked" />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+interface IHeroRightColumnProps {
+  context: IHeroColumnContext
+  rightRailLeadAd: boolean
+  plainStoryTitles: boolean
+  rightScreenNews: IArticle[]
+  rightRailTextLinks: IArticle[]
+  rightCards: IArticle[]
+}
+
+function HeroRightColumn({
+  context,
+  rightRailLeadAd,
+  plainStoryTitles,
+  rightScreenNews,
+  rightRailTextLinks,
+  rightCards,
+}: IHeroRightColumnProps): JSX.Element {
+  const { StoryCardComponent, usesCenterScreenNews, useFrColumns } = context
+
+  return (
+    <aside className={useFrColumns ? 'min-w-0' : 'min-w-0 lg:col-span-3'}>
+      <div className="space-y-4">
+        {rightRailLeadAd ? <HeroRailAd /> : null}
+        {rightScreenNews.map((article) => (
+          <HeroPictureNewsScreen key={article.id} article={article} plainStoryTitles={plainStoryTitles} />
+        ))}
+        {rightRailTextLinks.length > 0 ? (
+          <ul className="divide-y divide-neutral-200 border-t border-neutral-200 pt-4">
+            {rightRailTextLinks.map((article) => (
+              <li key={article.id} className="py-3">
+                <StoryCardComponent article={article} variant="text-link" />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {rightCards.slice(rightRailLeadAd ? 1 : 0).map((article, idx) => (
           <StoryCardComponent
             key={article.id}
             article={article}
-            variant="compact"
-            layout="side"
-            sideThumbWidth={HERO_CENTER_SCREEN_THUMB_WIDTH}
-            sideThumbHeight={HERO_CENTER_SCREEN_THUMB_HEIGHT}
+            variant="rail"
+            titleFirst={!usesCenterScreenNews && !rightRailLeadAd && idx === 0}
+            showSummary={!usesCenterScreenNews && !rightRailLeadAd && idx === 0}
           />
         ))}
       </div>
-    ) : null}
-
-    {strip.length > 0 ? (
-      <div
-        className={[
-          'mt-4 grid grid-cols-1 gap-4',
-          strip.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3',
-        ].join(' ')}
-      >
-        {strip.map((article) => (
-          <StoryCardComponent key={article.id} article={article} variant="compact" layout="stacked" />
-        ))}
-      </div>
-    ) : null}
-  </section>
+    </aside>
   )
+}
 
-  const gridClass = useFrColumns
-    ? `grid grid-cols-1 gap-6 ${gridColsClass}`
+function HeroBlock({ articles, layout, plainStoryTitles = false }: IHeroBlockProps): JSX.Element | null {
+  const hero = articles[0]
+  if (!hero) {
+    return null
+  }
+
+  const cfg = resolveHeroLayoutConfig(layout)
+  const slices = splitSectionHeroArticles(articles, cfg)
+  const context: IHeroColumnContext = {
+    StoryCardComponent: plainStoryTitles ? HomepageStoryCard : StoryCard,
+    usesCenterScreenNews: cfg.centerScreenNewsCount > 0,
+    useFrColumns: cfg.gridColsClass !== undefined,
+  }
+  const heroSummary = deckBelowTitle(hero.title, hero.summary, 220)
+  const visibleLeftTextLinks = cfg.hideLastLeftRailTextLink ? slices.leftTextLinks.slice(0, -1) : slices.leftTextLinks
+  const visibleRightRailTextLinks = cfg.hideLastRightRailTextLink
+    ? slices.rightRailTextLinks.slice(0, -1)
+    : slices.rightRailTextLinks
+
+  const leftColumn = <HeroLeftColumn context={context} left={slices.left} leftTextLinks={visibleLeftTextLinks} />
+  const centerColumn = (
+    <HeroCenterColumn
+      context={context}
+      hero={hero}
+      heroTitleClass={heroTitleClassName(plainStoryTitles)}
+      heroSummary={heroSummary}
+      relatedLinks={slices.relatedLinks}
+      screenNews={slices.screenNews}
+      strip={slices.strip}
+    />
+  )
+  const gridClass = context.useFrColumns
+    ? `grid grid-cols-1 gap-6 ${cfg.gridColsClass}`
     : 'grid grid-cols-1 gap-6 lg:grid-cols-12'
 
   return (
     <div className={gridClass}>
-      {swapSideColumns ? centerColumn : leftColumn}
-      {swapSideColumns ? leftColumn : centerColumn}
-
-      <aside className={useFrColumns ? 'min-w-0' : 'min-w-0 lg:col-span-3'}>
-        <div className="space-y-4">
-          {rightRailLeadAd ? <HeroRailAd /> : null}
-          {rightScreenNews.map((article) => (
-            <HeroPictureNewsScreen key={article.id} article={article} plainStoryTitles={plainStoryTitles} />
-          ))}
-          {visibleRightRailTextLinks.length > 0 ? (
-            <ul className="divide-y divide-neutral-200 border-t border-neutral-200 pt-4">
-              {visibleRightRailTextLinks.map((article) => (
-                <li key={article.id} className="py-3">
-                  <StoryCardComponent article={article} variant="text-link" />
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {rightCards.slice(rightRailLeadAd ? 1 : 0).map((article, idx) => (
-            <StoryCardComponent
-              key={article.id}
-              article={article}
-              variant="rail"
-              titleFirst={!usesCenterScreenNews && !rightRailLeadAd && idx === 0}
-              showSummary={!usesCenterScreenNews && !rightRailLeadAd && idx === 0}
-            />
-          ))}
-        </div>
-      </aside>
+      {cfg.swapSideColumns ? centerColumn : leftColumn}
+      {cfg.swapSideColumns ? leftColumn : centerColumn}
+      <HeroRightColumn
+        context={context}
+        rightRailLeadAd={cfg.rightRailLeadAd}
+        plainStoryTitles={plainStoryTitles}
+        rightScreenNews={slices.rightScreenNews}
+        rightRailTextLinks={visibleRightRailTextLinks}
+        rightCards={slices.rightCards}
+      />
     </div>
   )
 }

@@ -96,16 +96,117 @@ function showsSummaryBelowMedia(
   return variant === 'rail' || variant === 'grid'
 }
 
-export function StoryCard({
+function storyHref(article: IArticle): string {
+  return `/article/${encodeURIComponent(article.slug)}`
+}
+
+interface IStoryImage {
+  src: string
+  unoptimized: boolean
+}
+
+function storyImage(article: IArticle): IStoryImage {
+  const src = articleImageSrc(article)
+  return { src, unoptimized: isDataUri(src) }
+}
+
+function storySummary(
+  article: IArticle,
+  variant: StoryCardVariant,
+  layout: 'side' | 'stacked',
+  displaySummary: boolean,
+): string | null {
+  return showsSummaryBelowMedia(variant, layout, displaySummary)
+    ? deckBelowTitle(article.title, article.summary, 200)
+    : null
+}
+
+function compactLinkClass(layout: 'side' | 'stacked', usesFixedSideThumb: boolean): string {
+  if (layout !== 'side') {
+    return 'block'
+  }
+
+  return usesFixedSideThumb
+    ? 'grid items-stretch gap-3'
+    : 'grid grid-cols-[112px_1fr] items-stretch gap-3'
+}
+
+/**
+ * Render an article preview card, dispatching to the component for its variant.
+ *
+ * @param props - Story card props including the article and presentation variant.
+ * @returns The rendered story card for the requested variant.
+ */
+export function StoryCard(props: IStoryCardProps): JSX.Element {
+  switch (props.variant ?? 'grid') {
+    case 'headline-only':
+      return <HeadlineOnlyStoryCard {...props} />
+    case 'text-link':
+      return <TextLinkStoryCard {...props} />
+    case 'compact':
+      return <CompactStoryCard {...props} />
+    case 'rail':
+      return <RailStoryCard {...props} />
+    case 'hero-lead':
+      return <HeroLeadStoryCard {...props} />
+    default:
+      return <GridStoryCard {...props} />
+  }
+}
+
+function HeadlineOnlyStoryCard({
   article,
-  variant = 'grid',
+  compact = false,
+  className,
+  titleClassName,
+  plainTitle = false,
+  underlineOnHover = false,
+}: IStoryCardProps): JSX.Element {
+  return (
+    <li className={className}>
+      <Link
+        href={storyHref(article)}
+        className={[
+          headlineOnlyLinkClass(plainTitle, underlineOnHover),
+          compact ? '' : 'py-3',
+        ].join(' ')}
+      >
+        <span className={belowMediaTextClass(titleClassName)}>{article.title}</span>
+      </Link>
+    </li>
+  )
+}
+
+function TextLinkStoryCard({
+  article,
+  className,
+  titleClassName,
+  plainTitle = false,
+  underlineOnHover = false,
+}: IStoryCardProps): JSX.Element {
+  return (
+    <article className={className}>
+      <Link href={storyHref(article)} className={textLinkClass(plainTitle, underlineOnHover)}>
+        <span
+          className={[
+            'block min-h-[calc(1em*1.375*3)] overflow-hidden leading-snug',
+            belowMediaTextClass(titleClassName),
+            titleClassName ?? '',
+          ].join(' ')}
+        >
+          {textLinkDisplayText(article)}
+        </span>
+      </Link>
+    </article>
+  )
+}
+
+function CompactStoryCard({
+  article,
   kicker,
   layout = 'side',
-  dense = false,
-  compact = false,
-  showAuthor = false,
-  titleFirst = false,
   showSummary,
+  titleFirst = false,
   sideThumbWidth,
   sideThumbHeight,
   className,
@@ -114,196 +215,182 @@ export function StoryCard({
   plainTitle = false,
   underlineOnHover = false,
 }: IStoryCardProps): JSX.Element {
-  const href = `/article/${encodeURIComponent(article.slug)}`
-  const imgSrc = articleImageSrc(article)
-  const unoptimized = isDataUri(imgSrc)
-  const displaySummary = showSummary ?? titleFirst
-  const summary = showsSummaryBelowMedia(variant, layout, displaySummary)
-    ? deckBelowTitle(article.title, article.summary, 200)
-    : null
-  const belowMediaTitleClass = belowMediaTextClass(titleClassName)
-  const belowMediaSummaryClass = belowMediaTextClass(summaryClassName)
-
-  if (variant === 'headline-only') {
-    return (
-      <li className={className}>
-        <Link
-          href={href}
-          className={[
-            headlineOnlyLinkClass(plainTitle, underlineOnHover),
-            compact ? '' : 'py-3',
-          ].join(' ')}
-        >
-          <span className={belowMediaTextClass(titleClassName)}>{article.title}</span>
-        </Link>
-      </li>
-    )
-  }
-
-  if (variant === 'text-link') {
-    return (
-      <article className={className}>
-        <Link
-          href={href}
-          className={textLinkClass(plainTitle, underlineOnHover)}
-        >
-          <span
-            className={[
-              'block min-h-[calc(1em*1.375*3)] overflow-hidden leading-snug',
-              belowMediaTextClass(titleClassName),
-              titleClassName ?? '',
-            ].join(' ')}
-          >
-            {textLinkDisplayText(article)}
-          </span>
-        </Link>
-      </article>
-    )
-  }
-
-  if (variant === 'compact') {
-    const titleBelowMedia = layout === 'stacked'
-    const compactSideWidth = sideThumbWidth ?? COMPACT_SIDE_THUMB_WIDTH
-    const compactSideHeight = sideThumbHeight ?? COMPACT_SIDE_THUMB_HEIGHT
-    const usesFixedSideThumb = layout === 'side' && sideThumbWidth != null
-
-    return (
-      <article className={['group', className].filter(Boolean).join(' ')}>
-        <Link
-          href={href}
-          className={
-            layout === 'side'
-              ? usesFixedSideThumb
-                ? 'grid items-stretch gap-3'
-                : 'grid grid-cols-[112px_1fr] items-stretch gap-3'
-              : 'block'
-          }
-          style={
-            usesFixedSideThumb
-              ? { gridTemplateColumns: `${compactSideWidth}px minmax(0, 1fr)` }
-              : undefined
-          }
-        >
-          <StoryThumb
-            src={imgSrc}
-            alt={article.title}
-            unoptimized={unoptimized}
-            aspect={layout === 'side' && !usesFixedSideThumb ? '4/3' : '16/10'}
-            fixedHeightPx={usesFixedSideThumb ? compactSideHeight : undefined}
-            className={layout === 'side' ? 'shrink-0 border-0' : 'w-full'}
-            style={usesFixedSideThumb ? { width: compactSideWidth } : undefined}
-          />
-          <StoryTitle
-            title={article.title}
-            kicker={kicker}
-            dense={layout === 'side'}
-            plainTitle={plainTitle}
-            className={layout === 'side' ? 'flex min-w-0 items-center py-3 pr-3' : 'mt-3'}
-            titleClassName={titleBelowMedia ? belowMediaTitleClass : belowMediaTextClass(titleClassName)}
-            underlineOnHover={underlineOnHover}
-            as="p"
-          />
-          {summary ? <StorySummary summary={summary} className={belowMediaSummaryClass} /> : null}
-        </Link>
-      </article>
-    )
-  }
-
-  if (variant === 'rail') {
-    return (
-      <article className={['group', className].filter(Boolean).join(' ')}>
-        <Link href={href} className="block">
-          {titleFirst ? (
-            <StoryTitle
-              title={article.title}
-              kicker={kicker}
-              plainTitle={plainTitle}
-              className="mb-2"
-              titleClassName={belowMediaTitleClass}
-              underlineOnHover={underlineOnHover}
-            />
-          ) : null}
-          <StoryThumb src={imgSrc} alt={article.title} unoptimized={unoptimized} hoverScale />
-          {titleFirst ? null : (
-            <StoryTitle
-              title={article.title}
-              kicker={kicker}
-              plainTitle={plainTitle}
-              className="mt-2"
-              titleClassName={belowMediaTitleClass}
-              underlineOnHover={underlineOnHover}
-            />
-          )}
-          {summary ? <StorySummary summary={summary} className={belowMediaSummaryClass} /> : null}
-        </Link>
-      </article>
-    )
-  }
-
-  if (variant === 'hero-lead') {
-    const stackedFeatured = layout === 'stacked' && titleFirst
-
-    return (
-      <article
-        className={[
-          'border-b border-neutral-200 pb-4 last:border-b-0 last:pb-0',
-          className,
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <Link
-          href={href}
-          className={layout === 'side' ? 'group grid grid-cols-[160px_1fr] gap-4' : 'group block'}
-        >
-          {stackedFeatured ? (
-            <StoryTitle
-              title={article.title}
-              kicker={kicker}
-              dense={dense}
-              plainTitle={plainTitle}
-              className="mb-3"
-              titleClassName={belowMediaTitleClass}
-              underlineOnHover={underlineOnHover}
-            />
-          ) : null}
-          <StoryThumb
-            src={imgSrc}
-            alt={article.title}
-            unoptimized={unoptimized}
-            aspect={layout === 'side' ? '4/3' : '16/10'}
-          />
-          {stackedFeatured ? null : (
-            <StoryTitle
-              title={article.title}
-              kicker={kicker}
-              dense={dense}
-              plainTitle={plainTitle}
-              className={layout === 'side' ? '' : 'mt-3'}
-              titleClassName={
-                layout === 'stacked' ? belowMediaTitleClass : belowMediaTextClass(titleClassName)
-              }
-              underlineOnHover={underlineOnHover}
-            />
-          )}
-          {summary ? <StorySummary summary={summary} className={belowMediaSummaryClass} /> : null}
-        </Link>
-      </article>
-    )
-  }
+  const { src, unoptimized } = storyImage(article)
+  const summary = storySummary(article, 'compact', layout, showSummary ?? titleFirst)
+  const width = sideThumbWidth ?? COMPACT_SIDE_THUMB_WIDTH
+  const height = sideThumbHeight ?? COMPACT_SIDE_THUMB_HEIGHT
+  const usesFixedSideThumb = layout === 'side' && sideThumbWidth != null
 
   return (
     <article className={['group', className].filter(Boolean).join(' ')}>
-      <Link href={href} className="block">
-        <StoryThumb src={imgSrc} alt={article.title} unoptimized={unoptimized} hoverScale />
+      <Link
+        href={storyHref(article)}
+        className={compactLinkClass(layout, usesFixedSideThumb)}
+        style={usesFixedSideThumb ? { gridTemplateColumns: `${width}px minmax(0, 1fr)` } : undefined}
+      >
+        <StoryThumb
+          src={src}
+          alt={article.title}
+          unoptimized={unoptimized}
+          aspect={layout === 'side' && !usesFixedSideThumb ? '4/3' : '16/10'}
+          fixedHeightPx={usesFixedSideThumb ? height : undefined}
+          className={layout === 'side' ? 'shrink-0 border-0' : 'w-full'}
+          style={usesFixedSideThumb ? { width } : undefined}
+        />
+        <StoryTitle
+          title={article.title}
+          kicker={kicker}
+          dense={layout === 'side'}
+          plainTitle={plainTitle}
+          className={layout === 'side' ? 'flex min-w-0 items-center py-3 pr-3' : 'mt-3'}
+          titleClassName={belowMediaTextClass(titleClassName)}
+          underlineOnHover={underlineOnHover}
+          as="p"
+        />
+        {summary ? <StorySummary summary={summary} className={belowMediaTextClass(summaryClassName)} /> : null}
+      </Link>
+    </article>
+  )
+}
+
+function RailStoryCard({
+  article,
+  kicker,
+  layout = 'side',
+  showSummary,
+  titleFirst = false,
+  className,
+  titleClassName,
+  summaryClassName,
+  plainTitle = false,
+  underlineOnHover = false,
+}: IStoryCardProps): JSX.Element {
+  const { src, unoptimized } = storyImage(article)
+  const summary = storySummary(article, 'rail', layout, showSummary ?? titleFirst)
+  const titleClass = belowMediaTextClass(titleClassName)
+
+  return (
+    <article className={['group', className].filter(Boolean).join(' ')}>
+      <Link href={storyHref(article)} className="block">
+        {titleFirst ? (
+          <StoryTitle
+            title={article.title}
+            kicker={kicker}
+            plainTitle={plainTitle}
+            className="mb-2"
+            titleClassName={titleClass}
+            underlineOnHover={underlineOnHover}
+          />
+        ) : null}
+        <StoryThumb src={src} alt={article.title} unoptimized={unoptimized} hoverScale />
+        {titleFirst ? null : (
+          <StoryTitle
+            title={article.title}
+            kicker={kicker}
+            plainTitle={plainTitle}
+            className="mt-2"
+            titleClassName={titleClass}
+            underlineOnHover={underlineOnHover}
+          />
+        )}
+        {summary ? <StorySummary summary={summary} className={belowMediaTextClass(summaryClassName)} /> : null}
+      </Link>
+    </article>
+  )
+}
+
+function HeroLeadStoryCard({
+  article,
+  kicker,
+  layout = 'side',
+  dense = false,
+  showSummary,
+  titleFirst = false,
+  className,
+  titleClassName,
+  summaryClassName,
+  plainTitle = false,
+  underlineOnHover = false,
+}: IStoryCardProps): JSX.Element {
+  const { src, unoptimized } = storyImage(article)
+  const summary = storySummary(article, 'hero-lead', layout, showSummary ?? titleFirst)
+  const titleClass = belowMediaTextClass(titleClassName)
+  const stackedFeatured = layout === 'stacked' && titleFirst
+
+  return (
+    <article
+      className={[
+        'border-b border-neutral-200 pb-4 last:border-b-0 last:pb-0',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <Link
+        href={storyHref(article)}
+        className={layout === 'side' ? 'group grid grid-cols-[160px_1fr] gap-4' : 'group block'}
+      >
+        {stackedFeatured ? (
+          <StoryTitle
+            title={article.title}
+            kicker={kicker}
+            dense={dense}
+            plainTitle={plainTitle}
+            className="mb-3"
+            titleClassName={titleClass}
+            underlineOnHover={underlineOnHover}
+          />
+        ) : null}
+        <StoryThumb
+          src={src}
+          alt={article.title}
+          unoptimized={unoptimized}
+          aspect={layout === 'side' ? '4/3' : '16/10'}
+        />
+        {stackedFeatured ? null : (
+          <StoryTitle
+            title={article.title}
+            kicker={kicker}
+            dense={dense}
+            plainTitle={plainTitle}
+            className={layout === 'side' ? '' : 'mt-3'}
+            titleClassName={titleClass}
+            underlineOnHover={underlineOnHover}
+          />
+        )}
+        {summary ? <StorySummary summary={summary} className={belowMediaTextClass(summaryClassName)} /> : null}
+      </Link>
+    </article>
+  )
+}
+
+function GridStoryCard({
+  article,
+  layout = 'side',
+  showAuthor = false,
+  showSummary,
+  titleFirst = false,
+  className,
+  titleClassName,
+  summaryClassName,
+  plainTitle = false,
+  underlineOnHover = false,
+}: IStoryCardProps): JSX.Element {
+  const { src, unoptimized } = storyImage(article)
+  const summary = storySummary(article, 'grid', layout, showSummary ?? titleFirst)
+
+  return (
+    <article className={['group', className].filter(Boolean).join(' ')}>
+      <Link href={storyHref(article)} className="block">
+        <StoryThumb src={src} alt={article.title} unoptimized={unoptimized} hoverScale />
         <StoryTitle
           title={article.title}
           plainTitle={plainTitle}
           className="mt-3"
-          titleClassName={belowMediaTitleClass}
+          titleClassName={belowMediaTextClass(titleClassName)}
           underlineOnHover={underlineOnHover}
         />
-        {summary ? <StorySummary summary={summary} className={belowMediaSummaryClass} /> : null}
+        {summary ? <StorySummary summary={summary} className={belowMediaTextClass(summaryClassName)} /> : null}
         {showAuthor ? (
           <p className="mt-1 text-xs font-semibold text-neutral-600">{article.authorName}</p>
         ) : null}

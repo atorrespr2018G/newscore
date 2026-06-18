@@ -8,11 +8,10 @@ import { COMPACT_SIDE_THUMB_WIDTH } from '@/components/ui/story-card'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import {
-  EDITORIAL_COMPACT_IMAGE_COUNT,
   EDITORIAL_LEAD_IMAGE_COUNT,
   isMoreTopStoriesPositionKey,
   MORE_TOP_STORIES_PINNED_LIMIT,
-  splitEditorialLeadColumnArticles,
+  splitEditorialColumnArticles,
 } from '@/lib/helpers/feed-layout'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
@@ -34,21 +33,10 @@ interface IHomepageEditorialBandProps {
 /**
  * CNN-style three-column band below the hero: More Top Stories | spotlight topic | Today rail or ads + stories.
  */
-export function HomepageEditorialBand({
-  moreTopStoriesSlot,
-  spotlightSlot,
-  rightRailSlot,
-  pageName,
-  hideLeadHeadlineLinks = false,
-  showTrailingNewsScreen = false,
-}: IHomepageEditorialBandProps): JSX.Element | null {
-  const { homepageSectionTitle } = useSectionLabels(pageName)
-  const moreArticles = isMoreTopStoriesPositionKey(moreTopStoriesSlot.positionKey)
-    ? moreTopStoriesSlot.articles.slice(0, MORE_TOP_STORIES_PINNED_LIMIT)
-    : moreTopStoriesSlot.articles
-  const spotlightArticles = spotlightSlot.articles
+export function HomepageEditorialBand(props: IHomepageEditorialBandProps): JSX.Element | null {
+  const { moreTopStoriesSlot, spotlightSlot } = props
 
-  if (moreArticles.length === 0 && spotlightArticles.length === 0) {
+  if (moreTopStoriesSlot.articles.length === 0 && spotlightSlot.articles.length === 0) {
     return null
   }
 
@@ -57,50 +45,63 @@ export function HomepageEditorialBand({
       id={sectionAnchorId(moreTopStoriesSlot.positionKey)}
       className="scroll-mt-24 border-t border-neutral-200 pt-10"
     >
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-8">
-        {moreArticles.length > 0 ? (
-          <EditorialColumn
-            title={homepageSectionTitle(moreTopStoriesSlot.positionKey, moreTopStoriesSlot.displayName)}
-            articles={moreArticles}
-            leadImageCount={1}
-            showHeadlineLinks={!hideLeadHeadlineLinks}
-            showTrailingNewsScreen={showTrailingNewsScreen}
-            maxArticles={
-              isMoreTopStoriesPositionKey(moreTopStoriesSlot.positionKey)
-                ? MORE_TOP_STORIES_PINNED_LIMIT
-                : undefined
-            }
-          />
-        ) : null}
+      <EditorialBandColumns {...props} />
+    </section>
+  )
+}
 
-        {spotlightArticles.length > 0 ? (
-          <EditorialColumn
-            title={homepageSectionTitle(spotlightSlot.positionKey, spotlightSlot.displayName)}
-            articles={spotlightArticles}
-            leadImageCount={1}
-            showTrailingNewsScreen={showTrailingNewsScreen}
-          />
-        ) : null}
+/**
+ * Render the three editorial band columns from resolved slot data.
+ */
+function EditorialBandColumns({
+  moreTopStoriesSlot,
+  spotlightSlot,
+  rightRailSlot,
+  pageName,
+  hideLeadHeadlineLinks = false,
+  showTrailingNewsScreen = false,
+}: IHomepageEditorialBandProps): JSX.Element {
+  const { homepageSectionTitle } = useSectionLabels(pageName)
+  const isMoreTopStories = isMoreTopStoriesPositionKey(moreTopStoriesSlot.positionKey)
+  const moreArticles = isMoreTopStories
+    ? moreTopStoriesSlot.articles.slice(0, MORE_TOP_STORIES_PINNED_LIMIT)
+    : moreTopStoriesSlot.articles
 
-        <RightRailColumn
-          title={
-            rightRailSlot
-              ? homepageSectionTitle(rightRailSlot.positionKey, rightRailSlot.displayName)
-              : undefined
-          }
-          positionKey={rightRailSlot?.positionKey}
-          articles={rightRailSlot?.articles ?? []}
+  return (
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-8">
+      {moreArticles.length > 0 ? (
+        <EditorialColumn
+          title={homepageSectionTitle(moreTopStoriesSlot.positionKey, moreTopStoriesSlot.displayName)}
+          articles={moreArticles}
+          showHeadlineLinks={!hideLeadHeadlineLinks}
+          showTrailingNewsScreen={showTrailingNewsScreen}
+          maxArticles={isMoreTopStories ? MORE_TOP_STORIES_PINNED_LIMIT : undefined}
+        />
+      ) : null}
+
+      {spotlightSlot.articles.length > 0 ? (
+        <EditorialColumn
+          title={homepageSectionTitle(spotlightSlot.positionKey, spotlightSlot.displayName)}
+          articles={spotlightSlot.articles}
           showTrailingNewsScreen={showTrailingNewsScreen}
         />
-      </div>
-    </section>
+      ) : null}
+
+      <RightRailColumn
+        title={rightRailSlot ? homepageSectionTitle(rightRailSlot.positionKey, rightRailSlot.displayName) : undefined}
+        positionKey={rightRailSlot?.positionKey}
+        articles={rightRailSlot?.articles ?? []}
+        showTrailingNewsScreen={showTrailingNewsScreen}
+      />
+    </div>
   )
 }
 
 interface IEditorialColumnProps {
   title: string
   articles: IArticle[]
-  leadImageCount: number
+  /** Picture lead stories at the top of the column. Defaults to the editorial lead count. */
+  leadImageCount?: number
   showHeadlineLinks?: boolean
   showTrailingNewsScreen?: boolean
   /** Optional article cap before splitting into lead, compact, and headline zones. */
@@ -110,132 +111,99 @@ interface IEditorialColumnProps {
 const COMPACT_SIDE_THUMB_WIDTH_ENLARGED = Math.round(COMPACT_SIDE_THUMB_WIDTH * 1.2)
 const EDITORIAL_STORY_CARD_PROPS = { plainTitle: true } as const
 
-function splitEditorialColumnArticles(
-  articles: IArticle[],
-  leadImageCount: number,
-  showHeadlineLinks: boolean,
-  showTrailingNewsScreen: boolean,
-  maxArticles?: number,
-): {
-  leads: IArticle[]
-  compacts: IArticle[]
-  headlines: IArticle[]
-  trailingArticle: IArticle | undefined
-} {
-  if (
-    leadImageCount === EDITORIAL_LEAD_IMAGE_COUNT
-    && showHeadlineLinks
-    && !showTrailingNewsScreen
-  ) {
-    const { leads, compacts, headlines } = splitEditorialLeadColumnArticles(articles, maxArticles ?? null)
-    return { leads, compacts, headlines, trailingArticle: undefined }
-  }
+function ColumnHeading({ title }: { title: string }): JSX.Element {
+  return (
+    <h2 className="border-b-2 border-neutral-950 pb-2 text-xl font-normal tracking-tight text-neutral-950">
+      {title}
+    </h2>
+  )
+}
 
-  const leads = articles.slice(0, leadImageCount)
-  const compacts = articles.slice(leadImageCount, leadImageCount + EDITORIAL_COMPACT_IMAGE_COUNT)
-  const remaining = articles.slice(leadImageCount + EDITORIAL_COMPACT_IMAGE_COUNT)
+function LeadRailCards({ articles }: { articles: IArticle[] }): JSX.Element {
+  return (
+    <div className="mt-4 space-y-4">
+      {articles.map((article) => (
+        <HomepageStoryCard key={article.id} article={article} variant="rail" {...EDITORIAL_STORY_CARD_PROPS} />
+      ))}
+    </div>
+  )
+}
 
-  if (!showTrailingNewsScreen || remaining.length === 0) {
-    return {
-      leads,
-      compacts,
-      headlines: showHeadlineLinks ? remaining : [],
-      trailingArticle: undefined,
-    }
-  }
+function CompactSideCards({
+  articles,
+  sideThumbWidth,
+}: {
+  articles: IArticle[]
+  sideThumbWidth?: number
+}): JSX.Element {
+  return (
+    <div className="mt-4 space-y-4">
+      {articles.map((article) => (
+        <HomepageStoryCard
+          key={article.id}
+          article={article}
+          variant="compact"
+          layout="side"
+          sideThumbWidth={sideThumbWidth}
+          {...EDITORIAL_STORY_CARD_PROPS}
+        />
+      ))}
+    </div>
+  )
+}
 
-  if (!showHeadlineLinks) {
-    return {
-      leads,
-      compacts,
-      headlines: [],
-      trailingArticle: remaining[0],
-    }
-  }
-
-  if (remaining.length === 1) {
-    return {
-      leads,
-      compacts,
-      headlines: [],
-      trailingArticle: remaining[0],
-    }
-  }
-
-  return {
-    leads,
-    compacts,
-    headlines: remaining.slice(0, -1),
-    trailingArticle: remaining[remaining.length - 1],
-  }
+function HeadlineList({
+  articles,
+  className,
+  compact = false,
+}: {
+  articles: IArticle[]
+  className: string
+  compact?: boolean
+}): JSX.Element {
+  return (
+    <ul className={className}>
+      {articles.map((article) => (
+        <HomepageStoryCard
+          key={article.id}
+          article={article}
+          variant="headline-only"
+          compact={compact}
+          {...EDITORIAL_STORY_CARD_PROPS}
+        />
+      ))}
+    </ul>
+  )
 }
 
 function EditorialColumn({
   title,
   articles,
-  leadImageCount,
+  leadImageCount = EDITORIAL_LEAD_IMAGE_COUNT,
   showHeadlineLinks = true,
   showTrailingNewsScreen = false,
   maxArticles,
 }: IEditorialColumnProps): JSX.Element {
-  const { leads, compacts, headlines, trailingArticle } = splitEditorialColumnArticles(
+  const { leads, compacts, headlines, trailingArticle } = splitEditorialColumnArticles({
     articles,
     leadImageCount,
     showHeadlineLinks,
     showTrailingNewsScreen,
     maxArticles,
-  )
+  })
 
   return (
     <div className="flex flex-col">
-      <h2 className="border-b-2 border-neutral-950 pb-2 text-xl font-normal tracking-tight text-neutral-950">
-        {title}
-      </h2>
-
-      <div className="mt-4 space-y-4">
-        {leads.map((article) => (
-          <HomepageStoryCard key={article.id} article={article} variant="rail" {...EDITORIAL_STORY_CARD_PROPS} />
-        ))}
-      </div>
-
+      <ColumnHeading title={title} />
+      <LeadRailCards articles={leads} />
       {compacts.length > 0 ? (
-        <div className="mt-4 space-y-4">
-          {compacts.map((article) => (
-            <HomepageStoryCard
-              key={article.id}
-              article={article}
-              variant="compact"
-              layout="side"
-              sideThumbWidth={COMPACT_SIDE_THUMB_WIDTH_ENLARGED}
-              {...EDITORIAL_STORY_CARD_PROPS}
-            />
-          ))}
-        </div>
+        <CompactSideCards articles={compacts} sideThumbWidth={COMPACT_SIDE_THUMB_WIDTH_ENLARGED} />
       ) : null}
-
       {showHeadlineLinks && headlines.length > 0 ? (
-        <ul className="mt-4 divide-y divide-neutral-200">
-          {headlines.map((article) => (
-            <HomepageStoryCard
-              key={article.id}
-              article={article}
-              variant="headline-only"
-              {...EDITORIAL_STORY_CARD_PROPS}
-            />
-          ))}
-        </ul>
+        <HeadlineList articles={headlines} className="mt-4 divide-y divide-neutral-200" />
       ) : null}
-
       {trailingArticle ? (
-        <div className="mt-4">
-          <HomepageStoryCard
-            article={trailingArticle}
-            variant="compact"
-            layout="side"
-            sideThumbWidth={COMPACT_SIDE_THUMB_WIDTH_ENLARGED}
-            {...EDITORIAL_STORY_CARD_PROPS}
-          />
-        </div>
+        <CompactSideCards articles={[trailingArticle]} sideThumbWidth={COMPACT_SIDE_THUMB_WIDTH_ENLARGED} />
       ) : null}
     </div>
   )
@@ -248,108 +216,102 @@ function isTodayRailColumn(positionKey: string | undefined): boolean {
   return positionKey?.trim().toLowerCase() === TODAY_RAIL_POSITION_KEY
 }
 
+interface IRightRailColumnProps {
+  title?: string
+  positionKey?: string
+  articles: IArticle[]
+  showTrailingNewsScreen?: boolean
+}
+
+interface IRightRailSlices {
+  featuredArticle: IArticle | undefined
+  leads: IArticle[]
+  headlines: IArticle[]
+  trailingArticle: IArticle | undefined
+}
+
+/**
+ * Split right-rail articles into the featured screen, lead cards, headlines, and trailing card.
+ *
+ * @param articles Right-rail slot article list.
+ * @param usesNewsScreen Whether the first article renders as a picture "news screen".
+ * @param showTrailingNewsScreen Whether the last lead article becomes a trailing card.
+ * @returns Featured article plus lead, headline, and trailing zones.
+ */
+function splitRightRailColumnArticles(
+  articles: IArticle[],
+  usesNewsScreen: boolean,
+  showTrailingNewsScreen: boolean,
+): IRightRailSlices {
+  const featuredArticle = usesNewsScreen ? articles[0] : undefined
+  const railArticles = usesNewsScreen ? articles.slice(1) : articles
+  const hasTrailing = showTrailingNewsScreen && railArticles.length > RIGHT_RAIL_LEAD_IMAGE_COUNT
+  const railPool = hasTrailing ? railArticles.slice(0, -1) : railArticles
+
+  return {
+    featuredArticle,
+    leads: railPool.slice(0, RIGHT_RAIL_LEAD_IMAGE_COUNT),
+    headlines: railPool.slice(RIGHT_RAIL_LEAD_IMAGE_COUNT),
+    trailingArticle: hasTrailing ? railArticles[railArticles.length - 1] : undefined,
+  }
+}
+
+function RightRailTop({
+  usesNewsScreen,
+  featuredArticle,
+  hasTitle,
+}: {
+  usesNewsScreen: boolean
+  featuredArticle: IArticle | undefined
+  hasTitle: boolean
+}): JSX.Element | null {
+  if (usesNewsScreen) {
+    if (!featuredArticle) {
+      return null
+    }
+    return (
+      <div className={hasTitle ? 'mt-4' : undefined}>
+        <TodayFeaturedNewsScreen article={featuredArticle} />
+      </div>
+    )
+  }
+
+  return (
+    <div className={hasTitle ? 'mt-4 space-y-4' : 'space-y-4'}>
+      <AdUnit />
+      <AdUnit tall />
+    </div>
+  )
+}
+
 function RightRailColumn({
   title,
   positionKey,
   articles,
   showTrailingNewsScreen = false,
-}: {
-  title?: string
-  positionKey?: string
-  articles: IArticle[]
-  showTrailingNewsScreen?: boolean
-}): JSX.Element {
+}: IRightRailColumnProps): JSX.Element {
   const tHome = useTranslations('home')
   const sponsoredAndFeaturedLabel = tHome('editorialBand.sponsoredAndFeatured')
   const usesNewsScreen = isTodayRailColumn(positionKey)
-  const featuredArticle = usesNewsScreen ? articles[0] : undefined
-  const railArticles = usesNewsScreen ? articles.slice(1) : articles
-  const railPool =
-    showTrailingNewsScreen && railArticles.length > RIGHT_RAIL_LEAD_IMAGE_COUNT
-      ? railArticles.slice(0, -1)
-      : railArticles
-  const trailingArticle =
-    showTrailingNewsScreen && railArticles.length > RIGHT_RAIL_LEAD_IMAGE_COUNT
-      ? railArticles[railArticles.length - 1]
-      : undefined
-  const leads = railPool.slice(0, RIGHT_RAIL_LEAD_IMAGE_COUNT)
-  const headlines = railPool.slice(RIGHT_RAIL_LEAD_IMAGE_COUNT)
+  const { featuredArticle, leads, headlines, trailingArticle } = splitRightRailColumnArticles(
+    articles,
+    usesNewsScreen,
+    showTrailingNewsScreen,
+  )
+  const sideThumbWidth = usesNewsScreen ? COMPACT_SIDE_THUMB_WIDTH_ENLARGED : undefined
 
   return (
     <div className="flex flex-col" aria-label={title ?? sponsoredAndFeaturedLabel}>
-      {title ? (
-        <h2 className="border-b-2 border-neutral-950 pb-2 text-xl font-normal tracking-tight text-neutral-950">
-          {title}
-        </h2>
-      ) : null}
-
-      {usesNewsScreen ? (
-        featuredArticle ? (
-          <div className={title ? 'mt-4' : undefined}>
-            <TodayFeaturedNewsScreen article={featuredArticle} />
-          </div>
-        ) : null
-      ) : (
-        <div className={title ? 'mt-4 space-y-4' : 'space-y-4'}>
-          <AdUnit />
-          <AdUnit tall />
-        </div>
-      )}
-
+      {title ? <ColumnHeading title={title} /> : null}
+      <RightRailTop usesNewsScreen={usesNewsScreen} featuredArticle={featuredArticle} hasTitle={Boolean(title)} />
       {usesNewsScreen && headlines.length > 0 ? (
-        <ul className="mt-4 divide-y divide-neutral-200">
-          {headlines.map((article) => (
-            <HomepageStoryCard
-              key={article.id}
-              article={article}
-              variant="headline-only"
-              compact
-              {...EDITORIAL_STORY_CARD_PROPS}
-            />
-          ))}
-        </ul>
+        <HeadlineList articles={headlines} className="mt-4 divide-y divide-neutral-200" compact />
       ) : null}
-
-      {leads.length > 0 ? (
-        <div className="mt-4 space-y-4">
-          {leads.map((article) => (
-            <HomepageStoryCard
-              key={article.id}
-              article={article}
-              variant="compact"
-              layout="side"
-              sideThumbWidth={usesNewsScreen ? COMPACT_SIDE_THUMB_WIDTH_ENLARGED : undefined}
-              {...EDITORIAL_STORY_CARD_PROPS}
-            />
-          ))}
-        </div>
-      ) : null}
-
+      {leads.length > 0 ? <CompactSideCards articles={leads} sideThumbWidth={sideThumbWidth} /> : null}
       {!usesNewsScreen && headlines.length > 0 ? (
-        <ul className="mt-4 space-y-3">
-          {headlines.map((article) => (
-            <HomepageStoryCard
-              key={article.id}
-              article={article}
-              variant="headline-only"
-              compact
-              {...EDITORIAL_STORY_CARD_PROPS}
-            />
-          ))}
-        </ul>
+        <HeadlineList articles={headlines} className="mt-4 space-y-3" compact />
       ) : null}
-
-      {trailingArticle ? (
-        <div className="mt-4">
-          <HomepageStoryCard
-            article={trailingArticle}
-            variant="compact"
-            layout="side"
-            sideThumbWidth={usesNewsScreen ? COMPACT_SIDE_THUMB_WIDTH_ENLARGED : undefined}
-            {...EDITORIAL_STORY_CARD_PROPS}
-          />
-        </div>
-      ) : null}
+      {trailingArticle ? <CompactSideCards articles={[trailingArticle]} sideThumbWidth={sideThumbWidth} /> : null}
     </div>
   )
 }

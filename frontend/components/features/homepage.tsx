@@ -11,28 +11,15 @@ import {
   ArticleLeadMedia,
 } from '@/components/ui/article-lead-media'
 import {
-  HOMEPAGE_POST_POLITICS_SECTION_KEYS,
-  isHomepageSectionVisible,
-  isPostPoliticsSectionKey,
-} from '@/lib/helpers/section-labels'
-import {
-  buildEditorialBands,
-  findSlot,
-  findSlotByPositionKey,
-  findSlotsByPositionKeys,
   normalizedPositionKey,
+  selectHomepageSections,
   splitDefaultHeroArticles,
 } from '@/lib/helpers/feed-layout'
+import type { IEditorialBandSlots } from '@/lib/helpers/feed-layout'
 import { shouldRenderHomepageGridAd } from '@/lib/helpers/homepage-ad-placement'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
-import type { IHomepageFeed } from '@/interfaces/feed'
-import {
-  PRESENTATION_GRID_4,
-  PRESENTATION_HERO,
-} from '@/lib/presentation-registry'
-
-import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-band'
+import type { IFeedSlot, IHomepageFeed } from '@/interfaces/feed'
 
 const HomepageEditorialBand = dynamic(
   () => import('@/components/features/homepage-editorial-band').then((m) => m.HomepageEditorialBand),
@@ -91,97 +78,236 @@ interface IHeroBlockProps {
   articles: IArticle[]
 }
 
-function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
+function HeroLeftRail({ articles }: { articles: IArticle[] }): JSX.Element {
   const tHome = useTranslations('home')
+  return (
+    <aside className="lg:col-span-3">
+      <div className="space-y-4">
+        {articles.map((article, idx) => (
+          <HomepageStoryCard
+            key={article.id}
+            article={article}
+            variant="hero-lead"
+            kicker={idx === 0 ? tHome('hero.topKicker') : undefined}
+            layout="stacked"
+            titleFirst={idx === 0}
+            showSummary={idx === 0}
+          />
+        ))}
+      </div>
+    </aside>
+  )
+}
+
+function HeroLead({ hero }: { hero: IArticle }): JSX.Element {
+  const heroHref = `/article/${encodeURIComponent(hero.slug)}`
+  const heroSummary = deckBelowTitle(hero.title, hero.summary, 200)
+  return (
+    <Link href={heroHref} className="group block" aria-label={hero.title}>
+      <h2 className="font-sans text-[34px] font-normal leading-[1.05] tracking-tight text-neutral-950">
+        {hero.title}
+      </h2>
+
+      <div className="mt-4 overflow-hidden rounded border border-neutral-200 bg-neutral-100">
+        <div className="relative aspect-[16/9]">
+          <ArticleLeadMedia article={hero} mode="teaser" priority imageSizes="(max-width: 1024px) 100vw, 50vw" />
+        </div>
+      </div>
+
+      {heroSummary ? (
+        <p className="mt-4 font-sans text-sm font-normal leading-relaxed text-neutral-800">
+          <span className="line-clamp-3">{heroSummary}</span>
+        </p>
+      ) : null}
+    </Link>
+  )
+}
+
+function HeroCenter({
+  hero,
+  relatedLinks,
+  strip,
+}: {
+  hero: IArticle
+  relatedLinks: IArticle[]
+  strip: IArticle[]
+}): JSX.Element {
+  return (
+    <section className="lg:col-span-6">
+      <div className="border-b border-neutral-200 pb-5">
+        <HeroLead hero={hero} />
+
+        {relatedLinks.length > 0 ? (
+          <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200 pt-2">
+            {relatedLinks.map((article) => (
+              <HomepageStoryCard key={article.id} article={article} variant="headline-only" />
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {strip.map((article) => (
+          <HomepageStoryCard key={article.id} article={article} variant="compact" layout="stacked" />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function HeroRightRail({ articles }: { articles: IArticle[] }): JSX.Element {
+  return (
+    <aside className="lg:col-span-3">
+      <div className="space-y-6">
+        <RightPromo />
+        <div className="space-y-4">
+          {articles.map((article, idx) => (
+            <HomepageStoryCard
+              key={article.id}
+              article={article}
+              variant="rail"
+              titleFirst={idx === 0}
+              showSummary={idx === 0}
+            />
+          ))}
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
   const hero = articles[0]
   if (!hero) {
     return null
   }
 
   const { left, relatedLinks, strip, rightCards } = splitDefaultHeroArticles(articles)
-  const heroHref = `/article/${encodeURIComponent(hero.slug)}`
-  const heroSummary = deckBelowTitle(hero.title, hero.summary, 200)
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-      <aside className="lg:col-span-3">
-        <div className="space-y-4">
-          {left.map((article, idx) => (
-            <HomepageStoryCard
-              key={article.id}
-              article={article}
-              variant="hero-lead"
-              kicker={idx === 0 ? tHome('hero.topKicker') : undefined}
-              layout="stacked"
-              titleFirst={idx === 0}
-              showSummary={idx === 0}
-            />
-          ))}
-        </div>
-      </aside>
-
-      <section className="lg:col-span-6">
-        <div className="border-b border-neutral-200 pb-5">
-          <Link
-            href={heroHref}
-            className="group block"
-            aria-label={hero.title}
-          >
-            <h2 className="font-sans text-[34px] font-normal leading-[1.05] tracking-tight text-neutral-950">
-              {hero.title}
-            </h2>
-
-            <div className="mt-4 overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-              <div className="relative aspect-[16/9]">
-                <ArticleLeadMedia
-                  article={hero}
-                  mode="teaser"
-                  priority
-                  imageSizes="(max-width: 1024px) 100vw, 50vw"
-                />
-              </div>
-            </div>
-
-            {heroSummary ? (
-              <p className="mt-4 font-sans text-sm font-normal leading-relaxed text-neutral-800">
-                <span className="line-clamp-3">{heroSummary}</span>
-              </p>
-            ) : null}
-          </Link>
-
-          {relatedLinks.length > 0 ? (
-            <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200 pt-2">
-              {relatedLinks.map((article) => (
-                <HomepageStoryCard key={article.id} article={article} variant="headline-only" />
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          {strip.map((article) => (
-            <HomepageStoryCard key={article.id} article={article} variant="compact" layout="stacked" />
-          ))}
-        </div>
-      </section>
-
-      <aside className="lg:col-span-3">
-        <div className="space-y-6">
-          <RightPromo />
-          <div className="space-y-4">
-            {rightCards.map((article, idx) => (
-              <HomepageStoryCard
-                key={article.id}
-                article={article}
-                variant="rail"
-                titleFirst={idx === 0}
-                showSummary={idx === 0}
-              />
-            ))}
-          </div>
-        </div>
-      </aside>
+      <HeroLeftRail articles={left} />
+      <HeroCenter hero={hero} relatedLinks={relatedLinks} strip={strip} />
+      <HeroRightRail articles={rightCards} />
     </div>
+  )
+}
+
+/** Post-politics section keys preceded by an ad ribbon on the homepage. */
+const POST_POLITICS_AD_SECTION_KEYS = ['health', 'finance', 'technology', 'world'] as const
+
+function EarlyUsSection({ slot, title }: { slot: IFeedSlot | undefined; title: string }): JSX.Element | null {
+  if (!slot) {
+    return null
+  }
+  return (
+    <Suspense fallback={<SectionSkeleton />}>
+      <HomepageUsBand slot={slot} title={title} />
+    </Suspense>
+  )
+}
+
+function TopStoriesSection({ band }: { band: IEditorialBandSlots | undefined }): JSX.Element | null {
+  if (!band) {
+    return null
+  }
+  return (
+    <div className="space-y-2">
+      <AdRibbon />
+      <Suspense fallback={<SectionSkeleton />}>
+        <HomepageEditorialBand
+          moreTopStoriesSlot={band.lead}
+          spotlightSlot={band.spotlight}
+          rightRailSlot={band.rail}
+        />
+      </Suspense>
+    </div>
+  )
+}
+
+function PoliticsSportsSection({
+  politicsSlot,
+  sportsSlot,
+}: {
+  politicsSlot: IFeedSlot | undefined
+  sportsSlot: IFeedSlot | undefined
+}): JSX.Element | null {
+  if (!politicsSlot && !sportsSlot) {
+    return null
+  }
+  return (
+    <div className="space-y-2">
+      {politicsSlot ? (
+        <>
+          <AdRibbon />
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomepageSection slot={politicsSlot} />
+          </Suspense>
+        </>
+      ) : null}
+      {sportsSlot ? (
+        <Suspense fallback={<SectionSkeleton />}>
+          <HomepageSection slot={sportsSlot} />
+        </Suspense>
+      ) : null}
+    </div>
+  )
+}
+
+function PostPoliticsSections({ slots }: { slots: IFeedSlot[] }): JSX.Element {
+  return (
+    <>
+      {slots.map((slot) => (
+        <div key={slot.id} className="space-y-2">
+          {(POST_POLITICS_AD_SECTION_KEYS as readonly string[]).includes(normalizedPositionKey(slot)) ? (
+            <AdRibbon />
+          ) : null}
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomepageSection slot={slot} />
+          </Suspense>
+        </div>
+      ))}
+    </>
+  )
+}
+
+function EditorialBandSections({ bands }: { bands: IEditorialBandSlots[] }): JSX.Element {
+  return (
+    <>
+      {bands.map((band) => (
+        <div key={`${band.lead.id}-${band.spotlight.id}-${band.rail?.id ?? 'no-rail'}`} className="space-y-2">
+          <AdRibbon />
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomepageEditorialBand
+              moreTopStoriesSlot={band.lead}
+              spotlightSlot={band.spotlight}
+              rightRailSlot={band.rail}
+            />
+          </Suspense>
+        </div>
+      ))}
+    </>
+  )
+}
+
+function GridSections({
+  slots,
+  previousSlot,
+}: {
+  slots: IFeedSlot[]
+  previousSlot: IFeedSlot | undefined
+}): JSX.Element {
+  return (
+    <>
+      {slots.map((slot, index) => (
+        <div key={slot.id} className="space-y-2">
+          {shouldRenderHomepageGridAd(index === 0 ? previousSlot : slots[index - 1], slot) ? <AdRibbon /> : null}
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomepageSection slot={slot} />
+          </Suspense>
+        </div>
+      ))}
+    </>
   )
 }
 
@@ -202,113 +328,19 @@ export function HomepageContent({ feed }: { feed: IHomepageFeed }): JSX.Element 
     )
   }
 
-  const heroSlot = findSlot(slots, PRESENTATION_HERO) ?? slots[0]
-  const earlyUsSlot =
-    findSlotByPositionKey(slots, 'us-featured') ?? findSlotByPositionKey(slots, 'us')
-  const editorialBands = buildEditorialBands(slots)
-  const politicsEditorialBand = editorialBands.find(
-    (band) => normalizedPositionKey(band.lead) === MORE_TOP_STORIES_KEY,
-  )
-  const topStoriesBand = politicsEditorialBand ?? editorialBands[0]
-  const remainingEditorialBands = topStoriesBand
-    ? editorialBands.filter((band) => band !== topStoriesBand)
-    : editorialBands
-  const politicsSlot = findSlotByPositionKey(slots, 'politics')
-  const allPostPoliticsSlots = findSlotsByPositionKeys(slots, HOMEPAGE_POST_POLITICS_SECTION_KEYS)
-  const sportsSlot = allPostPoliticsSlots.find((slot) => normalizedPositionKey(slot) === 'sports')
-  const postPoliticsSlots = allPostPoliticsSlots.filter(
-    (slot) => normalizedPositionKey(slot) !== 'sports',
-  )
-  const gridSlots = slots.filter(
-    (s) =>
-      s.presentationType === PRESENTATION_GRID_4 &&
-      isHomepageSectionVisible(s.positionKey) &&
-      normalizedPositionKey(s) !== 'politics' &&
-      normalizedPositionKey(s) !== 'health' &&
-      !isPostPoliticsSectionKey(s.positionKey),
-  )
+  const sections = selectHomepageSections(slots)
+  const gridPreviousSlot = sections.postPoliticsSlots.at(-1) ?? sections.politicsSlot
 
   return (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline">
-      <HeroBlock articles={heroSlot.articles} />
+      <HeroBlock articles={sections.heroSlot.articles} />
       <AdRibbon />
-      {earlyUsSlot ? (
-        <Suspense fallback={<SectionSkeleton />}>
-          <HomepageUsBand slot={earlyUsSlot} title={sectionLabel('us-featured')} />
-        </Suspense>
-      ) : null}
-      {topStoriesBand ? (
-        <div className="space-y-2">
-          <AdRibbon />
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageEditorialBand
-              moreTopStoriesSlot={topStoriesBand.lead}
-              spotlightSlot={topStoriesBand.spotlight}
-              rightRailSlot={topStoriesBand.rail}
-            />
-          </Suspense>
-        </div>
-      ) : null}
-      {politicsSlot || sportsSlot ? (
-        <div className="space-y-2">
-          {politicsSlot ? (
-            <>
-              <AdRibbon />
-              <Suspense fallback={<SectionSkeleton />}>
-                <HomepageSection slot={politicsSlot} />
-              </Suspense>
-            </>
-          ) : null}
-          {sportsSlot ? (
-            <Suspense fallback={<SectionSkeleton />}>
-              <HomepageSection slot={sportsSlot} />
-            </Suspense>
-          ) : null}
-        </div>
-      ) : null}
-      {postPoliticsSlots.map((slot) => (
-        <div key={slot.id} className="space-y-2">
-          {normalizedPositionKey(slot) === 'health' ||
-          normalizedPositionKey(slot) === 'finance' ||
-          normalizedPositionKey(slot) === 'technology' ||
-          normalizedPositionKey(slot) === 'world' ? (
-            <AdRibbon />
-          ) : null}
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageSection slot={slot} />
-          </Suspense>
-        </div>
-      ))}
-      {remainingEditorialBands.map((band) => (
-        <div
-          key={`${band.lead.id}-${band.spotlight.id}-${band.rail?.id ?? 'no-rail'}`}
-          className="space-y-2"
-        >
-          <AdRibbon />
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageEditorialBand
-              moreTopStoriesSlot={band.lead}
-              spotlightSlot={band.spotlight}
-              rightRailSlot={band.rail}
-            />
-          </Suspense>
-        </div>
-      ))}
-      {gridSlots.map((slot, index) => (
-        <div key={slot.id} className="space-y-2">
-          {shouldRenderHomepageGridAd(
-            index === 0
-              ? (postPoliticsSlots.at(-1) ?? politicsSlot)
-              : gridSlots[index - 1],
-            slot,
-          ) ? (
-            <AdRibbon />
-          ) : null}
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageSection slot={slot} />
-          </Suspense>
-        </div>
-      ))}
+      <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
+      <TopStoriesSection band={sections.topStoriesBand} />
+      <PoliticsSportsSection politicsSlot={sections.politicsSlot} sportsSlot={sections.sportsSlot} />
+      <PostPoliticsSections slots={sections.postPoliticsSlots} />
+      <EditorialBandSections bands={sections.remainingEditorialBands} />
+      <GridSections slots={sections.gridSlots} previousSlot={gridPreviousSlot} />
     </div>
   )
 }

@@ -315,16 +315,246 @@ function MastheadMobileSectionNavigationFallback({
   )
 }
 
+interface IMastheadAdminLink {
+  key: string
+  href: string
+  labelKey: string
+}
+
+// Admin shortcuts share identical markup, so they are data-driven to avoid repetition.
+const MASTHEAD_ADMIN_LINKS: readonly IMastheadAdminLink[] = [
+  { key: 'reporter', href: '/admin/reporter', labelKey: 'reporter' },
+  { key: 'editor', href: '/admin/editor', labelKey: 'editor' },
+  { key: 'preview', href: '/admin/preview', labelKey: 'preview' },
+]
+
+function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }): JSX.Element {
+  const tCommon = useTranslations('common')
+
+  return (
+    <section
+      ref={ribbonRef}
+      aria-label={tCommon('advertisement')}
+      className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
+    >
+      <div className="site-container flex items-center justify-between gap-12 py-8">
+        <div>
+          <p className="text-[2.5rem] font-black uppercase leading-none tracking-[0.28em] text-neutral-500">
+            {tCommon('advertisement')}
+          </p>
+          <p className="text-5xl font-semibold leading-tight text-neutral-700">
+            {tCommon('premiumPlacement')}
+          </p>
+        </div>
+        <Link
+          href="/"
+          className="shrink-0 rounded-sm border border-neutral-300 px-12 py-4 text-2xl font-bold uppercase tracking-[0.16em] text-neutral-900 hover:text-neutral-950"
+        >
+          {tCommon('learnMore')}
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function MastheadBrandLink(): JSX.Element {
+  return (
+    <Link href="/" className="flex items-center gap-2">
+      <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
+        NEWSCORE
+      </span>
+    </Link>
+  )
+}
+
+function MastheadMobileToggle({
+  mobileOpen,
+  onToggle,
+}: {
+  mobileOpen: boolean
+  onToggle: () => void
+}): JSX.Element {
+  const tNav = useTranslations('navigation')
+
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center rounded-sm border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-900 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2"
+      aria-expanded={mobileOpen}
+      aria-controls="mobile-nav"
+      onClick={onToggle}
+    >
+      {mobileOpen ? tNav('closeMenu') : tNav('menu')}
+    </button>
+  )
+}
+
+function MastheadLanguageSelector(): JSX.Element {
+  const { locale, setLocale } = useLocale()
+  const languages = useLanguageRegistry()
+  const tNav = useTranslations('navigation')
+
+  return (
+    <label className="flex items-center gap-2">
+      <span className="sr-only">{tNav('language')}</span>
+      <select
+        value={locale}
+        onChange={(e) => setLocale(e.target.value)}
+        className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
+        aria-label={tNav('selectLanguage')}
+      >
+        {languages.map((language) => (
+          <option key={language.code} value={language.code}>
+            {language.nativeName}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function MastheadMarketSelector(): JSX.Element {
+  const { marketCode, setMarketCode } = useMarket()
+  const tNav = useTranslations('navigation')
+
+  return (
+    <label className="flex items-center gap-2">
+      <span className="sr-only">{tNav('market')}</span>
+      <select
+        value={marketCode}
+        onChange={(e) => setMarketCode(e.target.value)}
+        className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
+        aria-label={tNav('selectMarket')}
+      >
+        {MARKET_OPTIONS.map((m) => (
+          <option key={m.code} value={m.code}>
+            {m.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function MastheadUtilityBadges(): JSX.Element {
+  const tNav = useTranslations('navigation')
+
+  return (
+    <>
+      <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
+        {tNav('watch')}
+      </span>
+      <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
+        {tNav('listen')}
+      </span>
+    </>
+  )
+}
+
+function MastheadAdminLink({
+  href,
+  label,
+  active,
+}: {
+  href: string
+  label: string
+  active: boolean
+}): JSX.Element {
+  return (
+    <Link
+      href={href}
+      className={[
+        'rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
+        active
+          ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
+          : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
+      ].join(' ')}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function MastheadAdminLinks({ pathname }: { pathname: string }): JSX.Element {
+  const tNav = useTranslations('navigation')
+
+  return (
+    <>
+      {MASTHEAD_ADMIN_LINKS.map((link) => (
+        <MastheadAdminLink
+          key={link.key}
+          href={link.href}
+          label={tNav(link.labelKey)}
+          active={pathname.startsWith(link.href)}
+        />
+      ))}
+    </>
+  )
+}
+
+function MastheadActions({ pathname }: { pathname: string }): JSX.Element {
+  return (
+    <div className="ml-auto flex items-center gap-3">
+      <MastheadLanguageSelector />
+      <MastheadMarketSelector />
+      <MastheadUtilityBadges />
+      <MastheadAdminLinks pathname={pathname} />
+    </div>
+  )
+}
+
+function MastheadNavBar({
+  navRef,
+  activeSection,
+  isMounted,
+  mobileOpen,
+  onToggleMobile,
+  onCloseMobile,
+}: {
+  navRef: RefObject<HTMLDivElement>
+  activeSection?: string
+  isMounted: boolean
+  mobileOpen: boolean
+  onToggleMobile: () => void
+  onCloseMobile: () => void
+}): JSX.Element {
+  const pathname = usePathname()
+
+  return (
+    <div ref={navRef} className="relative z-40 shrink-0 border-b border-neutral-200 bg-white shadow-sm">
+      <div className="site-container flex items-center gap-4 py-2">
+        <MastheadBrandLink />
+        <MastheadMobileToggle mobileOpen={mobileOpen} onToggle={onToggleMobile} />
+        {isMounted ? (
+          <MastheadSectionNavigation activeSection={activeSection} />
+        ) : (
+          <MastheadSectionNavigationFallback activeSection={activeSection} />
+        )}
+        <MastheadActions pathname={pathname} />
+      </div>
+
+      {isMounted ? (
+        <MastheadMobileSectionNavigation
+          activeSection={activeSection}
+          mobileOpen={mobileOpen}
+          onNavigate={onCloseMobile}
+        />
+      ) : (
+        <MastheadMobileSectionNavigationFallback
+          activeSection={activeSection}
+          mobileOpen={mobileOpen}
+          onNavigate={onCloseMobile}
+        />
+      )}
+    </div>
+  )
+}
+
 /**
  * Newsroom masthead with market selector, mobile nav, and section links from the active feed.
  */
 export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
   const pathname = usePathname()
-  const { marketCode, setMarketCode } = useMarket()
-  const { locale, setLocale } = useLocale()
-  const languages = useLanguageRegistry()
-  const tNav = useTranslations('navigation')
-  const tCommon = useTranslations('common')
   const isMounted = useMounted()
   const [mobileOpen, setMobileOpen] = useState(false)
   const scrollY = useScrollY()
@@ -347,143 +577,15 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
         ].join(' ')}
         style={{ transform: `translateY(-${ribbonOffset}px)` }}
       >
-        <section
-          ref={ribbonRef}
-          aria-label={tCommon('advertisement')}
-          className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
-        >
-          <div className="site-container flex items-center justify-between gap-12 py-8">
-            <div>
-              <p className="text-[2.5rem] font-black uppercase leading-none tracking-[0.28em] text-neutral-500">
-                {tCommon('advertisement')}
-              </p>
-              <p className="text-5xl font-semibold leading-tight text-neutral-700">
-                {tCommon('premiumPlacement')}
-              </p>
-            </div>
-            <Link
-              href="/"
-              className="shrink-0 rounded-sm border border-neutral-300 px-12 py-4 text-2xl font-bold uppercase tracking-[0.16em] text-neutral-900 hover:text-neutral-950"
-            >
-              {tCommon('learnMore')}
-            </Link>
-          </div>
-        </section>
-
-        <div
-          ref={navRef}
-          className="relative z-40 shrink-0 border-b border-neutral-200 bg-white shadow-sm"
-        >
-          <div className="site-container flex items-center gap-4 py-2">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
-                NEWSCORE
-              </span>
-            </Link>
-
-            <button
-              type="button"
-              className="inline-flex items-center rounded-sm border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-900 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2"
-              aria-expanded={mobileOpen}
-              aria-controls="mobile-nav"
-              onClick={() => setMobileOpen((open) => !open)}
-            >
-              {mobileOpen ? tNav('closeMenu') : tNav('menu')}
-            </button>
-
-            {isMounted ? (
-              <MastheadSectionNavigation activeSection={activeSection} />
-            ) : (
-              <MastheadSectionNavigationFallback activeSection={activeSection} />
-            )}
-
-            <div className="ml-auto flex items-center gap-3">
-              <label className="flex items-center gap-2">
-                <span className="sr-only">{tNav('language')}</span>
-                <select
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value)}
-                  className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
-                  aria-label={tNav('selectLanguage')}
-                >
-                  {languages.map((language) => (
-                    <option key={language.code} value={language.code}>
-                      {language.nativeName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center gap-2">
-                <span className="sr-only">{tNav('market')}</span>
-                <select
-                  value={marketCode}
-                  onChange={(e) => setMarketCode(e.target.value)}
-                  className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
-                  aria-label={tNav('selectMarket')}
-                >
-                  {MARKET_OPTIONS.map((m) => (
-                    <option key={m.code} value={m.code}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
-                {tNav('watch')}
-              </span>
-              <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
-                {tNav('listen')}
-              </span>
-              <Link
-                href="/admin/reporter"
-                className={[
-                  'rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
-                  pathname.startsWith('/admin/reporter')
-                    ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
-                    : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
-                ].join(' ')}
-              >
-                {tNav('reporter')}
-              </Link>
-              <Link
-                href="/admin/editor"
-                className={[
-                  'rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
-                  pathname.startsWith('/admin/editor')
-                    ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
-                    : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
-                ].join(' ')}
-              >
-                {tNav('editor')}
-              </Link>
-              <Link
-                href="/admin/preview"
-                className={[
-                  'rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
-                  pathname.startsWith('/admin/preview')
-                    ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
-                    : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
-                ].join(' ')}
-              >
-                {tNav('preview')}
-              </Link>
-            </div>
-          </div>
-
-          {isMounted ? (
-            <MastheadMobileSectionNavigation
-              activeSection={activeSection}
-              mobileOpen={mobileOpen}
-              onNavigate={() => setMobileOpen(false)}
-            />
-          ) : (
-            <MastheadMobileSectionNavigationFallback
-              activeSection={activeSection}
-              mobileOpen={mobileOpen}
-              onNavigate={() => setMobileOpen(false)}
-            />
-          )}
-        </div>
+        <MastheadAdRibbon ribbonRef={ribbonRef} />
+        <MastheadNavBar
+          navRef={navRef}
+          activeSection={activeSection}
+          isMounted={isMounted}
+          mobileOpen={mobileOpen}
+          onToggleMobile={() => setMobileOpen((open) => !open)}
+          onCloseMobile={() => setMobileOpen(false)}
+        />
       </div>
     </header>
   )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -146,6 +147,142 @@ async def _invalidate_article_feed(db: AsyncIOMotorDatabase, doc: dict[str, Any]
     await invalidate_homepage_for_market_ids(db, market_ids)
 
 
+async def _write_audit(
+    db: AsyncIOMotorDatabase,
+    *,
+    actor_id: str | None,
+    action: str,
+    article_id: str,
+) -> None:
+    """Record an article audit event when an actor id is present.
+
+    Args:
+        db: Database connection.
+        actor_id: Acting user id, or None to skip auditing.
+        action: Audit action name (e.g. ``article.create``).
+        article_id: Affected article id.
+    """
+
+    if not actor_id:
+        return
+    await write_event(
+        db,
+        user_id=actor_id,
+        action=action,
+        resource_type="article",
+        resource_id=article_id,
+    )
+
+
+def _resolve_create_max_image_count(body: ArticleCreate, actor_role: str | None) -> int:
+    """Resolve the image cap for a new article, enforcing the reporter limit.
+
+    Args:
+        body: Validated article payload.
+        actor_role: Role of the acting user, if known.
+
+    Returns:
+        Effective max image count for the new article.
+
+    Raises:
+        ValidationError: If a reporter attempts to set ``max_image_count``.
+    """
+
+    if body.max_image_count is None:
+        return DEFAULT_MAX_IMAGE_COUNT
+    if actor_role == "reporter":
+        raise ValidationError("Reporters cannot set max_image_count")
+    return body.max_image_count
+
+
+@dataclass(frozen=True)
+class _PreparedArticleFields:
+    """Validated, derived fields ready to persist for a new article."""
+
+    slug: str
+    market_ids: list[str]
+    media_ids: list[str]
+    thumbnail_url: str | None
+    max_image_count: int
+
+
+async def _prepare_new_article(
+    db: AsyncIOMotorDatabase,
+    *,
+    body: ArticleCreate,
+    actor_role: str | None,
+) -> _PreparedArticleFields:
+    """Validate inputs and resolve the derived fields for a new article.
+
+    Args:
+        db: Database connection.
+        body: Validated article payload.
+        actor_role: Role of the acting user, if known.
+
+    Returns:
+        Bundle of validated slug, markets, media, thumbnail, and image cap.
+
+    Raises:
+        ValidationError: If the title cannot produce a slug or inputs are invalid.
+    """
+
+    base_slug = slugify_title(body.title)
+    if not base_slug:
+        raise ValidationError("Title cannot produce a slug")
+    repo = ArticleRepository(db)
+    slug = await _ensure_unique_slug(repo, slug=base_slug)
+    market_ids = await _validate_market_ids(db, body.market_ids)
+    max_image_count = _resolve_create_max_image_count(body, actor_role)
+    media_ids = _validate_media_ids(body.media_ids, max_image_count=max_image_count)
+    thumbnail_url = await _resolve_thumbnail_url(db, media_ids=media_ids, explicit=body.thumbnail_url)
+    return _PreparedArticleFields(
+        slug=slug,
+        market_ids=market_ids,
+        media_ids=media_ids,
+        thumbnail_url=thumbnail_url,
+        max_image_count=max_image_count,
+    )
+
+
+def _new_article_doc(
+    body: ArticleCreate,
+    *,
+    author_id: str,
+    fields: _PreparedArticleFields,
+) -> dict[str, Any]:
+    """Assemble the persisted document for a new draft article.
+
+    Args:
+        body: Validated article payload.
+        author_id: Author user id for the draft.
+        fields: Validated, derived fields for the article.
+
+    Returns:
+        The article document ready to insert.
+    """
+
+    now = _utc_now_iso()
+    return {
+        "_id": str(uuid4()),
+        "title": body.title,
+        "slug": fields.slug,
+        "body": body.body,
+        "status": "draft",
+        "author_id": author_id,
+        "category_id": body.category_id,
+        "market_ids": fields.market_ids,
+        "tags": body.tags,
+        "thumbnail_url": fields.thumbnail_url,
+        "media_ids": fields.media_ids,
+        "video_url": body.video_url,
+        "max_image_count": fields.max_image_count,
+        "view_count": 0,
+        "published_at": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
 async def create(
     db: AsyncIOMotorDatabase,
     body: ArticleCreate,
@@ -161,6 +298,7 @@ async def create(
         body: Validated article payload.
         author_id: Author user id for the draft.
         actor_id: Optional auditing actor id.
+        actor_role: Role of the acting user, if known.
 
     Returns:
         Newly created article summary.
@@ -170,53 +308,10 @@ async def create(
     """
 
     repo = ArticleRepository(db)
-    base_slug = slugify_title(body.title)
-    if not base_slug:
-        raise ValidationError("Title cannot produce a slug")
-    slug = await _ensure_unique_slug(repo, slug=base_slug)
-    market_ids = await _validate_market_ids(db, body.market_ids)
-    max_image_count = DEFAULT_MAX_IMAGE_COUNT
-    if body.max_image_count is not None:
-        if actor_role == "reporter":
-            raise ValidationError("Reporters cannot set max_image_count")
-        max_image_count = body.max_image_count
-    media_ids = _validate_media_ids(body.media_ids, max_image_count=max_image_count)
-    thumbnail_url = await _resolve_thumbnail_url(
-        db,
-        media_ids=media_ids,
-        explicit=body.thumbnail_url,
-    )
-
-    article_id = str(uuid4())
-    now = _utc_now_iso()
-    doc: dict[str, Any] = {
-        "_id": article_id,
-        "title": body.title,
-        "slug": slug,
-        "body": body.body,
-        "status": "draft",
-        "author_id": author_id,
-        "category_id": body.category_id,
-        "market_ids": market_ids,
-        "tags": body.tags,
-        "thumbnail_url": thumbnail_url,
-        "media_ids": media_ids,
-        "video_url": body.video_url,
-        "max_image_count": max_image_count,
-        "view_count": 0,
-        "published_at": None,
-        "created_at": now,
-        "updated_at": now,
-    }
+    fields = await _prepare_new_article(db, body=body, actor_role=actor_role)
+    doc = _new_article_doc(body, author_id=author_id, fields=fields)
     await repo.insert(doc)
-    if actor_id:
-        await write_event(
-            db,
-            user_id=actor_id,
-            action="article.create",
-            resource_type="article",
-            resource_id=article_id,
-        )
+    await _write_audit(db, actor_id=actor_id, action="article.create", article_id=doc["_id"])
     loader = AuthorNameLoader(db)
     return article_out(doc, author_name=await loader.load(author_id))
 
@@ -287,46 +382,60 @@ async def list_all(
     return items, total
 
 
-async def update(
-    db: AsyncIOMotorDatabase,
-    *,
-    article_id: str,
-    body: ArticleUpdate,
-    actor_id: str | None = None,
-    actor_role: str | None = None,
-) -> ArticleDetailOut:
-    """Update editable article fields.
+def _build_update_doc(body: ArticleUpdate) -> dict[str, Any]:
+    """Collect the non-null fields from an update payload.
 
     Args:
-        db: Database connection.
-        article_id: Article id to update.
         body: Partial update payload.
-        actor_id: Optional auditing actor id.
 
     Returns:
-        Updated article detail payload.
+        Mapping of fields to update.
 
     Raises:
-        ValidationError: If no fields are provided or market/title data is invalid.
-        NotFoundError: If the article does not exist.
+        ValidationError: If no fields are provided.
     """
 
-    repo = ArticleRepository(db)
-    existing = await get_by_id(db, article_id)
     update_doc: dict[str, Any] = {k: v for k, v in body.model_dump().items() if v is not None}
     if not update_doc:
         raise ValidationError("No fields to update")
+    return update_doc
+
+
+def _check_reporter_permissions(update_doc: dict[str, Any], actor_role: str | None) -> None:
+    """Reject reporter attempts to change the image cap.
+
+    Args:
+        update_doc: Pending update fields.
+        actor_role: Role of the acting user, if known.
+
+    Raises:
+        ValidationError: If a reporter tries to change ``max_image_count``.
+    """
 
     if actor_role == "reporter" and "max_image_count" in update_doc:
         raise ValidationError("Reporters cannot change max_image_count")
 
-    if "market_ids" in update_doc:
-        update_doc["market_ids"] = await _validate_market_ids(db, list(update_doc["market_ids"]))
 
-    effective_max = _resolve_max_image_count(
-        existing,
-        update_doc.get("max_image_count"),
-    )
+async def _normalize_update_media(
+    db: AsyncIOMotorDatabase,
+    *,
+    existing: dict[str, Any],
+    update_doc: dict[str, Any],
+) -> None:
+    """Validate media ids against the image cap and resolve the thumbnail.
+
+    Mutates ``update_doc`` in place with normalized media and thumbnail values.
+
+    Args:
+        db: Database connection.
+        existing: Current persisted article document.
+        update_doc: Pending update fields.
+
+    Raises:
+        ValidationError: If the media count exceeds the effective image cap.
+    """
+
+    effective_max = _resolve_max_image_count(existing, update_doc.get("max_image_count"))
     if "max_image_count" in update_doc:
         effective_max = int(update_doc["max_image_count"])
 
@@ -351,16 +460,49 @@ async def update(
             explicit=None,
         )
 
-    if "title" in update_doc:
-        base_slug = slugify_title(str(update_doc["title"]))
-        if not base_slug:
-            raise ValidationError("Title cannot produce a slug")
-        update_doc["slug"] = await _ensure_unique_slug(repo, slug=base_slug, exclude_id=article_id)
 
-    update_doc["updated_at"] = _utc_now_iso()
-    doc = await repo.find_one_and_update(article_id, update_doc)
-    if doc is None:
-        raise NotFoundError("Article not found")
+async def _apply_slug_update(
+    repo: ArticleRepository,
+    *,
+    update_doc: dict[str, Any],
+    article_id: str,
+) -> None:
+    """Derive a unique slug when the title changes.
+
+    Mutates ``update_doc`` in place with the new slug when applicable.
+
+    Args:
+        repo: Article repository.
+        update_doc: Pending update fields.
+        article_id: Article id being updated.
+
+    Raises:
+        ValidationError: If the new title cannot produce a slug.
+    """
+
+    if "title" not in update_doc:
+        return
+    base_slug = slugify_title(str(update_doc["title"]))
+    if not base_slug:
+        raise ValidationError("Title cannot produce a slug")
+    update_doc["slug"] = await _ensure_unique_slug(repo, slug=base_slug, exclude_id=article_id)
+
+
+async def _invalidate_feeds_for_update(
+    db: AsyncIOMotorDatabase,
+    *,
+    existing: dict[str, Any],
+    doc: dict[str, Any],
+    update_doc: dict[str, Any],
+) -> None:
+    """Invalidate homepage caches affected by a status or market change.
+
+    Args:
+        db: Database connection.
+        existing: Article document prior to the update.
+        doc: Article document after the update.
+        update_doc: Fields that were applied.
+    """
 
     status_changed = "status" in update_doc and update_doc["status"] != existing.get("status")
     market_ids_changed = "market_ids" in update_doc and update_doc["market_ids"] != list(
@@ -373,14 +515,48 @@ async def update(
         combined = list({*old_market_ids, *[str(mid) for mid in (doc.get("market_ids") or [])]})
         await invalidate_homepage_for_market_ids(db, combined)
 
-    if actor_id:
-        await write_event(
-            db,
-            user_id=actor_id,
-            action="article.update",
-            resource_type="article",
-            resource_id=article_id,
-        )
+
+async def update(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    body: ArticleUpdate,
+    actor_id: str | None = None,
+    actor_role: str | None = None,
+) -> ArticleDetailOut:
+    """Update editable article fields.
+
+    Args:
+        db: Database connection.
+        article_id: Article id to update.
+        body: Partial update payload.
+        actor_id: Optional auditing actor id.
+        actor_role: Role of the acting user, if known.
+
+    Returns:
+        Updated article detail payload.
+
+    Raises:
+        ValidationError: If no fields are provided or market/title data is invalid.
+        NotFoundError: If the article does not exist.
+    """
+
+    repo = ArticleRepository(db)
+    existing = await get_by_id(db, article_id)
+    update_doc = _build_update_doc(body)
+    _check_reporter_permissions(update_doc, actor_role)
+    if "market_ids" in update_doc:
+        update_doc["market_ids"] = await _validate_market_ids(db, list(update_doc["market_ids"]))
+    await _normalize_update_media(db, existing=existing, update_doc=update_doc)
+    await _apply_slug_update(repo, update_doc=update_doc, article_id=article_id)
+
+    update_doc["updated_at"] = _utc_now_iso()
+    doc = await repo.find_one_and_update(article_id, update_doc)
+    if doc is None:
+        raise NotFoundError("Article not found")
+
+    await _invalidate_feeds_for_update(db, existing=existing, doc=doc, update_doc=update_doc)
+    await _write_audit(db, actor_id=actor_id, action="article.update", article_id=article_id)
     loader = AuthorNameLoader(db)
     return article_detail_out(doc, author_name=await loader.load(str(doc["author_id"])))
 
@@ -420,14 +596,7 @@ async def publish(
         raise NotFoundError("Article not found")
 
     await _invalidate_article_feed(db, updated)
-    if actor_id:
-        await write_event(
-            db,
-            user_id=actor_id,
-            action="article.publish",
-            resource_type="article",
-            resource_id=article_id,
-        )
+    await _write_audit(db, actor_id=actor_id, action="article.publish", article_id=article_id)
     loader = AuthorNameLoader(db)
     return article_detail_out(updated, author_name=await loader.load(str(updated["author_id"])))
 
@@ -465,13 +634,6 @@ async def archive(
     if existing.get("status") == "published":
         await _invalidate_article_feed(db, updated)
 
-    if actor_id:
-        await write_event(
-            db,
-            user_id=actor_id,
-            action="article.archive",
-            resource_type="article",
-            resource_id=article_id,
-        )
+    await _write_audit(db, actor_id=actor_id, action="article.archive", article_id=article_id)
     loader = AuthorNameLoader(db)
     return article_detail_out(updated, author_name=await loader.load(str(updated["author_id"])))

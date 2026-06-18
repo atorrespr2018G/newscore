@@ -3,8 +3,15 @@ import type { IFeedSlot } from '@/interfaces/feed'
 import {
   PRESENTATION_EDITORIAL_LEAD,
   PRESENTATION_EDITORIAL_SPOTLIGHT,
+  PRESENTATION_GRID_4,
+  PRESENTATION_HERO,
   PRESENTATION_RAIL_COMPACT,
 } from '@/lib/presentation-registry'
+import {
+  HOMEPAGE_POST_POLITICS_SECTION_KEYS,
+  isHomepageSectionVisible,
+  isPostPoliticsSectionKey,
+} from '@/lib/helpers/section-labels'
 
 /** Maximum pinned stories in the homepage hero slot. */
 export const HERO_PINNED_LIMIT = 12
@@ -200,6 +207,84 @@ export function splitDefaultHeroArticles(articles: IArticle[]): IDefaultHeroSlic
   }
 }
 
+/** Picture-card count appended to the right rail of a section hero. */
+const SECTION_HERO_RIGHT_CARD_COUNT = 2
+
+/** Resolved counts that drive how a section hero slices its article list. */
+export interface ISectionHeroSliceConfig {
+  leftRailCount: number
+  stripCount: number
+  centerScreenNewsCount: number
+  rightScreenNewsCount: number
+  leftRailTextLinkCount: number
+  rightRailTextLinkCount: number
+}
+
+export interface ISectionHeroSlices {
+  left: IArticle[]
+  leftTextLinks: IArticle[]
+  screenNews: IArticle[]
+  relatedLinks: IArticle[]
+  strip: IArticle[]
+  rightRailTextLinks: IArticle[]
+  rightScreenNews: IArticle[]
+  rightCards: IArticle[]
+}
+
+function splitCenterScreenHeroArticles(
+  articles: IArticle[],
+  config: ISectionHeroSliceConfig,
+): ISectionHeroSlices {
+  let offset = 1
+  const take = (count: number): IArticle[] => {
+    const items = articles.slice(offset, offset + count).filter(Boolean) as IArticle[]
+    offset += count
+    return items
+  }
+
+  return {
+    left: take(config.leftRailCount),
+    leftTextLinks: take(config.leftRailTextLinkCount),
+    screenNews: take(config.centerScreenNewsCount),
+    rightRailTextLinks: take(config.rightRailTextLinkCount),
+    rightScreenNews: take(config.rightScreenNewsCount),
+    rightCards: take(SECTION_HERO_RIGHT_CARD_COUNT),
+    relatedLinks: [],
+    strip: [],
+  }
+}
+
+/**
+ * Split a section hero's article list into per-column slices.
+ *
+ * Center-screen layouts slice sequentially from the configured counts; default
+ * layouts reuse the shared hero index map (`splitDefaultHeroArticles`).
+ *
+ * @param articles Hero slot article list.
+ * @param config Resolved per-column counts for the section hero.
+ * @returns Named slices for the left, center, and right hero columns.
+ */
+export function splitSectionHeroArticles(
+  articles: IArticle[],
+  config: ISectionHeroSliceConfig,
+): ISectionHeroSlices {
+  if (config.centerScreenNewsCount > 0) {
+    return splitCenterScreenHeroArticles(articles, config)
+  }
+
+  const defaultSlices = splitDefaultHeroArticles(articles)
+  return {
+    left: defaultSlices.left.slice(0, config.leftRailCount),
+    leftTextLinks: [],
+    screenNews: [],
+    relatedLinks: defaultSlices.relatedLinks,
+    strip: defaultSlices.strip.slice(0, config.stripCount),
+    rightRailTextLinks: [],
+    rightScreenNews: [],
+    rightCards: defaultSlices.rightCards,
+  }
+}
+
 /**
  * Split Top Stories band articles into named homepage slices using explicit slot constants.
  *
@@ -258,6 +343,76 @@ export function splitEditorialLeadColumnArticles(
   }
 }
 
+/** Resolved article zones for a single editorial band column. */
+export interface IEditorialColumnSlices {
+  leads: IArticle[]
+  compacts: IArticle[]
+  headlines: IArticle[]
+  trailingArticle: IArticle | undefined
+}
+
+/** Inputs that control how an editorial band column splits its articles. */
+export interface IEditorialColumnSplitOptions {
+  articles: IArticle[]
+  /** Picture lead stories at the top of the column. */
+  leadImageCount: number
+  /** Render trailing text headline links below the compacts. */
+  showHeadlineLinks: boolean
+  /** Reserve the final article for a picture "news screen" card. */
+  showTrailingNewsScreen: boolean
+  /** Optional article cap before slicing (e.g. More Top Stories pinned limit). */
+  maxArticles?: number
+}
+
+/**
+ * Resolve the trailing headlines and optional news-screen card for a column.
+ *
+ * @param remaining Articles left after the lead and compact zones.
+ * @param showHeadlineLinks Whether text headline links are rendered.
+ * @param showTrailingNewsScreen Whether the last article becomes a picture card.
+ * @returns Headline links and the optional trailing news-screen article.
+ */
+function splitEditorialColumnTail(
+  remaining: IArticle[],
+  showHeadlineLinks: boolean,
+  showTrailingNewsScreen: boolean,
+): Pick<IEditorialColumnSlices, 'headlines' | 'trailingArticle'> {
+  if (!showTrailingNewsScreen || remaining.length === 0) {
+    return { headlines: showHeadlineLinks ? remaining : [], trailingArticle: undefined }
+  }
+
+  if (!showHeadlineLinks || remaining.length === 1) {
+    return { headlines: [], trailingArticle: remaining[0] }
+  }
+
+  return { headlines: remaining.slice(0, -1), trailingArticle: remaining[remaining.length - 1] }
+}
+
+/**
+ * Split an editorial band column's articles into lead, compact, and headline zones.
+ *
+ * @param options Article list plus the column's layout flags and caps.
+ * @returns Lead images, compact side cards, headline links, and trailing card.
+ */
+export function splitEditorialColumnArticles(
+  options: IEditorialColumnSplitOptions,
+): IEditorialColumnSlices {
+  const { articles, leadImageCount, showHeadlineLinks, showTrailingNewsScreen, maxArticles } = options
+
+  // The More Top Stories lead column reuses the shared lead/compact/headline index map.
+  if (leadImageCount === EDITORIAL_LEAD_IMAGE_COUNT && showHeadlineLinks && !showTrailingNewsScreen) {
+    const { leads, compacts, headlines } = splitEditorialLeadColumnArticles(articles, maxArticles ?? null)
+    return { leads, compacts, headlines, trailingArticle: undefined }
+  }
+
+  const compactEndIndex = leadImageCount + EDITORIAL_COMPACT_IMAGE_COUNT
+  const leads = articles.slice(0, leadImageCount)
+  const compacts = articles.slice(leadImageCount, compactEndIndex)
+  const tail = splitEditorialColumnTail(articles.slice(compactEndIndex), showHeadlineLinks, showTrailingNewsScreen)
+
+  return { leads, compacts, ...tail }
+}
+
 /**
  * Check whether a slot position key uses the More Top Stories editorial layout.
  *
@@ -278,4 +433,65 @@ export function isMoreTopStoriesPositionKey(positionKey: string): boolean {
 export function isShiftDownPlacementPositionKey(positionKey: string): boolean {
   const normalized = positionKey.trim().toLowerCase()
   return (SHIFT_DOWN_PLACEMENT_POSITION_KEYS as readonly string[]).includes(normalized)
+}
+
+/** Lead position key whose editorial band is promoted to the Top Stories slot. */
+const TOP_STORIES_LEAD_POSITION_KEY = MORE_TOP_STORIES_POSITION_KEYS[0]
+
+/** Section keys excluded from the trailing grid (rendered in dedicated bands instead). */
+const NON_GRID_SECTION_KEYS = ['politics', 'health'] as const
+
+/** Resolved homepage modules selected from a feed's slots, ready for rendering. */
+export interface IHomepageSections {
+  heroSlot: IFeedSlot
+  earlyUsSlot: IFeedSlot | undefined
+  topStoriesBand: IEditorialBandSlots | undefined
+  remainingEditorialBands: IEditorialBandSlots[]
+  politicsSlot: IFeedSlot | undefined
+  sportsSlot: IFeedSlot | undefined
+  postPoliticsSlots: IFeedSlot[]
+  gridSlots: IFeedSlot[]
+}
+
+/**
+ * Select the trailing grid-section slots, excluding politics/health and post-politics keys.
+ *
+ * @param slots Homepage feed slots.
+ * @returns Grid-presentation slots rendered in the trailing section stack.
+ */
+function selectHomepageGridSlots(slots: IFeedSlot[]): IFeedSlot[] {
+  return slots.filter(
+    (slot) =>
+      slot.presentationType === PRESENTATION_GRID_4 &&
+      isHomepageSectionVisible(slot.positionKey) &&
+      !(NON_GRID_SECTION_KEYS as readonly string[]).includes(normalizedPositionKey(slot)) &&
+      !isPostPoliticsSectionKey(slot.positionKey),
+  )
+}
+
+/**
+ * Resolve every homepage module slot/band from a feed's slot list.
+ *
+ * Centralizes the homepage slot-selection logic so the renderer stays declarative.
+ *
+ * @param slots Homepage feed slots (must be non-empty).
+ * @returns Hero, US, editorial band, politics, post-politics, and grid selections.
+ */
+export function selectHomepageSections(slots: IFeedSlot[]): IHomepageSections {
+  const editorialBands = buildEditorialBands(slots)
+  const topStoriesBand =
+    editorialBands.find((band) => normalizedPositionKey(band.lead) === TOP_STORIES_LEAD_POSITION_KEY) ??
+    editorialBands[0]
+  const allPostPoliticsSlots = findSlotsByPositionKeys(slots, HOMEPAGE_POST_POLITICS_SECTION_KEYS)
+
+  return {
+    heroSlot: findSlot(slots, PRESENTATION_HERO) ?? slots[0],
+    earlyUsSlot: findSlotByPositionKey(slots, 'us-featured') ?? findSlotByPositionKey(slots, 'us'),
+    topStoriesBand,
+    remainingEditorialBands: editorialBands.filter((band) => band !== topStoriesBand),
+    politicsSlot: findSlotByPositionKey(slots, 'politics'),
+    sportsSlot: allPostPoliticsSlots.find((slot) => normalizedPositionKey(slot) === 'sports'),
+    postPoliticsSlots: allPostPoliticsSlots.filter((slot) => normalizedPositionKey(slot) !== 'sports'),
+    gridSlots: selectHomepageGridSlots(slots),
+  }
 }
