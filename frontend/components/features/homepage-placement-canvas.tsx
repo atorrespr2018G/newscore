@@ -64,14 +64,29 @@ export function HomepagePlacementCanvas(props: IHomepagePlacementCanvasProps): J
                     const occupantId = target.articleId
                     const occupantArticle = occupantId ? articleById.get(occupantId) : undefined
                     const isSelected = occupantId != null && occupantId === selectedArticleId
+                    const canKeyboardPlace = !saving && selectedArticleId !== null
                     return (
                       <div
                         key={`${target.slotId}:${target.index}`}
+                        role="button"
+                        tabIndex={canKeyboardPlace ? 0 : -1}
+                        aria-disabled={!canKeyboardPlace}
+                        aria-label={`Drop target ${target.slotLabel} ${target.index + 1}`}
                         onDragOver={(event) => {
                           if (!saving) {
                             event.preventDefault()
                             event.dataTransfer.dropEffect = 'move'
                           }
+                        }}
+                        onKeyDown={(event) => {
+                          if (!canKeyboardPlace) {
+                            return
+                          }
+                          if (event.key !== 'Enter' && event.key !== ' ') {
+                            return
+                          }
+                          event.preventDefault()
+                          onDropPlacement(selectedArticleId, target)
                         }}
                         onDrop={(event) => {
                           event.preventDefault()

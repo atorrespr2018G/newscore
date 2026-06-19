@@ -1,82 +1,47 @@
 'use client'
 
-
-
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
-
 import { usePathname, useRouter } from 'next/navigation'
-
-import { useEffect, type ReactNode } from 'react'
-
+import { useEffect, useState, type ReactNode } from 'react'
+import { AdminWorkflowNav } from '@/components/ui/admin-workflow-nav'
+import { EditorScopeProvider } from '@/context/editor-scope-context'
+import { EditorialPreviewSyncProvider } from '@/context/editorial-preview-sync-context'
 import { ADMIN_WORKFLOW_ROUTES } from '@/lib/api/admin-routes'
-
 import { ensureDevEditorialSession } from '@/lib/api/auth'
 
-import { AdminWorkflowNav } from '@/components/ui/admin-workflow-nav'
-import { EditorialPreviewSyncProvider } from '@/context/editorial-preview-sync-context'
-
-
-
 const Masthead = dynamic(() => import('@/components/ui/masthead').then((mod) => mod.Masthead), {
-
   ssr: false,
-
 })
 
-
-
 interface IAdminLayoutProps {
-
   children: ReactNode
-
 }
-
-
 
 /** Editorial workflow pages using the public masthead (Reporter / Editor / Preview tabs). */
-
 export default function AdminLayout({ children }: IAdminLayoutProps): JSX.Element {
-
+  const [queryClient] = useState(() => new QueryClient())
   const pathname = usePathname()
-
   const router = useRouter()
 
-
-
   useEffect(() => {
-
     void ensureDevEditorialSession()
-
-
-
     if (pathname === '/admin' || pathname === '/admin/login') {
-
       router.replace(ADMIN_WORKFLOW_ROUTES[0])
-
     }
-
   }, [pathname, router])
 
-
-
   return (
-
-    <EditorialPreviewSyncProvider>
-
-      <Masthead />
-
-      <main id="main-content" className="site-container py-8">
-
-        <AdminWorkflowNav />
-
-        {children}
-
-      </main>
-
-    </EditorialPreviewSyncProvider>
-
+    <QueryClientProvider client={queryClient}>
+      <EditorScopeProvider>
+        <EditorialPreviewSyncProvider>
+          <Masthead />
+          <main id="main-content" className="site-container py-8">
+            <AdminWorkflowNav />
+            {children}
+          </main>
+        </EditorialPreviewSyncProvider>
+      </EditorScopeProvider>
+    </QueryClientProvider>
   )
-
 }
-
-

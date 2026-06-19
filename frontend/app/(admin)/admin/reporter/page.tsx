@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { useEditorScope } from '@/context/editor-scope-context'
 import { apiConfig } from '@/lib/api/config'
 import { getHomepageLayout } from '@/lib/api/layout-client'
 import { IMediaOut, uploadImage, uploadVideo } from '@/lib/api/media-client'
@@ -34,6 +35,7 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
 }
 
 export default function ReporterUploadPage(): JSX.Element {
+  const scope = useEditorScope()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [images, setImages] = useState<IUploadedImage[]>([])
@@ -46,12 +48,12 @@ export default function ReporterUploadPage(): JSX.Element {
   const [uploadingMedia, setUploadingMedia] = useState(false)
 
   useEffect(() => {
-    void getHomepageLayout()
+    void getHomepageLayout(scope.marketCode, scope.pageName)
       .then((layout) => setMarketId(layout.market_id))
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to resolve market')
       })
-  }, [])
+  }, [scope.marketCode, scope.pageName])
 
   const handleImageUpload = useCallback(async (files: FileList | null) => {
     if (!files?.length) {

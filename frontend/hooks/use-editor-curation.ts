@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { IEditorStoryRow } from '@/components/features/editor-story-pool'
+import { useEditorScope } from '@/context/editor-scope-context'
 import { apiConfig } from '@/lib/api/config'
+import type { IEditorScope } from '@/lib/editor/editor-scope'
 import {
   getArticlePlacements,
   getHomepageLayout,
@@ -136,6 +138,7 @@ interface IArticleDetailEditor {
  */
 function useArticleDetailEditor(
   status: IEditorStatus,
+  scope: IEditorScope,
   reloadArticles: () => Promise<void>,
 ): IArticleDetailEditor {
   const { setError, setMessage, setSaving } = status
@@ -190,13 +193,13 @@ function useArticleDetailEditor(
       })
       setMessage('Article media settings saved.')
       await reloadArticles()
-      notifyEditorialPreviewStale()
+      notifyEditorialPreviewStale(scope)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save article')
     } finally {
       setSaving(false)
     }
-  }, [detail, mediaItems, maxImageCount, reloadArticles, setError, setMessage, setSaving])
+  }, [detail, mediaItems, maxImageCount, reloadArticles, scope, setError, setMessage, setSaving])
 
   const publishSelected = useCallback(async () => {
     if (!detail) {
@@ -209,13 +212,13 @@ function useArticleDetailEditor(
       setMessage('Article published.')
       await reloadArticles()
       setDetail({ ...detail, status: 'published' })
-      notifyEditorialPreviewStale()
+      notifyEditorialPreviewStale(scope)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Publish failed')
     } finally {
       setSaving(false)
     }
-  }, [detail, reloadArticles, setError, setMessage, setSaving])
+  }, [detail, reloadArticles, scope, setError, setMessage, setSaving])
 
   return {
     selectedId,
@@ -309,6 +312,7 @@ interface IHomepagePlacementEditor {
  */
 function useHomepagePlacementEditor(
   status: IEditorStatus,
+  scope: IEditorScope,
   articleTitleById: Map<string, string>,
 ): IHomepagePlacementEditor {
   const { setError, setMessage, setSaving } = status
@@ -321,18 +325,18 @@ function useHomepagePlacementEditor(
   }, [homepageSlots])
 
   const loadHomepageSlots = useCallback(async () => {
-    const layout = await getHomepageLayout()
+    const layout = await getHomepageLayout(scope.marketCode, scope.pageName)
     if (!layout.id) {
       setHomepageSlots([])
       return
     }
     setHomepageSlots(await getLayoutSlots(layout.id))
-  }, [])
+  }, [scope.marketCode, scope.pageName])
 
   const loadArticlePlacements = useCallback(async () => {
-    const data = await getArticlePlacements()
+    const data = await getArticlePlacements(scope.marketCode)
     setArticlePlacements(data.placements)
-  }, [])
+  }, [scope.marketCode])
 
   const placementMap = useMemo(
     () => buildArticlePlacementMap(articlePlacements),
@@ -349,16 +353,16 @@ function useHomepagePlacementEditor(
     setError(null)
     setMessage(null)
     try {
-      const result = await publishHomepagePlacements()
+      const result = await publishHomepagePlacements(scope)
       setMessage(formatPublishResult(result.published_slot_count))
       await Promise.all([loadHomepageSlots(), loadArticlePlacements()])
-      notifyEditorialPreviewStale()
+      notifyEditorialPreviewStale(scope)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to publish homepage placements')
     } finally {
       setSaving(false)
     }
-  }, [loadHomepageSlots, loadArticlePlacements, setError, setMessage, setSaving])
+  }, [loadHomepageSlots, loadArticlePlacements, scope, setError, setMessage, setSaving])
 
   const applyDropPlacement = useCallback(
     async (articleId: string, target: IPlacementTarget) => {
@@ -386,7 +390,7 @@ function useHomepagePlacementEditor(
         homepageSlotsRef.current = mergedSlots
         await Promise.all([loadArticlePlacements(), loadHomepageSlots()])
         setMessage(formatPlacementMessage(mutation, previousSlots, articleId, articleTitleById, target))
-        notifyEditorialPreviewStale()
+        notifyEditorialPreviewStale(scope)
       } catch (err) {
         setHomepageSlots(previousSlots)
         homepageSlotsRef.current = previousSlots
@@ -395,7 +399,7 @@ function useHomepagePlacementEditor(
         setSaving(false)
       }
     },
-    [articleTitleById, loadArticlePlacements, loadHomepageSlots, setError, setMessage, setSaving],
+    [articleTitleById, loadArticlePlacements, loadHomepageSlots, scope, setError, setMessage, setSaving],
   )
 
   return {
@@ -478,9 +482,10 @@ export interface IEditorCuration
  * @returns All state and actions consumed by the editor page UI.
  */
 export function useEditorCuration(): IEditorCuration {
+  const scope = useEditorScope()
   const status = useEditorStatus()
   const pool = useEditorArticlePool()
-  const detailEditor = useArticleDetailEditor(status, pool.loadArticles)
+  const detailEditor = useArticleDetailEditor(status, scope, pool.loadArticles)
 
   const articleById = useMemo(
     () => buildArticleById(pool.articles, detailEditor.detail, detailEditor.mediaItems),
@@ -494,7 +499,7 @@ export function useEditorCuration(): IEditorCuration {
     return map
   }, [articleById])
 
-  const placement = useHomepagePlacementEditor(status, articleTitleById)
+  const placement = useHomepagePlacementEditor(status, scope, articleTitleById)
 
   const { setLoading, setError } = status
   useEffect(() => {

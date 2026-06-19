@@ -1,15 +1,17 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useEditorialPreviewStaleToken } from '@/context/editorial-preview-sync-context'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect } from 'react'
+import { useEditorScope } from '@/context/editor-scope-context'
 import {
-  getHomepageLayout,
-  getHomepagePreviewFeed,
-  getLayoutSlots,
-  type ISlotOut,
-} from '@/lib/api/layout-client'
+  useEditorialPreviewStaleScope,
+  useEditorialPreviewStaleToken,
+} from '@/context/editorial-preview-sync-context'
+import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
 import type { IHomepageFeed } from '@/interfaces/feed'
+import type { ISlotOut } from '@/lib/api/layout-client'
+import { editorKeys } from '@/lib/editor/query-keys'
 
 interface IUseHomepagePreviewFeedResult {
   previewFeed: IHomepageFeed | null
@@ -30,60 +32,26 @@ interface IUseHomepagePreviewFeedResult {
  */
 export function useHomepagePreviewFeed(): IUseHomepagePreviewFeedResult {
   const pathname = usePathname()
+  const scope = useEditorScope()
+  const staleScope = useEditorialPreviewStaleScope()
   const staleToken = useEditorialPreviewStaleToken()
-  const [homepageSlots, setHomepageSlots] = useState<ISlotOut[]>([])
-  const [previewFeed, setPreviewFeed] = useState<IHomepageFeed | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const refreshRequestIdRef = useRef(0)
-
-  const loadHomepageSlots = useCallback(async () => {
-    const layout = await getHomepageLayout()
-    if (!layout.id) {
-      setHomepageSlots([])
-      return
-    }
-    const slots = await getLayoutSlots(layout.id)
-    setHomepageSlots(slots)
-  }, [])
-
-  const loadPreviewFeed = useCallback(async () => {
-    setError(null)
-    try {
-      const feed = await getHomepagePreviewFeed()
-      setPreviewFeed(feed)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load homepage preview')
-    }
-  }, [])
+  const queryClient = useQueryClient()
+  const preview = useEditorPreviewFeed(scope, pathname.startsWith('/admin/preview'))
 
   const refresh = useCallback(async () => {
-    const requestId = refreshRequestIdRef.current + 1
-    refreshRequestIdRef.current = requestId
-    setRefreshing(true)
-    setError(null)
-    try {
-      await Promise.all([loadHomepageSlots(), loadPreviewFeed()])
-    } catch (err) {
-      if (refreshRequestIdRef.current === requestId) {
-        setError(err instanceof Error ? err.message : 'Failed to refresh preview')
-      }
-    } finally {
-      if (refreshRequestIdRef.current === requestId) {
-        setRefreshing(false)
-        setLoading(false)
-      }
-    }
-  }, [loadHomepageSlots, loadPreviewFeed])
+    await preview.refresh()
+  }, [preview])
 
   useEffect(() => {
-    if (!pathname.startsWith('/admin/preview')) {
+    if (!pathname.startsWith('/admin/preview') || staleToken === 0) {
       return
     }
-    setLoading(true)
-    void refresh()
-  }, [pathname, staleToken, refresh])
+    const invalidateScope = staleScope ?? scope
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: editorKeys.previewFeed(invalidateScope) }),
+      queryClient.invalidateQueries({ queryKey: editorKeys.placements(invalidateScope) }),
+    ])
+  }, [pathname, queryClient, scope, staleScope, staleToken])
 
   useEffect(() => {
     const onVisibilityChange = (): void => {
@@ -99,11 +67,11 @@ export function useHomepagePreviewFeed(): IUseHomepagePreviewFeedResult {
   }, [pathname, refresh])
 
   return {
-    previewFeed,
-    homepageSlots,
-    loading,
-    refreshing,
-    error,
+    previewFeed: preview.previewFeed,
+    homepageSlots: preview.homepageSlots,
+    loading: preview.loading,
+    refreshing: preview.refreshing,
+    error: preview.error,
     refresh,
   }
 }

@@ -12,7 +12,7 @@ import { ADMIN_WORKFLOW_TABS } from '@/lib/api/admin-routes'
 export function AdminWorkflowNav(): JSX.Element | null {
   const pathname = usePathname()
 
-  if (pathname.startsWith('/admin/login')) {
+  if (pathname.startsWith('/admin/login') || pathname.startsWith('/admin/preview')) {
     return null
   }
 

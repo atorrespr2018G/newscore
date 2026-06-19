@@ -2,6 +2,10 @@ import { apiConfig } from '@/lib/api/config'
 import { apiFetch } from '@/lib/api/rest-client'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import { mapArticle } from '@/lib/graphql/mappers'
+import {
+  DEFAULT_EDITOR_MARKET_CODE,
+  DEFAULT_EDITOR_PAGE_NAME,
+} from '@/lib/editor/editor-scope'
 
 /** Layout metadata returned by the layout admin API. */
 export interface ILayoutOut {
@@ -49,8 +53,13 @@ export interface IPublishPlacementsOut {
   published_slot_count: number
 }
 
-const DEFAULT_MARKET_CODE = 'us'
 const HERO_POSITION_KEY = 'hero'
+
+interface ILayoutScopeParams {
+  marketCode?: string
+  townId?: string | null
+  pageName?: string
+}
 
 /**
  * Load the active homepage layout for a market.
@@ -58,9 +67,12 @@ const HERO_POSITION_KEY = 'hero'
  * @param marketCode Market code such as `us`.
  * @returns Active homepage layout metadata.
  */
-export function getHomepageLayout(marketCode = DEFAULT_MARKET_CODE): Promise<ILayoutOut> {
+export function getHomepageLayout(
+  marketCode = DEFAULT_EDITOR_MARKET_CODE,
+  pageName = DEFAULT_EDITOR_PAGE_NAME,
+): Promise<ILayoutOut> {
   return apiFetch<ILayoutOut>(
-    `${apiConfig.layout}/layouts/page/homepage?market=${encodeURIComponent(marketCode)}`,
+    `${apiConfig.layout}/layouts/page/${encodeURIComponent(pageName)}?market=${encodeURIComponent(marketCode)}`,
   )
 }
 
@@ -80,7 +92,9 @@ export function getLayoutSlots(layoutId: string): Promise<ISlotOut[]> {
  * @param marketCode Market code such as `us`.
  * @returns Article id to placement list lookup.
  */
-export function getArticlePlacements(marketCode = DEFAULT_MARKET_CODE): Promise<IArticlePlacementsOut> {
+export function getArticlePlacements(
+  marketCode = DEFAULT_EDITOR_MARKET_CODE,
+): Promise<IArticlePlacementsOut> {
   return apiFetch<IArticlePlacementsOut>(
     `${apiConfig.layout}/layouts/placements?market=${encodeURIComponent(marketCode)}`,
   )
@@ -163,12 +177,17 @@ export function mapPreviewFeedToHomepageFeed(payload: IPreviewFeedOut): IHomepag
  * @param marketCode Market code such as `us`.
  * @returns Homepage feed for editor preview pane.
  */
-export function getHomepagePreviewFeed(marketCode = DEFAULT_MARKET_CODE): Promise<IHomepageFeed> {
-  const params = new URLSearchParams({
+export function getHomepagePreviewFeed(params: ILayoutScopeParams = {}): Promise<IHomepageFeed> {
+  const marketCode = params.marketCode ?? DEFAULT_EDITOR_MARKET_CODE
+  const pageName = params.pageName ?? DEFAULT_EDITOR_PAGE_NAME
+  const queryParams = new URLSearchParams({
     market: marketCode,
-    page_name: 'homepage',
+    page_name: pageName,
   })
-  return apiFetch<IPreviewFeedOut>(`${apiConfig.layout}/layouts/preview-feed?${params.toString()}`, {
+  if (params.townId) {
+    queryParams.set('town', params.townId)
+  }
+  return apiFetch<IPreviewFeedOut>(`${apiConfig.layout}/layouts/preview-feed?${queryParams.toString()}`, {
     cache: 'no-store',
   }).then(
     mapPreviewFeedToHomepageFeed,
@@ -195,11 +214,16 @@ export function patchSlotDraftPinnedIds(slotId: string, draftPinnedIds: string[]
  * @param marketCode Market code such as `us`.
  * @returns Publish summary for the active homepage layout.
  */
-export function publishHomepagePlacements(marketCode = DEFAULT_MARKET_CODE): Promise<IPublishPlacementsOut> {
+export function publishHomepagePlacements(scope: ILayoutScopeParams = {}): Promise<IPublishPlacementsOut> {
+  const marketCode = scope.marketCode ?? DEFAULT_EDITOR_MARKET_CODE
+  const pageName = scope.pageName ?? DEFAULT_EDITOR_PAGE_NAME
   const params = new URLSearchParams({
     market: marketCode,
-    page_name: 'homepage',
+    page_name: pageName,
   })
+  if (scope.townId) {
+    params.set('town', scope.townId)
+  }
   return apiFetch<IPublishPlacementsOut>(
     `${apiConfig.layout}/layouts/publish-placements?${params.toString()}`,
     { method: 'POST' },
