@@ -84,6 +84,48 @@ export function insertPinnedIdAtIndex(
 }
 
 /**
+ * Clear the article occupying a slot cell, preserving earlier index positions.
+ *
+ * @param pinnedIds Current pinned article ids.
+ * @param index Zero-based slot cell index to clear.
+ * @returns Updated pinned id list with trailing blanks trimmed.
+ */
+export function removePinnedIdAtIndex(pinnedIds: string[], index: number): string[] {
+  if (index < 0 || index >= pinnedIds.length) {
+    return normalizePinnedIdsForSave([...pinnedIds])
+  }
+  const next = [...pinnedIds]
+  next[index] = PINNED_ID_EMPTY
+  return normalizePinnedIdsForSave(next)
+}
+
+/**
+ * Swap the article ids occupying two slot cells, padding gaps as needed.
+ *
+ * @param pinnedIds Current pinned article ids.
+ * @param indexA First zero-based slot cell index.
+ * @param indexB Second zero-based slot cell index.
+ * @returns Updated pinned id list with the two cells swapped.
+ * @throws Error When either index is negative.
+ */
+export function swapPinnedIdsAtIndices(
+  pinnedIds: string[],
+  indexA: number,
+  indexB: number,
+): string[] {
+  if (indexA < 0 || indexB < 0) {
+    throw new Error('Cannot swap slot cells outside the slot bounds.')
+  }
+  const next = [...pinnedIds]
+  const highestIndex = Math.max(indexA, indexB)
+  while (next.length <= highestIndex) {
+    next.push(PINNED_ID_EMPTY)
+  }
+  ;[next[indexA], next[indexB]] = [next[indexB], next[indexA]]
+  return normalizePinnedIdsForSave(next)
+}
+
+/**
  * Place an article in a slot cell using direct write or insert semantics.
  *
  * Empty targets write to the requested index, padding leading cells when

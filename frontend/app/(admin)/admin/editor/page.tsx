@@ -177,6 +177,8 @@ function EditorWorkspaceColumn({ editor }: { editor: IEditorCuration }): JSX.Ele
           selectedArticleId={editor.selectedId}
           saving={editor.saving}
           onDropPlacement={(articleId, target) => void editor.applyDropPlacement(articleId, target)}
+          onRemovePlacement={(target) => void editor.applyRemovePlacement(target)}
+          onMovePlacement={(target, direction) => void editor.applyMovePlacement(target, direction)}
         />
         <section className="min-w-0 rounded-lg border border-neutral-200 bg-white p-4">
           <EditorArticleDetailPanel

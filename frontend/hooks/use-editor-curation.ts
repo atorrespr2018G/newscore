@@ -23,7 +23,13 @@ import {
   fetchAllPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
-import { buildPlacementMutation } from '@/lib/helpers/editor-placement'
+import {
+  buildPlacementMutation,
+  buildRemovePlacementMutation,
+  buildReorderPlacementMutation,
+  type IPlacementMutationResult,
+  type PlacementMoveDirectionType,
+} from '@/lib/helpers/editor-placement'
 import {
   buildPlacementTargets,
   resolveSlotLabel,
@@ -300,6 +306,8 @@ interface IHomepagePlacementEditor {
   loadHomepageSlots: () => Promise<void>
   loadArticlePlacements: () => Promise<void>
   applyDropPlacement: (articleId: string, target: IPlacementTarget) => Promise<void>
+  applyRemovePlacement: (target: IPlacementTarget) => Promise<void>
+  applyMovePlacement: (target: IPlacementTarget, direction: PlacementMoveDirectionType) => Promise<void>
   publishHomepageChanges: () => Promise<void>
 }
 
@@ -364,32 +372,31 @@ function useHomepagePlacementEditor(
     }
   }, [loadHomepageSlots, loadArticlePlacements, scope, setError, setMessage, setSaving])
 
-  const applyDropPlacement = useCallback(
-    async (articleId: string, target: IPlacementTarget) => {
+  /**
+   * Commit a staged placement mutation with optimistic update and rollback.
+   *
+   * @param mutation Slot patch set to apply.
+   * @param buildSuccessMessage Builds the banner text from the pre-mutation slots.
+   * @returns Resolves once the mutation is committed or rolled back.
+   */
+  const runPlacementMutation = useCallback(
+    async (
+      mutation: PlacementMutation,
+      buildSuccessMessage: (previousSlots: ISlotOut[]) => string,
+    ) => {
       setSaving(true)
       setError(null)
       setMessage(null)
       const previousSlots = homepageSlotsRef.current
       try {
-        const mutation = buildPlacementMutation(
-          previousSlots,
-          articleId,
-          target.slotId,
-          target.index,
-          target.articleId,
-        )
-        const mergedSlots = await commitPlacementMutation(
-          mutation,
-          previousSlots,
-          (slots) => {
-            setHomepageSlots(slots)
-            homepageSlotsRef.current = slots
-          },
-        )
+        const mergedSlots = await commitPlacementMutation(mutation, previousSlots, (slots) => {
+          setHomepageSlots(slots)
+          homepageSlotsRef.current = slots
+        })
         setHomepageSlots(mergedSlots)
         homepageSlotsRef.current = mergedSlots
         await Promise.all([loadArticlePlacements(), loadHomepageSlots()])
-        setMessage(formatPlacementMessage(mutation, previousSlots, articleId, articleTitleById, target))
+        setMessage(buildSuccessMessage(previousSlots))
         notifyEditorialPreviewStale(scope)
       } catch (err) {
         setHomepageSlots(previousSlots)
@@ -399,7 +406,48 @@ function useHomepagePlacementEditor(
         setSaving(false)
       }
     },
-    [articleTitleById, loadArticlePlacements, loadHomepageSlots, scope, setError, setMessage, setSaving],
+    [loadArticlePlacements, loadHomepageSlots, scope, setError, setMessage, setSaving],
+  )
+
+  const applyDropPlacement = useCallback(
+    async (articleId: string, target: IPlacementTarget) => {
+      const mutation = buildPlacementMutation(
+        homepageSlotsRef.current,
+        articleId,
+        target.slotId,
+        target.index,
+        target.articleId,
+      )
+      await runPlacementMutation(mutation, (previousSlots) =>
+        formatPlacementMessage(mutation, previousSlots, articleId, articleTitleById, target),
+      )
+    },
+    [articleTitleById, runPlacementMutation],
+  )
+
+  const applyRemovePlacement = useCallback(
+    async (target: IPlacementTarget) => {
+      const mutation = buildRemovePlacementMutation(
+        homepageSlotsRef.current,
+        target.slotId,
+        target.index,
+      )
+      await runPlacementMutation(mutation, () => formatRemoveMessage(target, articleTitleById))
+    },
+    [articleTitleById, runPlacementMutation],
+  )
+
+  const applyMovePlacement = useCallback(
+    async (target: IPlacementTarget, direction: PlacementMoveDirectionType) => {
+      const mutation = buildReorderPlacementMutation(
+        homepageSlotsRef.current,
+        target.slotId,
+        target.index,
+        direction,
+      )
+      await runPlacementMutation(mutation, () => formatMoveMessage(target, direction, articleTitleById))
+    },
+    [articleTitleById, runPlacementMutation],
   )
 
   return {
@@ -411,6 +459,8 @@ function useHomepagePlacementEditor(
     loadHomepageSlots,
     loadArticlePlacements,
     applyDropPlacement,
+    applyRemovePlacement,
+    applyMovePlacement,
     publishHomepageChanges,
   }
 }
@@ -422,7 +472,7 @@ function formatPublishResult(publishedSlotCount: number): string {
   return `Published homepage placement changes across ${publishedSlotCount} slot(s).`
 }
 
-type PlacementMutation = ReturnType<typeof buildPlacementMutation>
+type PlacementMutation = IPlacementMutationResult
 
 async function commitPlacementMutation(
   mutation: PlacementMutation,
@@ -463,6 +513,24 @@ function formatPlacementMessage(
   const fromLabel = fromSlot ? resolveSlotLabel(fromSlot) : 'Homepage'
   const fromIndex = (mutation.fromIndex ?? 0) + 1
   return `Staged move of "${articleTitle}" from ${fromLabel} #${fromIndex} to ${destinationLabel}. Publish homepage to go live.`
+}
+
+function formatRemoveMessage(
+  target: IPlacementTarget,
+  articleTitleById: Map<string, string>,
+): string {
+  const articleTitle = target.articleId ? articleTitleById.get(target.articleId) ?? target.articleId : 'Story'
+  const location = `${target.slotLabel} #${target.index + 1}`
+  return `Removed "${articleTitle}" from ${location}. Publish homepage to go live.`
+}
+
+function formatMoveMessage(
+  target: IPlacementTarget,
+  direction: PlacementMoveDirectionType,
+  articleTitleById: Map<string, string>,
+): string {
+  const articleTitle = target.articleId ? articleTitleById.get(target.articleId) ?? target.articleId : 'Story'
+  return `Moved "${articleTitle}" ${direction} in ${target.slotLabel}. Publish homepage to go live.`
 }
 
 export interface IEditorCuration
@@ -539,6 +607,8 @@ export function useEditorCuration(): IEditorCuration {
     placementTargets: placement.placementTargets,
     hasUnpublishedPlacements: placement.hasUnpublishedPlacements,
     applyDropPlacement: placement.applyDropPlacement,
+    applyRemovePlacement: placement.applyRemovePlacement,
+    applyMovePlacement: placement.applyMovePlacement,
     publishHomepageChanges: placement.publishHomepageChanges,
     articleById,
   }
