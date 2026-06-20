@@ -20,6 +20,7 @@ import { apiFetch } from '@/lib/api/rest-client'
 import { buildArticlePlacementMap } from '@/lib/helpers/article-placements'
 import {
   EDITOR_FETCH_PAGE_SIZE,
+  REPORTER_UPLOAD_STATUS,
   fetchAllPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
@@ -133,6 +134,7 @@ interface IArticleDetailEditor {
   loadArticleByIdInput: () => void
   saveArticleChanges: () => Promise<void>
   publishSelected: () => Promise<void>
+  publishArticleById: (articleId: string) => Promise<void>
 }
 
 /**
@@ -226,6 +228,28 @@ function useArticleDetailEditor(
     }
   }, [detail, reloadArticles, scope, setError, setMessage, setSaving])
 
+  const publishArticleById = useCallback(
+    async (articleId: string) => {
+      setSaving(true)
+      setError(null)
+      try {
+        await apiFetch(`${apiConfig.news}/articles/${articleId}/publish`, { method: 'POST' })
+        setMessage('Story placed and published. Publish homepage to push it live.')
+        await reloadArticles()
+        // Keep the open detail in sync when it is the story we just published.
+        setDetail((current) =>
+          current && current.id === articleId ? { ...current, status: 'published' } : current,
+        )
+        notifyEditorialPreviewStale(scope)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to publish placed story')
+      } finally {
+        setSaving(false)
+      }
+    },
+    [reloadArticles, scope, setDetail, setError, setMessage, setSaving],
+  )
+
   return {
     selectedId,
     articleIdInput,
@@ -240,6 +264,7 @@ function useArticleDetailEditor(
     loadArticleByIdInput,
     saveArticleChanges,
     publishSelected,
+    publishArticleById,
   }
 }
 
@@ -305,7 +330,7 @@ interface IHomepagePlacementEditor {
   hasUnpublishedPlacements: boolean
   loadHomepageSlots: () => Promise<void>
   loadArticlePlacements: () => Promise<void>
-  applyDropPlacement: (articleId: string, target: IPlacementTarget) => Promise<void>
+  applyDropPlacement: (articleId: string, target: IPlacementTarget) => Promise<boolean>
   applyRemovePlacement: (target: IPlacementTarget) => Promise<void>
   applyMovePlacement: (target: IPlacementTarget, direction: PlacementMoveDirectionType) => Promise<void>
   publishHomepageChanges: () => Promise<void>
@@ -383,7 +408,7 @@ function useHomepagePlacementEditor(
     async (
       mutation: PlacementMutation,
       buildSuccessMessage: (previousSlots: ISlotOut[]) => string,
-    ) => {
+    ): Promise<boolean> => {
       setSaving(true)
       setError(null)
       setMessage(null)
@@ -398,10 +423,12 @@ function useHomepagePlacementEditor(
         await Promise.all([loadArticlePlacements(), loadHomepageSlots()])
         setMessage(buildSuccessMessage(previousSlots))
         notifyEditorialPreviewStale(scope)
+        return true
       } catch (err) {
         setHomepageSlots(previousSlots)
         homepageSlotsRef.current = previousSlots
         setError(err instanceof Error ? err.message : 'Homepage placement failed')
+        return false
       } finally {
         setSaving(false)
       }
@@ -410,7 +437,7 @@ function useHomepagePlacementEditor(
   )
 
   const applyDropPlacement = useCallback(
-    async (articleId: string, target: IPlacementTarget) => {
+    async (articleId: string, target: IPlacementTarget): Promise<boolean> => {
       const mutation = buildPlacementMutation(
         homepageSlotsRef.current,
         articleId,
@@ -418,7 +445,7 @@ function useHomepagePlacementEditor(
         target.index,
         target.articleId,
       )
-      await runPlacementMutation(mutation, (previousSlots) =>
+      return runPlacementMutation(mutation, (previousSlots) =>
         formatPlacementMessage(mutation, previousSlots, articleId, articleTitleById, target),
       )
     },
@@ -569,6 +596,19 @@ export function useEditorCuration(): IEditorCuration {
 
   const placement = useHomepagePlacementEditor(status, scope, articleTitleById)
 
+  const applyDropPlacement = useCallback(
+    async (articleId: string, target: IPlacementTarget): Promise<boolean> => {
+      const placed = await placement.applyDropPlacement(articleId, target)
+      // A freshly placed reporter draft is auto-published so it can reach the
+      // live page once the homepage layout is published.
+      if (placed && articleById.get(articleId)?.status === REPORTER_UPLOAD_STATUS) {
+        await detailEditor.publishArticleById(articleId)
+      }
+      return placed
+    },
+    [placement.applyDropPlacement, articleById, detailEditor.publishArticleById],
+  )
+
   const { setLoading, setError } = status
   useEffect(() => {
     setLoading(true)
@@ -602,11 +642,12 @@ export function useEditorCuration(): IEditorCuration {
     loadArticleByIdInput: detailEditor.loadArticleByIdInput,
     saveArticleChanges: detailEditor.saveArticleChanges,
     publishSelected: detailEditor.publishSelected,
+    publishArticleById: detailEditor.publishArticleById,
     homepageSlots: placement.homepageSlots,
     placementMap: placement.placementMap,
     placementTargets: placement.placementTargets,
     hasUnpublishedPlacements: placement.hasUnpublishedPlacements,
-    applyDropPlacement: placement.applyDropPlacement,
+    applyDropPlacement,
     applyRemovePlacement: placement.applyRemovePlacement,
     applyMovePlacement: placement.applyMovePlacement,
     publishHomepageChanges: placement.publishHomepageChanges,

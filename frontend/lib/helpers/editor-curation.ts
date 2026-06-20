@@ -1,7 +1,29 @@
 import type { IEditorStoryRow } from '@/components/features/editor-story-pool'
+import type { IArticlePlacement } from '@/lib/helpers/article-placements'
 
 /** Page size used when fetching the editor's article pool. */
 export const EDITOR_FETCH_PAGE_SIZE = 200
+
+/** Lifecycle status assigned to articles uploaded through the Reporter tool. */
+export const REPORTER_UPLOAD_STATUS = 'draft'
+
+/**
+ * Decide whether an article is freshly uploaded news awaiting curation.
+ *
+ * Reporter uploads land as drafts and are treated as "new" only until an
+ * editor places them on a page. Once a placement exists (even a staged one),
+ * the story has joined the curated pool and is no longer considered new.
+ *
+ * @param article Editor story row to classify.
+ * @param placements Resolved placements for the article (empty when unplaced).
+ * @returns True when the article is a new, unplaced reporter upload.
+ */
+export function isNewReporterArticle(
+  article: IEditorStoryRow,
+  placements: IArticlePlacement[],
+): boolean {
+  return article.status === REPORTER_UPLOAD_STATUS && placements.length === 0
+}
 
 interface IPaginatedArticles {
   items: IEditorStoryRow[]
