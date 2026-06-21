@@ -112,6 +112,13 @@ function EditorStoryPoolSection({ editor }: { editor: IEditorCuration }): JSX.El
           placementMap={editor.placementMap}
           onSearch={editor.searchArticles}
           onSelect={(articleId: string) => void editor.loadArticleDetail(articleId)}
+          categories={editor.categories}
+          selectedCategoryIds={editor.selectedCategoryIds}
+          setSelectedCategoryIds={editor.setSelectedCategoryIds}
+          internationalPotential={editor.internationalPotential}
+          setInternationalPotential={editor.setInternationalPotential}
+          saving={editor.saving}
+          onSaveTaxonomy={() => void editor.saveArticleChanges()}
         />
         {editor.articles.length === 0 ? (
           <p className="py-8 text-center text-neutral-500">No uploaded stories yet.</p>

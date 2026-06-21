@@ -200,7 +200,9 @@ async def _query_rule_articles(
         query["_id"] = {"$nin": list(excluded_ids)}
     category_id = query_rule.get("category_id")
     if category_id:
-        query["category_id"] = category_id
+        # Match legacy single-category articles plus multi-category articles
+        # that include this category in their category_ids list.
+        query["$or"] = [{"category_id": category_id}, {"category_ids": category_id}]
     cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
     docs = [doc async for doc in cursor]
     await loader.load_many([str(doc["author_id"]) for doc in docs])

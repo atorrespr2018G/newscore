@@ -75,7 +75,7 @@ export function EditorArticleDetailPanel({
           onClick={onSave}
           className="rounded border border-brand px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 disabled:opacity-60"
         >
-          Save media settings
+          Save changes
         </button>
         {detail.status === 'draft' ? (
           <button

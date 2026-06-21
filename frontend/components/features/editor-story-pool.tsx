@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
+import { InlineArticleTaxonomyEditor } from '@/components/features/inline-article-taxonomy-editor'
+import type { ICategoryOut } from '@/lib/api/category-client'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
 import {
   formatAllArticlePlacements,
@@ -52,6 +55,13 @@ interface IEditorStoryPoolProps {
   placementMap: Map<string, IArticlePlacement[]>
   onSearch: (query: string) => Promise<IEditorStoryRow[]>
   onSelect: (articleId: string) => void
+  categories: ICategoryOut[]
+  selectedCategoryIds: string[]
+  setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
+  internationalPotential: number | null
+  setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  saving: boolean
+  onSaveTaxonomy: () => void
 }
 
 /**
@@ -61,7 +71,20 @@ interface IEditorStoryPoolProps {
  * @returns Curated article pool UI.
  */
 export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
-  const { articles, selectedId, placementMap, onSearch, onSelect } = props
+  const {
+    articles,
+    selectedId,
+    placementMap,
+    onSearch,
+    onSelect,
+    categories,
+    selectedCategoryIds,
+    setSelectedCategoryIds,
+    internationalPotential,
+    setInternationalPotential,
+    saving,
+    onSaveTaxonomy,
+  } = props
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [searchResults, setSearchResults] = useState<IEditorStoryRow[] | null>(null)
@@ -202,6 +225,17 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
                 </dl>
               </div>
             </button>
+            {selectedId === article.id ? (
+              <InlineArticleTaxonomyEditor
+                categories={categories}
+                selectedCategoryIds={selectedCategoryIds}
+                setSelectedCategoryIds={setSelectedCategoryIds}
+                internationalPotential={internationalPotential}
+                setInternationalPotential={setInternationalPotential}
+                saving={saving}
+                onSave={onSaveTaxonomy}
+              />
+            ) : null}
           </article>
         ))}
         </div>

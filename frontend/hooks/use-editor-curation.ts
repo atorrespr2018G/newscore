@@ -15,8 +15,10 @@ import {
   patchSlotDraftPinnedIds,
   publishHomepagePlacements,
 } from '@/lib/api/layout-client'
+import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { getMediaById, IMediaOut } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
+import { MIN_CATEGORY_COUNT } from '@/lib/helpers/category-selection'
 import { buildArticlePlacementMap } from '@/lib/helpers/article-placements'
 import {
   EDITOR_FETCH_PAGE_SIZE,
@@ -46,6 +48,8 @@ export interface IArticleDetail {
   status: string
   media_ids: string[]
   max_image_count: number
+  category_ids: string[]
+  international_potential: number | null
 }
 
 export interface ILoadedMedia {
@@ -130,6 +134,11 @@ interface IArticleDetailEditor {
   setMediaItems: Dispatch<SetStateAction<ILoadedMedia[]>>
   maxImageCount: number
   setMaxImageCount: Dispatch<SetStateAction<number>>
+  categories: ICategoryOut[]
+  selectedCategoryIds: string[]
+  setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
+  internationalPotential: number | null
+  setInternationalPotential: Dispatch<SetStateAction<number | null>>
   loadArticleDetail: (articleId: string) => Promise<void>
   loadArticleByIdInput: () => void
   saveArticleChanges: () => Promise<void>
@@ -155,6 +164,17 @@ function useArticleDetailEditor(
   const [detail, setDetail] = useState<IArticleDetail | null>(null)
   const [mediaItems, setMediaItems] = useState<ILoadedMedia[]>([])
   const [maxImageCount, setMaxImageCount] = useState(5)
+  const [categories, setCategories] = useState<ICategoryOut[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
+
+  useEffect(() => {
+    void getCategories()
+      .then((items) => setCategories(items))
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Failed to load categories')
+      })
+  }, [setError])
 
   const loadArticleDetail = useCallback(
     async (articleId: string) => {
@@ -166,6 +186,8 @@ function useArticleDetailEditor(
         const article = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${articleId}`)
         setDetail(article)
         setMaxImageCount(article.max_image_count)
+        setSelectedCategoryIds(article.category_ids ?? [])
+        setInternationalPotential(article.international_potential ?? null)
         setMediaItems(await loadArticleMedia(article.media_ids))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load article detail')
@@ -187,19 +209,26 @@ function useArticleDetailEditor(
     if (!detail) {
       return
     }
+    if (selectedCategoryIds.length < MIN_CATEGORY_COUNT) {
+      setError('Select at least one category.')
+      return
+    }
     setSaving(true)
     setError(null)
     setMessage(null)
     try {
-      await apiFetch(`${apiConfig.news}/articles/${detail.id}`, {
+      const updated = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${detail.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           media_ids: mediaItems.map((item) => item.id),
           thumbnail_url: mediaItems[0]?.url ?? null,
           max_image_count: maxImageCount,
+          category_ids: selectedCategoryIds,
+          international_potential: internationalPotential,
         }),
       })
-      setMessage('Article media settings saved.')
+      setDetail(updated)
+      setMessage('Article settings saved.')
       await reloadArticles()
       notifyEditorialPreviewStale(scope)
     } catch (err) {
@@ -207,7 +236,18 @@ function useArticleDetailEditor(
     } finally {
       setSaving(false)
     }
-  }, [detail, mediaItems, maxImageCount, reloadArticles, scope, setError, setMessage, setSaving])
+  }, [
+    detail,
+    mediaItems,
+    maxImageCount,
+    selectedCategoryIds,
+    internationalPotential,
+    reloadArticles,
+    scope,
+    setError,
+    setMessage,
+    setSaving,
+  ])
 
   const publishSelected = useCallback(async () => {
     if (!detail) {
@@ -260,6 +300,11 @@ function useArticleDetailEditor(
     setMediaItems,
     maxImageCount,
     setMaxImageCount,
+    categories,
+    selectedCategoryIds,
+    setSelectedCategoryIds,
+    internationalPotential,
+    setInternationalPotential,
     loadArticleDetail,
     loadArticleByIdInput,
     saveArticleChanges,
@@ -638,6 +683,11 @@ export function useEditorCuration(): IEditorCuration {
     setMediaItems: detailEditor.setMediaItems,
     maxImageCount: detailEditor.maxImageCount,
     setMaxImageCount: detailEditor.setMaxImageCount,
+    categories: detailEditor.categories,
+    selectedCategoryIds: detailEditor.selectedCategoryIds,
+    setSelectedCategoryIds: detailEditor.setSelectedCategoryIds,
+    internationalPotential: detailEditor.internationalPotential,
+    setInternationalPotential: detailEditor.setInternationalPotential,
     loadArticleDetail: detailEditor.loadArticleDetail,
     loadArticleByIdInput: detailEditor.loadArticleByIdInput,
     saveArticleChanges: detailEditor.saveArticleChanges,

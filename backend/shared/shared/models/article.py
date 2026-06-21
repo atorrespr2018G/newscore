@@ -22,6 +22,8 @@ class Article(BaseModel):
     status: ArticleStatusType = "draft"
     author_id: str
     category_id: str | None = None
+    category_ids: list[str] = []
+    international_potential: int | None = None
     market_ids: list[str] = []
     town_id: str | None = None
     tags: list[str] = []

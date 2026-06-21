@@ -46,11 +46,33 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         body=str(doc.get("body") or ""),
         tags=list(doc.get("tags") or []),
         category_id=doc.get("category_id"),
+        category_ids=_category_ids_from_doc(doc),
+        international_potential=doc.get("international_potential"),
         market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],
         media_ids=list(doc.get("media_ids") or []),
         max_image_count=int(doc.get("max_image_count") or DEFAULT_MAX_IMAGE_COUNT),
         view_count=int(doc.get("view_count") or 0),
     )
+
+
+def _category_ids_from_doc(doc: dict[str, Any]) -> list[str]:
+    """Return the article's category ids, falling back to the legacy single id.
+
+    Older articles only persist ``category_id``; newer articles persist a
+    ``category_ids`` list. This normalizes both shapes into one list.
+
+    Args:
+        doc: Raw article document.
+
+    Returns:
+        Ordered, de-duplicated category id list.
+    """
+
+    raw_ids = [str(cid) for cid in (doc.get("category_ids") or []) if str(cid).strip()]
+    primary = doc.get("category_id")
+    if primary and str(primary) not in raw_ids:
+        raw_ids.insert(0, str(primary))
+    return raw_ids
 
 
 async def get_article_by_id(
@@ -104,7 +126,12 @@ async def list_category_articles(
         raise NotFoundError("Category not found")
 
     category_id = str(category["_id"])
-    query: dict[str, Any] = {"status": "published", "category_id": category_id}
+    # Match both legacy single-category articles and multi-category articles
+    # that include this category in their category_ids list.
+    query: dict[str, Any] = {
+        "status": "published",
+        "$or": [{"category_id": category_id}, {"category_ids": category_id}],
+    }
     if market_id:
         query["market_ids"] = market_id
     total = await db[ARTICLES_COLLECTION].count_documents(query)

@@ -52,6 +52,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/shared:/shared
+      - ./backend/news_storage_app:/app
       - ./media:/media
 
   layout_admin_app:

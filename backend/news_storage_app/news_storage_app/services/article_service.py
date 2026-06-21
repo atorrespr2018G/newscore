@@ -15,12 +15,14 @@ from shared.core.cache_invalidation import invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.pagination import PaginationParams
 from shared.read.article_reads import article_detail_out, article_out
-from shared.read.collections import MARKETS_COLLECTION
+from shared.read.collections import CATEGORIES_COLLECTION, MARKETS_COLLECTION
 from shared.read.loaders import AuthorNameLoader
 from shared.repositories.article_repository import ArticleRepository
 from news_storage_app.services.media_service import MEDIA_COLLECTION
 from shared.schemas.article_schemas import (
     DEFAULT_MAX_IMAGE_COUNT,
+    MAX_CATEGORY_COUNT,
+    MIN_CATEGORY_COUNT,
     ArticleCreate,
     ArticleDetailOut,
     ArticleOut,
@@ -46,6 +48,42 @@ async def _validate_market_ids(db: AsyncIOMotorDatabase, market_ids: list[str]) 
         exists = await db[MARKETS_COLLECTION].find_one({"_id": market_id}, {"_id": 1})
         if exists is None:
             raise ValidationError(f"Unknown market_id: {market_id}")
+
+    return normalized
+
+
+async def _validate_category_ids(db: AsyncIOMotorDatabase, category_ids: list[str]) -> list[str]:
+    """Normalize and validate the selected category ids.
+
+    Enforces the editorial rule that a story belongs to between one and three
+    sections, with no duplicates, and that every id exists.
+
+    Args:
+        db: Database connection.
+        category_ids: Raw category ids submitted by the client.
+
+    Returns:
+        Ordered, de-duplicated category id list.
+
+    Raises:
+        ValidationError: If the count is out of range or an id is unknown.
+    """
+
+    normalized: list[str] = []
+    for cid in category_ids:
+        clean = str(cid).strip()
+        if clean and clean not in normalized:
+            normalized.append(clean)
+
+    if len(normalized) < MIN_CATEGORY_COUNT:
+        raise ValidationError(f"Select at least {MIN_CATEGORY_COUNT} category")
+    if len(normalized) > MAX_CATEGORY_COUNT:
+        raise ValidationError(f"Select no more than {MAX_CATEGORY_COUNT} categories")
+
+    for category_id in normalized:
+        exists = await db[CATEGORIES_COLLECTION].find_one({"_id": category_id}, {"_id": 1})
+        if exists is None:
+            raise ValidationError(f"Unknown category_id: {category_id}")
 
     return normalized
 
@@ -201,6 +239,7 @@ class _PreparedArticleFields:
 
     slug: str
     market_ids: list[str]
+    category_ids: list[str]
     media_ids: list[str]
     thumbnail_url: str | None
     max_image_count: int
@@ -232,12 +271,14 @@ async def _prepare_new_article(
     repo = ArticleRepository(db)
     slug = await _ensure_unique_slug(repo, slug=base_slug)
     market_ids = await _validate_market_ids(db, body.market_ids)
+    category_ids = await _validate_category_ids(db, body.category_ids)
     max_image_count = _resolve_create_max_image_count(body, actor_role)
     media_ids = _validate_media_ids(body.media_ids, max_image_count=max_image_count)
     thumbnail_url = await _resolve_thumbnail_url(db, media_ids=media_ids, explicit=body.thumbnail_url)
     return _PreparedArticleFields(
         slug=slug,
         market_ids=market_ids,
+        category_ids=category_ids,
         media_ids=media_ids,
         thumbnail_url=thumbnail_url,
         max_image_count=max_image_count,
@@ -269,7 +310,10 @@ def _new_article_doc(
         "body": body.body,
         "status": "draft",
         "author_id": author_id,
-        "category_id": body.category_id,
+        # category_id keeps the primary section for legacy single-category reads.
+        "category_id": fields.category_ids[0],
+        "category_ids": fields.category_ids,
+        "international_potential": body.international_potential,
         "market_ids": fields.market_ids,
         "tags": body.tags,
         "thumbnail_url": fields.thumbnail_url,
@@ -461,6 +505,31 @@ async def _normalize_update_media(
         )
 
 
+async def _normalize_update_categories(
+    db: AsyncIOMotorDatabase,
+    *,
+    update_doc: dict[str, Any],
+) -> None:
+    """Validate updated category ids and resync the primary category_id.
+
+    Mutates ``update_doc`` in place with normalized category ids and the
+    derived primary ``category_id`` when categories are being changed.
+
+    Args:
+        db: Database connection.
+        update_doc: Pending update fields.
+
+    Raises:
+        ValidationError: If the category selection is out of range or invalid.
+    """
+
+    if "category_ids" not in update_doc:
+        return
+    normalized = await _validate_category_ids(db, list(update_doc["category_ids"]))
+    update_doc["category_ids"] = normalized
+    update_doc["category_id"] = normalized[0]
+
+
 async def _apply_slug_update(
     repo: ArticleRepository,
     *,
@@ -547,6 +616,7 @@ async def update(
     _check_reporter_permissions(update_doc, actor_role)
     if "market_ids" in update_doc:
         update_doc["market_ids"] = await _validate_market_ids(db, list(update_doc["market_ids"]))
+    await _normalize_update_categories(db, update_doc=update_doc)
     await _normalize_update_media(db, existing=existing, update_doc=update_doc)
     await _apply_slug_update(repo, update_doc=update_doc, article_id=article_id)
 
