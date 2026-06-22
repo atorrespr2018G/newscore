@@ -7,9 +7,8 @@ import {
 } from '@/lib/helpers/feed-layout'
 import { pinnedIdAtIndex } from '@/lib/helpers/pinned-ids'
 import { editorPinnedIds, slotForEditorPlacement } from '@/lib/helpers/slot-editor-pinned-ids'
-import { homepageSectionTitle, type SectionLabelTranslator } from '@/lib/helpers/section-labels'
+import { homepageSectionTitle, staticSectionLabelTranslator } from '@/lib/helpers/section-labels'
 import { moduleKindForPresentation } from '@/lib/presentation-registry'
-import enNavigation from '@/messages/en/navigation.json'
 
 const DEFAULT_PRESENTATION_TYPE = 'grid_4'
 const DEFAULT_TARGET_COUNT = 1
@@ -28,6 +27,7 @@ const HOMEPAGE_EDITOR_SLOT_ORDER: readonly string[] = [
   'entertainment',
   'world',
   'technology',
+  'business',
   'more-top-stories-2',
   'midterm-elections-2',
   'editorial-rail-2',
@@ -39,12 +39,6 @@ const HOMEPAGE_EDITOR_SLOT_ORDER: readonly string[] = [
 const HOMEPAGE_EDITOR_SLOT_ORDER_INDEX = new Map(
   HOMEPAGE_EDITOR_SLOT_ORDER.map((positionKey, index) => [positionKey, index]),
 )
-
-const editorSectionLabelTranslator: SectionLabelTranslator = (key) => {
-  const positionKey = key.replace('sectionLabels.', '')
-  const labels = enNavigation.sectionLabels as Record<string, string>
-  return labels[positionKey] ?? positionKey
-}
 
 export interface IPlacementTarget {
   slotId: string
@@ -129,7 +123,7 @@ export function resolveSlotLabel(slot: ISlotOut): string {
   return homepageSectionTitle(
     slot.position_key,
     slot.display_name,
-    editorSectionLabelTranslator,
+    staticSectionLabelTranslator,
   )
 }
 

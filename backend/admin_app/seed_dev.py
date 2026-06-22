@@ -37,6 +37,7 @@ CNN_CATEGORIES: list[dict[str, str]] = [
     {"name": "Politics", "slug": "politics", "description": "Policy, elections, and government."},
     {"name": "Health", "slug": "finance", "description": "Wellness, medicine, and public health."},
     {"name": "Technology", "slug": "technology", "description": "Tech industry, products, and innovation."},
+    {"name": "Business", "slug": "business", "description": "Markets, companies, and the economy."},
     {"name": "Health", "slug": "health", "description": "Wellness, medicine, and public health."},
     {"name": "Entertainment", "slug": "entertainment", "description": "Culture, TV, film, and celebrity."},
     {"name": "Style", "slug": "style", "description": "Fashion, design, and living."},
@@ -258,6 +259,14 @@ US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Startup unveils solid-state battery breakthrough for EVs",
         "EU finalizes rules for high-risk AI system deployments",
     ],
+    "business": [
+        "Federal Reserve holds rates steady as inflation cools further",
+        "Major retailer posts record quarterly earnings on strong demand",
+        "Oil prices slip as global supply outlook improves",
+        "Tech giant announces $50 billion stock buyback program",
+        "Startups draw renewed venture funding after lean year",
+        "Housing market shows signs of cooling as mortgage rates ease",
+    ],
     "health": [
         "Study links screen time to sleep disruption in teens",
         "FDA panel reviews next-generation vaccine candidates",
@@ -398,6 +407,14 @@ CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Startup anuncia avance en baterías de estado sólido para vehículos eléctricos",
         "UE finaliza reglas para sistemas de IA de alto riesgo",
     ],
+    "business": [
+        "La Reserva Federal mantiene las tasas mientras la inflación cede",
+        "Gran minorista reporta ganancias récord por fuerte demanda",
+        "Precios del petróleo bajan ante mejor panorama de oferta global",
+        "Gigante tecnológico anuncia recompra de acciones por $50.000 millones",
+        "Startups vuelven a captar inversión de capital de riesgo",
+        "El mercado de vivienda se enfría a medida que ceden las hipotecas",
+    ],
     "health": [
         "Estudio vincula pantallas con alteraciones del sueño",
         "Panel regulatorio evalúa nuevas vacunas",
@@ -536,7 +553,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "category_slug": "sports",
         "limit": 6,
         "presentation_type": "grid_4",
-        "display_name_us": "Business",
+        "display_name_us": "Sports",
         "display_name_co": "Deportes",
     },
     {
@@ -576,8 +593,17 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "display_name_co": "Tecnología",
     },
     {
-        "position_key": "us",
+        "position_key": "business",
         "order_index": 15,
+        "category_slug": "business",
+        "limit": 6,
+        "presentation_type": "grid_4",
+        "display_name_us": "Business",
+        "display_name_co": "Negocios",
+    },
+    {
+        "position_key": "us",
+        "order_index": 16,
         "category_slug": "us",
         "limit": 7,
         "presentation_type": "grid_4",
@@ -586,7 +612,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "style",
-        "order_index": 16,
+        "order_index": 17,
         "category_slug": "style",
         "limit": 4,
         "presentation_type": "grid_4",
@@ -595,7 +621,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "travel",
-        "order_index": 17,
+        "order_index": 18,
         "category_slug": "travel",
         "limit": 4,
         "presentation_type": "grid_4",

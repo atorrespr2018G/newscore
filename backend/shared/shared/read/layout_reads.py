@@ -25,13 +25,20 @@ async def get_active_layout(
     if layout is None:
         return None
 
-    slot_ids = list(layout.get("slot_ids") or [])
-    slots_cursor = db[SLOTS_COLLECTION].find({"_id": {"$in": slot_ids}})
+    layout_id = str(layout["_id"])
+    # Resolve slots by their owning ``layout_id`` rather than the layout's
+    # ``slot_ids`` array. The editor lists, edits, and publishes slots by
+    # ``layout_id``, so a slot added outside the seed (or dropped from
+    # ``slot_ids`` when the seed rebuilds that array) stays fully editable yet
+    # would silently disappear from the live page if we filtered by
+    # ``slot_ids``. Querying by ``layout_id`` keeps the live page consistent
+    # with what editors see and pin.
+    slots_cursor = db[SLOTS_COLLECTION].find({"layout_id": layout_id})
     slots = [s async for s in slots_cursor]
     slots.sort(key=lambda s: int(s.get("order_index") or 0))
 
     return {
-        "layout_id": str(layout["_id"]),
+        "layout_id": layout_id,
         "page_name": layout["page_name"],
         "market_id": market_id,
         "slots": [

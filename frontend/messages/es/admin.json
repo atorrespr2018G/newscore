@@ -1,0 +1,164 @@
+{
+  "workflow": {
+    "ariaLabel": "Flujo editorial",
+    "reporter": "Reportero",
+    "editor": "Editor",
+    "review": "Revisión",
+    "preview": "Vista previa"
+  },
+  "reporter": {
+    "title": "Reportero",
+    "subtitle": "Sube el titular, el cuerpo, las imágenes y el video de la noticia.",
+    "fields": {
+      "headline": "Titular",
+      "body": "Cuerpo",
+      "categories": "Categorías",
+      "categoriesHint": "(elige 1 a 3)",
+      "selectedCount": "Seleccionadas {count} de {max}.",
+      "uncheckHint": "Desmarca una para elegir otra.",
+      "loadingCategories": "Cargando categorías…",
+      "internationalPotential": "Potencial internacional",
+      "internationalPotentialHint": "(opcional, 1 a 10)",
+      "notRated": "Sin calificar",
+      "images": "Imágenes",
+      "imagesEmpty": "Arrastra las filas para reordenar después de subirlas.",
+      "position": "Posición {position}",
+      "remove": "Eliminar",
+      "video": "Video opcional",
+      "videoAttached": "Video adjunto."
+    },
+    "validation": {
+      "marketNotReady": "El mercado aún no está listo. Inténtalo de nuevo en un momento.",
+      "waitForUploads": "Espera a que terminen las subidas antes de guardar.",
+      "selectCategory": "Selecciona al menos una categoría."
+    },
+    "errors": {
+      "resolveMarket": "No se pudo resolver el mercado",
+      "loadCategories": "No se pudieron cargar las categorías",
+      "imageUpload": "Error al subir la imagen",
+      "videoUpload": "Error al subir el video",
+      "saveDraft": "No se pudo guardar el borrador",
+      "submitForReview": "No se pudo enviar a revisión"
+    },
+    "status": {
+      "draftSaved": "Borrador guardado: {title}",
+      "submittedForReview": "Se envió \"{title}\" a revisión."
+    },
+    "actions": {
+      "save": "Guardar borrador",
+      "saving": "Guardando…",
+      "submitForReview": "Enviar a revisión",
+      "submitting": "Enviando…"
+    }
+  },
+  "editor": {
+    "heading": "Editor",
+    "previewLink": "Vista previa",
+    "subtitle": "Prepara los cambios de ubicación en la portada, previsualízalos y publícalos cuando estén listos.",
+    "loading": "Cargando noticias…",
+    "emptyPool": "Aún no hay noticias subidas.",
+    "banner": {
+      "unpublished": "Tienes cambios de ubicación en la portada sin publicar. El sitio público todavía muestra el último diseño publicado.",
+      "publish": "Publicar portada"
+    },
+    "loadById": {
+      "label": "Cargar por id de artículo",
+      "placeholder": "p. ej. 96aeb8aa-d57e-4521-a393-17b7db4b6827",
+      "load": "Cargar noticia",
+      "empty": "Ingresa un id de artículo para cargar."
+    },
+    "pool": {
+      "searchLabel": "Buscar por título o slug",
+      "searchPlaceholder": "Buscar noticias",
+      "searching": "Buscando noticias…",
+      "tabs": {
+        "all": "Todas las noticias",
+        "new": "Nuevas"
+      },
+      "filters": {
+        "all": "Todas",
+        "unplaced": "Sin ubicar",
+        "homepage": "Ubicadas en portada"
+      },
+      "row": {
+        "id": "ID:",
+        "status": "Estado:",
+        "author": "Autor:",
+        "location": "Ubicación:"
+      },
+      "empty": {
+        "search": "Ninguna noticia coincide con tu búsqueda.",
+        "new": "No hay nuevas subidas de reporteros pendientes. Las noticias ubicadas pasan a la pestaña Todas las noticias.",
+        "filters": "Ninguna noticia coincide con los filtros actuales."
+      }
+    },
+    "detail": {
+      "selectStory": "Selecciona una noticia para curar su contenido y ubicación.",
+      "location": "Ubicación: {placements}",
+      "maxImageCount": "Máximo de imágenes",
+      "attachedImages": "Imágenes adjuntas",
+      "noImages": "No hay imágenes adjuntas.",
+      "up": "Subir",
+      "down": "Bajar",
+      "save": "Guardar cambios",
+      "publish": "Publicar"
+    },
+    "placement": {
+      "staged": "Se preparó \"{title}\" en {destination}{cascade}. Publica la portada para que aparezca.",
+      "stagedMove": "Se preparó el traslado de \"{title}\" de {from} a {destination}{cascade}. Publica la portada para que aparezca.",
+      "removed": "Se quitó \"{title}\" de {location}. Publica la portada para que aparezca.",
+      "moved": "Se movió \"{title}\" {direction} en {slot}. Publica la portada para que aparezca.",
+      "cascadeSuffix": " y se fijó al inicio de {count, plural, one {# sección de categoría} other {# secciones de categoría}}",
+      "directions": {
+        "up": "hacia arriba",
+        "down": "hacia abajo"
+      },
+      "fallbackTitle": "Noticia",
+      "fallbackSlot": "Portada"
+    },
+    "publishResult": {
+      "none": "No hay cambios de ubicación en la portada para publicar.",
+      "count": "Se publicaron cambios de ubicación en la portada en {count, plural, one {# espacio} other {# espacios}}."
+    },
+    "status": {
+      "settingsSaved": "Configuración del artículo guardada.",
+      "articlePublished": "Artículo publicado.",
+      "placedAndPublished": "Noticia ubicada y publicada. Publica la portada para que aparezca en vivo."
+    },
+    "errors": {
+      "loadCategories": "No se pudieron cargar las categorías",
+      "loadDetail": "No se pudo cargar el detalle del artículo",
+      "selectCategory": "Selecciona al menos una categoría.",
+      "saveArticle": "No se pudo guardar el artículo",
+      "publish": "Error al publicar",
+      "publishPlaced": "No se pudo publicar la noticia ubicada",
+      "placementFailed": "Error al ubicar en la portada",
+      "publishPlacements": "No se pudieron publicar las ubicaciones de la portada",
+      "loadEditorData": "No se pudieron cargar los datos del editor"
+    }
+  },
+  "review": {
+    "heading": "Noticias en espera de revisión",
+    "subtitle": "Aprueba noticias para publicarlas o devuélvelas al reportero.",
+    "loading": "Cargando noticias…",
+    "empty": "No hay noticias en espera de revisión.",
+    "row": {
+      "id": "ID:",
+      "author": "Autor:"
+    },
+    "actions": {
+      "approve": "Aprobar y publicar",
+      "sendBack": "Devolver al reportero",
+      "working": "Procesando…"
+    },
+    "status": {
+      "approved": "Se aprobó \"{title}\".",
+      "sentBack": "Se devolvió \"{title}\" a borrador."
+    },
+    "errors": {
+      "load": "No se pudieron cargar las noticias para revisión",
+      "approve": "No se pudo aprobar la noticia",
+      "sendBack": "No se pudo devolver la noticia"
+    }
+  }
+}

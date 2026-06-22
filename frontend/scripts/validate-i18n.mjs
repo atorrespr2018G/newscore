@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const messagesDir = path.join(__dirname, '..', 'messages')
 const locales = ['en', 'es']
-const namespaces = ['common', 'navigation', 'home', 'auth']
+const namespaces = ['common', 'navigation', 'home', 'auth', 'admin']
 
 function flattenKeys(value, prefix = '') {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {

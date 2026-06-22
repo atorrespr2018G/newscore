@@ -1,4 +1,5 @@
 import type { IArticlePlacementOut } from '@/lib/api/layout-client'
+import { homepageSectionTitle, staticSectionLabelTranslator } from '@/lib/helpers/section-labels'
 
 /** Homepage slot placement for a single article. */
 export interface IArticlePlacement {
@@ -67,12 +68,22 @@ export function formatArticlePlacements(
 /**
  * Format one placement entry.
  *
+ * Resolves the section label from the slot's position key (the canonical source
+ * shared with the homepage and editor canvas) so the summary never surfaces a
+ * stale or mismatched CMS `display_name`.
+ *
  * @param placement Placement entry.
  * @returns Human-readable label.
  */
 function formatSinglePlacement(placement: IArticlePlacement): string {
   const pageLabel = PAGE_LABELS[placement.pageName] ?? placement.pageName
-  return `${pageLabel} · ${placement.displayName} #${placement.position}`
+  const sectionLabel = homepageSectionTitle(
+    placement.positionKey,
+    placement.displayName,
+    staticSectionLabelTranslator,
+    placement.pageName,
+  )
+  return `${pageLabel} · ${sectionLabel} #${placement.position}`
 }
 
 /**

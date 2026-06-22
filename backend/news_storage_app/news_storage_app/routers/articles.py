@@ -90,6 +90,41 @@ async def publish_article(
     return await article_service.publish(db, article_id=article_id, actor_id=current_user.sub)
 
 
+@router.post("/{article_id}/submit-for-review", response_model=ArticleDetailOut)
+async def submit_article_for_review(
+    article_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: TokenPayload = Depends(require_role("reporter", "editor", "admin")),
+) -> ArticleDetailOut:
+    """Submit a draft article for editorial review."""
+
+    return await article_service.submit_for_review(
+        db, article_id=article_id, actor_id=current_user.sub
+    )
+
+
+@router.post("/{article_id}/approve", response_model=ArticleDetailOut)
+async def approve_article(
+    article_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
+) -> ArticleDetailOut:
+    """Approve an in-review article and publish it."""
+
+    return await article_service.approve(db, article_id=article_id, actor_id=current_user.sub)
+
+
+@router.post("/{article_id}/send-back", response_model=ArticleDetailOut)
+async def send_article_back(
+    article_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
+) -> ArticleDetailOut:
+    """Send an in-review article back to draft."""
+
+    return await article_service.send_back(db, article_id=article_id, actor_id=current_user.sub)
+
+
 @router.post("/{article_id}/archive", response_model=ArticleDetailOut)
 async def archive_article(
     article_id: str,

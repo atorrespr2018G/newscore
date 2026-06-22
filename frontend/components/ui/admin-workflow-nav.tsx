@@ -2,15 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ADMIN_WORKFLOW_TABS } from '@/lib/api/admin-routes'
 
 /**
- * Tab navigation for Reporter, Editor, and Preview workflow pages.
+ * Tab navigation for the Reporter, Editor, and Review workflow pages.
  *
- * @returns Workflow tab bar, or null on non-workflow admin routes.
+ * @returns Localized workflow tab bar, or null on non-workflow admin routes.
  */
 export function AdminWorkflowNav(): JSX.Element | null {
   const pathname = usePathname()
+  const t = useTranslations('admin')
 
   if (pathname.startsWith('/admin/login') || pathname.startsWith('/admin/preview')) {
     return null
@@ -18,7 +20,7 @@ export function AdminWorkflowNav(): JSX.Element | null {
 
   return (
     <nav
-      aria-label="Editorial workflow"
+      aria-label={t('workflow.ariaLabel')}
       className="mb-6 flex flex-wrap gap-2 border-b border-neutral-200 pb-4"
     >
       {ADMIN_WORKFLOW_TABS.map((tab) => {
@@ -36,7 +38,7 @@ export function AdminWorkflowNav(): JSX.Element | null {
                 : 'text-neutral-700 hover:bg-neutral-100',
             ].join(' ')}
           >
-            {tab.label}
+            {t(`workflow.${tab.labelKey}`)}
           </Link>
         )
       })}

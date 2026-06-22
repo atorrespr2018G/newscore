@@ -40,6 +40,7 @@ const DEFAULT_MASTHEAD_SECTION_KEYS = [
   'politics',
   'world',
   'technology',
+  'business',
   'health',
   'finance',
   'entertainment',

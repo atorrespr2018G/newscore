@@ -671,6 +671,114 @@ async def publish(
     return article_detail_out(updated, author_name=await loader.load(str(updated["author_id"])))
 
 
+async def submit_for_review(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    actor_id: str | None = None,
+) -> ArticleDetailOut:
+    """Move a draft article into the review queue.
+
+    Args:
+        db: Database connection.
+        article_id: Article id to submit for review.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Updated article detail payload in ``review`` status.
+
+    Raises:
+        ConflictError: If the article is not currently a draft.
+        NotFoundError: If the article does not exist.
+    """
+
+    repo = ArticleRepository(db)
+    doc = await get_by_id(db, article_id)
+    if doc["status"] != "draft":
+        raise ConflictError("Only draft articles can be submitted for review")
+
+    now = _utc_now_iso()
+    updated = await repo.find_one_and_update(
+        article_id,
+        {"status": "review", "updated_at": now},
+    )
+    if updated is None:
+        raise NotFoundError("Article not found")
+
+    await _write_audit(db, actor_id=actor_id, action="article.submit_for_review", article_id=article_id)
+    loader = AuthorNameLoader(db)
+    return article_detail_out(updated, author_name=await loader.load(str(updated["author_id"])))
+
+
+async def approve(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    actor_id: str | None = None,
+) -> ArticleDetailOut:
+    """Approve an in-review article and publish it.
+
+    Reuses the existing publish side effects (cache invalidation, audit) after
+    enforcing that the article is currently awaiting review.
+
+    Args:
+        db: Database connection.
+        article_id: Article id to approve.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Published article detail payload.
+
+    Raises:
+        ConflictError: If the article is not currently in review.
+        NotFoundError: If the article does not exist.
+    """
+
+    doc = await get_by_id(db, article_id)
+    if doc["status"] != "review":
+        raise ConflictError("Only articles in review can be approved")
+    return await publish(db, article_id=article_id, actor_id=actor_id)
+
+
+async def send_back(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    actor_id: str | None = None,
+) -> ArticleDetailOut:
+    """Send an in-review article back to draft for further edits.
+
+    Args:
+        db: Database connection.
+        article_id: Article id to send back.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Updated article detail payload in ``draft`` status.
+
+    Raises:
+        ConflictError: If the article is not currently in review.
+        NotFoundError: If the article does not exist.
+    """
+
+    repo = ArticleRepository(db)
+    doc = await get_by_id(db, article_id)
+    if doc["status"] != "review":
+        raise ConflictError("Only articles in review can be sent back")
+
+    now = _utc_now_iso()
+    updated = await repo.find_one_and_update(
+        article_id,
+        {"status": "draft", "updated_at": now},
+    )
+    if updated is None:
+        raise NotFoundError("Article not found")
+
+    await _write_audit(db, actor_id=actor_id, action="article.send_back", article_id=article_id)
+    loader = AuthorNameLoader(db)
+    return article_detail_out(updated, author_name=await loader.load(str(updated["author_id"])))
+
+
 async def archive(
     db: AsyncIOMotorDatabase,
     *,

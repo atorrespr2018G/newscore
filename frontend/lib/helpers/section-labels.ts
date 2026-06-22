@@ -1,3 +1,5 @@
+import enNavigation from '@/messages/en/navigation.json'
+
 /** Maps layout slot position keys to navigation.sectionLabels translation keys. */
 
 const SECTION_TRANSLATION_KEYS = new Set([
@@ -23,6 +25,8 @@ const SECTION_TRANSLATION_KEYS = new Set([
   'finance',
 
   'technology',
+
+  'business',
 
   'health',
 
@@ -72,6 +76,8 @@ export const HOMEPAGE_POST_POLITICS_SECTION_KEYS = [
 
   'technology',
 
+  'business',
+
 ] as const
 
 
@@ -101,6 +107,8 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
   'politics',
 
   'technology',
+
+  'business',
 
   'world-latest',
 
@@ -161,6 +169,8 @@ const POSITION_KEY_OVERRIDES_DISPLAY_NAME = new Set([
   'finance',
 
   'technology',
+
+  'business',
 
   'sports',
 
@@ -373,6 +383,36 @@ export function sectionAnchorId(positionKey: string): string {
 export function isHomepageSectionVisible(positionKey: string): boolean {
 
   return !HIDDEN_HOMEPAGE_SECTION_KEYS.has(positionKey.trim().toLowerCase())
+
+}
+
+
+
+/**
+
+ * Resolve a section label from the bundled English navigation messages.
+
+ *
+
+ * Lets non-React (pure) helpers reuse the canonical position-key labels without
+
+ * a `next-intl` hook, keeping editor surfaces consistent with the live site.
+
+ *
+
+ * @param key Section-label translation key (e.g. `sectionLabels.health`).
+
+ * @returns The English label, or the bare position key when unmapped.
+
+ */
+
+export const staticSectionLabelTranslator: SectionLabelTranslator = (key) => {
+
+  const positionKey = key.replace('sectionLabels.', '')
+
+  const labels = enNavigation.sectionLabels as Record<string, string>
+
+  return labels[positionKey] ?? positionKey
 
 }
 

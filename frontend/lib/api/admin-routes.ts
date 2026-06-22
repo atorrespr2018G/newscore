@@ -31,15 +31,29 @@ export function getDefaultAdminRoute(role: AdminRoleType): string {
 }
 
 /** Admin workflow routes available from the top nav tabs. */
-export const ADMIN_WORKFLOW_ROUTES = ['/admin/reporter', '/admin/editor', '/admin/preview'] as const
+export const ADMIN_WORKFLOW_ROUTES = [
+  '/admin/reporter',
+  '/admin/editor',
+  '/admin/review',
+  '/admin/preview',
+] as const
 
 export type AdminWorkflowRouteType = (typeof ADMIN_WORKFLOW_ROUTES)[number]
 
-/** Labels and paths for the editorial workflow tab bar. */
-export const ADMIN_WORKFLOW_TABS: ReadonlyArray<{ href: AdminWorkflowRouteType; label: string }> = [
-  { href: '/admin/reporter', label: 'Reporter' },
-  { href: '/admin/editor', label: 'Editor' },
-  { href: '/admin/preview', label: 'Preview' },
+/**
+ * Tab paths and their `admin.workflow.*` message keys for the editorial tab bar.
+ *
+ * Labels are resolved at render time via `useTranslations` so the bar follows
+ * the active UI locale; only the semantic key lives here.
+ */
+export const ADMIN_WORKFLOW_TABS: ReadonlyArray<{
+  href: AdminWorkflowRouteType
+  labelKey: string
+}> = [
+  { href: '/admin/reporter', labelKey: 'reporter' },
+  { href: '/admin/editor', labelKey: 'editor' },
+  { href: '/admin/review', labelKey: 'review' },
+  { href: '/admin/preview', labelKey: 'preview' },
 ]
 
 /**
@@ -60,6 +74,7 @@ export function canAccessAdminPath(role: AdminRoleType, pathname: string): boole
       pathname === '/admin' ||
       pathname.startsWith('/admin/reporter') ||
       pathname.startsWith('/admin/editor') ||
+      pathname.startsWith('/admin/review') ||
       pathname.startsWith('/admin/preview')
     )
   }

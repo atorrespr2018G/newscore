@@ -1,7 +1,9 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { useEditorScope } from '@/context/editor-scope-context'
+import { submitArticleForReview } from '@/lib/api/article-workflow-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { apiConfig } from '@/lib/api/config'
 import { getHomepageLayout } from '@/lib/api/layout-client'
@@ -42,6 +44,7 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
 }
 
 export default function ReporterUploadPage(): JSX.Element {
+  const t = useTranslations('admin')
   const scope = useEditorScope()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
@@ -56,22 +59,24 @@ export default function ReporterUploadPage(): JSX.Element {
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [savedArticle, setSavedArticle] = useState<IArticleOut | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     void getHomepageLayout(scope.marketCode, scope.pageName)
       .then((layout) => setMarketId(layout.market_id))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to resolve market')
+        setError(err instanceof Error ? err.message : t('reporter.errors.resolveMarket'))
       })
-  }, [scope.marketCode, scope.pageName])
+  }, [scope.marketCode, scope.pageName, t])
 
   useEffect(() => {
     void getCategories()
       .then((items) => setCategories(items))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load categories')
+        setError(err instanceof Error ? err.message : t('reporter.errors.loadCategories'))
       })
-  }, [])
+  }, [t])
 
   const handleImageUpload = useCallback(async (files: FileList | null) => {
     if (!files?.length) {
@@ -87,11 +92,11 @@ export default function ReporterUploadPage(): JSX.Element {
       }
       setImages((current) => [...current, ...uploaded])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Image upload failed')
+      setError(err instanceof Error ? err.message : t('reporter.errors.imageUpload'))
     } finally {
       setUploadingMedia(false)
     }
-  }, [])
+  }, [t])
 
   async function handleVideoUpload(file: File | null) {
     if (!file) {
@@ -103,7 +108,7 @@ export default function ReporterUploadPage(): JSX.Element {
       const media = await uploadVideo(file)
       setVideoUrl(media.url)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Video upload failed')
+      setError(err instanceof Error ? err.message : t('reporter.errors.videoUpload'))
     } finally {
       setUploadingMedia(false)
     }
@@ -112,15 +117,15 @@ export default function ReporterUploadPage(): JSX.Element {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!marketId) {
-      setError('Market is not ready yet. Try again in a moment.')
+      setError(t('reporter.validation.marketNotReady'))
       return
     }
     if (uploadingMedia) {
-      setError('Wait for uploads to finish before saving.')
+      setError(t('reporter.validation.waitForUploads'))
       return
     }
     if (selectedCategoryIds.length < MIN_CATEGORY_COUNT) {
-      setError('Select at least one category.')
+      setError(t('reporter.validation.selectCategory'))
       return
     }
 
@@ -141,7 +146,8 @@ export default function ReporterUploadPage(): JSX.Element {
           video_url: videoUrl,
         }),
       })
-      setSuccess(`Draft saved: ${article.title}`)
+      setSuccess(t('reporter.status.draftSaved', { title: article.title }))
+      setSavedArticle(article)
       setTitle('')
       setBody('')
       setImages([])
@@ -149,18 +155,33 @@ export default function ReporterUploadPage(): JSX.Element {
       setSelectedCategoryIds([])
       setInternationalPotential(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save draft')
+      setError(err instanceof Error ? err.message : t('reporter.errors.saveDraft'))
     } finally {
       setLoading(false)
     }
   }
 
+  const handleSubmitForReview = useCallback(async () => {
+    if (!savedArticle) {
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await submitArticleForReview(savedArticle.id)
+      setSuccess(t('reporter.status.submittedForReview', { title: savedArticle.title }))
+      setSavedArticle(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('reporter.errors.submitForReview'))
+    } finally {
+      setSubmitting(false)
+    }
+  }, [savedArticle, t])
+
   return (
     <div>
-      <h1 className="font-serif text-2xl font-bold">Reporter</h1>
-      <p className="mt-1 text-sm text-neutral-600">
-        Upload news title, body, images, and video.
-      </p>
+      <h1 className="font-serif text-2xl font-bold">{t('reporter.title')}</h1>
+      <p className="mt-1 text-sm text-neutral-600">{t('reporter.subtitle')}</p>
 
       {error ? (
         <p className="mt-4 rounded bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
@@ -172,10 +193,20 @@ export default function ReporterUploadPage(): JSX.Element {
           {success}
         </p>
       ) : null}
+      {savedArticle ? (
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => void handleSubmitForReview()}
+          className="mt-3 rounded border border-brand px-3 py-2 text-sm font-medium text-brand hover:bg-brand/5 disabled:opacity-60"
+        >
+          {submitting ? t('reporter.actions.submitting') : t('reporter.actions.submitForReview')}
+        </button>
+      ) : null}
 
       <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-5">
         <label className="block text-sm font-medium text-neutral-700">
-          Headline
+          {t('reporter.fields.headline')}
           <input
             required
             minLength={3}
@@ -186,7 +217,7 @@ export default function ReporterUploadPage(): JSX.Element {
         </label>
 
         <label className="block text-sm font-medium text-neutral-700">
-          Body
+          {t('reporter.fields.body')}
           <textarea
             required
             minLength={10}
@@ -199,12 +230,18 @@ export default function ReporterUploadPage(): JSX.Element {
 
         <fieldset>
           <legend className="text-sm font-medium text-neutral-700">
-            Categories <span className="font-normal text-neutral-500">(choose 1–3)</span>
+            {t('reporter.fields.categories')}{' '}
+            <span className="font-normal text-neutral-500">
+              {t('reporter.fields.categoriesHint')}
+            </span>
           </legend>
           <p className="mt-1 text-xs text-neutral-500">
-            Selected {selectedCategoryIds.length} of {MAX_CATEGORY_COUNT}.
+            {t('reporter.fields.selectedCount', {
+              count: selectedCategoryIds.length,
+              max: MAX_CATEGORY_COUNT,
+            })}
             {selectedCategoryIds.length >= MAX_CATEGORY_COUNT ? (
-              <span className="ml-1 text-neutral-400">Uncheck one to choose another.</span>
+              <span className="ml-1 text-neutral-400">{t('reporter.fields.uncheckHint')}</span>
             ) : null}
           </p>
           {categories.length > 0 ? (
@@ -234,13 +271,18 @@ export default function ReporterUploadPage(): JSX.Element {
               })}
             </div>
           ) : (
-            <p className="mt-2 text-sm text-neutral-500">Loading categories…</p>
+            <p className="mt-2 text-sm text-neutral-500">
+              {t('reporter.fields.loadingCategories')}
+            </p>
           )}
         </fieldset>
 
         <label className="block text-sm font-medium text-neutral-700">
-          International potential
-          <span className="font-normal text-neutral-500"> (optional, 1–10)</span>
+          {t('reporter.fields.internationalPotential')}
+          <span className="font-normal text-neutral-500">
+            {' '}
+            {t('reporter.fields.internationalPotentialHint')}
+          </span>
           <select
             value={internationalPotential ?? ''}
             onChange={(event) =>
@@ -250,7 +292,7 @@ export default function ReporterUploadPage(): JSX.Element {
             }
             className="mt-1 block w-32 rounded border border-neutral-300 px-3 py-2"
           >
-            <option value="">Not rated</option>
+            <option value="">{t('reporter.fields.notRated')}</option>
             {INTERNATIONAL_POTENTIAL_OPTIONS.map((score) => (
               <option key={score} value={score}>
                 {score}
@@ -260,7 +302,7 @@ export default function ReporterUploadPage(): JSX.Element {
         </label>
 
         <div>
-          <p className="text-sm font-medium text-neutral-700">Images</p>
+          <p className="text-sm font-medium text-neutral-700">{t('reporter.fields.images')}</p>
           <input
             type="file"
             accept="image/*"
@@ -289,7 +331,9 @@ export default function ReporterUploadPage(): JSX.Element {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={image.url} alt="" className="h-16 w-16 rounded object-cover" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs text-neutral-500">Position {index + 1}</p>
+                    <p className="truncate text-xs text-neutral-500">
+                      {t('reporter.fields.position', { position: index + 1 })}
+                    </p>
                     <button
                       type="button"
                       onClick={() =>
@@ -297,19 +341,19 @@ export default function ReporterUploadPage(): JSX.Element {
                       }
                       className="text-xs text-red-600 hover:underline"
                     >
-                      Remove
+                      {t('reporter.fields.remove')}
                     </button>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-neutral-500">Drag rows to reorder after upload.</p>
+            <p className="mt-2 text-sm text-neutral-500">{t('reporter.fields.imagesEmpty')}</p>
           )}
         </div>
 
         <label className="block text-sm font-medium text-neutral-700">
-          Optional video
+          {t('reporter.fields.video')}
           <input
             type="file"
             accept="video/*"
@@ -317,7 +361,9 @@ export default function ReporterUploadPage(): JSX.Element {
             onChange={(event) => void handleVideoUpload(event.target.files?.[0] ?? null)}
             className="mt-2 block w-full text-sm"
           />
-          {videoUrl ? <p className="mt-1 text-xs text-neutral-500">Video attached.</p> : null}
+          {videoUrl ? (
+            <p className="mt-1 text-xs text-neutral-500">{t('reporter.fields.videoAttached')}</p>
+          ) : null}
         </label>
 
         <button
@@ -325,7 +371,7 @@ export default function ReporterUploadPage(): JSX.Element {
           disabled={loading || uploadingMedia || selectedCategoryIds.length < MIN_CATEGORY_COUNT}
           className="rounded bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:opacity-60"
         >
-          {loading ? 'Saving…' : 'Save draft'}
+          {loading ? t('reporter.actions.saving') : t('reporter.actions.save')}
         </button>
       </form>
     </div>

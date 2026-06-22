@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
@@ -85,6 +86,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     saving,
     onSaveTaxonomy,
   } = props
+  const t = useTranslations('admin')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [searchResults, setSearchResults] = useState<IEditorStoryRow[] | null>(null)
@@ -158,12 +160,12 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
       <div className="pb-4">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto] md:items-end">
           <label className="text-sm font-medium text-neutral-700">
-            Search by title or slug
+            {t('editor.pool.searchLabel')}
             <input
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search stories"
+              placeholder={t('editor.pool.searchPlaceholder')}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm"
             />
           </label>
@@ -202,19 +204,27 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
                 </h3>
                 <dl className="space-y-1 text-xs text-neutral-600">
                   <div>
-                    <dt className="inline font-medium text-neutral-500">ID: </dt>
+                    <dt className="inline font-medium text-neutral-500">
+                      {t('editor.pool.row.id')}{' '}
+                    </dt>
                     <dd className="inline font-mono text-[11px] text-neutral-700">{article.id}</dd>
                   </div>
                   <div>
-                    <dt className="inline font-medium text-neutral-500">Status: </dt>
+                    <dt className="inline font-medium text-neutral-500">
+                      {t('editor.pool.row.status')}{' '}
+                    </dt>
                     <dd className="inline capitalize">{article.status}</dd>
                   </div>
                   <div>
-                    <dt className="inline font-medium text-neutral-500">Author: </dt>
+                    <dt className="inline font-medium text-neutral-500">
+                      {t('editor.pool.row.author')}{' '}
+                    </dt>
                     <dd className="inline">{article.author_name}</dd>
                   </div>
                   <div>
-                    <dt className="inline font-medium text-neutral-500">Location: </dt>
+                    <dt className="inline font-medium text-neutral-500">
+                      {t('editor.pool.row.location')}{' '}
+                    </dt>
                     <dd
                       className="inline leading-snug"
                       title={formatAllArticlePlacements(placementMap.get(article.id) ?? [])}
@@ -241,12 +251,12 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
         </div>
         {searchLoading ? (
           <p className="py-3 text-center text-sm text-neutral-500" aria-live="polite">
-            Searching stories…
+            {t('editor.pool.searching')}
           </p>
         ) : null}
         {!searchLoading && visibleArticles.length === 0 ? (
           <p className="rounded border border-dashed border-neutral-300 px-3 py-5 text-sm text-neutral-500">
-            {resolveEmptyMessage(activeTab, debouncedSearch)}
+            {t(resolveEmptyMessageKey(activeTab, debouncedSearch))}
           </p>
         ) : null}
       </div>
@@ -255,20 +265,20 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
 }
 
 /**
- * Resolve the empty-state copy for the current tab and search state.
+ * Resolve the `admin` message key for the current empty-state.
  *
  * @param activeTab Which source list is active.
  * @param debouncedSearch Trimmed, debounced search query.
- * @returns Human-readable empty-state message.
+ * @returns Translation key for the empty-state message.
  */
-function resolveEmptyMessage(activeTab: NewsTabType, debouncedSearch: string): string {
+function resolveEmptyMessageKey(activeTab: NewsTabType, debouncedSearch: string): string {
   if (debouncedSearch) {
-    return 'No stories match your search.'
+    return 'editor.pool.empty.search'
   }
   if (activeTab === 'new') {
-    return 'No new reporter uploads waiting. Placed stories move to the All news tab.'
+    return 'editor.pool.empty.new'
   }
-  return 'No stories match the current filters.'
+  return 'editor.pool.empty.filters'
 }
 
 interface INewsTabBarProps {
@@ -287,6 +297,7 @@ const TAB_BASE_CLASS = 'border-b-2 px-1 pb-2 text-sm font-medium transition-colo
  */
 function NewsTabBar(props: INewsTabBarProps): JSX.Element {
   const { activeTab, newCount, onTabChange } = props
+  const t = useTranslations('admin')
   return (
     <div className="mb-4 flex gap-4 border-b border-neutral-200" role="tablist">
       <button
@@ -296,7 +307,7 @@ function NewsTabBar(props: INewsTabBarProps): JSX.Element {
         onClick={() => onTabChange('all')}
         className={`${TAB_BASE_CLASS} ${activeTab === 'all' ? 'border-brand text-brand' : 'border-transparent text-neutral-600 hover:text-neutral-900'}`}
       >
-        All news
+        {t('editor.pool.tabs.all')}
       </button>
       <button
         type="button"
@@ -305,7 +316,7 @@ function NewsTabBar(props: INewsTabBarProps): JSX.Element {
         onClick={() => onTabChange('new')}
         className={`${TAB_BASE_CLASS} ${activeTab === 'new' ? 'border-brand text-brand' : 'border-transparent text-neutral-600 hover:text-neutral-900'}`}
       >
-        New
+        {t('editor.pool.tabs.new')}
         {newCount > 0 ? (
           <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">
             {newCount}
@@ -321,10 +332,10 @@ interface IPlacementFilterButtonsProps {
   onFilterChange: (filter: PlacementFilterType) => void
 }
 
-const PLACEMENT_FILTER_OPTIONS: ReadonlyArray<{ value: PlacementFilterType; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'unplaced', label: 'Unplaced' },
-  { value: 'homepage', label: 'Homepage placed' },
+const PLACEMENT_FILTER_OPTIONS: ReadonlyArray<{ value: PlacementFilterType; labelKey: string }> = [
+  { value: 'all', labelKey: 'editor.pool.filters.all' },
+  { value: 'unplaced', labelKey: 'editor.pool.filters.unplaced' },
+  { value: 'homepage', labelKey: 'editor.pool.filters.homepage' },
 ]
 
 /**
@@ -335,6 +346,7 @@ const PLACEMENT_FILTER_OPTIONS: ReadonlyArray<{ value: PlacementFilterType; labe
  */
 function PlacementFilterButtons(props: IPlacementFilterButtonsProps): JSX.Element {
   const { activeFilter, onFilterChange } = props
+  const t = useTranslations('admin')
   return (
     <>
       {PLACEMENT_FILTER_OPTIONS.map((option) => (
@@ -344,7 +356,7 @@ function PlacementFilterButtons(props: IPlacementFilterButtonsProps): JSX.Elemen
           onClick={() => onFilterChange(option.value)}
           className={`rounded border px-3 py-2 text-xs font-medium ${activeFilter === option.value ? 'border-brand text-brand' : 'border-neutral-300 text-neutral-700'}`}
         >
-          {option.label}
+          {t(option.labelKey)}
         </button>
       ))}
     </>

@@ -189,3 +189,61 @@ export function buildPlacementMutation(
 
   return { updates, fromSlotId, fromIndex }
 }
+
+/**
+ * Resolve the working base pinned ids for a cascade slot.
+ *
+ * Reuses a staged update for the slot when one already exists so chained
+ * cascade inserts build on each other instead of clobbering prior work.
+ *
+ * @param result In-progress placement mutation result.
+ * @param slot Homepage slot receiving the cascade insert.
+ * @returns Pinned ids to insert the cascaded story into.
+ */
+function resolveCascadeBase(result: IPlacementMutationResult, slot: ISlotOut): string[] {
+  const staged = result.updates.find((update) => update.slotId === slot.id)
+  if (staged) {
+    return staged.draftPinnedIds
+  }
+  return slotForEditorPlacement(slot).pinned_ids
+}
+
+/**
+ * Append top-of-section cascade inserts for each category slot to a mutation.
+ *
+ * Each cascade slot pins the article at index 0 (shifting other stories down),
+ * merging into any existing staged update for that slot. The source mutation is
+ * left untouched; a new result is returned.
+ *
+ * @param result Base placement mutation produced by `buildPlacementMutation`.
+ * @param slots Current homepage slots.
+ * @param articleId Article id being cascaded into category sections.
+ * @param cascadeSlotIds Slot ids of the matched category sections.
+ * @returns New mutation result including the category cascade updates.
+ */
+export function appendCategoryCascadeUpdates(
+  result: IPlacementMutationResult,
+  slots: ISlotOut[],
+  articleId: string,
+  cascadeSlotIds: string[],
+): IPlacementMutationResult {
+  const slotById = new Map(slots.map((slot) => [slot.id, slot]))
+  const updates = result.updates.map((update) => ({ ...update }))
+
+  for (const slotId of cascadeSlotIds) {
+    const slot = slotById.get(slotId)
+    if (!slot || slot.content_type !== 'articles') {
+      continue
+    }
+    const base = resolveCascadeBase({ ...result, updates }, slot)
+    const nextIds = insertPinnedIdAtIndex(base, articleId, 0, resolveSlotPinnedLimit(slot))
+    const existing = updates.find((update) => update.slotId === slotId)
+    if (existing) {
+      existing.draftPinnedIds = nextIds
+    } else {
+      updates.push({ slotId, draftPinnedIds: nextIds })
+    }
+  }
+
+  return { ...result, updates }
+}

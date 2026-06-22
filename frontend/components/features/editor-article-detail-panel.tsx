@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import {
   formatAllArticlePlacements,
@@ -37,10 +38,10 @@ export function EditorArticleDetailPanel({
   onSave,
   onPublish,
 }: IEditorArticleDetailPanelProps): JSX.Element {
+  const t = useTranslations('admin')
+
   if (!detail) {
-    return (
-      <p className="text-sm text-neutral-500">Select a story to curate media and placement.</p>
-    )
+    return <p className="text-sm text-neutral-500">{t('editor.detail.selectStory')}</p>
   }
 
   return (
@@ -50,12 +51,12 @@ export function EditorArticleDetailPanel({
         <p className="mt-1 font-mono text-xs text-neutral-400">{detail.id}</p>
         <p className="text-xs uppercase tracking-wide text-neutral-500">{detail.status}</p>
         <p className="mt-2 text-sm text-neutral-600">
-          Location: {formatAllArticlePlacements(placements)}
+          {t('editor.detail.location', { placements: formatAllArticlePlacements(placements) })}
         </p>
       </div>
 
       <label className="block text-sm font-medium text-neutral-700">
-        Max image count
+        {t('editor.detail.maxImageCount')}
         <input
           type="number"
           min={1}
@@ -75,7 +76,7 @@ export function EditorArticleDetailPanel({
           onClick={onSave}
           className="rounded border border-brand px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 disabled:opacity-60"
         >
-          Save changes
+          {t('editor.detail.save')}
         </button>
         {detail.status === 'draft' ? (
           <button
@@ -84,7 +85,7 @@ export function EditorArticleDetailPanel({
             onClick={onPublish}
             className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-60"
           >
-            Publish
+            {t('editor.detail.publish')}
           </button>
         ) : null}
       </div>
@@ -104,9 +105,10 @@ interface IEditorMediaListProps {
  * @returns The reorderable media list.
  */
 function EditorMediaList({ mediaItems, setMediaItems }: IEditorMediaListProps): JSX.Element {
+  const t = useTranslations('admin')
   return (
     <div>
-      <p className="text-sm font-medium text-neutral-700">Attached images</p>
+      <p className="text-sm font-medium text-neutral-700">{t('editor.detail.attachedImages')}</p>
       <ul className="mt-2 space-y-2">
         {mediaItems.map((item, index) => (
           <li
@@ -122,7 +124,7 @@ function EditorMediaList({ mediaItems, setMediaItems }: IEditorMediaListProps): 
               onClick={() => setMediaItems((current) => moveItem(current, index, index - 1))}
               className="text-xs text-neutral-600 hover:text-brand disabled:opacity-40"
             >
-              Up
+              {t('editor.detail.up')}
             </button>
             <button
               type="button"
@@ -130,13 +132,13 @@ function EditorMediaList({ mediaItems, setMediaItems }: IEditorMediaListProps): 
               onClick={() => setMediaItems((current) => moveItem(current, index, index + 1))}
               className="text-xs text-neutral-600 hover:text-brand disabled:opacity-40"
             >
-              Down
+              {t('editor.detail.down')}
             </button>
           </li>
         ))}
       </ul>
       {mediaItems.length === 0 ? (
-        <p className="mt-2 text-sm text-neutral-500">No images attached.</p>
+        <p className="mt-2 text-sm text-neutral-500">{t('editor.detail.noImages')}</p>
       ) : null}
     </div>
   )

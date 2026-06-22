@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import { EditorStoryPool } from '@/components/features/editor-story-pool'
 import { EditorArticleDetailPanel } from '@/components/features/editor-article-detail-panel'
@@ -13,6 +14,7 @@ const EDITOR_CANVAS_STICKY_CLASS = 'lg:sticky lg:top-24 lg:self-start'
 
 export default function EditorCurationPage(): JSX.Element {
   const editor = useEditorCuration()
+  const t = useTranslations('admin')
 
   return (
     <div>
@@ -25,7 +27,7 @@ export default function EditorCurationPage(): JSX.Element {
       <EditorStatusMessages error={editor.error} message={editor.message} />
 
       {editor.loading ? (
-        <p className="mt-8 text-neutral-600">Loading stories…</p>
+        <p className="mt-8 text-neutral-600">{t('editor.loading')}</p>
       ) : (
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-start">
           <EditorStoryPoolSection editor={editor} />
@@ -37,17 +39,17 @@ export default function EditorCurationPage(): JSX.Element {
 }
 
 function EditorHeader(): JSX.Element {
+  const t = useTranslations('admin')
+
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h1 className="font-serif text-2xl font-bold">Editor</h1>
+        <h1 className="font-serif text-2xl font-bold">{t('editor.heading')}</h1>
         <Link href="/admin/preview" className="text-sm font-semibold text-brand hover:underline">
-          Preview
+          {t('editor.previewLink')}
         </Link>
       </div>
-      <p className="mt-1 text-sm text-neutral-600">
-        Stage homepage placement changes, preview them, then publish when ready.
-      </p>
+      <p className="mt-1 text-sm text-neutral-600">{t('editor.subtitle')}</p>
     </>
   )
 }
@@ -58,18 +60,18 @@ interface IEditorPlacementBannerProps {
 }
 
 function EditorPlacementBanner({ saving, onPublish }: IEditorPlacementBannerProps): JSX.Element {
+  const t = useTranslations('admin')
+
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-4 py-3">
-      <p className="text-sm text-amber-900">
-        You have unpublished homepage placement changes. The public site still shows the last published layout.
-      </p>
+      <p className="text-sm text-amber-900">{t('editor.banner.unpublished')}</p>
       <button
         type="button"
         disabled={saving}
         onClick={() => void onPublish()}
         className="rounded bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-60"
       >
-        Publish homepage
+        {t('editor.banner.publish')}
       </button>
     </div>
   )
@@ -98,6 +100,8 @@ function EditorStatusMessages({ error, message }: IEditorStatusMessagesProps): J
 }
 
 function EditorStoryPoolSection({ editor }: { editor: IEditorCuration }): JSX.Element {
+  const t = useTranslations('admin')
+
   return (
     <section className="min-w-0 rounded-lg border border-neutral-200 bg-white">
       <EditorArticleIdLoader
@@ -121,7 +125,7 @@ function EditorStoryPoolSection({ editor }: { editor: IEditorCuration }): JSX.El
           onSaveTaxonomy={() => void editor.saveArticleChanges()}
         />
         {editor.articles.length === 0 ? (
-          <p className="py-8 text-center text-neutral-500">No uploaded stories yet.</p>
+          <p className="py-8 text-center text-neutral-500">{t('editor.emptyPool')}</p>
         ) : null}
       </div>
     </section>
@@ -139,10 +143,12 @@ function EditorArticleIdLoader({
   setArticleIdInput,
   onLoad,
 }: IEditorArticleIdLoaderProps): JSX.Element {
+  const t = useTranslations('admin')
+
   return (
     <div className="flex flex-wrap items-end gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
       <label className="min-w-[16rem] flex-1 text-sm font-medium text-neutral-700">
-        Load by article id
+        {t('editor.loadById.label')}
         <input
           type="text"
           value={articleIdInput}
@@ -152,7 +158,7 @@ function EditorArticleIdLoader({
               onLoad()
             }
           }}
-          placeholder="e.g. 96aeb8aa-d57e-4521-a393-17b7db4b6827"
+          placeholder={t('editor.loadById.placeholder')}
           className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 font-mono text-xs"
         />
       </label>
@@ -161,7 +167,7 @@ function EditorArticleIdLoader({
         onClick={onLoad}
         className="rounded border border-brand px-3 py-2 text-sm font-medium text-brand hover:bg-brand/5"
       >
-        Load story
+        {t('editor.loadById.load')}
       </button>
     </div>
   )

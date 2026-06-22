@@ -38,6 +38,9 @@ export const SHIFT_DOWN_PLACEMENT_POSITION_KEYS = [
   ...MORE_TOP_STORIES_POSITION_KEYS,
 ] as const
 
+/** Homepage slots that cascade their placed story to the top of each category section. */
+export const HERO_OR_TOP_STORIES_POSITION_KEYS = ['hero', 'us-featured'] as const
+
 /** Hero pinned-article index map (12 articles, indices 0–11): 0 = center lead. */
 const DEFAULT_HERO_LEFT_INDICES = [1, 2, 3] as const
 const DEFAULT_HERO_RIGHT_INDICES = [10, 11] as const
@@ -433,6 +436,20 @@ export function isMoreTopStoriesPositionKey(positionKey: string): boolean {
 export function isShiftDownPlacementPositionKey(positionKey: string): boolean {
   const normalized = positionKey.trim().toLowerCase()
   return (SHIFT_DOWN_PLACEMENT_POSITION_KEYS as readonly string[]).includes(normalized)
+}
+
+/**
+ * Check whether a slot is the Hero or Top Stories slot that cascades to categories.
+ *
+ * Intentionally excludes `more-top-stories` (covered by the shift-down check),
+ * since cascading is scoped to the Hero and Top Stories bands only.
+ *
+ * @param positionKey Slot position key from layout metadata.
+ * @returns True when placing into the slot should pin the story to its categories.
+ */
+export function isHeroOrTopStoriesPositionKey(positionKey: string): boolean {
+  const normalized = positionKey.trim().toLowerCase()
+  return (HERO_OR_TOP_STORIES_POSITION_KEYS as readonly string[]).includes(normalized)
 }
 
 /** Lead position key whose editorial band is promoted to the Top Stories slot. */

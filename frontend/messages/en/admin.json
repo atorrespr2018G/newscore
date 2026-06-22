@@ -1,0 +1,164 @@
+{
+  "workflow": {
+    "ariaLabel": "Editorial workflow",
+    "reporter": "Reporter",
+    "editor": "Editor",
+    "review": "Review",
+    "preview": "Preview"
+  },
+  "reporter": {
+    "title": "Reporter",
+    "subtitle": "Upload news title, body, images, and video.",
+    "fields": {
+      "headline": "Headline",
+      "body": "Body",
+      "categories": "Categories",
+      "categoriesHint": "(choose 1–3)",
+      "selectedCount": "Selected {count} of {max}.",
+      "uncheckHint": "Uncheck one to choose another.",
+      "loadingCategories": "Loading categories…",
+      "internationalPotential": "International potential",
+      "internationalPotentialHint": "(optional, 1–10)",
+      "notRated": "Not rated",
+      "images": "Images",
+      "imagesEmpty": "Drag rows to reorder after upload.",
+      "position": "Position {position}",
+      "remove": "Remove",
+      "video": "Optional video",
+      "videoAttached": "Video attached."
+    },
+    "validation": {
+      "marketNotReady": "Market is not ready yet. Try again in a moment.",
+      "waitForUploads": "Wait for uploads to finish before saving.",
+      "selectCategory": "Select at least one category."
+    },
+    "errors": {
+      "resolveMarket": "Failed to resolve market",
+      "loadCategories": "Failed to load categories",
+      "imageUpload": "Image upload failed",
+      "videoUpload": "Video upload failed",
+      "saveDraft": "Failed to save draft",
+      "submitForReview": "Failed to submit for review"
+    },
+    "status": {
+      "draftSaved": "Draft saved: {title}",
+      "submittedForReview": "Submitted \"{title}\" for review."
+    },
+    "actions": {
+      "save": "Save draft",
+      "saving": "Saving…",
+      "submitForReview": "Submit for review",
+      "submitting": "Submitting…"
+    }
+  },
+  "editor": {
+    "heading": "Editor",
+    "previewLink": "Preview",
+    "subtitle": "Stage homepage placement changes, preview them, then publish when ready.",
+    "loading": "Loading stories…",
+    "emptyPool": "No uploaded stories yet.",
+    "banner": {
+      "unpublished": "You have unpublished homepage placement changes. The public site still shows the last published layout.",
+      "publish": "Publish homepage"
+    },
+    "loadById": {
+      "label": "Load by article id",
+      "placeholder": "e.g. 96aeb8aa-d57e-4521-a393-17b7db4b6827",
+      "load": "Load story",
+      "empty": "Enter an article id to load."
+    },
+    "pool": {
+      "searchLabel": "Search by title or slug",
+      "searchPlaceholder": "Search stories",
+      "searching": "Searching stories…",
+      "tabs": {
+        "all": "All news",
+        "new": "New"
+      },
+      "filters": {
+        "all": "All",
+        "unplaced": "Unplaced",
+        "homepage": "Homepage placed"
+      },
+      "row": {
+        "id": "ID:",
+        "status": "Status:",
+        "author": "Author:",
+        "location": "Location:"
+      },
+      "empty": {
+        "search": "No stories match your search.",
+        "new": "No new reporter uploads waiting. Placed stories move to the All news tab.",
+        "filters": "No stories match the current filters."
+      }
+    },
+    "detail": {
+      "selectStory": "Select a story to curate media and placement.",
+      "location": "Location: {placements}",
+      "maxImageCount": "Max image count",
+      "attachedImages": "Attached images",
+      "noImages": "No images attached.",
+      "up": "Up",
+      "down": "Down",
+      "save": "Save changes",
+      "publish": "Publish"
+    },
+    "placement": {
+      "staged": "Staged \"{title}\" in {destination}{cascade}. Publish homepage to go live.",
+      "stagedMove": "Staged move of \"{title}\" from {from} to {destination}{cascade}. Publish homepage to go live.",
+      "removed": "Removed \"{title}\" from {location}. Publish homepage to go live.",
+      "moved": "Moved \"{title}\" {direction} in {slot}. Publish homepage to go live.",
+      "cascadeSuffix": " and pinned to the top of {count, plural, one {# category section} other {# category sections}}",
+      "directions": {
+        "up": "up",
+        "down": "down"
+      },
+      "fallbackTitle": "Story",
+      "fallbackSlot": "Homepage"
+    },
+    "publishResult": {
+      "none": "No staged homepage placement changes to publish.",
+      "count": "Published homepage placement changes across {count, plural, one {# slot} other {# slots}}."
+    },
+    "status": {
+      "settingsSaved": "Article settings saved.",
+      "articlePublished": "Article published.",
+      "placedAndPublished": "Story placed and published. Publish homepage to push it live."
+    },
+    "errors": {
+      "loadCategories": "Failed to load categories",
+      "loadDetail": "Failed to load article detail",
+      "selectCategory": "Select at least one category.",
+      "saveArticle": "Failed to save article",
+      "publish": "Publish failed",
+      "publishPlaced": "Failed to publish placed story",
+      "placementFailed": "Homepage placement failed",
+      "publishPlacements": "Failed to publish homepage placements",
+      "loadEditorData": "Failed to load editor data"
+    }
+  },
+  "review": {
+    "heading": "Stories awaiting review",
+    "subtitle": "Approve stories to publish them, or send them back to the reporter.",
+    "loading": "Loading stories…",
+    "empty": "No stories are waiting for review.",
+    "row": {
+      "id": "ID:",
+      "author": "Author:"
+    },
+    "actions": {
+      "approve": "Approve & publish",
+      "sendBack": "Send back to reporter",
+      "working": "Working…"
+    },
+    "status": {
+      "approved": "Approved \"{title}\".",
+      "sentBack": "Sent \"{title}\" back to draft."
+    },
+    "errors": {
+      "load": "Failed to load stories for review",
+      "approve": "Failed to approve story",
+      "sendBack": "Failed to send story back"
+    }
+  }
+}
