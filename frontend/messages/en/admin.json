@@ -25,7 +25,11 @@
       "position": "Position {position}",
       "remove": "Remove",
       "video": "Optional video",
-      "videoAttached": "Video attached."
+      "videoAttached": "Video attached.",
+      "chooseFiles": "Choose files",
+      "chooseFile": "Choose file",
+      "noFileSelected": "No file selected",
+      "filesSelected": "{count, plural, one {# file selected} other {# files selected}}"
     },
     "validation": {
       "marketNotReady": "Market is not ready yet. Try again in a moment.",
@@ -102,6 +106,17 @@
       "down": "Down",
       "save": "Save changes",
       "publish": "Publish"
+    },
+    "taxonomy": {
+      "categories": "Categories",
+      "categoriesHint": "(choose 1–3)",
+      "selectedCount": "Selected {count} of {max}.",
+      "uncheckHint": "Uncheck one to choose another.",
+      "loadingCategories": "Loading categories…",
+      "internationalPotential": "International potential",
+      "internationalPotentialHint": "(optional, 1–10)",
+      "notRated": "Not rated",
+      "save": "Save categories"
     },
     "placement": {
       "staged": "Staged \"{title}\" in {destination}{cascade}. Publish homepage to go live.",

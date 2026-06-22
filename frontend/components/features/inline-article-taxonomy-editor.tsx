@@ -1,7 +1,9 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import type { ICategoryOut } from '@/lib/api/category-client'
+import { useSectionLabels } from '@/hooks/use-section-labels'
 import {
   INTERNATIONAL_POTENTIAL_OPTIONS,
   MAX_CATEGORY_COUNT,
@@ -34,6 +36,7 @@ export function InlineArticleTaxonomyEditor({
   saving,
   onSave,
 }: IInlineArticleTaxonomyEditorProps): JSX.Element {
+  const t = useTranslations('admin')
   return (
     <div className="space-y-4 border-t border-neutral-100 bg-neutral-50 p-3">
       <EditorCategorySelector
@@ -51,7 +54,7 @@ export function InlineArticleTaxonomyEditor({
         onClick={onSave}
         className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-60"
       >
-        Save categories
+        {t('editor.taxonomy.save')}
       </button>
     </div>
   )
@@ -74,16 +77,22 @@ function EditorCategorySelector({
   selectedCategoryIds,
   setSelectedCategoryIds,
 }: IEditorCategorySelectorProps): JSX.Element {
+  const t = useTranslations('admin')
+  const { categoryLabel } = useSectionLabels()
   const atLimit = selectedCategoryIds.length >= MAX_CATEGORY_COUNT
   return (
     <fieldset>
       <legend className="text-sm font-medium text-neutral-700">
-        Categories <span className="font-normal text-neutral-500">(choose 1–3)</span>
+        {t('editor.taxonomy.categories')}{' '}
+        <span className="font-normal text-neutral-500">{t('editor.taxonomy.categoriesHint')}</span>
       </legend>
       <p className="mt-1 text-xs text-neutral-500">
-        Selected {selectedCategoryIds.length} of {MAX_CATEGORY_COUNT}.
+        {t('editor.taxonomy.selectedCount', {
+          count: selectedCategoryIds.length,
+          max: MAX_CATEGORY_COUNT,
+        })}
         {atLimit ? (
-          <span className="ml-1 text-neutral-400">Uncheck one to choose another.</span>
+          <span className="ml-1 text-neutral-400">{t('editor.taxonomy.uncheckHint')}</span>
         ) : null}
       </p>
       {categories.length > 0 ? (
@@ -106,13 +115,13 @@ function EditorCategorySelector({
                     setSelectedCategoryIds((current) => toggleCategory(current, category.id))
                   }
                 />
-                <span>{category.name}</span>
+                <span>{categoryLabel(category.slug, category.name)}</span>
               </label>
             )
           })}
         </div>
       ) : (
-        <p className="mt-2 text-sm text-neutral-500">Loading categories…</p>
+        <p className="mt-2 text-sm text-neutral-500">{t('editor.taxonomy.loadingCategories')}</p>
       )}
     </fieldset>
   )
@@ -133,10 +142,14 @@ function EditorInternationalPotentialSelect({
   internationalPotential,
   setInternationalPotential,
 }: IEditorInternationalPotentialSelectProps): JSX.Element {
+  const t = useTranslations('admin')
   return (
     <label className="block text-sm font-medium text-neutral-700">
-      International potential
-      <span className="font-normal text-neutral-500"> (optional, 1–10)</span>
+      {t('editor.taxonomy.internationalPotential')}
+      <span className="font-normal text-neutral-500">
+        {' '}
+        {t('editor.taxonomy.internationalPotentialHint')}
+      </span>
       <select
         value={internationalPotential ?? ''}
         onChange={(event) =>
@@ -144,7 +157,7 @@ function EditorInternationalPotentialSelect({
         }
         className="mt-1 block w-32 rounded border border-neutral-300 px-3 py-2"
       >
-        <option value="">Not rated</option>
+        <option value="">{t('editor.taxonomy.notRated')}</option>
         {INTERNATIONAL_POTENTIAL_OPTIONS.map((score) => (
           <option key={score} value={score}>
             {score}

@@ -25,7 +25,11 @@
       "position": "Posición {position}",
       "remove": "Eliminar",
       "video": "Video opcional",
-      "videoAttached": "Video adjunto."
+      "videoAttached": "Video adjunto.",
+      "chooseFiles": "Elegir archivos",
+      "chooseFile": "Elegir archivo",
+      "noFileSelected": "Ningún archivo seleccionado",
+      "filesSelected": "{count, plural, one {# archivo seleccionado} other {# archivos seleccionados}}"
     },
     "validation": {
       "marketNotReady": "El mercado aún no está listo. Inténtalo de nuevo en un momento.",
@@ -102,6 +106,17 @@
       "down": "Bajar",
       "save": "Guardar cambios",
       "publish": "Publicar"
+    },
+    "taxonomy": {
+      "categories": "Categorías",
+      "categoriesHint": "(elige 1 a 3)",
+      "selectedCount": "Seleccionadas {count} de {max}.",
+      "uncheckHint": "Desmarca una para elegir otra.",
+      "loadingCategories": "Cargando categorías…",
+      "internationalPotential": "Potencial internacional",
+      "internationalPotentialHint": "(opcional, 1 a 10)",
+      "notRated": "Sin calificar",
+      "save": "Guardar categorías"
     },
     "placement": {
       "staged": "Se preparó \"{title}\" en {destination}{cascade}. Publica la portada para que aparezca.",

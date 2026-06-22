@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'
 
 import {
+  categoryLabel as resolveCategoryLabel,
   homepageSectionTitle as resolveHomepageSectionTitle,
   sectionLabel as resolveSectionLabel,
 } from '@/lib/helpers/section-labels'
@@ -14,6 +15,7 @@ import {
 export function useSectionLabels(pageName?: string): {
   sectionLabel: (positionKey: string) => string
   homepageSectionTitle: (positionKey: string, displayName?: string | null) => string
+  categoryLabel: (slug: string, name: string) => string
 } {
   const t = useTranslations('navigation')
 
@@ -28,5 +30,10 @@ export function useSectionLabels(pageName?: string): {
     [t, pageName],
   )
 
-  return { sectionLabel, homepageSectionTitle }
+  const categoryLabel = useCallback(
+    (slug: string, name: string) => resolveCategoryLabel(slug, name, t),
+    [t],
+  )
+
+  return { sectionLabel, homepageSectionTitle, categoryLabel }
 }

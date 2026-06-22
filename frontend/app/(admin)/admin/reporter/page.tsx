@@ -2,7 +2,9 @@
 
 import { useTranslations } from 'next-intl'
 import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { LocalizedFileInput } from '@/components/ui/localized-file-input'
 import { useEditorScope } from '@/context/editor-scope-context'
+import { useSectionLabels } from '@/hooks/use-section-labels'
 import { submitArticleForReview } from '@/lib/api/article-workflow-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { apiConfig } from '@/lib/api/config'
@@ -45,6 +47,7 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
 
 export default function ReporterUploadPage(): JSX.Element {
   const t = useTranslations('admin')
+  const { categoryLabel } = useSectionLabels()
   const scope = useEditorScope()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
@@ -265,7 +268,7 @@ export default function ReporterUploadPage(): JSX.Element {
                         setSelectedCategoryIds((current) => toggleCategory(current, category.id))
                       }
                     />
-                    <span>{category.name}</span>
+                    <span>{categoryLabel(category.slug, category.name)}</span>
                   </label>
                 )
               })}
@@ -303,13 +306,14 @@ export default function ReporterUploadPage(): JSX.Element {
 
         <div>
           <p className="text-sm font-medium text-neutral-700">{t('reporter.fields.images')}</p>
-          <input
-            type="file"
+          <LocalizedFileInput
             accept="image/*"
             multiple
             disabled={uploadingMedia}
-            onChange={(event) => void handleImageUpload(event.target.files)}
-            className="mt-2 block w-full text-sm"
+            onSelect={(files) => void handleImageUpload(files)}
+            buttonLabel={t('reporter.fields.chooseFiles')}
+            emptyLabel={t('reporter.fields.noFileSelected')}
+            formatSelected={(count) => t('reporter.fields.filesSelected', { count })}
           />
           {images.length > 0 ? (
             <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -352,19 +356,20 @@ export default function ReporterUploadPage(): JSX.Element {
           )}
         </div>
 
-        <label className="block text-sm font-medium text-neutral-700">
-          {t('reporter.fields.video')}
-          <input
-            type="file"
+        <div>
+          <p className="text-sm font-medium text-neutral-700">{t('reporter.fields.video')}</p>
+          <LocalizedFileInput
             accept="video/*"
             disabled={uploadingMedia}
-            onChange={(event) => void handleVideoUpload(event.target.files?.[0] ?? null)}
-            className="mt-2 block w-full text-sm"
+            onSelect={(files) => void handleVideoUpload(files?.[0] ?? null)}
+            buttonLabel={t('reporter.fields.chooseFile')}
+            emptyLabel={t('reporter.fields.noFileSelected')}
+            formatSelected={(count) => t('reporter.fields.filesSelected', { count })}
           />
           {videoUrl ? (
             <p className="mt-1 text-xs text-neutral-500">{t('reporter.fields.videoAttached')}</p>
           ) : null}
-        </label>
+        </div>
 
         <button
           type="submit"

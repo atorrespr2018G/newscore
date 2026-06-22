@@ -248,6 +248,56 @@ export function sectionLabel(positionKey: string, translate?: SectionLabelTransl
 
 /**
 
+ * Localized display label for an article category.
+
+ *
+
+ * Categories are stored single-language in the backend (only `name`), so the UI
+
+ * resolves a localized label from the shared `navigation.sectionLabels`
+
+ * dictionary keyed by the category slug, falling back to the stored name when no
+
+ * translation exists for that slug.
+
+ *
+
+ * @param slug Category slug (matches a section-label key when localizable).
+
+ * @param name Stored single-language category name, used as the fallback.
+
+ * @param translate Optional section-label translator.
+
+ * @returns Localized category label, or the stored name when unmapped.
+
+ */
+
+export function categoryLabel(
+
+  slug: string,
+
+  name: string,
+
+  translate?: SectionLabelTranslator,
+
+): string {
+
+  const normalized = slug.trim().toLowerCase()
+
+  if (SECTION_TRANSLATION_KEYS.has(normalized) && translate) {
+
+    return translate(`sectionLabels.${normalized}` as `sectionLabels.${string}`)
+
+  }
+
+  return name
+
+}
+
+
+
+/**
+
  * Section heading for homepage modules. Prefers configured labels over stale CMS display names.
 
  */
