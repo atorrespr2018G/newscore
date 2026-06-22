@@ -536,7 +536,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "limit": 10,
         "presentation_type": "grid_4",
         "display_name_us": "Live",
-        "display_name_co": "Salud",
+        "display_name_co": "En Vivo",
     },
     {
         "position_key": "politics",
@@ -906,6 +906,12 @@ async def _ensure_categories(db: AsyncIOMotorDatabase) -> dict[str, str]:
     for cat in CNN_CATEGORIES:
         existing = await db[CATEGORIES_COLLECTION].find_one({"slug": cat["slug"]})
         if existing is not None:
+            # Refresh metadata so seed corrections (renames, descriptions) apply
+            # to categories created by earlier seed runs.
+            await db[CATEGORIES_COLLECTION].update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"name": cat["name"], "description": cat["description"]}},
+            )
             slug_to_id[cat["slug"]] = str(existing["_id"])
             continue
 
