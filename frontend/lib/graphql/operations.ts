@@ -44,6 +44,13 @@ export const ARTICLE_BY_SLUG_QUERY = gql`
       tags
       categoryId
       mediaIds
+      media {
+        id
+        url
+        fileType
+        width
+        height
+      }
       viewCount
     }
   }

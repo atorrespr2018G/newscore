@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: IAdminLayoutProps): JSX.Elemen
     <QueryClientProvider client={queryClient}>
       <EditorScopeProvider>
         <EditorialPreviewSyncProvider>
-          <Masthead />
+          <Masthead showAdRibbon={false} />
           <main id="main-content" className="site-container py-8">
             <AdminWorkflowNav />
             {children}

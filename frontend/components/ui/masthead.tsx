@@ -20,6 +20,8 @@ import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-b
 
 interface IMastheadProps {
   activeSection?: string
+  /** Controls whether the top advertisement ribbon is rendered. Defaults to true. */
+  showAdRibbon?: boolean
 }
 
 interface IMastheadNavLink {
@@ -445,9 +447,6 @@ function MastheadUtilityBadges(): JSX.Element {
       <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
         {tNav('watch')}
       </span>
-      <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
-        {tNav('listen')}
-      </span>
     </>
   )
 }
@@ -554,7 +553,7 @@ function MastheadNavBar({
 /**
  * Newsroom masthead with market selector, mobile nav, and section links from the active feed.
  */
-export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
+export function Masthead({ activeSection, showAdRibbon = true }: IMastheadProps): JSX.Element {
   const pathname = usePathname()
   const isMounted = useMounted()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -578,7 +577,7 @@ export function Masthead({ activeSection }: IMastheadProps): JSX.Element {
         ].join(' ')}
         style={{ transform: `translateY(-${ribbonOffset}px)` }}
       >
-        <MastheadAdRibbon ribbonRef={ribbonRef} />
+        {showAdRibbon ? <MastheadAdRibbon ribbonRef={ribbonRef} /> : null}
         <MastheadNavBar
           navRef={navRef}
           activeSection={activeSection}

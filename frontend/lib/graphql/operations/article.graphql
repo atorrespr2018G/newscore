@@ -13,6 +13,13 @@ query ArticleBySlug($slug: String!, $market: String!) {
     tags
     categoryId
     mediaIds
+    media {
+      id
+      url
+      fileType
+      width
+      height
+    }
     viewCount
   }
 }

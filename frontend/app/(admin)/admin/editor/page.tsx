@@ -4,10 +4,8 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import { EditorStoryPool } from '@/components/features/editor-story-pool'
-import { EditorArticleDetailPanel } from '@/components/features/editor-article-detail-panel'
 import { HomepagePlacementCanvas } from '@/components/features/homepage-placement-canvas'
 import { useEditorCuration, type IEditorCuration } from '@/hooks/use-editor-curation'
-import type { IArticlePlacement } from '@/lib/helpers/article-placements'
 
 const EDITOR_WORKSPACE_HEIGHT_CLASS = 'lg:max-h-[calc(100dvh-14rem)]'
 const EDITOR_CANVAS_STICKY_CLASS = 'lg:sticky lg:top-24 lg:self-start'
@@ -121,8 +119,14 @@ function EditorStoryPoolSection({ editor }: { editor: IEditorCuration }): JSX.El
           setSelectedCategoryIds={editor.setSelectedCategoryIds}
           internationalPotential={editor.internationalPotential}
           setInternationalPotential={editor.setInternationalPotential}
+          detail={editor.detail}
+          maxImageCount={editor.maxImageCount}
+          setMaxImageCount={editor.setMaxImageCount}
+          mediaItems={editor.mediaItems}
+          setMediaItems={editor.setMediaItems}
           saving={editor.saving}
-          onSaveTaxonomy={() => void editor.saveArticleChanges()}
+          onSave={() => void editor.saveArticleChanges()}
+          onPublish={() => void editor.publishSelected()}
         />
         {editor.articles.length === 0 ? (
           <p className="py-8 text-center text-neutral-500">{t('editor.emptyPool')}</p>
@@ -174,10 +178,6 @@ function EditorArticleIdLoader({
 }
 
 function EditorWorkspaceColumn({ editor }: { editor: IEditorCuration }): JSX.Element {
-  const placements: IArticlePlacement[] = editor.detail
-    ? editor.placementMap.get(editor.detail.id) ?? []
-    : []
-
   return (
     <div
       className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${EDITOR_WORKSPACE_HEIGHT_CLASS} ${EDITOR_CANVAS_STICKY_CLASS}`}
@@ -193,19 +193,6 @@ function EditorWorkspaceColumn({ editor }: { editor: IEditorCuration }): JSX.Ele
           onRemovePlacement={(target) => void editor.applyRemovePlacement(target)}
           onMovePlacement={(target, direction) => void editor.applyMovePlacement(target, direction)}
         />
-        <section className="min-w-0 rounded-lg border border-neutral-200 bg-white p-4">
-          <EditorArticleDetailPanel
-            detail={editor.detail}
-            placements={placements}
-            maxImageCount={editor.maxImageCount}
-            onMaxImageCountChange={editor.setMaxImageCount}
-            mediaItems={editor.mediaItems}
-            setMediaItems={editor.setMediaItems}
-            saving={editor.saving}
-            onSave={() => void editor.saveArticleChanges()}
-            onPublish={() => void editor.publishSelected()}
-          />
-        </section>
       </div>
     </div>
   )

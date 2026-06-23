@@ -4,8 +4,9 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
-import { InlineArticleTaxonomyEditor } from '@/components/features/inline-article-taxonomy-editor'
+import { EditorArticleDetailPanel } from '@/components/features/editor-article-detail-panel'
 import type { ICategoryOut } from '@/lib/api/category-client'
+import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
 import {
   formatAllArticlePlacements,
@@ -61,8 +62,14 @@ interface IEditorStoryPoolProps {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  detail: IArticleDetail | null
+  maxImageCount: number
+  setMaxImageCount: (value: number) => void
+  mediaItems: ILoadedMedia[]
+  setMediaItems: Dispatch<SetStateAction<ILoadedMedia[]>>
   saving: boolean
-  onSaveTaxonomy: () => void
+  onSave: () => void
+  onPublish: () => void
 }
 
 /**
@@ -83,8 +90,14 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    detail,
+    maxImageCount,
+    setMaxImageCount,
+    mediaItems,
+    setMediaItems,
     saving,
-    onSaveTaxonomy,
+    onSave,
+    onPublish,
   } = props
   const t = useTranslations('admin')
   const [searchQuery, setSearchQuery] = useState('')
@@ -236,14 +249,20 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
               </div>
             </button>
             {selectedId === article.id ? (
-              <InlineArticleTaxonomyEditor
+              <EditorArticleDetailPanel
+                detail={detail}
                 categories={categories}
                 selectedCategoryIds={selectedCategoryIds}
                 setSelectedCategoryIds={setSelectedCategoryIds}
                 internationalPotential={internationalPotential}
                 setInternationalPotential={setInternationalPotential}
+                maxImageCount={maxImageCount}
+                onMaxImageCountChange={setMaxImageCount}
+                mediaItems={mediaItems}
+                setMediaItems={setMediaItems}
                 saving={saving}
-                onSave={onSaveTaxonomy}
+                onSave={onSave}
+                onPublish={onPublish}
               />
             ) : null}
           </article>

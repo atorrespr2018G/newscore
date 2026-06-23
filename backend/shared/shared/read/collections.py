@@ -1,6 +1,7 @@
 """MongoDB collection names for read models."""
 
 ARTICLES_COLLECTION = "articles"
+MEDIA_COLLECTION = "media"
 USERS_COLLECTION = "users"
 CATEGORIES_COLLECTION = "categories"
 MARKETS_COLLECTION = "markets"

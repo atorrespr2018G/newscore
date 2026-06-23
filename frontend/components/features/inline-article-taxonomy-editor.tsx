@@ -16,16 +16,16 @@ interface IInlineArticleTaxonomyEditorProps {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
-  saving: boolean
-  onSave: () => void
 }
 
 /**
- * Inline editor revealed under a selected story card for tagging categories
- * and the optional international potential score.
+ * Category and international-potential controls for a selected story.
  *
- * @param props Category options, selection state, and the save callback.
- * @returns The inline taxonomy editing panel.
+ * Save is owned by the consolidated inline editor that hosts this component,
+ * so a single action persists taxonomy and media changes together.
+ *
+ * @param props Category options and selection state.
+ * @returns The taxonomy editing controls.
  */
 export function InlineArticleTaxonomyEditor({
   categories,
@@ -33,12 +33,9 @@ export function InlineArticleTaxonomyEditor({
   setSelectedCategoryIds,
   internationalPotential,
   setInternationalPotential,
-  saving,
-  onSave,
 }: IInlineArticleTaxonomyEditorProps): JSX.Element {
-  const t = useTranslations('admin')
   return (
-    <div className="space-y-4 border-t border-neutral-100 bg-neutral-50 p-3">
+    <div className="space-y-4">
       <EditorCategorySelector
         categories={categories}
         selectedCategoryIds={selectedCategoryIds}
@@ -48,14 +45,6 @@ export function InlineArticleTaxonomyEditor({
         internationalPotential={internationalPotential}
         setInternationalPotential={setInternationalPotential}
       />
-      <button
-        type="button"
-        disabled={saving}
-        onClick={onSave}
-        className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-60"
-      >
-        {t('editor.taxonomy.save')}
-      </button>
     </div>
   )
 }

@@ -1,5 +1,13 @@
-import type { IArticle, IArticleDetail } from '@/interfaces/article'
+import type { IArticle, IArticleDetail, IArticleMedia } from '@/interfaces/article'
 import type { IHomepageFeed } from '@/interfaces/feed'
+
+interface IGraphqlMediaAsset {
+  id?: string | null
+  url?: string | null
+  fileType?: string | null
+  width?: number | null
+  height?: number | null
+}
 
 interface IGraphqlArticle {
   id?: string | null
@@ -15,7 +23,28 @@ interface IGraphqlArticle {
   tags?: string[] | null
   categoryId?: string | null
   mediaIds?: string[] | null
+  media?: IGraphqlMediaAsset[] | null
   viewCount?: number | null
+}
+
+/**
+ * Map GraphQL media assets to the frontend media interface, dropping any
+ * asset that lacks a usable URL.
+ */
+function normalizedMedia(value: IGraphqlMediaAsset[] | null | undefined): IArticleMedia[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter((item): item is IGraphqlMediaAsset => Boolean(item?.url && item.url.trim()))
+    .map((item) => ({
+      id: normalizedString(item.id, ''),
+      url: (item.url as string).trim(),
+      fileType: normalizedString(item.fileType, 'image'),
+      width: typeof item.width === 'number' ? item.width : null,
+      height: typeof item.height === 'number' ? item.height : null,
+    }))
 }
 
 function normalizedString(value: string | null | undefined, fallback: string): string {
@@ -64,6 +93,7 @@ export function mapArticleDetail(
     tags?: string[] | null
     categoryId?: string | null
     mediaIds?: string[] | null
+    media?: IGraphqlMediaAsset[] | null
     viewCount?: number | null
   },
 ): IArticleDetail {
@@ -73,6 +103,7 @@ export function mapArticleDetail(
     tags: normalizedList(a.tags),
     categoryId: a.categoryId ?? null,
     mediaIds: normalizedList(a.mediaIds),
+    media: normalizedMedia(a.media),
     viewCount: typeof a.viewCount === 'number' ? a.viewCount : 0,
   }
 }

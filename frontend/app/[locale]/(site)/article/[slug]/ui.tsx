@@ -3,6 +3,7 @@
 import type { IArticleDetail } from '@/interfaces/article'
 import { useArticle } from '@/hooks/use-article'
 import { ArticleLeadMedia, ArticleLeadMediaHasVideo } from '@/components/ui/article-lead-media'
+import { ArticleGallery } from '@/components/ui/article-gallery'
 import { useFormatter, useTranslations } from 'next-intl'
 
 const BODY_CHUNK_SIZE = 4
@@ -139,10 +140,20 @@ function ArticleTextColumn({
   paragraphs: string[]
   showLeadMedia?: boolean
 }): JSX.Element {
+  const t = useTranslations('common')
+  const hasVideo = ArticleLeadMediaHasVideo(article)
+
   return (
     <section className="lg:col-span-2">
       <div className="border-l border-neutral-200 pl-6 sm:pl-8">
         {showLeadMedia ? <ArticleLeadMediaBlock article={article} /> : null}
+        {showLeadMedia ? (
+          <ArticleGallery
+            article={article}
+            excludeHeroImage={!hasVideo}
+            heading={t('morePhotos')}
+          />
+        ) : null}
         <div className="space-y-6">
           {paragraphs.map((paragraph, index) => (
             <p key={`${index}-${paragraph.slice(0, 24)}`} className="text-lg leading-8 text-neutral-900">

@@ -2,16 +2,18 @@
 
 import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
-import {
-  formatAllArticlePlacements,
-  type IArticlePlacement,
-} from '@/lib/helpers/article-placements'
+import { InlineArticleTaxonomyEditor } from '@/components/features/inline-article-taxonomy-editor'
+import type { ICategoryOut } from '@/lib/api/category-client'
 import { moveItem } from '@/lib/helpers/editor-curation'
 import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
 
 interface IEditorArticleDetailPanelProps {
   detail: IArticleDetail | null
-  placements: IArticlePlacement[]
+  categories: ICategoryOut[]
+  selectedCategoryIds: string[]
+  setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
+  internationalPotential: number | null
+  setInternationalPotential: Dispatch<SetStateAction<number | null>>
   maxImageCount: number
   onMaxImageCountChange: (value: number) => void
   mediaItems: ILoadedMedia[]
@@ -22,38 +24,32 @@ interface IEditorArticleDetailPanelProps {
 }
 
 /**
- * Editor side panel for curating a selected article's media order and publish state.
+ * Inline editor revealed under the selected story card for curating its
+ * taxonomy, image order, and publish state in one place.
  *
- * @param props Detail data, media list, and save/publish callbacks.
- * @returns The article curation panel, or a placeholder when nothing is selected.
+ * Rendering this beside the selected card keeps the story's pictures right
+ * next to the selection instead of detached at the bottom of the workspace.
+ *
+ * @param props Detail data, taxonomy state, media list, and save/publish callbacks.
+ * @returns The selected-article curation panel, or nothing when no detail is loaded.
  */
-export function EditorArticleDetailPanel({
-  detail,
-  placements,
-  maxImageCount,
-  onMaxImageCountChange,
-  mediaItems,
-  setMediaItems,
-  saving,
-  onSave,
-  onPublish,
-}: IEditorArticleDetailPanelProps): JSX.Element {
+export function EditorArticleDetailPanel(props: IEditorArticleDetailPanelProps): JSX.Element | null {
   const t = useTranslations('admin')
+  const { detail, maxImageCount, onMaxImageCountChange, mediaItems, setMediaItems, saving, onSave, onPublish } = props
 
   if (!detail) {
-    return <p className="text-sm text-neutral-500">{t('editor.detail.selectStory')}</p>
+    return null
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-serif text-lg font-semibold">{detail.title}</h2>
-        <p className="mt-1 font-mono text-xs text-neutral-400">{detail.id}</p>
-        <p className="text-xs uppercase tracking-wide text-neutral-500">{detail.status}</p>
-        <p className="mt-2 text-sm text-neutral-600">
-          {t('editor.detail.location', { placements: formatAllArticlePlacements(placements) })}
-        </p>
-      </div>
+    <div className="space-y-4 border-t border-neutral-100 bg-neutral-50 p-3">
+      <InlineArticleTaxonomyEditor
+        categories={props.categories}
+        selectedCategoryIds={props.selectedCategoryIds}
+        setSelectedCategoryIds={props.setSelectedCategoryIds}
+        internationalPotential={props.internationalPotential}
+        setInternationalPotential={props.setInternationalPotential}
+      />
 
       <label className="block text-sm font-medium text-neutral-700">
         {t('editor.detail.maxImageCount')}
@@ -74,7 +70,7 @@ export function EditorArticleDetailPanel({
           type="button"
           disabled={saving}
           onClick={onSave}
-          className="rounded border border-brand px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 disabled:opacity-60"
+          className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-60"
         >
           {t('editor.detail.save')}
         </button>
@@ -83,7 +79,7 @@ export function EditorArticleDetailPanel({
             type="button"
             disabled={saving}
             onClick={onPublish}
-            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-60"
+            className="rounded border border-brand px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 disabled:opacity-60"
           >
             {t('editor.detail.publish')}
           </button>
@@ -99,41 +95,52 @@ interface IEditorMediaListProps {
 }
 
 /**
- * Ordered list of attached images with up/down reordering controls.
+ * Ordered grid of attached images with large previews and reordering controls.
+ *
+ * Previews are rendered large enough to actually review each picture, and each
+ * one links to the full-size asset so editors can confirm every uploaded image
+ * for the story rather than a single tiny thumbnail.
  *
  * @param props Media items and their setter.
- * @returns The reorderable media list.
+ * @returns The reorderable media gallery.
  */
 function EditorMediaList({ mediaItems, setMediaItems }: IEditorMediaListProps): JSX.Element {
   const t = useTranslations('admin')
   return (
     <div>
-      <p className="text-sm font-medium text-neutral-700">{t('editor.detail.attachedImages')}</p>
-      <ul className="mt-2 space-y-2">
+      <p className="text-sm font-medium text-neutral-700">
+        {t('editor.detail.attachedImages')} ({mediaItems.length})
+      </p>
+      <ul className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {mediaItems.map((item, index) => (
-          <li
-            key={item.id}
-            className="flex items-center gap-3 rounded border border-neutral-200 p-2"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.url} alt="" className="h-12 w-12 rounded object-cover" />
-            <span className="flex-1 text-xs text-neutral-500">#{index + 1}</span>
-            <button
-              type="button"
-              disabled={index === 0}
-              onClick={() => setMediaItems((current) => moveItem(current, index, index - 1))}
-              className="text-xs text-neutral-600 hover:text-brand disabled:opacity-40"
-            >
-              {t('editor.detail.up')}
-            </button>
-            <button
-              type="button"
-              disabled={index === mediaItems.length - 1}
-              onClick={() => setMediaItems((current) => moveItem(current, index, index + 1))}
-              className="text-xs text-neutral-600 hover:text-brand disabled:opacity-40"
-            >
-              {t('editor.detail.down')}
-            </button>
+          <li key={item.id} className="overflow-hidden rounded border border-neutral-200">
+            <a href={item.url} target="_blank" rel="noopener noreferrer" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={item.url}
+                alt={t('editor.detail.imagePosition', { position: index + 1 })}
+                className="aspect-[4/3] w-full object-cover"
+              />
+            </a>
+            <div className="flex items-center gap-2 border-t border-neutral-200 px-2 py-1.5">
+              <span className="flex-1 text-xs font-medium text-neutral-500">#{index + 1}</span>
+              <button
+                type="button"
+                disabled={index === 0}
+                onClick={() => setMediaItems((current) => moveItem(current, index, index - 1))}
+                className="text-xs text-neutral-600 hover:text-brand disabled:opacity-40"
+              >
+                {t('editor.detail.up')}
+              </button>
+              <button
+                type="button"
+                disabled={index === mediaItems.length - 1}
+                onClick={() => setMediaItems((current) => moveItem(current, index, index + 1))}
+                className="text-xs text-neutral-600 hover:text-brand disabled:opacity-40"
+              >
+                {t('editor.detail.down')}
+              </button>
+            </div>
           </li>
         ))}
       </ul>

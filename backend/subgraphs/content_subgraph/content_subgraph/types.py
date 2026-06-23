@@ -9,8 +9,19 @@ from content_subgraph.context import ContentContext
 from shared.core.exceptions import NotFoundError
 from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.core.pagination import PaginationParams
-from shared.read import article_reads, market_reads
+from shared.read import article_reads, market_reads, media_reads
 from shared.schemas.article_schemas import ArticleDetailOut, ArticleOut
+
+
+@strawberry.type
+class MediaAsset:
+    """An image or video attached to an article."""
+
+    id: strawberry.ID
+    url: str
+    file_type: str
+    width: int | None = None
+    height: int | None = None
 
 
 @strawberry.federation.type(keys=["id"])
@@ -48,6 +59,32 @@ class Article:
         if detail is None:
             return Article(id=id)
         return article_from_detail(detail)
+
+    @strawberry.field
+    async def media(self, info: Info[ContentContext]) -> list[MediaAsset]:
+        """Resolve every media asset attached to the article, in order.
+
+        The article only persists ``media_ids``; this joins them against the
+        media collection so the public site can render the full gallery rather
+        than just the single ``thumbnail_url``.
+        """
+
+        if not self.media_ids:
+            return []
+        assets = await media_reads.list_media_by_ids(
+            info.context.db,
+            media_ids=list(self.media_ids),
+        )
+        return [
+            MediaAsset(
+                id=strawberry.ID(asset.id),
+                url=asset.url,
+                file_type=asset.file_type,
+                width=asset.width,
+                height=asset.height,
+            )
+            for asset in assets
+        ]
 
 
 def article_from_detail(detail: ArticleDetailOut) -> Article:

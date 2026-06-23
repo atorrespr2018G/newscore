@@ -101,6 +101,7 @@
       "location": "Ubicación: {placements}",
       "maxImageCount": "Máximo de imágenes",
       "attachedImages": "Imágenes adjuntas",
+      "imagePosition": "Imagen {position}",
       "noImages": "No hay imágenes adjuntas.",
       "up": "Subir",
       "down": "Bajar",

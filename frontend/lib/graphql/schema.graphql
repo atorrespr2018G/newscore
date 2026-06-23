@@ -33,7 +33,16 @@ type Article {
   tags: [String!]
   categoryId: ID
   mediaIds: [String!]
+  media: [MediaAsset!]
   viewCount: Int
+}
+
+type MediaAsset {
+  id: ID!
+  url: String!
+  fileType: String!
+  width: Int
+  height: Int
 }
 
 scalar JSON

@@ -12,12 +12,22 @@ export interface IArticle {
   publishedAt: string | null
 }
 
+/** A single image or video asset attached to an article. */
+export interface IArticleMedia {
+  id: string
+  url: string
+  fileType: string
+  width: number | null
+  height: number | null
+}
+
 /** Full article detail returned by Delivery API. */
 export interface IArticleDetail extends IArticle {
   body: string
   tags: string[]
   categoryId: string | null
   mediaIds: string[]
+  media: IArticleMedia[]
   viewCount: number
 }
 
