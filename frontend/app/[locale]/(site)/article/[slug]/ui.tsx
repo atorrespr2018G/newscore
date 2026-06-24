@@ -146,12 +146,12 @@ function ArticleTextColumn({
   return (
     <section className="lg:col-span-2">
       <div className="border-l border-neutral-200 pl-6 sm:pl-8">
-        {showLeadMedia ? <ArticleLeadMediaBlock article={article} /> : null}
+        {showLeadMedia && hasVideo ? <ArticleLeadMediaBlock article={article} /> : null}
         {showLeadMedia ? (
           <ArticleGallery
             article={article}
-            excludeHeroImage={!hasVideo}
-            heading={t('morePhotos')}
+            excludeHeroImage={false}
+            heading={hasVideo ? t('morePhotos') : undefined}
           />
         ) : null}
         <div className="space-y-6">

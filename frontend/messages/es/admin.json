@@ -61,6 +61,34 @@
     "subtitle": "Prepara los cambios de ubicación en la portada, previsualízalos y publícalos cuando estén listos.",
     "loading": "Cargando noticias…",
     "emptyPool": "Aún no hay noticias subidas.",
+    "scope": {
+      "market": "Mercado",
+      "page": "Página"
+    },
+    "workspace": {
+      "placementTab": "Ubicación",
+      "previewTab": "Vista previa"
+    },
+    "guard": {
+      "discard": "Tienes cambios sin guardar en esta noticia. ¿Descartarlos y cambiar?"
+    },
+    "canvas": {
+      "title": "Lienzo de ubicación",
+      "description": "Arrastra una tarjeta de noticia aquí para ubicarla o moverla entre las zonas con nombre. Usa los controles de una noticia ubicada para reordenarla dentro de una zona o quitarla.",
+      "nonArticleSlot": "Arrastrar deshabilitado para tipos de espacio que no son artículos.",
+      "emptyTarget": "Espacio vacío",
+      "occupied": "Ocupado: {id}",
+      "draftBadge": "Borrador",
+      "dropTargetAria": "Destino {cell}",
+      "actions": {
+        "moveUp": "Subir",
+        "moveDown": "Bajar",
+        "remove": "Quitar",
+        "moveUpAria": "Subir {cell}",
+        "moveDownAria": "Bajar {cell}",
+        "removeAria": "Quitar noticia de {cell}"
+      }
+    },
     "banner": {
       "unpublished": "Tienes cambios de ubicación en la portada sin publicar. El sitio público todavía muestra el último diseño publicado.",
       "publish": "Publicar portada"
@@ -75,6 +103,8 @@
       "searchLabel": "Buscar por título o slug",
       "searchPlaceholder": "Buscar noticias",
       "searching": "Buscando noticias…",
+      "loadMore": "Cargar más noticias",
+      "loadingMore": "Cargando más…",
       "tabs": {
         "all": "Todas las noticias",
         "new": "Nuevas"

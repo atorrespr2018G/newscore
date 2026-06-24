@@ -61,6 +61,34 @@
     "subtitle": "Stage homepage placement changes, preview them, then publish when ready.",
     "loading": "Loading stories…",
     "emptyPool": "No uploaded stories yet.",
+    "scope": {
+      "market": "Market",
+      "page": "Page"
+    },
+    "workspace": {
+      "placementTab": "Placement",
+      "previewTab": "Preview"
+    },
+    "guard": {
+      "discard": "You have unsaved changes to this story. Discard them and switch?"
+    },
+    "canvas": {
+      "title": "Placement canvas",
+      "description": "Drag a story card here to place or move it between named zones. Use a placed story's controls to reorder it within a zone or remove it.",
+      "nonArticleSlot": "Drop disabled for non-article slot types.",
+      "emptyTarget": "Empty target",
+      "occupied": "Occupied: {id}",
+      "draftBadge": "Draft",
+      "dropTargetAria": "Drop target {cell}",
+      "actions": {
+        "moveUp": "Up",
+        "moveDown": "Down",
+        "remove": "Remove",
+        "moveUpAria": "Move {cell} up",
+        "moveDownAria": "Move {cell} down",
+        "removeAria": "Remove story from {cell}"
+      }
+    },
     "banner": {
       "unpublished": "You have unpublished homepage placement changes. The public site still shows the last published layout.",
       "publish": "Publish homepage"
@@ -75,6 +103,8 @@
       "searchLabel": "Search by title or slug",
       "searchPlaceholder": "Search stories",
       "searching": "Searching stories…",
+      "loadMore": "Load more stories",
+      "loadingMore": "Loading more…",
       "tabs": {
         "all": "All news",
         "new": "New"

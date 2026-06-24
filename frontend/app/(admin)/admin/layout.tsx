@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
 import { AdminWorkflowNav } from '@/components/ui/admin-workflow-nav'
+import { ToastProvider } from '@/components/ui/toast'
 import { EditorScopeProvider } from '@/context/editor-scope-context'
 import { EditorialPreviewSyncProvider } from '@/context/editorial-preview-sync-context'
 import { ADMIN_WORKFLOW_ROUTES } from '@/lib/api/admin-routes'
@@ -35,11 +36,13 @@ export default function AdminLayout({ children }: IAdminLayoutProps): JSX.Elemen
     <QueryClientProvider client={queryClient}>
       <EditorScopeProvider>
         <EditorialPreviewSyncProvider>
-          <Masthead showAdRibbon={false} />
-          <main id="main-content" className="site-container py-8">
-            <AdminWorkflowNav />
-            {children}
-          </main>
+          <ToastProvider>
+            <Masthead showAdRibbon={false} />
+            <main id="main-content" className="site-container py-8">
+              <AdminWorkflowNav />
+              {children}
+            </main>
+          </ToastProvider>
         </EditorialPreviewSyncProvider>
       </EditorScopeProvider>
     </QueryClientProvider>

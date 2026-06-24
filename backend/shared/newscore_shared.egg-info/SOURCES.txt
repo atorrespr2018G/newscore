@@ -88,6 +88,7 @@ shared/read/collections.py
 shared/read/layout_reads.py
 shared/read/loaders.py
 shared/read/market_reads.py
+shared/read/media_reads.py
 shared/read/placement_reads.py
 shared/read/site_reads.py
 shared/read/slot_pinned_ids.py

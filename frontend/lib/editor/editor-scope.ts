@@ -14,3 +14,9 @@ export const DEFAULT_EDITOR_SCOPE: IEditorScope = {
   townId: null,
   pageName: DEFAULT_EDITOR_PAGE_NAME,
 }
+
+/** Curatable layout pages an editor can switch between. */
+export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = ['homepage', 'world']
+
+/** Market codes an editor can curate from the scope switcher. */
+export const EDITOR_MARKET_OPTIONS: ReadonlyArray<string> = ['us', 'uk', 'ca', 'au']

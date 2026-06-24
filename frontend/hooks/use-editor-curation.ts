@@ -17,14 +17,17 @@ import {
   publishHomepagePlacements,
 } from '@/lib/api/layout-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
-import { getMediaById, IMediaOut } from '@/lib/api/media-client'
+import { getMediaByIds } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
 import { MIN_CATEGORY_COUNT } from '@/lib/helpers/category-selection'
 import { buildArticlePlacementMap } from '@/lib/helpers/article-placements'
 import {
   EDITOR_FETCH_PAGE_SIZE,
+  EDITOR_POOL_PAGE_SIZE,
   REPORTER_UPLOAD_STATUS,
   fetchAllPaginatedArticles,
+  mergeArticlePages,
+  type IPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
 import {
@@ -94,44 +97,102 @@ function useEditorStatus(): IEditorStatus {
 
 interface IEditorArticlePool {
   articles: IEditorStoryRow[]
+  hasMoreArticles: boolean
+  loadingMoreArticles: boolean
   loadArticles: () => Promise<void>
+  loadMoreArticles: () => Promise<void>
   searchArticles: (query: string) => Promise<IEditorStoryRow[]>
+  updateArticleRow: (articleId: string, patch: Partial<IEditorStoryRow>) => void
 }
 
 /**
  * Load and search the editor's article pool from the news REST API.
  *
- * @returns The loaded article rows plus load and search actions.
+ * The pool is loaded one bounded page at a time so memory stays flat
+ * regardless of archive size; callers pull additional pages on demand.
+ *
+ * @returns The loaded article rows plus load, paginate, search, and patch actions.
  */
 function useEditorArticlePool(): IEditorArticlePool {
   const [articles, setArticles] = useState<IEditorStoryRow[]>([])
+  const [hasMoreArticles, setHasMoreArticles] = useState(false)
+  const [loadingMoreArticles, setLoadingMoreArticles] = useState(false)
+  const nextPageRef = useRef(2)
+  const loadingMoreRef = useRef(false)
 
   const loadArticles = useCallback(async () => {
-    const items = await fetchAllPaginatedArticles(
-      (page) => `${apiConfig.news}/articles?${buildPageParams(page)}`,
-      (url) => apiFetch(url),
-    )
-    setArticles(items)
+    const data = await fetchArticlesPage(1)
+    setArticles(data.items)
+    setHasMoreArticles(data.has_more)
+    nextPageRef.current = 2
+  }, [])
+
+  const loadMoreArticles = useCallback(async () => {
+    if (loadingMoreRef.current) {
+      return
+    }
+    loadingMoreRef.current = true
+    setLoadingMoreArticles(true)
+    try {
+      const page = nextPageRef.current
+      const data = await fetchArticlesPage(page)
+      setArticles((current) => mergeArticlePages(current, data.items))
+      setHasMoreArticles(data.has_more)
+      nextPageRef.current = page + 1
+    } finally {
+      loadingMoreRef.current = false
+      setLoadingMoreArticles(false)
+    }
   }, [])
 
   const searchArticles = useCallback(async (query: string): Promise<IEditorStoryRow[]> => {
     return fetchAllPaginatedArticles(
-      (page) => `${apiConfig.news}/search?${buildPageParams(page, query)}`,
+      (page) => `${apiConfig.news}/search?${buildSearchPageParams(page, query)}`,
       (url) => apiFetch(url),
     )
   }, [])
 
-  return { articles, loadArticles, searchArticles }
+  const updateArticleRow = useCallback(
+    (articleId: string, patch: Partial<IEditorStoryRow>) => {
+      setArticles((current) =>
+        current.map((row) => (row.id === articleId ? { ...row, ...patch } : row)),
+      )
+    },
+    [],
+  )
+
+  return {
+    articles,
+    hasMoreArticles,
+    loadingMoreArticles,
+    loadArticles,
+    loadMoreArticles,
+    searchArticles,
+    updateArticleRow,
+  }
 }
 
-function buildPageParams(page: number, query?: string): string {
+/**
+ * Fetch a single bounded page of the article pool.
+ *
+ * @param page One-based page number to fetch.
+ * @returns The paginated article payload for the requested page.
+ * @throws ApiError When the request fails.
+ */
+function fetchArticlesPage(page: number): Promise<IPaginatedArticles> {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(EDITOR_POOL_PAGE_SIZE),
+  })
+  return apiFetch<IPaginatedArticles>(`${apiConfig.news}/articles?${params.toString()}`)
+}
+
+function buildSearchPageParams(page: number, query: string): string {
   const params = new URLSearchParams({
     page: String(page),
     page_size: String(EDITOR_FETCH_PAGE_SIZE),
+    q: query,
   })
-  if (query !== undefined) {
-    params.set('q', query)
-  }
   return params.toString()
 }
 
@@ -150,6 +211,8 @@ interface IArticleDetailEditor {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  isDirty: boolean
+  markDirty: () => void
   loadArticleDetail: (articleId: string) => Promise<void>
   loadArticleByIdInput: () => void
   saveArticleChanges: () => Promise<void>
@@ -161,13 +224,14 @@ interface IArticleDetailEditor {
  * Manage the selected article's media/publish editing workflow.
  *
  * @param status Shared status banners.
- * @param reloadArticles Refreshes the article pool after a write.
+ * @param scope Active editor market/page scope.
+ * @param updateArticleRow Patches a single pool row after a write.
  * @returns Detail editing state and actions.
  */
 function useArticleDetailEditor(
   status: IEditorStatus,
   scope: IEditorScope,
-  reloadArticles: () => Promise<void>,
+  updateArticleRow: (articleId: string, patch: Partial<IEditorStoryRow>) => void,
 ): IArticleDetailEditor {
   const t = useTranslations('admin')
   const { setError, setMessage, setSaving } = status
@@ -179,6 +243,11 @@ function useArticleDetailEditor(
   const [categories, setCategories] = useState<ICategoryOut[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
+
+  // Edits to taxonomy/media/rating happen in local state; flag them so the UI
+  // can warn before the changes are silently discarded by a new selection.
+  const markDirty = useCallback(() => setIsDirty(true), [])
 
   useEffect(() => {
     void getCategories()
@@ -201,6 +270,7 @@ function useArticleDetailEditor(
         setSelectedCategoryIds(article.category_ids ?? [])
         setInternationalPotential(article.international_potential ?? null)
         setMediaItems(await loadArticleMedia(article.media_ids))
+        setIsDirty(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : t('editor.errors.loadDetail'))
       }
@@ -240,8 +310,13 @@ function useArticleDetailEditor(
         }),
       })
       setDetail(updated)
+      setIsDirty(false)
       setMessage(t('editor.status.settingsSaved'))
-      await reloadArticles()
+      updateArticleRow(updated.id, {
+        title: updated.title,
+        status: updated.status,
+        thumbnail_url: mediaItems[0]?.url ?? null,
+      })
       notifyEditorialPreviewStale(scope)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('editor.errors.saveArticle'))
@@ -254,7 +329,7 @@ function useArticleDetailEditor(
     maxImageCount,
     selectedCategoryIds,
     internationalPotential,
-    reloadArticles,
+    updateArticleRow,
     scope,
     setError,
     setMessage,
@@ -271,15 +346,15 @@ function useArticleDetailEditor(
     try {
       await apiFetch(`${apiConfig.news}/articles/${detail.id}/publish`, { method: 'POST' })
       setMessage(t('editor.status.articlePublished'))
-      await reloadArticles()
       setDetail({ ...detail, status: 'published' })
+      updateArticleRow(detail.id, { status: 'published' })
       notifyEditorialPreviewStale(scope)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('editor.errors.publish'))
     } finally {
       setSaving(false)
     }
-  }, [detail, reloadArticles, scope, setError, setMessage, setSaving, t])
+  }, [detail, updateArticleRow, scope, setError, setMessage, setSaving, t])
 
   const publishArticleById = useCallback(
     async (articleId: string) => {
@@ -288,7 +363,7 @@ function useArticleDetailEditor(
       try {
         await apiFetch(`${apiConfig.news}/articles/${articleId}/publish`, { method: 'POST' })
         setMessage(t('editor.status.placedAndPublished'))
-        await reloadArticles()
+        updateArticleRow(articleId, { status: 'published' })
         // Keep the open detail in sync when it is the story we just published.
         setDetail((current) =>
           current && current.id === articleId ? { ...current, status: 'published' } : current,
@@ -300,7 +375,7 @@ function useArticleDetailEditor(
         setSaving(false)
       }
     },
-    [reloadArticles, scope, setDetail, setError, setMessage, setSaving, t],
+    [updateArticleRow, scope, setDetail, setError, setMessage, setSaving, t],
   )
 
   return {
@@ -318,6 +393,8 @@ function useArticleDetailEditor(
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    isDirty,
+    markDirty,
     loadArticleDetail,
     loadArticleByIdInput,
     saveArticleChanges,
@@ -327,12 +404,8 @@ function useArticleDetailEditor(
 }
 
 async function loadArticleMedia(mediaIds: string[]): Promise<ILoadedMedia[]> {
-  return Promise.all(
-    mediaIds.map(async (mediaId) => {
-      const asset: IMediaOut = await getMediaById(mediaId)
-      return { id: asset.id, url: asset.url }
-    }),
-  )
+  const assets = await getMediaByIds(mediaIds)
+  return assets.map((asset) => ({ id: asset.id, url: asset.url }))
 }
 
 /**
@@ -779,7 +852,10 @@ function formatMoveMessage(
 
 export interface IEditorCuration
   extends Omit<IArticleDetailEditor, 'setDetail'>,
-    Pick<IEditorArticlePool, 'articles' | 'searchArticles'>,
+    Pick<
+      IEditorArticlePool,
+      'articles' | 'searchArticles' | 'hasMoreArticles' | 'loadingMoreArticles' | 'loadMoreArticles'
+    >,
     Omit<IHomepagePlacementEditor, 'articlePlacements' | 'loadHomepageSlots' | 'loadArticlePlacements'> {
   loading: boolean
   error: string | null
@@ -798,7 +874,7 @@ export function useEditorCuration(): IEditorCuration {
   const scope = useEditorScope()
   const status = useEditorStatus()
   const pool = useEditorArticlePool()
-  const detailEditor = useArticleDetailEditor(status, scope, pool.loadArticles)
+  const detailEditor = useArticleDetailEditor(status, scope, pool.updateArticleRow)
 
   const articleById = useMemo(
     () => buildArticleById(pool.articles, detailEditor.detail, detailEditor.mediaItems),
@@ -848,6 +924,9 @@ export function useEditorCuration(): IEditorCuration {
     saving: status.saving,
     articles: pool.articles,
     searchArticles: pool.searchArticles,
+    hasMoreArticles: pool.hasMoreArticles,
+    loadingMoreArticles: pool.loadingMoreArticles,
+    loadMoreArticles: pool.loadMoreArticles,
     selectedId: detailEditor.selectedId,
     articleIdInput: detailEditor.articleIdInput,
     setArticleIdInput: detailEditor.setArticleIdInput,
@@ -861,6 +940,8 @@ export function useEditorCuration(): IEditorCuration {
     setSelectedCategoryIds: detailEditor.setSelectedCategoryIds,
     internationalPotential: detailEditor.internationalPotential,
     setInternationalPotential: detailEditor.setInternationalPotential,
+    isDirty: detailEditor.isDirty,
+    markDirty: detailEditor.markDirty,
     loadArticleDetail: detailEditor.loadArticleDetail,
     loadArticleByIdInput: detailEditor.loadArticleByIdInput,
     saveArticleChanges: detailEditor.saveArticleChanges,

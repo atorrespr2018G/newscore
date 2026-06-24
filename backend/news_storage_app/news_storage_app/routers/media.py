@@ -2,15 +2,37 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from news_storage_app.services import media_service
 from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
+from shared.read.media_reads import list_media_by_ids
 from shared.schemas.media_schemas import MediaOut
 
 router = APIRouter(prefix="/media")
+
+
+@router.get("", response_model=list[MediaOut])
+async def list_media(
+    ids: str = Query(..., description="Comma-separated media ids to resolve in order."),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _: TokenPayload = Depends(require_role("reporter", "editor", "admin")),
+) -> list[MediaOut]:
+    """Resolve a batch of media assets by id in a single request.
+
+    Args:
+        ids: Comma-separated media ids; ordering of the response mirrors the
+            requested order and missing ids are skipped.
+        db: Database connection.
+
+    Returns:
+        Media assets for the requested ids, preserving request order.
+    """
+
+    media_ids = [media_id.strip() for media_id in ids.split(",") if media_id.strip()]
+    return await list_media_by_ids(db, media_ids=media_ids)
 
 
 @router.get("/{media_id}", response_model=MediaOut)

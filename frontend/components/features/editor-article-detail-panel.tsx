@@ -21,6 +21,7 @@ interface IEditorArticleDetailPanelProps {
   saving: boolean
   onSave: () => void
   onPublish: () => void
+  onDirty: () => void
 }
 
 /**
@@ -35,7 +36,8 @@ interface IEditorArticleDetailPanelProps {
  */
 export function EditorArticleDetailPanel(props: IEditorArticleDetailPanelProps): JSX.Element | null {
   const t = useTranslations('admin')
-  const { detail, maxImageCount, onMaxImageCountChange, mediaItems, setMediaItems, saving, onSave, onPublish } = props
+  const { detail, maxImageCount, onMaxImageCountChange, mediaItems, setMediaItems, saving, onSave, onPublish, onDirty } =
+    props
 
   if (!detail) {
     return null
@@ -46,9 +48,9 @@ export function EditorArticleDetailPanel(props: IEditorArticleDetailPanelProps):
       <InlineArticleTaxonomyEditor
         categories={props.categories}
         selectedCategoryIds={props.selectedCategoryIds}
-        setSelectedCategoryIds={props.setSelectedCategoryIds}
+        setSelectedCategoryIds={wrapWithDirty(props.setSelectedCategoryIds, onDirty)}
         internationalPotential={props.internationalPotential}
-        setInternationalPotential={props.setInternationalPotential}
+        setInternationalPotential={wrapWithDirty(props.setInternationalPotential, onDirty)}
       />
 
       <label className="block text-sm font-medium text-neutral-700">
@@ -58,12 +60,15 @@ export function EditorArticleDetailPanel(props: IEditorArticleDetailPanelProps):
           min={1}
           max={20}
           value={maxImageCount}
-          onChange={(event) => onMaxImageCountChange(Number(event.target.value))}
+          onChange={(event) => {
+            onDirty()
+            onMaxImageCountChange(Number(event.target.value))
+          }}
           className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
         />
       </label>
 
-      <EditorMediaList mediaItems={mediaItems} setMediaItems={setMediaItems} />
+      <EditorMediaList mediaItems={mediaItems} setMediaItems={wrapWithDirty(setMediaItems, onDirty)} />
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -87,6 +92,23 @@ export function EditorArticleDetailPanel(props: IEditorArticleDetailPanelProps):
       </div>
     </div>
   )
+}
+
+/**
+ * Wrap a state setter so any change first flags the detail panel as dirty.
+ *
+ * @param setter Original React state dispatcher.
+ * @param onDirty Callback marking the panel dirty.
+ * @returns A dispatcher that records the edit before delegating.
+ */
+function wrapWithDirty<T>(
+  setter: Dispatch<SetStateAction<T>>,
+  onDirty: () => void,
+): Dispatch<SetStateAction<T>> {
+  return (value) => {
+    onDirty()
+    setter(value)
+  }
 }
 
 interface IEditorMediaListProps {

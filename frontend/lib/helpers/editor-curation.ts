@@ -1,8 +1,16 @@
 import type { IEditorStoryRow } from '@/components/features/editor-story-pool'
 import type { IArticlePlacement } from '@/lib/helpers/article-placements'
 
-/** Page size used when fetching the editor's article pool. */
+/** Page size used when fetching search results for the editor pool. */
 export const EDITOR_FETCH_PAGE_SIZE = 200
+
+/**
+ * Page size used when lazily loading the editor's article pool.
+ *
+ * Kept small so the pool grows in bounded increments on demand instead of
+ * pulling the entire archive into memory on mount.
+ */
+export const EDITOR_POOL_PAGE_SIZE = 24
 
 /** Lifecycle status assigned to articles uploaded through the Reporter tool. */
 export const REPORTER_UPLOAD_STATUS = 'draft'
@@ -25,12 +33,37 @@ export function isNewReporterArticle(
   return article.status === REPORTER_UPLOAD_STATUS && placements.length === 0
 }
 
-interface IPaginatedArticles {
+export interface IPaginatedArticles {
   items: IEditorStoryRow[]
   total: number
   page: number
   page_size: number
   has_more: boolean
+}
+
+/**
+ * Merge a freshly loaded page into an existing pool, dropping duplicate ids.
+ *
+ * Lazy pagination can overlap with newly published rows shifting between
+ * pages, so de-duplicating by id keeps the rendered pool stable.
+ *
+ * @param current Already loaded rows.
+ * @param incoming Newly fetched page of rows.
+ * @returns Combined rows with the first occurrence of each id preserved.
+ */
+export function mergeArticlePages(
+  current: IEditorStoryRow[],
+  incoming: IEditorStoryRow[],
+): IEditorStoryRow[] {
+  const seen = new Set(current.map((row) => row.id))
+  const merged = [...current]
+  for (const row of incoming) {
+    if (!seen.has(row.id)) {
+      seen.add(row.id)
+      merged.push(row)
+    }
+  }
+  return merged
 }
 
 /**

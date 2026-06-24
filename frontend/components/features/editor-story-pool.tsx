@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { EditorArticleDetailPanel } from '@/components/features/editor-article-detail-panel'
@@ -70,6 +70,10 @@ interface IEditorStoryPoolProps {
   saving: boolean
   onSave: () => void
   onPublish: () => void
+  onDirty: () => void
+  hasMore: boolean
+  loadingMore: boolean
+  onLoadMore: () => void
 }
 
 /**
@@ -98,6 +102,10 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     saving,
     onSave,
     onPublish,
+    onDirty,
+    hasMore,
+    loadingMore,
+    onLoadMore,
   } = props
   const t = useTranslations('admin')
   const [searchQuery, setSearchQuery] = useState('')
@@ -263,6 +271,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
                 saving={saving}
                 onSave={onSave}
                 onPublish={onPublish}
+                onDirty={onDirty}
               />
             ) : null}
           </article>
@@ -278,7 +287,58 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
             {t(resolveEmptyMessageKey(activeTab, debouncedSearch))}
           </p>
         ) : null}
+        {searchResults === null && hasMore ? (
+          <PoolLoadMore loadingMore={loadingMore} onLoadMore={onLoadMore} />
+        ) : null}
       </div>
+    </div>
+  )
+}
+
+interface IPoolLoadMoreProps {
+  loadingMore: boolean
+  onLoadMore: () => void
+}
+
+/**
+ * Auto-loading sentinel and fallback button that pull the next pool page.
+ *
+ * An IntersectionObserver triggers the next page as the sentinel scrolls into
+ * view, keeping the loaded pool bounded until the editor scrolls further.
+ *
+ * @param props Loading flag and the load-more handler.
+ * @returns The load-more footer for the pool.
+ */
+function PoolLoadMore({ loadingMore, onLoadMore }: IPoolLoadMoreProps): JSX.Element {
+  const t = useTranslations('admin')
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const onLoadMoreRef = useRef(onLoadMore)
+  onLoadMoreRef.current = onLoadMore
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || typeof IntersectionObserver === 'undefined') {
+      return
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        onLoadMoreRef.current()
+      }
+    })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={sentinelRef} className="mt-4 flex justify-center">
+      <button
+        type="button"
+        disabled={loadingMore}
+        onClick={onLoadMore}
+        className="rounded border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+      >
+        {loadingMore ? t('editor.pool.loadingMore') : t('editor.pool.loadMore')}
+      </button>
     </div>
   )
 }

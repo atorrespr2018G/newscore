@@ -45,11 +45,21 @@ export function EditorScopeProvider({ children }: IEditorScopeProviderProps): JS
  * @throws Error When used outside EditorScopeProvider.
  */
 export function useEditorScope(): IEditorScope {
+  return useEditorScopeContext().scope
+}
+
+/**
+ * Read the editor scope together with its setter for scope switchers.
+ *
+ * @returns Active scope and the setter to change it.
+ * @throws Error When used outside EditorScopeProvider.
+ */
+export function useEditorScopeContext(): IEditorScopeContextValue {
   const context = useContext(EditorScopeContext)
   if (!context) {
     throw new Error('useEditorScope must be used within EditorScopeProvider')
   }
-  return context.scope
+  return context
 }
 
 /**

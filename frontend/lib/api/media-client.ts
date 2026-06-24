@@ -90,3 +90,21 @@ export function uploadVideo(file: File): Promise<IMediaOut> {
 export async function getMediaById(mediaId: string): Promise<IMediaOut> {
   return apiFetch<IMediaOut>(`${apiConfig.news}/media/${mediaId}`)
 }
+
+/**
+ * Load several media assets in a single batched request.
+ *
+ * Resolving an article's images one id at a time fans out a request per id;
+ * this collapses that into one round trip while preserving the requested
+ * order so gallery positions stay stable.
+ *
+ * @param mediaIds Ordered media ids to resolve.
+ * @returns Media assets in the requested order, skipping ids that no longer resolve.
+ */
+export async function getMediaByIds(mediaIds: string[]): Promise<IMediaOut[]> {
+  if (mediaIds.length === 0) {
+    return []
+  }
+  const idsParam = encodeURIComponent(mediaIds.join(','))
+  return apiFetch<IMediaOut[]>(`${apiConfig.news}/media?ids=${idsParam}`)
+}
