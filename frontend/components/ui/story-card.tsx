@@ -2,6 +2,8 @@ import type { CSSProperties } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
+import { ArticleLeadMedia } from '@/components/ui/article-lead-media'
+import { articleCardPreviewVideoSrc } from '@/lib/helpers/article-video-src'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
 import {
   belowMediaTextClass,
@@ -103,11 +105,17 @@ function storyHref(article: IArticle): string {
 interface IStoryImage {
   src: string
   unoptimized: boolean
+  /** When set, the card shows a still frame of this video instead of the image. */
+  previewVideoSrc: string | null
 }
 
 function storyImage(article: IArticle): IStoryImage {
   const src = articleImageSrc(article)
-  return { src, unoptimized: isDataUri(src) }
+  return {
+    src,
+    unoptimized: isDataUri(src),
+    previewVideoSrc: articleCardPreviewVideoSrc(article),
+  }
 }
 
 function storySummary(
@@ -215,7 +223,7 @@ function CompactStoryCard({
   plainTitle = false,
   underlineOnHover = false,
 }: IStoryCardProps): JSX.Element {
-  const { src, unoptimized } = storyImage(article)
+  const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'compact', layout, showSummary ?? titleFirst)
   const width = sideThumbWidth ?? COMPACT_SIDE_THUMB_WIDTH
   const height = sideThumbHeight ?? COMPACT_SIDE_THUMB_HEIGHT
@@ -232,6 +240,8 @@ function CompactStoryCard({
           src={src}
           alt={article.title}
           unoptimized={unoptimized}
+          previewVideoArticle={article}
+          previewVideoSrc={previewVideoSrc}
           aspect={layout === 'side' && !usesFixedSideThumb ? '4/3' : '16/10'}
           fixedHeightPx={usesFixedSideThumb ? height : undefined}
           className={layout === 'side' ? 'shrink-0 border-0' : 'w-full'}
@@ -265,7 +275,7 @@ function RailStoryCard({
   plainTitle = false,
   underlineOnHover = false,
 }: IStoryCardProps): JSX.Element {
-  const { src, unoptimized } = storyImage(article)
+  const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'rail', layout, showSummary ?? titleFirst)
   const titleClass = belowMediaTextClass(titleClassName)
 
@@ -282,7 +292,14 @@ function RailStoryCard({
             underlineOnHover={underlineOnHover}
           />
         ) : null}
-        <StoryThumb src={src} alt={article.title} unoptimized={unoptimized} hoverScale />
+        <StoryThumb
+          src={src}
+          alt={article.title}
+          unoptimized={unoptimized}
+          previewVideoArticle={article}
+          previewVideoSrc={previewVideoSrc}
+          hoverScale
+        />
         {titleFirst ? null : (
           <StoryTitle
             title={article.title}
@@ -312,7 +329,7 @@ function HeroLeadStoryCard({
   plainTitle = false,
   underlineOnHover = false,
 }: IStoryCardProps): JSX.Element {
-  const { src, unoptimized } = storyImage(article)
+  const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'hero-lead', layout, showSummary ?? titleFirst)
   const titleClass = belowMediaTextClass(titleClassName)
   const stackedFeatured = layout === 'stacked' && titleFirst
@@ -345,6 +362,8 @@ function HeroLeadStoryCard({
           src={src}
           alt={article.title}
           unoptimized={unoptimized}
+          previewVideoArticle={article}
+          previewVideoSrc={previewVideoSrc}
           aspect={layout === 'side' ? '4/3' : '16/10'}
         />
         {stackedFeatured ? null : (
@@ -376,13 +395,20 @@ function GridStoryCard({
   plainTitle = false,
   underlineOnHover = false,
 }: IStoryCardProps): JSX.Element {
-  const { src, unoptimized } = storyImage(article)
+  const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'grid', layout, showSummary ?? titleFirst)
 
   return (
     <article className={['group', className].filter(Boolean).join(' ')}>
       <Link href={storyHref(article)} className="block">
-        <StoryThumb src={src} alt={article.title} unoptimized={unoptimized} hoverScale />
+        <StoryThumb
+          src={src}
+          alt={article.title}
+          unoptimized={unoptimized}
+          previewVideoArticle={article}
+          previewVideoSrc={previewVideoSrc}
+          hoverScale
+        />
         <StoryTitle
           title={article.title}
           plainTitle={plainTitle}
@@ -403,6 +429,9 @@ interface IStoryThumbProps {
   src: string
   alt: string
   unoptimized: boolean
+  /** Article used to render a still video frame when previewVideoSrc is set. */
+  previewVideoArticle?: IArticle
+  previewVideoSrc?: string | null
   aspect?: '4/3' | '16/10' | '16/9'
   fixedHeightPx?: number
   className?: string
@@ -414,6 +443,8 @@ function StoryThumb({
   src,
   alt,
   unoptimized,
+  previewVideoArticle,
+  previewVideoSrc,
   aspect = '16/10',
   fixedHeightPx,
   className,
@@ -428,6 +459,13 @@ function StoryThumb({
         : aspect === '16/9'
           ? 'aspect-[16/9]'
           : 'aspect-[16/10]'
+  const mediaClass = [
+    'object-cover',
+    hoverScale ? 'transition-transform duration-200 group-hover:scale-[1.02]' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const showsVideoFrame = Boolean(previewVideoSrc) && previewVideoArticle != null
 
   return (
     <div
@@ -443,16 +481,15 @@ function StoryThumb({
         className={['relative w-full', aspectClass].filter(Boolean).join(' ')}
         style={fixedHeightPx != null ? { height: fixedHeightPx } : undefined}
       >
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          className={[
-            'object-cover',
-            hoverScale ? 'transition-transform duration-200 group-hover:scale-[1.02]' : '',
-          ].join(' ')}
-          unoptimized={unoptimized}
-        />
+        {showsVideoFrame ? (
+          <ArticleLeadMedia
+            article={previewVideoArticle}
+            mode="preview-frame"
+            className={['absolute inset-0 h-full w-full', mediaClass].join(' ')}
+          />
+        ) : (
+          <Image src={src} alt={alt} fill className={mediaClass} unoptimized={unoptimized} />
+        )}
       </div>
     </div>
   )
