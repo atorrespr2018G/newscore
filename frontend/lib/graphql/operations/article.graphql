@@ -12,6 +12,7 @@ query ArticleBySlug($slug: String!, $market: String!) {
     body
     tags
     categoryId
+    storyId
     mediaIds
     media {
       id
@@ -21,5 +22,29 @@ query ArticleBySlug($slug: String!, $market: String!) {
       height
     }
     viewCount
+    storyUpdates {
+      id
+      slug
+      title
+      status
+      authorName
+      thumbnailUrl
+      videoUrl
+      createdAt
+      publishedAt
+      body
+      tags
+      categoryId
+      storyId
+      mediaIds
+      media {
+        id
+        url
+        fileType
+        width
+        height
+      }
+      viewCount
+    }
   }
 }

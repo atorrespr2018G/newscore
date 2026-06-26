@@ -147,6 +147,9 @@
     "detail": {
       "selectStory": "Select a story to curate media and placement.",
       "location": "Location: {placements}",
+      "storyId": "Story group",
+      "storyIdPlaceholder": "e.g. baltimore-bridge",
+      "storyIdHint": "Articles sharing this id appear as follow-ups beneath the newest one.",
       "maxImageCount": "Max image count",
       "attachedImages": "Attached images",
       "imagePosition": "Image {position}",

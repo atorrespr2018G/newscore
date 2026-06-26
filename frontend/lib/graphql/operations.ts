@@ -43,6 +43,7 @@ export const ARTICLE_BY_SLUG_QUERY = gql`
       body
       tags
       categoryId
+      storyId
       mediaIds
       media {
         id
@@ -52,6 +53,30 @@ export const ARTICLE_BY_SLUG_QUERY = gql`
         height
       }
       viewCount
+      storyUpdates {
+        id
+        slug
+        title
+        status
+        authorName
+        thumbnailUrl
+        videoUrl
+        createdAt
+        publishedAt
+        body
+        tags
+        categoryId
+        storyId
+        mediaIds
+        media {
+          id
+          url
+          fileType
+          width
+          height
+        }
+        viewCount
+      }
     }
   }
 `

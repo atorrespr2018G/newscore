@@ -2,7 +2,6 @@
 
 import type { IArticleDetail } from '@/interfaces/article'
 import { useArticle } from '@/hooks/use-article'
-import { ArticleLeadMedia, ArticleLeadMediaHasVideo } from '@/components/ui/article-lead-media'
 import { ArticleGallery } from '@/components/ui/article-gallery'
 import { articleBodyHtmlChunks } from '@/lib/helpers/article-body-html'
 
@@ -74,18 +73,6 @@ function ArticleHeader({ article }: { article: IArticleDetail }): JSX.Element {
   )
 }
 
-function ArticleLeadMediaBlock({ article }: { article: IArticleDetail }): JSX.Element {
-  const hasVideo = ArticleLeadMediaHasVideo(article)
-
-  return (
-    <div className="mb-6 overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-      <div className={hasVideo ? 'relative aspect-[16/9] bg-black' : 'relative aspect-[16/9]'}>
-        <ArticleLeadMedia article={article} mode={hasVideo ? 'full' : 'teaser'} />
-      </div>
-    </div>
-  )
-}
-
 function ArticleTextColumn({
   article,
   html,
@@ -95,15 +82,10 @@ function ArticleTextColumn({
   html: string
   showLeadMedia?: boolean
 }): JSX.Element {
-  const hasVideo = ArticleLeadMediaHasVideo(article)
-
   return (
     <section className="lg:col-span-2">
       <div className="border-l border-neutral-200 pl-6 sm:pl-8">
-        {showLeadMedia ? <ArticleLeadMediaBlock article={article} /> : null}
-        {showLeadMedia ? (
-          <ArticleGallery article={article} excludeHeroImage={!hasVideo} heading="More photos" />
-        ) : null}
+        {showLeadMedia ? <ArticleGallery article={article} /> : null}
         {/* Body is reporter-authored, sanitized HTML rendered as long-form prose. */}
         <div
           className="prose prose-lg max-w-none leading-8 text-neutral-900"

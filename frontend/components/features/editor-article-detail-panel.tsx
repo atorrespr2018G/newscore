@@ -14,6 +14,8 @@ interface IEditorArticleDetailPanelProps {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  storyId: string
+  setStoryId: Dispatch<SetStateAction<string>>
   maxImageCount: number
   onMaxImageCountChange: (value: number) => void
   mediaItems: ILoadedMedia[]
@@ -52,6 +54,23 @@ export function EditorArticleDetailPanel(props: IEditorArticleDetailPanelProps):
         internationalPotential={props.internationalPotential}
         setInternationalPotential={wrapWithDirty(props.setInternationalPotential, onDirty)}
       />
+
+      <label className="block text-sm font-medium text-neutral-700">
+        {t('editor.detail.storyId')}
+        <input
+          type="text"
+          value={props.storyId}
+          onChange={(event) => {
+            onDirty()
+            props.setStoryId(event.target.value)
+          }}
+          placeholder={t('editor.detail.storyIdPlaceholder')}
+          className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
+        />
+        <span className="mt-1 block text-xs font-normal text-neutral-500">
+          {t('editor.detail.storyIdHint')}
+        </span>
+      </label>
 
       <label className="block text-sm font-medium text-neutral-700">
         {t('editor.detail.maxImageCount')}

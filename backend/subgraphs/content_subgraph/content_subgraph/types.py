@@ -40,8 +40,12 @@ class Article:
     body: str | None = None
     tags: list[str] | None = None
     category_id: str | None = None
+    story_id: str | None = None
     media_ids: list[str] | None = None
     view_count: int | None = None
+    # Internal-only: lets the story_updates resolver scope follow-ups to the
+    # parent article's market without exposing market ids in the schema.
+    market_ids: strawberry.Private[list[str] | None] = None
 
     @classmethod
     async def resolve_reference(
@@ -86,6 +90,27 @@ class Article:
             for asset in assets
         ]
 
+    @strawberry.field
+    async def story_updates(self, info: Info[ContentContext]) -> list[Article]:
+        """Resolve other published articles in the same story, newest-first.
+
+        Returns an empty list for articles that editors have not grouped into a
+        story. Follow-ups are scoped to the parent article's first market so the
+        list stays consistent with the market the reader is viewing.
+        """
+
+        if not self.story_id:
+            return []
+        market_id = self.market_ids[0] if self.market_ids else None
+        updates = await article_reads.list_story_updates(
+            info.context.db,
+            story_id=self.story_id,
+            exclude_id=str(self.id),
+            market_id=market_id,
+            loader=info.context.authors,
+        )
+        return [article_from_detail(update) for update in updates]
+
 
 def article_from_detail(detail: ArticleDetailOut) -> Article:
     """Map ArticleDetailOut to GraphQL Article."""
@@ -103,8 +128,10 @@ def article_from_detail(detail: ArticleDetailOut) -> Article:
         body=detail.body,
         tags=detail.tags,
         category_id=detail.category_id,
+        story_id=detail.story_id,
         media_ids=detail.media_ids,
         view_count=detail.view_count,
+        market_ids=detail.market_ids,
     )
 
 

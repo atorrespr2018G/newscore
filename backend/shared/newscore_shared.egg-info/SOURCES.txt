@@ -20,6 +20,8 @@ pyproject.toml
 ./shared/core/pagination.py
 ./shared/core/request_context.py
 ./shared/core/rest_app.py
+./shared/helpers/__init__.py
+./shared/helpers/html_sanitize.py
 ./shared/models/__init__.py
 ./shared/models/article.py
 ./shared/models/category.py

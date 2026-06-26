@@ -21,6 +21,9 @@ MAX_CATEGORY_COUNT = 3
 MIN_INTERNATIONAL_POTENTIAL = 1
 MAX_INTERNATIONAL_POTENTIAL = 10
 
+# Maximum number of follow-up articles surfaced beneath a story's newest article.
+STORY_UPDATES_LIMIT = 6
+
 
 class ArticleCreate(BaseModel):
     """Request body for POST /articles."""
@@ -30,6 +33,7 @@ class ArticleCreate(BaseModel):
     category_ids: list[str] = Field(
         ..., min_length=MIN_CATEGORY_COUNT, max_length=MAX_CATEGORY_COUNT
     )
+    story_id: str | None = None
     international_potential: int | None = Field(
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
     )
@@ -49,6 +53,7 @@ class ArticleUpdate(BaseModel):
     category_ids: list[str] | None = Field(
         None, min_length=MIN_CATEGORY_COUNT, max_length=MAX_CATEGORY_COUNT
     )
+    story_id: str | None = None
     international_potential: int | None = Field(
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
     )
@@ -82,6 +87,7 @@ class ArticleDetailOut(ArticleOut):
     tags: list[str]
     category_id: str | None
     category_ids: list[str]
+    story_id: str | None = None
     international_potential: int | None
     market_ids: list[str]
     media_ids: list[str]

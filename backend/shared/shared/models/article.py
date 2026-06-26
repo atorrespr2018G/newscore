@@ -23,6 +23,7 @@ class Article(BaseModel):
     author_id: str
     category_id: str | None = None
     category_ids: list[str] = []
+    story_id: str | None = None
     international_potential: int | None = None
     market_ids: list[str] = []
     town_id: str | None = None

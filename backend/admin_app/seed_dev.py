@@ -53,6 +53,7 @@ class SeedStorySpec(TypedDict, total=False):
     video_url: str | None
     legacy_titles: list[str]
     tags: list[str]
+    story_id: str | None
 
 
 # Distinct demo clips (with audio) — one per health carousel item by story index.
@@ -109,9 +110,37 @@ US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
             "legacy_titles": ["Supreme Court to hear landmark digital privacy case"],
             "tags": ["seed", "us", "us", "boeing", "aviation"],
         },
-        "Senate prepares overnight vote on stopgap funding bill",
-        "Agencies issue shutdown guidance as deadline nears",
-        "Budget negotiators trade final offers before cutoff",
+        {
+            "title": "Senate prepares overnight vote on stopgap funding bill",
+            "body": (
+                "Senate leaders scheduled an overnight session to vote on a stopgap spending "
+                "measure that would keep federal agencies open past the midnight deadline. "
+                "Negotiators said a handful of disputed provisions still threatened to delay "
+                "final passage."
+            ),
+            "tags": ["seed", "us", "us", "budget", "shutdown"],
+            "story_id": "us-budget-standoff",
+        },
+        {
+            "title": "Agencies issue shutdown guidance as deadline nears",
+            "body": (
+                "Federal agencies circulated contingency plans instructing managers on which "
+                "employees would be furloughed if Congress failed to pass funding in time. The "
+                "guidance underscored how close lawmakers were to a lapse in appropriations."
+            ),
+            "tags": ["seed", "us", "us", "budget", "shutdown"],
+            "story_id": "us-budget-standoff",
+        },
+        {
+            "title": "Budget negotiators trade final offers before cutoff",
+            "body": (
+                "House and Senate negotiators exchanged last-minute offers in a bid to break the "
+                "budget standoff, with both sides signaling room for a short-term deal while "
+                "leaving larger spending fights for later in the year."
+            ),
+            "tags": ["seed", "us", "us", "budget", "shutdown"],
+            "story_id": "us-budget-standoff",
+        },
         # Top Stories band (us-featured) needs 12 US articles: hero + flanks + 3 text links per column.
         "FEMA mobilizes teams as spring flooding threatens Midwest towns",
         "Port workers reach tentative deal to avert East Coast strike",
@@ -790,6 +819,14 @@ def _story_tags(story: SeedStory, *, market_code: str, category_slug: str) -> li
     return ["seed", "demo", market_code, category_slug]
 
 
+def _story_story_id(story: SeedStory) -> str | None:
+    """Return the editor-assigned story grouping id for a seeded story."""
+
+    if isinstance(story, dict):
+        return story.get("story_id")
+    return None
+
+
 def _story_lookup_titles(story: SeedStory) -> list[str]:
     if isinstance(story, str):
         return [story]
@@ -957,6 +994,7 @@ def _market_article_fields(
         ),
         "thumbnail_url": _story_thumbnail_url(story),
         "video_url": video_url,
+        "story_id": _story_story_id(story),
         "published_at": now,
         "updated_at": now,
     }

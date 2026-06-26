@@ -315,6 +315,8 @@ def _new_article_doc(
         # category_id keeps the primary section for legacy single-category reads.
         "category_id": fields.category_ids[0],
         "category_ids": fields.category_ids,
+        # story_id groups multiple articles covering the same event; set by editors.
+        "story_id": body.story_id,
         "international_potential": body.international_potential,
         "market_ids": fields.market_ids,
         "tags": body.tags,

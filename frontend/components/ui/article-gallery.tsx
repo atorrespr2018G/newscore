@@ -7,35 +7,22 @@ import type { IArticleDetail, IArticleMedia } from '@/interfaces/article'
 import { isDataUri } from '@/lib/helpers/image-src'
 
 const IMAGE_FILE_TYPE = 'image'
+const VIDEO_FILE_TYPE = 'video'
+
+/** A single navigable carousel slide, either a picture or a video. */
+type GalleryMediaType = 'image' | 'video'
+
+interface IGallerySlide {
+  type: GalleryMediaType
+  url: string
+}
 
 interface IArticleGalleryProps {
   article: IArticleDetail
-  /** When true, the lead block already renders the hero image, so skip it here. */
-  excludeHeroImage: boolean
-  /** Optional section heading; omit when the carousel is itself the lead media. */
-  heading?: string
 }
 
 /**
- * Drop the hero image (already shown in the lead block) from the image list.
- *
- * @param images Ordered image assets.
- * @param thumbnailUrl URL of the hero image to remove once.
- * @returns Images without the first hero occurrence.
- */
-function withoutHeroImage(images: IArticleMedia[], thumbnailUrl: string): IArticleMedia[] {
-  let heroSkipped = false
-  return images.filter((asset) => {
-    if (!heroSkipped && asset.url === thumbnailUrl) {
-      heroSkipped = true
-      return false
-    }
-    return true
-  })
-}
-
-/**
- * Move the hero image to the front so it becomes the carousel's first slide.
+ * Move the hero image to the front so it becomes the first picture slide.
  *
  * @param images Ordered image assets.
  * @param thumbnailUrl URL of the hero image to surface first.
@@ -51,83 +38,105 @@ function withHeroFirst(images: IArticleMedia[], thumbnailUrl: string): IArticleM
 }
 
 /**
- * Select the image assets that should appear in the gallery.
+ * Collect the article's video URLs, lead video first, de-duplicated by URL.
  *
- * Excludes non-image media. When the lead block shows the hero separately the
- * hero is dropped; otherwise the hero is ordered first so the carousel starts on
- * the article's first picture.
+ * The lead `videoUrl` is stored separately from `media`, so it is surfaced
+ * first to preserve the historical "video above the photos" ordering; any
+ * video assets that also live in `media` are appended without duplication.
  *
  * @param article Full article detail with resolved media assets.
- * @param excludeHeroImage Whether to drop the image used as the lead hero.
- * @returns Ordered image assets to render in the gallery.
+ * @returns Ordered, unique video URLs to render before the pictures.
  */
-function galleryImages(article: IArticleDetail, excludeHeroImage: boolean): IArticleMedia[] {
-  const images = article.media.filter((asset) => asset.fileType === IMAGE_FILE_TYPE)
-  if (!article.thumbnailUrl) {
-    return images
+function galleryVideoUrls(article: IArticleDetail): string[] {
+  const seen = new Set<string>()
+  const urls: string[] = []
+  const leadVideo = article.videoUrl?.trim()
+  if (leadVideo) {
+    urls.push(leadVideo)
+    seen.add(leadVideo)
   }
-  return excludeHeroImage
-    ? withoutHeroImage(images, article.thumbnailUrl)
-    : withHeroFirst(images, article.thumbnailUrl)
+  for (const asset of article.media) {
+    if (asset.fileType === VIDEO_FILE_TYPE && asset.url && !seen.has(asset.url)) {
+      urls.push(asset.url)
+      seen.add(asset.url)
+    }
+  }
+  return urls
 }
 
 /**
- * Render every additional uploaded picture for an article as a single-image
- * carousel with previous/next navigation.
+ * Build the ordered slides for the unified media carousel.
  *
- * Returns an empty fragment when there are no extra images to show, so callers
- * can render it unconditionally.
+ * Videos come first (matching the legacy lead-video placement), followed by
+ * the pictures with the hero image surfaced first.
  *
  * @param article Full article detail with resolved media assets.
- * @param excludeHeroImage Whether the lead block already shows the first image.
- * @param heading Localized section heading for the gallery.
+ * @returns Ordered slides combining the article's videos and pictures.
+ */
+function gallerySlides(article: IArticleDetail): IGallerySlide[] {
+  const images = article.media.filter((asset) => asset.fileType === IMAGE_FILE_TYPE)
+  const orderedImages = article.thumbnailUrl
+    ? withHeroFirst(images, article.thumbnailUrl)
+    : images
+  const videoSlides: IGallerySlide[] = galleryVideoUrls(article).map((url) => ({
+    type: 'video',
+    url,
+  }))
+  const imageSlides: IGallerySlide[] = orderedImages.map((asset) => ({
+    type: 'image',
+    url: asset.url,
+  }))
+  return [...videoSlides, ...imageSlides]
+}
+
+/**
+ * Render an article's pictures and video as a single carousel with
+ * previous/next navigation.
+ *
+ * Returns an empty fragment when there is no media to show, so callers can
+ * render it unconditionally.
+ *
+ * @param article Full article detail with resolved media assets.
  * @returns The gallery carousel or an empty fragment.
  */
-export function ArticleGallery({
-  article,
-  excludeHeroImage,
-  heading,
-}: IArticleGalleryProps): JSX.Element {
+export function ArticleGallery({ article }: IArticleGalleryProps): JSX.Element {
   const t = useTranslations('common')
-  const images = galleryImages(article, excludeHeroImage)
+  const slides = gallerySlides(article)
 
-  if (images.length === 0) {
+  if (slides.length === 0) {
     return <></>
   }
 
   return (
-    <section className="mb-6" aria-label={heading ?? t('photoGallery')}>
-      {heading ? (
-        <h2 className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-neutral-500">
-          {heading}
-        </h2>
-      ) : null}
-      <GalleryCarousel images={images} title={article.title} />
+    <section className="mb-6" aria-label={t('photoGallery')}>
+      <GalleryCarousel slides={slides} title={article.title} />
     </section>
   )
 }
 
 interface IGalleryCarouselProps {
-  images: IArticleMedia[]
+  slides: IGallerySlide[]
   title: string
 }
 
 /**
- * Show one gallery image at a time with arrow controls to step through the set.
+ * Show one media slide at a time with arrow controls to step through the set.
  *
  * Navigation wraps around both ends so readers can cycle continuously, and the
- * arrows/counter are hidden for single-image galleries where they add no value.
+ * arrows/counter are hidden for single-slide galleries where they add no value.
+ * Only the active slide is mounted, so navigating away from a video unmounts it
+ * and stops playback.
  *
- * @param images Ordered image assets to page through.
- * @param title Article title used to build descriptive alt text.
- * @returns The interactive single-image carousel.
+ * @param slides Ordered media slides (pictures and videos) to page through.
+ * @param title Article title used to build descriptive alt/labels.
+ * @returns The interactive single-slide carousel.
  */
-function GalleryCarousel({ images, title }: IGalleryCarouselProps): JSX.Element {
+function GalleryCarousel({ slides, title }: IGalleryCarouselProps): JSX.Element {
   const t = useTranslations('common')
   const [activeIndex, setActiveIndex] = useState(0)
-  const total = images.length
+  const total = slides.length
   const hasMultiple = total > 1
-  const activeImage = images[activeIndex]
+  const activeSlide = slides[activeIndex]
 
   // Wrap with modulo so stepping past either end cycles to the other side.
   const goToOffset = (offset: number): void => {
@@ -137,14 +146,26 @@ function GalleryCarousel({ images, title }: IGalleryCarouselProps): JSX.Element 
   return (
     <div>
       <figure className="relative aspect-[4/3] overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-        <Image
-          src={activeImage.url}
-          alt={`${title} — image ${activeIndex + 1}`}
-          fill
-          className="object-cover"
-          unoptimized={isDataUri(activeImage.url)}
-          sizes="(min-width: 640px) 50vw, 100vw"
-        />
+        {activeSlide.type === 'video' ? (
+          <video
+            // Seek to the first frame so the slide shows a preview before playback.
+            src={`${activeSlide.url}#t=0.1`}
+            controls
+            playsInline
+            preload="metadata"
+            className="absolute inset-0 h-full w-full bg-black object-contain"
+            aria-label={`${title} — video ${activeIndex + 1}`}
+          />
+        ) : (
+          <Image
+            src={activeSlide.url}
+            alt={`${title} — image ${activeIndex + 1}`}
+            fill
+            className="object-cover"
+            unoptimized={isDataUri(activeSlide.url)}
+            sizes="(min-width: 640px) 50vw, 100vw"
+          />
+        )}
         {hasMultiple ? (
           <>
             <GalleryArrow direction="previous" label={t('previousPhoto')} onClick={() => goToOffset(-1)} />

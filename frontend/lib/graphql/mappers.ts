@@ -23,9 +23,11 @@ interface IGraphqlArticle {
   publishedAt?: string | null
   tags?: string[] | null
   categoryId?: string | null
+  storyId?: string | null
   mediaIds?: string[] | null
   media?: IGraphqlMediaAsset[] | null
   viewCount?: number | null
+  storyUpdates?: IGraphqlArticle[] | null
 }
 
 /**
@@ -109,9 +111,11 @@ export function mapArticleDetail(
     body?: string | null
     tags?: string[] | null
     categoryId?: string | null
+    storyId?: string | null
     mediaIds?: string[] | null
     media?: IGraphqlMediaAsset[] | null
     viewCount?: number | null
+    storyUpdates?: IGraphqlArticle[] | null
   },
 ): IArticleDetail {
   return {
@@ -119,9 +123,14 @@ export function mapArticleDetail(
     body: normalizedString(a.body, ''),
     tags: normalizedList(a.tags),
     categoryId: a.categoryId ?? null,
+    storyId: a.storyId ?? null,
     mediaIds: normalizedList(a.mediaIds),
     media: normalizedMedia(a.media),
     viewCount: typeof a.viewCount === 'number' ? a.viewCount : 0,
+    // Follow-ups carry full detail so "Read more" can expand them inline in the
+    // same article format; the nested storyUpdates field is not selected, so the
+    // recursive map terminates at one level (each follow-up gets an empty list).
+    storyUpdates: Array.isArray(a.storyUpdates) ? a.storyUpdates.map(mapArticleDetail) : [],
   }
 }
 

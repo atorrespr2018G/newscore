@@ -63,6 +63,7 @@ export interface IArticleDetail {
   media_ids: string[]
   max_image_count: number
   category_ids: string[]
+  story_id: string | null
   international_potential: number | null
 }
 
@@ -211,6 +212,8 @@ interface IArticleDetailEditor {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  storyId: string
+  setStoryId: Dispatch<SetStateAction<string>>
   isDirty: boolean
   markDirty: () => void
   loadArticleDetail: (articleId: string) => Promise<void>
@@ -243,6 +246,7 @@ function useArticleDetailEditor(
   const [categories, setCategories] = useState<ICategoryOut[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
+  const [storyId, setStoryId] = useState('')
   const [isDirty, setIsDirty] = useState(false)
 
   // Edits to taxonomy/media/rating happen in local state; flag them so the UI
@@ -269,6 +273,7 @@ function useArticleDetailEditor(
         setMaxImageCount(article.max_image_count)
         setSelectedCategoryIds(article.category_ids ?? [])
         setInternationalPotential(article.international_potential ?? null)
+        setStoryId(article.story_id ?? '')
         setMediaItems(await loadArticleMedia(article.media_ids))
         setIsDirty(false)
       } catch (err) {
@@ -306,6 +311,7 @@ function useArticleDetailEditor(
           thumbnail_url: mediaItems[0]?.url ?? null,
           max_image_count: maxImageCount,
           category_ids: selectedCategoryIds,
+          story_id: storyId.trim() || null,
           international_potential: internationalPotential,
         }),
       })
@@ -328,6 +334,7 @@ function useArticleDetailEditor(
     mediaItems,
     maxImageCount,
     selectedCategoryIds,
+    storyId,
     internationalPotential,
     updateArticleRow,
     scope,
@@ -393,6 +400,8 @@ function useArticleDetailEditor(
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    storyId,
+    setStoryId,
     isDirty,
     markDirty,
     loadArticleDetail,
@@ -940,6 +949,8 @@ export function useEditorCuration(): IEditorCuration {
     setSelectedCategoryIds: detailEditor.setSelectedCategoryIds,
     internationalPotential: detailEditor.internationalPotential,
     setInternationalPotential: detailEditor.setInternationalPotential,
+    storyId: detailEditor.storyId,
+    setStoryId: detailEditor.setStoryId,
     isDirty: detailEditor.isDirty,
     markDirty: detailEditor.markDirty,
     loadArticleDetail: detailEditor.loadArticleDetail,

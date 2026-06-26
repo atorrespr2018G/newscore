@@ -169,6 +169,8 @@ function EditorStoryPoolSection({ editor }: { editor: IEditorCuration }): JSX.El
           setSelectedCategoryIds={editor.setSelectedCategoryIds}
           internationalPotential={editor.internationalPotential}
           setInternationalPotential={editor.setInternationalPotential}
+          storyId={editor.storyId}
+          setStoryId={editor.setStoryId}
           detail={editor.detail}
           maxImageCount={editor.maxImageCount}
           setMaxImageCount={editor.setMaxImageCount}

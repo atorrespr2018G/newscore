@@ -26,9 +26,11 @@ export interface IArticleDetail extends IArticle {
   body: string
   tags: string[]
   categoryId: string | null
+  storyId: string | null
   mediaIds: string[]
   media: IArticleMedia[]
   viewCount: number
+  storyUpdates: IArticleDetail[]
 }
 
 /** Possible publication lifecycle states. */

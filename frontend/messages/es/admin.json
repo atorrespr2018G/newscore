@@ -147,6 +147,9 @@
     "detail": {
       "selectStory": "Selecciona una noticia para curar su contenido y ubicación.",
       "location": "Ubicación: {placements}",
+      "storyId": "Grupo de la historia",
+      "storyIdPlaceholder": "p. ej. baltimore-bridge",
+      "storyIdHint": "Los artículos que comparten este id aparecen como seguimiento debajo del más reciente.",
       "maxImageCount": "Máximo de imágenes",
       "attachedImages": "Imágenes adjuntas",
       "imagePosition": "Imagen {position}",

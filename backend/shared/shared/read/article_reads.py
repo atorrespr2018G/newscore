@@ -12,6 +12,7 @@ from shared.read.collections import ARTICLES_COLLECTION, CATEGORIES_COLLECTION
 from shared.read.loaders import AuthorNameLoader
 from shared.schemas.article_schemas import (
     DEFAULT_MAX_IMAGE_COUNT,
+    STORY_UPDATES_LIMIT,
     ArticleDetailOut,
     ArticleOut,
 )
@@ -47,6 +48,7 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         tags=list(doc.get("tags") or []),
         category_id=doc.get("category_id"),
         category_ids=_category_ids_from_doc(doc),
+        story_id=doc.get("story_id"),
         international_potential=doc.get("international_potential"),
         market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],
         media_ids=list(doc.get("media_ids") or []),
@@ -159,6 +161,50 @@ async def list_category_articles(
         page_size=params.page_size,
         has_more=((params.page - 1) * params.page_size + len(items)) < total,
     )
+
+
+async def list_story_updates(
+    db: AsyncIOMotorDatabase,
+    *,
+    story_id: str,
+    exclude_id: str,
+    market_id: str | None = None,
+    loader: AuthorNameLoader | None = None,
+    limit: int = STORY_UPDATES_LIMIT,
+) -> list[ArticleDetailOut]:
+    """List other published articles in the same story, newest-first.
+
+    Args:
+        db: Database connection.
+        story_id: Shared story grouping id assigned by editors.
+        exclude_id: Article id to omit (the one the reader is viewing).
+        market_id: Optional market scope to keep follow-ups in the same market.
+        loader: Optional author name loader.
+        limit: Maximum number of follow-ups to return.
+
+    Returns:
+        Story follow-up articles ordered newest-first.
+    """
+
+    query: dict[str, Any] = {
+        "status": "published",
+        "story_id": story_id,
+        "_id": {"$ne": exclude_id},
+    }
+    if market_id:
+        query["market_ids"] = market_id
+    cursor = (
+        db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(limit)
+    )
+    docs = [d async for d in cursor]
+    names = loader or AuthorNameLoader(db)
+    await names.load_many([str(d["author_id"]) for d in docs])
+
+    items: list[ArticleDetailOut] = []
+    for doc in docs:
+        author = await names.load(str(doc["author_id"]))
+        items.append(article_detail_out(doc, author_name=author))
+    return items
 
 
 async def search_published(

@@ -32,9 +32,11 @@ type Article {
   body: String
   tags: [String!]
   categoryId: ID
+  storyId: ID
   mediaIds: [String!]
   media: [MediaAsset!]
   viewCount: Int
+  storyUpdates: [Article!]
 }
 
 type MediaAsset {

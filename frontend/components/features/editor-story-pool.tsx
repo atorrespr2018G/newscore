@@ -62,6 +62,8 @@ interface IEditorStoryPoolProps {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  storyId: string
+  setStoryId: Dispatch<SetStateAction<string>>
   detail: IArticleDetail | null
   maxImageCount: number
   setMaxImageCount: (value: number) => void
@@ -94,6 +96,8 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    storyId,
+    setStoryId,
     detail,
     maxImageCount,
     setMaxImageCount,
@@ -264,6 +268,8 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
                 setSelectedCategoryIds={setSelectedCategoryIds}
                 internationalPotential={internationalPotential}
                 setInternationalPotential={setInternationalPotential}
+                storyId={storyId}
+                setStoryId={setStoryId}
                 maxImageCount={maxImageCount}
                 onMaxImageCountChange={setMaxImageCount}
                 mediaItems={mediaItems}
