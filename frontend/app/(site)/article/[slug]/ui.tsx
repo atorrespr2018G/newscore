@@ -4,10 +4,7 @@ import type { IArticleDetail } from '@/interfaces/article'
 import { useArticle } from '@/hooks/use-article'
 import { ArticleLeadMedia, ArticleLeadMediaHasVideo } from '@/components/ui/article-lead-media'
 import { ArticleGallery } from '@/components/ui/article-gallery'
-
-const BODY_CHUNK_SIZE = 4
-const MIN_BODY_SETS = 4
-const MIN_PARAGRAPH_COUNT = BODY_CHUNK_SIZE * MIN_BODY_SETS
+import { articleBodyHtmlChunks } from '@/lib/helpers/article-body-html'
 
 const RAIL_ADS = [
   {
@@ -28,13 +25,6 @@ const RIBBON_MESSAGES = [
   'Full-width campaign placement',
   'Cross-screen awareness unit',
   'Editorial partner message',
-]
-
-const FALLBACK_PARAGRAPHS = [
-  'NewsCore continues to follow the latest developments and update this report as new details are confirmed by reporters and public officials.',
-  'Editors are organizing the key facts, the local reaction, and the broader national context so readers can follow the story with clear updates throughout the day.',
-  'Additional reporting is expected to expand on the timeline, explain what changed, and highlight the people, places, and decisions at the center of this event.',
-  'Audience interest remains strong, so this article view includes extended copy blocks to preview the full long-form presentation and advertising layout.',
 ]
 
 interface IArticleClientProps {
@@ -58,51 +48,6 @@ function articleTopTag(article: IArticleDetail): string {
 
 function articleBodyText(article: IArticleDetail): string {
   return typeof article.body === 'string' ? article.body : ''
-}
-
-function paddedParagraphs(paragraphs: string[], headline: string): string[] {
-  const normalizedParagraphs = paragraphs.filter((paragraph) => paragraph.trim().length > 0)
-  if (normalizedParagraphs.length >= MIN_PARAGRAPH_COUNT) {
-    return normalizedParagraphs
-  }
-
-  const padded = [...normalizedParagraphs]
-  let idx = 0
-
-  while (padded.length < MIN_PARAGRAPH_COUNT) {
-    const template = FALLBACK_PARAGRAPHS[idx % FALLBACK_PARAGRAPHS.length]
-    padded.push(`${headline}: ${template}`)
-    idx += 1
-  }
-
-  return padded
-}
-
-function splitArticleBody(body?: string | null): string[] {
-  const normalized = typeof body === 'string' ? body.replace(/\r\n/g, '\n').trim() : ''
-  if (!normalized) return []
-
-  const paragraphBreaks = normalized
-    .split(/\n\s*\n+/)
-    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim())
-    .filter(Boolean)
-
-  if (paragraphBreaks.length > 1) return paragraphBreaks
-
-  return normalized
-    .split(/\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-}
-
-function paragraphChunks(paragraphs: string[]): string[][] {
-  const chunks: string[][] = []
-
-  for (let idx = 0; idx < paragraphs.length; idx += BODY_CHUNK_SIZE) {
-    chunks.push(paragraphs.slice(idx, idx + BODY_CHUNK_SIZE))
-  }
-
-  return chunks
 }
 
 function publishedLabel(article: IArticleDetail): string {
@@ -143,11 +88,11 @@ function ArticleLeadMediaBlock({ article }: { article: IArticleDetail }): JSX.El
 
 function ArticleTextColumn({
   article,
-  paragraphs,
+  html,
   showLeadMedia = false,
 }: {
   article: IArticleDetail
-  paragraphs: string[]
+  html: string
   showLeadMedia?: boolean
 }): JSX.Element {
   const hasVideo = ArticleLeadMediaHasVideo(article)
@@ -159,13 +104,11 @@ function ArticleTextColumn({
         {showLeadMedia ? (
           <ArticleGallery article={article} excludeHeroImage={!hasVideo} heading="More photos" />
         ) : null}
-        <div className="space-y-6">
-          {paragraphs.map((paragraph, index) => (
-            <p key={`${index}-${paragraph.slice(0, 24)}`} className="text-lg leading-8 text-neutral-900">
-              {paragraph}
-            </p>
-          ))}
-        </div>
+        {/* Body is reporter-authored, sanitized HTML rendered as long-form prose. */}
+        <div
+          className="prose prose-lg max-w-none leading-8 text-neutral-900"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
       </div>
     </section>
   )
@@ -216,15 +159,14 @@ function ArticleAdRibbon({ index }: { index: number }): JSX.Element {
 function ArticleBodyLayout({ article }: { article: IArticleDetail }): JSX.Element {
   const body = articleBodyText(article)
   const headline = articleHeadline(article)
-  const paragraphs = paddedParagraphs(splitArticleBody(body), headline)
-  const chunks = paragraphChunks(paragraphs)
+  const chunks = articleBodyHtmlChunks({ body, headline })
 
   return (
     <div className="mt-8 space-y-8">
       {chunks.map((chunk, index) => (
-        <div key={`${index}-${chunk[0]?.slice(0, 24) ?? 'body'}`} className="space-y-8">
+        <div key={`chunk-${index}`} className="space-y-8">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-10">
-            <ArticleTextColumn article={article} paragraphs={chunk} showLeadMedia={index === 0} />
+            <ArticleTextColumn article={article} html={chunk} showLeadMedia={index === 0} />
             <ArticleRailAd index={index} />
           </div>
           <ArticleAdRibbon index={index} />

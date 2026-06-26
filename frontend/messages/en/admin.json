@@ -11,6 +11,8 @@
     "subtitle": "Upload news title, body, images, and video.",
     "fields": {
       "headline": "Headline",
+      "headlinePlaceholder": "Write a headline…",
+      "titleCount": "{count}/{max}",
       "body": "Body",
       "categories": "Categories",
       "categoriesHint": "(choose 1–3)",
@@ -34,7 +36,23 @@
     "validation": {
       "marketNotReady": "Market is not ready yet. Try again in a moment.",
       "waitForUploads": "Wait for uploads to finish before saving.",
-      "selectCategory": "Select at least one category."
+      "selectCategory": "Select at least one category.",
+      "titleTooShort": "Headline must be at least 3 characters.",
+      "bodyTooShort": "Body must be at least 10 characters."
+    },
+    "editor": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "heading2": "H2",
+      "heading3": "H3",
+      "bulletList": "Bulleted list",
+      "orderedList": "Numbered list",
+      "blockquote": "Quote",
+      "link": "Link",
+      "unlink": "Unlink",
+      "linkPrompt": "Enter a URL",
+      "undo": "Undo",
+      "redo": "Redo"
     },
     "errors": {
       "resolveMarket": "Failed to resolve market",

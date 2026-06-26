@@ -14,7 +14,12 @@
   "dependencies": {
     "@apollo/client": "^3.13.8",
     "@tanstack/react-query": "^5.101.0",
+    "@tiptap/extension-link": "^3.27.1",
+    "@tiptap/pm": "^3.27.1",
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
     "graphql": "^16.11.0",
+    "isomorphic-dompurify": "^3.18.0",
     "next": "^14.2.32",
     "next-intl": "^4.13.0",
     "react": "^18.3.1",
@@ -23,6 +28,7 @@
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.7",
     "@graphql-codegen/client-preset": "^4.8.3",
+    "@tailwindcss/typography": "^0.5.20",
     "@types/node": "^22.15.3",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",

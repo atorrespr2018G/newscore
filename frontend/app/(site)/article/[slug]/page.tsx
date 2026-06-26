@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import { fetchArticleBySlug } from '@/lib/graphql/server-fetch'
+import { htmlToPlainText } from '@/lib/helpers/article-body-html'
 import { getServerMarketCode } from '@/lib/market-server'
 
 import { ArticleClient } from './ui'
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: IArticlePageProps): Promise<M
     }
   }
 
-  const description = article.body.slice(0, 160).replace(/\s+/g, ' ').trim()
+  const description = htmlToPlainText(article.body).slice(0, 160).trim()
 
   return {
     title: `${article.title} — NewsCore`,

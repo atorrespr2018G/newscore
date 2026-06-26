@@ -11,6 +11,8 @@
     "subtitle": "Sube el titular, el cuerpo, las imágenes y el video de la noticia.",
     "fields": {
       "headline": "Titular",
+      "headlinePlaceholder": "Escribe un titular…",
+      "titleCount": "{count}/{max}",
       "body": "Cuerpo",
       "categories": "Categorías",
       "categoriesHint": "(elige 1 a 3)",
@@ -34,7 +36,23 @@
     "validation": {
       "marketNotReady": "El mercado aún no está listo. Inténtalo de nuevo en un momento.",
       "waitForUploads": "Espera a que terminen las subidas antes de guardar.",
-      "selectCategory": "Selecciona al menos una categoría."
+      "selectCategory": "Selecciona al menos una categoría.",
+      "titleTooShort": "El titular debe tener al menos 3 caracteres.",
+      "bodyTooShort": "El cuerpo debe tener al menos 10 caracteres."
+    },
+    "editor": {
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "heading2": "H2",
+      "heading3": "H3",
+      "bulletList": "Lista con viñetas",
+      "orderedList": "Lista numerada",
+      "blockquote": "Cita",
+      "link": "Enlace",
+      "unlink": "Quitar enlace",
+      "linkPrompt": "Ingresa una URL",
+      "undo": "Deshacer",
+      "redo": "Rehacer"
     },
     "errors": {
       "resolveMarket": "No se pudo resolver el mercado",

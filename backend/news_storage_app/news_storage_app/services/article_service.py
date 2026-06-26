@@ -14,6 +14,7 @@ from news_storage_app.helpers.slug_helpers import slugify_title
 from shared.core.cache_invalidation import invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.pagination import PaginationParams
+from shared.helpers.html_sanitize import sanitize_article_html
 from shared.read.article_reads import article_detail_out, article_out
 from shared.read.collections import CATEGORIES_COLLECTION, MARKETS_COLLECTION
 from shared.read.loaders import AuthorNameLoader
@@ -307,7 +308,8 @@ def _new_article_doc(
         "_id": str(uuid4()),
         "title": body.title,
         "slug": fields.slug,
-        "body": body.body,
+        # Body is editor-authored HTML; sanitize to a safe allowlist before storage.
+        "body": sanitize_article_html(body.body),
         "status": "draft",
         "author_id": author_id,
         # category_id keeps the primary section for legacy single-category reads.
@@ -442,6 +444,9 @@ def _build_update_doc(body: ArticleUpdate) -> dict[str, Any]:
     update_doc: dict[str, Any] = {k: v for k, v in body.model_dump().items() if v is not None}
     if not update_doc:
         raise ValidationError("No fields to update")
+    # Body edits are editor-authored HTML; sanitize before persisting.
+    if "body" in update_doc:
+        update_doc["body"] = sanitize_article_html(update_doc["body"])
     return update_doc
 
 

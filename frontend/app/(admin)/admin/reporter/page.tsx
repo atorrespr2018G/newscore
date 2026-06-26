@@ -1,8 +1,10 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { LocalizedFileInput } from '@/components/ui/localized-file-input'
+import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/rich-text-editor'
 import { useEditorScope } from '@/context/editor-scope-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { submitArticleForReview } from '@/lib/api/article-workflow-client'
@@ -17,6 +19,9 @@ import {
   MIN_CATEGORY_COUNT,
   toggleCategory,
 } from '@/lib/helpers/category-selection'
+
+const MAX_TITLE_LENGTH = 200
+const MIN_BODY_TEXT_LENGTH = 10
 
 interface IUploadedImage {
   id: string
@@ -45,10 +50,42 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   return next
 }
 
+/**
+ * Extract trimmed plain text length from an HTML string for length validation.
+ *
+ * @param html Rich-text editor HTML output.
+ * @returns Number of non-whitespace-trimmed text characters in the document.
+ */
+function htmlTextLength(html: string): number {
+  if (typeof document === 'undefined') {
+    return html.replace(/<[^>]*>/g, '').trim().length
+  }
+  const container = document.createElement('div')
+  container.innerHTML = html
+  return (container.textContent ?? '').trim().length
+}
+
 export default function ReporterUploadPage(): JSX.Element {
   const t = useTranslations('admin')
   const { categoryLabel } = useSectionLabels()
   const scope = useEditorScope()
+  const toolbarLabels = useMemo<IRichTextToolbarLabels>(
+    () => ({
+      bold: t('reporter.editor.bold'),
+      italic: t('reporter.editor.italic'),
+      heading2: t('reporter.editor.heading2'),
+      heading3: t('reporter.editor.heading3'),
+      bulletList: t('reporter.editor.bulletList'),
+      orderedList: t('reporter.editor.orderedList'),
+      blockquote: t('reporter.editor.blockquote'),
+      link: t('reporter.editor.link'),
+      unlink: t('reporter.editor.unlink'),
+      linkPrompt: t('reporter.editor.linkPrompt'),
+      undo: t('reporter.editor.undo'),
+      redo: t('reporter.editor.redo'),
+    }),
+    [t],
+  )
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [images, setImages] = useState<IUploadedImage[]>([])
@@ -131,6 +168,14 @@ export default function ReporterUploadPage(): JSX.Element {
       setError(t('reporter.validation.selectCategory'))
       return
     }
+    if (title.trim().length < 3) {
+      setError(t('reporter.validation.titleTooShort'))
+      return
+    }
+    if (htmlTextLength(body) < MIN_BODY_TEXT_LENGTH) {
+      setError(t('reporter.validation.bodyTooShort'))
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -208,28 +253,31 @@ export default function ReporterUploadPage(): JSX.Element {
       ) : null}
 
       <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-5">
-        <label className="block text-sm font-medium text-neutral-700">
-          {t('reporter.fields.headline')}
-          <input
-            required
-            minLength={3}
+        <div>
+          <span className="block text-sm font-medium text-neutral-700">
+            {t('reporter.fields.headline')}
+          </span>
+          <DocumentTitleField
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
+            onChange={setTitle}
+            placeholder={t('reporter.fields.headlinePlaceholder')}
+            ariaLabel={t('reporter.fields.headline')}
+            maxLength={MAX_TITLE_LENGTH}
+            formatCount={(count, max) => t('reporter.fields.titleCount', { count, max })}
           />
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-neutral-700">
-          {t('reporter.fields.body')}
-          <textarea
-            required
-            minLength={10}
-            rows={8}
+        <div>
+          <span className="block text-sm font-medium text-neutral-700">
+            {t('reporter.fields.body')}
+          </span>
+          <RichTextEditor
             value={body}
-            onChange={(event) => setBody(event.target.value)}
-            className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
+            onChange={setBody}
+            labels={toolbarLabels}
+            ariaLabel={t('reporter.fields.body')}
           />
-        </label>
+        </div>
 
         <fieldset>
           <legend className="text-sm font-medium text-neutral-700">

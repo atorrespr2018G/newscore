@@ -1,5 +1,6 @@
 import type { IArticle, IArticleDetail, IArticleMedia } from '@/interfaces/article'
 import type { IHomepageFeed } from '@/interfaces/feed'
+import { htmlToPlainText } from '@/lib/helpers/article-body-html'
 
 interface IGraphqlMediaAsset {
   id?: string | null
@@ -67,6 +68,22 @@ function normalizedStatus(value: string | null | undefined): IArticle['status'] 
 }
 
 /**
+ * Build a plain-text card summary from a (possibly HTML) article body.
+ *
+ * The body is authored as rich-text HTML, but card/teaser views render the
+ * summary as plain text, so tags are stripped to avoid showing raw markup.
+ *
+ * @param body Raw article body, which may contain HTML markup.
+ * @returns Trimmed plain-text summary, or null when the body is empty.
+ */
+function articleSummary(body: string | null | undefined): string | null {
+  if (typeof body !== 'string' || !body.trim()) {
+    return null
+  }
+  return htmlToPlainText(body) || null
+}
+
+/**
  * Map a GraphQL article to the frontend article interface.
  */
 export function mapArticle(a: IGraphqlArticle): IArticle {
@@ -74,7 +91,7 @@ export function mapArticle(a: IGraphqlArticle): IArticle {
     id: normalizedString(a.id, 'unknown-article'),
     title: normalizedString(a.title, 'Untitled story'),
     slug: normalizedString(a.slug, 'newscore'),
-    summary: a.body ?? null,
+    summary: articleSummary(a.body),
     status: normalizedStatus(a.status),
     authorName: normalizedString(a.authorName, 'NewsCore Staff'),
     thumbnailUrl: a.thumbnailUrl ?? null,

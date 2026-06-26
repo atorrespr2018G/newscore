@@ -13,6 +13,7 @@ dependencies = [
   "python-jose[cryptography]>=3.3",
   "redis[asyncio]>=5.0",
   "python-multipart>=0.0.9",
+  "nh3>=0.2",
 ]
 
 [project.optional-dependencies]
