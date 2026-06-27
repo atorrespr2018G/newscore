@@ -6,6 +6,8 @@ import type { IFeedSlot } from '@/interfaces/feed'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { COMPACT_SIDE_THUMB_WIDTH } from '@/components/ui/story-card'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
+import { PlacementSlotScope } from '@/context/editor-placement-context'
+import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import {
   EDITORIAL_LEAD_IMAGE_COUNT,
@@ -70,29 +72,52 @@ function EditorialBandColumns({
   return (
     <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-8">
       {moreArticles.length > 0 ? (
-        <EditorialColumn
-          title={homepageSectionTitle(moreTopStoriesSlot.positionKey, moreTopStoriesSlot.displayName)}
-          articles={moreArticles}
-          showHeadlineLinks={!hideLeadHeadlineLinks}
-          showTrailingNewsScreen={showTrailingNewsScreen}
-          maxArticles={isMoreTopStories ? MORE_TOP_STORIES_PINNED_LIMIT : undefined}
-        />
+        <PlacementSlotScope slotId={moreTopStoriesSlot.id}>
+          <div>
+            <EditorialColumn
+              title={homepageSectionTitle(moreTopStoriesSlot.positionKey, moreTopStoriesSlot.displayName)}
+              articles={moreArticles}
+              showHeadlineLinks={!hideLeadHeadlineLinks}
+              showTrailingNewsScreen={showTrailingNewsScreen}
+              maxArticles={isMoreTopStories ? MORE_TOP_STORIES_PINNED_LIMIT : undefined}
+            />
+            <PlacementSectionDropZone />
+          </div>
+        </PlacementSlotScope>
       ) : null}
 
       {spotlightSlot.articles.length > 0 ? (
-        <EditorialColumn
-          title={homepageSectionTitle(spotlightSlot.positionKey, spotlightSlot.displayName)}
-          articles={spotlightSlot.articles}
-          showTrailingNewsScreen={showTrailingNewsScreen}
-        />
+        <PlacementSlotScope slotId={spotlightSlot.id}>
+          <div>
+            <EditorialColumn
+              title={homepageSectionTitle(spotlightSlot.positionKey, spotlightSlot.displayName)}
+              articles={spotlightSlot.articles}
+              showTrailingNewsScreen={showTrailingNewsScreen}
+            />
+            <PlacementSectionDropZone />
+          </div>
+        </PlacementSlotScope>
       ) : null}
 
-      <RightRailColumn
-        title={rightRailSlot ? homepageSectionTitle(rightRailSlot.positionKey, rightRailSlot.displayName) : undefined}
-        positionKey={rightRailSlot?.positionKey}
-        articles={rightRailSlot?.articles ?? []}
-        showTrailingNewsScreen={showTrailingNewsScreen}
-      />
+      {rightRailSlot ? (
+        <PlacementSlotScope slotId={rightRailSlot.id}>
+          <div>
+            <RightRailColumn
+              title={homepageSectionTitle(rightRailSlot.positionKey, rightRailSlot.displayName)}
+              positionKey={rightRailSlot.positionKey}
+              articles={rightRailSlot.articles}
+              showTrailingNewsScreen={showTrailingNewsScreen}
+            />
+            <PlacementSectionDropZone />
+          </div>
+        </PlacementSlotScope>
+      ) : (
+        <RightRailColumn
+          positionKey={undefined}
+          articles={[]}
+          showTrailingNewsScreen={showTrailingNewsScreen}
+        />
+      )}
     </div>
   )
 }
@@ -320,11 +345,13 @@ function TodayFeaturedNewsScreen({ article }: { article: IArticle }): JSX.Elemen
   const href = `/article/${encodeURIComponent(article.slug)}`
 
   return (
-    <article className="group">
-      <Link href={href} className="block" aria-label={article.title}>
-        <HomepageStoryThumb article={article} />
-      </Link>
-    </article>
+    <PlacementOverlay article={article}>
+      <article className="group">
+        <Link href={href} className="block" aria-label={article.title}>
+          <HomepageStoryThumb article={article} />
+        </Link>
+      </article>
+    </PlacementOverlay>
   )
 }
 

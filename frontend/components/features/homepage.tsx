@@ -6,6 +6,8 @@ import { Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import type { IArticle } from '@/interfaces/article'
+import { PlacementSlotScope } from '@/context/editor-placement-context'
+import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useFeed } from '@/hooks/use-feed'
 import {
   ArticleLeadMedia,
@@ -103,23 +105,25 @@ function HeroLead({ hero }: { hero: IArticle }): JSX.Element {
   const heroHref = `/article/${encodeURIComponent(hero.slug)}`
   const heroSummary = deckBelowTitle(hero.title, hero.summary, 200)
   return (
-    <Link href={heroHref} className="group block" aria-label={hero.title}>
-      <h2 className="font-sans text-[34px] font-normal leading-[1.05] tracking-tight text-neutral-950">
-        {hero.title}
-      </h2>
+    <PlacementOverlay article={hero}>
+      <Link href={heroHref} className="group block" aria-label={hero.title}>
+        <h2 className="font-sans text-[34px] font-normal leading-[1.05] tracking-tight text-neutral-950">
+          {hero.title}
+        </h2>
 
-      <div className="mt-4 overflow-hidden rounded border border-neutral-200 bg-neutral-100">
-        <div className="relative aspect-[16/9]">
-          <ArticleLeadMedia article={hero} mode="teaser" priority imageSizes="(max-width: 1024px) 100vw, 50vw" />
+        <div className="mt-4 overflow-hidden rounded border border-neutral-200 bg-neutral-100">
+          <div className="relative aspect-[16/9]">
+            <ArticleLeadMedia article={hero} mode="teaser" priority imageSizes="(max-width: 1024px) 100vw, 50vw" />
+          </div>
         </div>
-      </div>
 
-      {heroSummary ? (
-        <p className="mt-4 font-sans text-sm font-normal leading-relaxed text-neutral-800">
-          <span className="line-clamp-3">{heroSummary}</span>
-        </p>
-      ) : null}
-    </Link>
+        {heroSummary ? (
+          <p className="mt-4 font-sans text-sm font-normal leading-relaxed text-neutral-800">
+            <span className="line-clamp-3">{heroSummary}</span>
+          </p>
+        ) : null}
+      </Link>
+    </PlacementOverlay>
   )
 }
 
@@ -185,10 +189,13 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
   const { left, relatedLinks, strip, rightCards } = splitDefaultHeroArticles(articles)
 
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-      <HeroLeftRail articles={left} />
-      <HeroCenter hero={hero} relatedLinks={relatedLinks} strip={strip} />
-      <HeroRightRail articles={rightCards} />
+    <div>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <HeroLeftRail articles={left} />
+        <HeroCenter hero={hero} relatedLinks={relatedLinks} strip={strip} />
+        <HeroRightRail articles={rightCards} />
+      </div>
+      <PlacementSectionDropZone />
     </div>
   )
 }
@@ -333,7 +340,9 @@ export function HomepageContent({ feed }: { feed: IHomepageFeed }): JSX.Element 
 
   return (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline">
-      <HeroBlock articles={sections.heroSlot.articles} />
+      <PlacementSlotScope slotId={sections.heroSlot.id}>
+        <HeroBlock articles={sections.heroSlot.articles} />
+      </PlacementSlotScope>
       <AdRibbon />
       <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
       <TopStoriesSection band={sections.topStoriesBand} />

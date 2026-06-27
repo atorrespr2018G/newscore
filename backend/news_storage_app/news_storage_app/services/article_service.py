@@ -15,7 +15,11 @@ from shared.core.cache_invalidation import invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.pagination import PaginationParams
 from shared.helpers.html_sanitize import sanitize_article_html
-from shared.read.article_reads import article_detail_out, article_out
+from shared.read.article_reads import (
+    article_detail_out,
+    article_out,
+    list_story_groups as read_story_groups,
+)
 from shared.read.collections import CATEGORIES_COLLECTION, MARKETS_COLLECTION
 from shared.read.loaders import AuthorNameLoader
 from shared.repositories.article_repository import ArticleRepository
@@ -28,6 +32,7 @@ from shared.schemas.article_schemas import (
     ArticleDetailOut,
     ArticleOut,
     ArticleUpdate,
+    StoryGroupOut,
 )
 
 MEDIA_IMAGE_TYPE = "image"
@@ -428,6 +433,19 @@ async def list_all(
         for doc in docs
     ]
     return items, total
+
+
+async def list_story_groups(db: AsyncIOMotorDatabase) -> list[StoryGroupOut]:
+    """List distinct editor-assigned story groups for the editor combobox.
+
+    Args:
+        db: Database connection.
+
+    Returns:
+        Story groups ordered by article count, largest first.
+    """
+
+    return await read_story_groups(db)
 
 
 def _build_update_doc(body: ArticleUpdate) -> dict[str, Any]:

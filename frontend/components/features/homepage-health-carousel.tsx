@@ -4,6 +4,8 @@ import { useCallback, useRef, useState } from 'react'
 import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { ArticleLeadMedia } from '@/components/ui/article-lead-media'
+import { PlacementSlotScope } from '@/context/editor-placement-context'
+import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
@@ -77,6 +79,7 @@ export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JS
   const anchorId = sectionAnchorId(slot.positionKey)
 
   return (
+    <PlacementSlotScope slotId={slot.id}>
     <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
       <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
         <h2 className="text-2xl font-black tracking-tight text-neutral-950">{title}</h2>
@@ -122,7 +125,9 @@ export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JS
           </div>
         </div>
       </div>
+      <PlacementSectionDropZone />
     </section>
+    </PlacementSlotScope>
   )
 }
 
@@ -132,14 +137,16 @@ interface IHealthCarouselHeroVideoProps {
 
 function HealthCarouselHeroVideo({ article }: IHealthCarouselHeroVideoProps): JSX.Element {
   return (
-    <div className="relative aspect-video w-full bg-black">
-      <ArticleLeadMedia
-        article={article}
-        mode="full"
-        priority
-        imageSizes="(max-width: 1024px) 68vw, 697px"
-      />
-    </div>
+    <PlacementOverlay article={article}>
+      <div className="relative aspect-video w-full bg-black">
+        <ArticleLeadMedia
+          article={article}
+          mode="full"
+          priority
+          imageSizes="(max-width: 1024px) 68vw, 697px"
+        />
+      </div>
+    </PlacementOverlay>
   )
 }
 
@@ -203,6 +210,7 @@ function HealthCarouselCard({ article, isActive, onSelect }: IHealthCarouselCard
       data-carousel-card
       className="w-[min(72vw,220px)] shrink-0 sm:w-[200px] lg:w-[calc(25%-12px)] lg:min-w-[180px]"
     >
+      <PlacementOverlay article={article}>
       <button
         type="button"
         onClick={onSelect}
@@ -234,6 +242,7 @@ function HealthCarouselCard({ article, isActive, onSelect }: IHealthCarouselCard
           {article.title}
         </p>
       </button>
+      </PlacementOverlay>
     </article>
   )
 }

@@ -3,7 +3,9 @@
 import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import { InlineArticleTaxonomyEditor } from '@/components/features/inline-article-taxonomy-editor'
+import { StoryGroupCombobox } from '@/components/features/story-group-combobox'
 import type { ICategoryOut } from '@/lib/api/category-client'
+import type { IStoryGroupOut } from '@/lib/api/story-group-client'
 import { moveItem } from '@/lib/helpers/editor-curation'
 import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
 
@@ -16,6 +18,7 @@ interface IEditorArticleDetailPanelProps {
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
   storyId: string
   setStoryId: Dispatch<SetStateAction<string>>
+  storyGroups: IStoryGroupOut[]
   maxImageCount: number
   onMaxImageCountChange: (value: number) => void
   mediaItems: ILoadedMedia[]
@@ -55,22 +58,20 @@ export function EditorArticleDetailPanel(props: IEditorArticleDetailPanelProps):
         setInternationalPotential={wrapWithDirty(props.setInternationalPotential, onDirty)}
       />
 
-      <label className="block text-sm font-medium text-neutral-700">
+      <div className="block text-sm font-medium text-neutral-700">
         {t('editor.detail.storyId')}
-        <input
-          type="text"
+        <StoryGroupCombobox
           value={props.storyId}
-          onChange={(event) => {
+          groups={props.storyGroups}
+          onChange={(value) => {
             onDirty()
-            props.setStoryId(event.target.value)
+            props.setStoryId(value)
           }}
-          placeholder={t('editor.detail.storyIdPlaceholder')}
-          className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
         />
         <span className="mt-1 block text-xs font-normal text-neutral-500">
           {t('editor.detail.storyIdHint')}
         </span>
-      </label>
+      </div>
 
       <label className="block text-sm font-medium text-neutral-700">
         {t('editor.detail.maxImageCount')}

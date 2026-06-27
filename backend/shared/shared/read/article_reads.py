@@ -12,9 +12,11 @@ from shared.read.collections import ARTICLES_COLLECTION, CATEGORIES_COLLECTION
 from shared.read.loaders import AuthorNameLoader
 from shared.schemas.article_schemas import (
     DEFAULT_MAX_IMAGE_COUNT,
+    STORY_GROUPS_LIMIT,
     STORY_UPDATES_LIMIT,
     ArticleDetailOut,
     ArticleOut,
+    StoryGroupOut,
 )
 from shared.schemas.common import PaginatedResponse
 
@@ -205,6 +207,51 @@ async def list_story_updates(
         author = await names.load(str(doc["author_id"]))
         items.append(article_detail_out(doc, author_name=author))
     return items
+
+
+async def list_story_groups(
+    db: AsyncIOMotorDatabase,
+    *,
+    limit: int = STORY_GROUPS_LIMIT,
+) -> list[StoryGroupOut]:
+    """List distinct editor-assigned story groups with their article counts.
+
+    Spans every article status because editors group drafts before publishing.
+    Articles without a story id (None or empty string) are excluded so the
+    combobox only surfaces real groups.
+
+    Args:
+        db: Database connection.
+        limit: Maximum number of groups to return.
+
+    Returns:
+        Story groups ordered by article count (largest first), then by id.
+    """
+
+    # Sort by updated_at before grouping so the most recently edited article in
+    # each group provides the representative sample_title.
+    pipeline = [
+        {"$match": {"story_id": {"$nin": [None, ""]}}},
+        {"$sort": {"updated_at": -1}},
+        {
+            "$group": {
+                "_id": "$story_id",
+                "article_count": {"$sum": 1},
+                "sample_title": {"$first": "$title"},
+            }
+        },
+        {"$sort": {"article_count": -1, "_id": 1}},
+        {"$limit": limit},
+    ]
+    cursor = db[ARTICLES_COLLECTION].aggregate(pipeline)
+    return [
+        StoryGroupOut(
+            id=str(row["_id"]),
+            article_count=int(row["article_count"]),
+            sample_title=str(row.get("sample_title") or ""),
+        )
+        async for row in cursor
+    ]
 
 
 async def search_published(

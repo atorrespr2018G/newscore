@@ -171,6 +171,7 @@ function EditorStoryPoolSection({ editor }: { editor: IEditorCuration }): JSX.El
           setInternationalPotential={editor.setInternationalPotential}
           storyId={editor.storyId}
           setStoryId={editor.setStoryId}
+          storyGroups={editor.storyGroups}
           detail={editor.detail}
           maxImageCount={editor.maxImageCount}
           setMaxImageCount={editor.setMaxImageCount}
@@ -277,20 +278,18 @@ function PanelModeToggle({ mode, onModeChange }: IPanelModeToggleProps): JSX.Ele
 function EditorWorkspaceColumn({ editor }: { editor: IEditorCuration }): JSX.Element {
   const [panelMode, setPanelMode] = useState<PanelModeType>('placement')
   const scope = useEditorScope()
-  const preview = useEditorPreviewFeed(scope, panelMode === 'preview')
+  // Both surfaces render the resolved homepage feed, so keep it loaded for either tab.
+  const preview = useEditorPreviewFeed(scope, true)
   const refreshRef = useRef(preview.refresh)
   refreshRef.current = preview.refresh
 
-  // Pull a fresh preview whenever a placement/publish marks the feed stale
-  // while the editor is actively viewing the preview surface.
+  // Pull a fresh feed whenever a placement/publish marks the homepage stale so
+  // the WYSIWYG placement canvas and the preview both stay current.
   useEffect(() => {
-    if (panelMode !== 'preview') {
-      return
-    }
     return subscribeToEditorialPreviewStale(() => {
       void refreshRef.current()
     })
-  }, [panelMode])
+  }, [])
 
   return (
     <div
@@ -300,12 +299,16 @@ function EditorWorkspaceColumn({ editor }: { editor: IEditorCuration }): JSX.Ele
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
         {panelMode === 'placement' ? (
           <HomepagePlacementCanvas
-            slots={editor.homepageSlots}
-            targets={editor.placementTargets}
-            articleById={editor.articleById}
+            feed={preview.previewFeed}
+            loading={preview.loading}
+            error={preview.error}
+            homepageSlots={editor.homepageSlots}
+            placementTargets={editor.placementTargets}
             selectedArticleId={editor.selectedId}
             saving={editor.saving}
             statusMessage={editor.message}
+            refreshing={preview.refreshing}
+            onRefresh={() => void preview.refresh()}
             onDropPlacement={(articleId, target) => void editor.applyDropPlacement(articleId, target)}
             onRemovePlacement={(target) => void editor.applyRemovePlacement(target)}
             onMovePlacement={(target, direction) => void editor.applyMovePlacement(target, direction)}

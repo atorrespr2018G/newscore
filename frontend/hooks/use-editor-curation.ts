@@ -17,6 +17,7 @@ import {
   publishHomepagePlacements,
 } from '@/lib/api/layout-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
+import { getStoryGroups, type IStoryGroupOut } from '@/lib/api/story-group-client'
 import { getMediaByIds } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
 import { MIN_CATEGORY_COUNT } from '@/lib/helpers/category-selection'
@@ -214,6 +215,7 @@ interface IArticleDetailEditor {
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
   storyId: string
   setStoryId: Dispatch<SetStateAction<string>>
+  storyGroups: IStoryGroupOut[]
   isDirty: boolean
   markDirty: () => void
   loadArticleDetail: (articleId: string) => Promise<void>
@@ -247,6 +249,7 @@ function useArticleDetailEditor(
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
   const [storyId, setStoryId] = useState('')
+  const [storyGroups, setStoryGroups] = useState<IStoryGroupOut[]>([])
   const [isDirty, setIsDirty] = useState(false)
 
   // Edits to taxonomy/media/rating happen in local state; flag them so the UI
@@ -260,6 +263,20 @@ function useArticleDetailEditor(
         setError(err instanceof Error ? err.message : t('editor.errors.loadCategories'))
       })
   }, [setError, t])
+
+  // Refresh the story group list so a newly created id appears in the combobox
+  // after the next save; failures are non-fatal and leave the prior list intact.
+  const refreshStoryGroups = useCallback(async () => {
+    try {
+      setStoryGroups(await getStoryGroups())
+    } catch {
+      // Keep the existing groups; the editor can still type a new id.
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshStoryGroups()
+  }, [refreshStoryGroups])
 
   const loadArticleDetail = useCallback(
     async (articleId: string) => {
@@ -311,7 +328,9 @@ function useArticleDetailEditor(
           thumbnail_url: mediaItems[0]?.url ?? null,
           max_image_count: maxImageCount,
           category_ids: selectedCategoryIds,
-          story_id: storyId.trim() || null,
+          // Send the trimmed id (empty string clears the group); the PATCH layer
+          // drops null but keeps an empty string, so this is how unassign works.
+          story_id: storyId.trim(),
           international_potential: internationalPotential,
         }),
       })
@@ -323,6 +342,7 @@ function useArticleDetailEditor(
         status: updated.status,
         thumbnail_url: mediaItems[0]?.url ?? null,
       })
+      void refreshStoryGroups()
       notifyEditorialPreviewStale(scope)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('editor.errors.saveArticle'))
@@ -337,6 +357,7 @@ function useArticleDetailEditor(
     storyId,
     internationalPotential,
     updateArticleRow,
+    refreshStoryGroups,
     scope,
     setError,
     setMessage,
@@ -402,6 +423,7 @@ function useArticleDetailEditor(
     setInternationalPotential,
     storyId,
     setStoryId,
+    storyGroups,
     isDirty,
     markDirty,
     loadArticleDetail,
@@ -951,6 +973,7 @@ export function useEditorCuration(): IEditorCuration {
     setInternationalPotential: detailEditor.setInternationalPotential,
     storyId: detailEditor.storyId,
     setStoryId: detailEditor.setStoryId,
+    storyGroups: detailEditor.storyGroups,
     isDirty: detailEditor.isDirty,
     markDirty: detailEditor.markDirty,
     loadArticleDetail: detailEditor.loadArticleDetail,

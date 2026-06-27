@@ -9,7 +9,13 @@ from news_storage_app.services import article_service
 from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
 from shared.core.pagination import PaginationDep, PaginationParams
-from shared.schemas.article_schemas import ArticleCreate, ArticleDetailOut, ArticleOut, ArticleUpdate
+from shared.schemas.article_schemas import (
+    ArticleCreate,
+    ArticleDetailOut,
+    ArticleOut,
+    ArticleUpdate,
+    StoryGroupOut,
+)
 from shared.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/articles")
@@ -48,6 +54,20 @@ async def list_articles(
         page_size=pagination.page_size,
         has_more=(pagination.skip + len(items)) < total,
     )
+
+
+@router.get("/story-groups", response_model=list[StoryGroupOut])
+async def list_article_story_groups(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _: TokenPayload = Depends(require_role("reporter", "editor", "admin")),
+) -> list[StoryGroupOut]:
+    """List distinct editor-assigned story groups with article counts.
+
+    Declared before the dynamic ``/{article_id}`` route so the literal
+    ``story-groups`` path is not captured as an article id.
+    """
+
+    return await article_service.list_story_groups(db)
 
 
 @router.get("/{article_id}", response_model=ArticleDetailOut)

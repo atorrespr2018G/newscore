@@ -6,6 +6,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { EditorArticleDetailPanel } from '@/components/features/editor-article-detail-panel'
 import type { ICategoryOut } from '@/lib/api/category-client'
+import type { IStoryGroupOut } from '@/lib/api/story-group-client'
 import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
 import {
@@ -64,6 +65,7 @@ interface IEditorStoryPoolProps {
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
   storyId: string
   setStoryId: Dispatch<SetStateAction<string>>
+  storyGroups: IStoryGroupOut[]
   detail: IArticleDetail | null
   maxImageCount: number
   setMaxImageCount: (value: number) => void
@@ -98,6 +100,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     setInternationalPotential,
     storyId,
     setStoryId,
+    storyGroups,
     detail,
     maxImageCount,
     setMaxImageCount,
@@ -270,6 +273,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
                 setInternationalPotential={setInternationalPotential}
                 storyId={storyId}
                 setStoryId={setStoryId}
+                storyGroups={storyGroups}
                 maxImageCount={maxImageCount}
                 onMaxImageCountChange={setMaxImageCount}
                 mediaItems={mediaItems}

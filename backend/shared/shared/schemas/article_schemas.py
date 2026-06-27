@@ -24,6 +24,9 @@ MAX_INTERNATIONAL_POTENTIAL = 10
 # Maximum number of follow-up articles surfaced beneath a story's newest article.
 STORY_UPDATES_LIMIT = 6
 
+# Maximum number of distinct story groups returned to the editor combobox.
+STORY_GROUPS_LIMIT = 100
+
 
 class ArticleCreate(BaseModel):
     """Request body for POST /articles."""
@@ -93,4 +96,12 @@ class ArticleDetailOut(ArticleOut):
     media_ids: list[str]
     max_image_count: int
     view_count: int
+
+
+class StoryGroupOut(BaseModel):
+    """A distinct editor-assigned story group with its article count."""
+
+    id: str
+    article_count: int
+    sample_title: str
 

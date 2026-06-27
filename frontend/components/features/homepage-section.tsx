@@ -6,6 +6,8 @@ import { HomepageCompactSixBand } from '@/components/features/homepage-compact-s
 import { HealthCarouselSection } from '@/components/features/homepage-health-carousel'
 import { HomepageUsBand } from '@/components/features/homepage-us-band'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
+import { PlacementSlotScope } from '@/context/editor-placement-context'
+import { PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { cardVariantForPresentation } from '@/lib/presentation-registry'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import {
@@ -109,51 +111,54 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   const featuredColumns = usesFeaturedColumns ? buildFeaturedColumns(articles) : []
 
   return (
-    <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
-      <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
-        <h2
-          className={[
-            'text-2xl tracking-tight text-neutral-950',
-            pageName === 'world' ? 'font-normal' : 'font-black',
-          ].join(' ')}
-        >
-          {title}
-        </h2>
-        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
-      </div>
-      <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 ${desktopGridColumnsClass}`}>
-        {usesFeaturedColumns
-          ? featuredColumns.map((column, index) => {
-              const { leadArticle, secondaryArticles } = column
-              if (!leadArticle) {
-                return null
-              }
+    <PlacementSlotScope slotId={slot.id}>
+      <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
+        <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
+          <h2
+            className={[
+              'text-2xl tracking-tight text-neutral-950',
+              pageName === 'world' ? 'font-normal' : 'font-black',
+            ].join(' ')}
+          >
+            {title}
+          </h2>
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
+        </div>
+        <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 ${desktopGridColumnsClass}`}>
+          {usesFeaturedColumns
+            ? featuredColumns.map((column, index) => {
+                const { leadArticle, secondaryArticles } = column
+                if (!leadArticle) {
+                  return null
+                }
 
-              return (
-                <div key={`${leadArticle.id}-${index}`} className="space-y-4">
-                  <HomepageStoryCard article={leadArticle} variant={variant} showAuthor />
-                  <div className="space-y-4">
-                    {secondaryArticles.map((article, secondaryIndex) => (
-                      <HomepageStoryCard
-                        key={`${article.id}-${index}-${secondaryIndex}`}
-                        article={article}
-                        variant="compact"
-                        layout="side"
-                      />
-                    ))}
+                return (
+                  <div key={`${leadArticle.id}-${index}`} className="space-y-4">
+                    <HomepageStoryCard article={leadArticle} variant={variant} showAuthor />
+                    <div className="space-y-4">
+                      {secondaryArticles.map((article, secondaryIndex) => (
+                        <HomepageStoryCard
+                          key={`${article.id}-${index}-${secondaryIndex}`}
+                          article={article}
+                          variant="compact"
+                          layout="side"
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            })
-          : articles.map((article) => (
-              <HomepageStoryCard
-                key={article.id}
-                article={article}
-                variant={variant}
-                showAuthor
-              />
-            ))}
-      </div>
-    </section>
+                )
+              })
+            : articles.map((article) => (
+                <HomepageStoryCard
+                  key={article.id}
+                  article={article}
+                  variant={variant}
+                  showAuthor
+                />
+              ))}
+        </div>
+        <PlacementSectionDropZone />
+      </section>
+    </PlacementSlotScope>
   )
 }
