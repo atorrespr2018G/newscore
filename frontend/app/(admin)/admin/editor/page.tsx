@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
@@ -102,9 +101,6 @@ function EditorHeader(): JSX.Element {
     <>
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h1 className="font-serif text-2xl font-bold">{t('editor.heading')}</h1>
-        <Link href="/admin/preview" className="text-sm font-semibold text-brand hover:underline">
-          {t('editor.previewLink')}
-        </Link>
       </div>
       <p className="mt-1 text-sm text-neutral-600">{t('editor.subtitle')}</p>
     </>
