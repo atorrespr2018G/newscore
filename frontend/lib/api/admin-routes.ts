@@ -34,7 +34,6 @@ export function getDefaultAdminRoute(role: AdminRoleType): string {
 export const ADMIN_WORKFLOW_ROUTES = [
   '/admin/reporter',
   '/admin/editor',
-  '/admin/review',
   '/admin/preview',
 ] as const
 
@@ -52,8 +51,6 @@ export const ADMIN_WORKFLOW_TABS: ReadonlyArray<{
 }> = [
   { href: '/admin/reporter', labelKey: 'reporter' },
   { href: '/admin/editor', labelKey: 'editor' },
-  { href: '/admin/review', labelKey: 'review' },
-  { href: '/admin/preview', labelKey: 'preview' },
 ]
 
 /**
