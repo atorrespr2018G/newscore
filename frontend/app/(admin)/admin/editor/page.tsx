@@ -1,13 +1,12 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { EditorScopeSwitcher } from '@/components/features/editor-scope-switcher'
 import { EditorStoryPool } from '@/components/features/editor-story-pool'
 import { EditorCanvasSkeleton, EditorPoolSkeleton } from '@/components/features/editor-skeletons'
 import { HomepagePlacementCanvas } from '@/components/features/homepage-placement-canvas'
-import { HomepagePreviewPane } from '@/components/features/homepage-preview-pane'
 import { useToast } from '@/components/ui/toast'
 import { useEditorScope } from '@/context/editor-scope-context'
 import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
@@ -16,9 +15,6 @@ import { subscribeToEditorialPreviewStale } from '@/lib/helpers/editorial-previe
 
 const EDITOR_WORKSPACE_HEIGHT_CLASS = 'lg:max-h-[calc(100dvh-14rem)]'
 const EDITOR_CANVAS_STICKY_CLASS = 'lg:sticky lg:top-24 lg:self-start'
-
-/** Which workspace surface the right column is showing. */
-type PanelModeType = 'placement' | 'preview'
 
 export default function EditorCurationPage(): JSX.Element {
   const editor = useEditorCuration()
@@ -230,57 +226,15 @@ function EditorArticleIdLoader({
   )
 }
 
-interface IPanelModeToggleProps {
-  mode: PanelModeType
-  onModeChange: (mode: PanelModeType) => void
-}
-
-const PANEL_MODE_OPTIONS: ReadonlyArray<{ value: PanelModeType; labelKey: string }> = [
-  { value: 'placement', labelKey: 'editor.workspace.placementTab' },
-  { value: 'preview', labelKey: 'editor.workspace.previewTab' },
-]
-
-/**
- * Segmented control switching the right column between placement and preview.
- *
- * @param props Active mode and the change handler.
- * @returns Segmented toggle UI.
- */
-function PanelModeToggle({ mode, onModeChange }: IPanelModeToggleProps): JSX.Element {
-  const t = useTranslations('admin')
-  return (
-    <div className="mb-3 inline-flex rounded-lg border border-neutral-200 bg-neutral-100 p-1" role="tablist">
-      {PANEL_MODE_OPTIONS.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={mode === option.value}
-          onClick={() => onModeChange(option.value)}
-          className={[
-            'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-            mode === option.value
-              ? 'bg-white text-brand shadow-sm'
-              : 'text-neutral-600 hover:text-neutral-900',
-          ].join(' ')}
-        >
-          {t(option.labelKey)}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 function EditorWorkspaceColumn({ editor }: { editor: IEditorCuration }): JSX.Element {
-  const [panelMode, setPanelMode] = useState<PanelModeType>('placement')
   const scope = useEditorScope()
-  // Both surfaces render the resolved homepage feed, so keep it loaded for either tab.
+  // The placement canvas renders the resolved homepage feed, so keep it loaded.
   const preview = useEditorPreviewFeed(scope, true)
   const refreshRef = useRef(preview.refresh)
   refreshRef.current = preview.refresh
 
   // Pull a fresh feed whenever a placement/publish marks the homepage stale so
-  // the WYSIWYG placement canvas and the preview both stay current.
+  // the WYSIWYG placement canvas stays current.
   useEffect(() => {
     return subscribeToEditorialPreviewStale(() => {
       void refreshRef.current()
@@ -291,33 +245,22 @@ function EditorWorkspaceColumn({ editor }: { editor: IEditorCuration }): JSX.Ele
     <div
       className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${EDITOR_WORKSPACE_HEIGHT_CLASS} ${EDITOR_CANVAS_STICKY_CLASS}`}
     >
-      <PanelModeToggle mode={panelMode} onModeChange={setPanelMode} />
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
-        {panelMode === 'placement' ? (
-          <HomepagePlacementCanvas
-            feed={preview.previewFeed}
-            loading={preview.loading}
-            error={preview.error}
-            homepageSlots={editor.homepageSlots}
-            placementTargets={editor.placementTargets}
-            selectedArticleId={editor.selectedId}
-            saving={editor.saving}
-            statusMessage={editor.message}
-            refreshing={preview.refreshing}
-            onRefresh={() => void preview.refresh()}
-            onDropPlacement={(articleId, target) => void editor.applyDropPlacement(articleId, target)}
-            onRemovePlacement={(target) => void editor.applyRemovePlacement(target)}
-            onMovePlacement={(target, direction) => void editor.applyMovePlacement(target, direction)}
-          />
-        ) : (
-          <HomepagePreviewPane
-            feed={preview.previewFeed}
-            loading={preview.loading}
-            error={preview.error}
-            onRefresh={() => void preview.refresh()}
-            refreshing={preview.refreshing}
-          />
-        )}
+        <HomepagePlacementCanvas
+          feed={preview.previewFeed}
+          loading={preview.loading}
+          error={preview.error}
+          homepageSlots={editor.homepageSlots}
+          placementTargets={editor.placementTargets}
+          selectedArticleId={editor.selectedId}
+          saving={editor.saving}
+          statusMessage={editor.message}
+          refreshing={preview.refreshing}
+          onRefresh={() => void preview.refresh()}
+          onDropPlacement={(articleId, target) => void editor.applyDropPlacement(articleId, target)}
+          onRemovePlacement={(target) => void editor.applyRemovePlacement(target)}
+          onMovePlacement={(target, direction) => void editor.applyMovePlacement(target, direction)}
+        />
       </div>
     </div>
   )
