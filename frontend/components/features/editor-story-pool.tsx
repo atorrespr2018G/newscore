@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
-import { EditorArticleDetailPanel } from '@/components/features/editor-article-detail-panel'
+import { EditorArticleModal } from '@/components/features/editor-article-modal'
 import type { ICategoryOut } from '@/lib/api/category-client'
 import type { IStoryGroupOut } from '@/lib/api/story-group-client'
 import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
@@ -67,12 +67,20 @@ interface IEditorStoryPoolProps {
   setStoryId: Dispatch<SetStateAction<string>>
   storyGroups: IStoryGroupOut[]
   detail: IArticleDetail | null
+  title: string
+  setTitle: Dispatch<SetStateAction<string>>
+  body: string
+  setBody: Dispatch<SetStateAction<string>>
+  uploadImages: (files: FileList | null) => void
+  uploadVideos: (files: FileList | null) => void
+  uploadingMedia: boolean
   maxImageCount: number
   setMaxImageCount: (value: number) => void
   mediaItems: ILoadedMedia[]
   setMediaItems: Dispatch<SetStateAction<ILoadedMedia[]>>
   saving: boolean
-  onSave: () => void
+  isDirty: boolean
+  onSave: () => Promise<boolean>
   onPublish: () => void
   onDirty: () => void
   hasMore: boolean
@@ -102,11 +110,19 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     setStoryId,
     storyGroups,
     detail,
+    title,
+    setTitle,
+    body,
+    setBody,
+    uploadImages,
+    uploadVideos,
+    uploadingMedia,
     maxImageCount,
     setMaxImageCount,
     mediaItems,
     setMediaItems,
     saving,
+    isDirty,
     onSave,
     onPublish,
     onDirty,
@@ -115,6 +131,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     onLoadMore,
   } = props
   const t = useTranslations('admin')
+  const [isModalOpen, setModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [searchResults, setSearchResults] = useState<IEditorStoryRow[] | null>(null)
@@ -222,7 +239,10 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
           >
             <button
               type="button"
-              onClick={() => onSelect(article.id)}
+              onClick={() => {
+                onSelect(article.id)
+                setModalOpen(true)
+              }}
               className="w-full cursor-pointer text-left"
             >
               <HomepageStoryThumb article={editorArticleRowToPreview(article)} />
@@ -263,27 +283,6 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
                 </dl>
               </div>
             </button>
-            {selectedId === article.id ? (
-              <EditorArticleDetailPanel
-                detail={detail}
-                categories={categories}
-                selectedCategoryIds={selectedCategoryIds}
-                setSelectedCategoryIds={setSelectedCategoryIds}
-                internationalPotential={internationalPotential}
-                setInternationalPotential={setInternationalPotential}
-                storyId={storyId}
-                setStoryId={setStoryId}
-                storyGroups={storyGroups}
-                maxImageCount={maxImageCount}
-                onMaxImageCountChange={setMaxImageCount}
-                mediaItems={mediaItems}
-                setMediaItems={setMediaItems}
-                saving={saving}
-                onSave={onSave}
-                onPublish={onPublish}
-                onDirty={onDirty}
-              />
-            ) : null}
           </article>
         ))}
         </div>
@@ -301,6 +300,36 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
           <PoolLoadMore loadingMore={loadingMore} onLoadMore={onLoadMore} />
         ) : null}
       </div>
+
+      <EditorArticleModal
+        isOpen={isModalOpen && selectedId !== null}
+        onClose={() => setModalOpen(false)}
+        detail={detail}
+        title={title}
+        setTitle={setTitle}
+        body={body}
+        setBody={setBody}
+        uploadImages={uploadImages}
+        uploadVideos={uploadVideos}
+        uploadingMedia={uploadingMedia}
+        categories={categories}
+        selectedCategoryIds={selectedCategoryIds}
+        setSelectedCategoryIds={setSelectedCategoryIds}
+        internationalPotential={internationalPotential}
+        setInternationalPotential={setInternationalPotential}
+        storyId={storyId}
+        setStoryId={setStoryId}
+        storyGroups={storyGroups}
+        maxImageCount={maxImageCount}
+        setMaxImageCount={setMaxImageCount}
+        mediaItems={mediaItems}
+        setMediaItems={setMediaItems}
+        saving={saving}
+        isDirty={isDirty}
+        onSave={onSave}
+        onPublish={onPublish}
+        onDirty={onDirty}
+      />
     </div>
   )
 }

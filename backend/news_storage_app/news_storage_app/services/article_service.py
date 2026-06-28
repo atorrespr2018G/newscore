@@ -105,19 +105,64 @@ def _resolve_max_image_count(existing: dict[str, Any], requested: int | None) ->
     return DEFAULT_MAX_IMAGE_COUNT
 
 
-def _validate_media_ids(
+def _normalize_media_ids(media_ids: list[str]) -> list[str]:
+    """Strip blanks from an ordered media id list, preserving order.
+
+    Args:
+        media_ids: Raw ordered media ids (images and/or videos).
+
+    Returns:
+        Cleaned, order-preserving media id list.
+    """
+
+    return [str(media_id).strip() for media_id in media_ids if str(media_id).strip()]
+
+
+async def _count_image_media_ids(db: AsyncIOMotorDatabase, media_ids: list[str]) -> int:
+    """Count how many of the given media ids reference image assets.
+
+    Videos and unknown ids are excluded so only images are capped.
+
+    Args:
+        db: Database connection.
+        media_ids: Ordered media ids attached to the article.
+
+    Returns:
+        Number of image-type media among the ids.
+    """
+
+    if not media_ids:
+        return 0
+    return await db[MEDIA_COLLECTION].count_documents(
+        {"_id": {"$in": media_ids}, "file_type": MEDIA_IMAGE_TYPE}
+    )
+
+
+async def _assert_image_cap(
+    db: AsyncIOMotorDatabase,
     media_ids: list[str],
     *,
     max_image_count: int,
-) -> list[str]:
-    """Normalize and validate ordered media ids against the image cap."""
+) -> None:
+    """Enforce that the article's image media stay within the image cap.
 
-    normalized = [str(media_id).strip() for media_id in media_ids if str(media_id).strip()]
-    if len(normalized) > max_image_count:
+    Videos may be attached freely via ``media_ids``; only images count toward
+    ``max_image_count`` so a story can carry multiple videos alongside images.
+
+    Args:
+        db: Database connection.
+        media_ids: Normalized ordered media ids (images and/or videos).
+        max_image_count: Maximum allowed image assets.
+
+    Raises:
+        ValidationError: If the image count exceeds ``max_image_count``.
+    """
+
+    image_count = await _count_image_media_ids(db, media_ids)
+    if image_count > max_image_count:
         raise ValidationError(
-            f"Article has {len(normalized)} images but max_image_count is {max_image_count}"
+            f"Article has {image_count} images but max_image_count is {max_image_count}"
         )
-    return normalized
 
 
 async def _thumbnail_from_media_ids(
@@ -279,7 +324,8 @@ async def _prepare_new_article(
     market_ids = await _validate_market_ids(db, body.market_ids)
     category_ids = await _validate_category_ids(db, body.category_ids)
     max_image_count = _resolve_create_max_image_count(body, actor_role)
-    media_ids = _validate_media_ids(body.media_ids, max_image_count=max_image_count)
+    media_ids = _normalize_media_ids(body.media_ids)
+    await _assert_image_cap(db, media_ids, max_image_count=max_image_count)
     thumbnail_url = await _resolve_thumbnail_url(db, media_ids=media_ids, explicit=body.thumbnail_url)
     return _PreparedArticleFields(
         slug=slug,
@@ -514,13 +560,10 @@ async def _normalize_update_media(
         else list(existing.get("media_ids") or [])
     )
     if "media_ids" in update_doc or "max_image_count" in update_doc:
-        normalized_media = _validate_media_ids(pending_media_ids, max_image_count=effective_max)
+        normalized_media = _normalize_media_ids(pending_media_ids)
+        await _assert_image_cap(db, normalized_media, max_image_count=effective_max)
         if "media_ids" in update_doc:
             update_doc["media_ids"] = normalized_media
-        elif len(normalized_media) > effective_max:
-            raise ValidationError(
-                f"Article has {len(normalized_media)} images but max_image_count is {effective_max}"
-            )
 
     if "media_ids" in update_doc and "thumbnail_url" not in update_doc:
         update_doc["thumbnail_url"] = await _resolve_thumbnail_url(

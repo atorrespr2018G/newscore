@@ -15,6 +15,34 @@ export const EDITOR_POOL_PAGE_SIZE = 24
 /** Lifecycle status assigned to articles uploaded through the Reporter tool. */
 export const REPORTER_UPLOAD_STATUS = 'draft'
 
+/** Maximum allowed length for an article headline (mirrors the API schema). */
+export const MAX_TITLE_LENGTH = 200
+
+/** Minimum allowed length for an article headline (mirrors the API schema). */
+export const MIN_TITLE_LENGTH = 3
+
+/** Minimum number of body text characters required to save an article. */
+export const MIN_BODY_TEXT_LENGTH = 10
+
+/**
+ * Count the trimmed plain-text characters inside a rich-text HTML string.
+ *
+ * The rich-text editor emits HTML, but length validation must ignore markup so
+ * an "empty" document (e.g. `<p></p>`) does not pass as non-empty body text.
+ *
+ * @param html Rich-text editor HTML output.
+ * @returns Number of non-whitespace-trimmed text characters in the document.
+ */
+export function htmlTextLength(html: string): number {
+  // Fall back to a regex strip during SSR where the DOM is unavailable.
+  if (typeof document === 'undefined') {
+    return html.replace(/<[^>]*>/g, '').trim().length
+  }
+  const container = document.createElement('div')
+  container.innerHTML = html
+  return (container.textContent ?? '').trim().length
+}
+
 /**
  * Decide whether an article is freshly uploaded news awaiting curation.
  *

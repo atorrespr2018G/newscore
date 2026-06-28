@@ -137,12 +137,20 @@ function EditorStoryPoolSection({ news }: { news: IEditorNews }): JSX.Element {
           setStoryId={news.setStoryId}
           storyGroups={news.storyGroups}
           detail={news.detail}
+          title={news.title}
+          setTitle={news.setTitle}
+          body={news.body}
+          setBody={news.setBody}
+          uploadImages={(files) => void news.uploadImages(files)}
+          uploadVideos={(files) => void news.uploadVideos(files)}
+          uploadingMedia={news.uploadingMedia}
           maxImageCount={news.maxImageCount}
           setMaxImageCount={news.setMaxImageCount}
           mediaItems={news.mediaItems}
           setMediaItems={news.setMediaItems}
           saving={news.saving}
-          onSave={() => void news.saveArticleChanges()}
+          isDirty={news.isDirty}
+          onSave={news.saveArticleChanges}
           onPublish={() => void news.publishSelected()}
           onDirty={news.markDirty}
           hasMore={news.hasMoreArticles}

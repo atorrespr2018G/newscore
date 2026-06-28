@@ -18,15 +18,18 @@ import {
 } from '@/lib/api/layout-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { getStoryGroups, type IStoryGroupOut } from '@/lib/api/story-group-client'
-import { getMediaByIds } from '@/lib/api/media-client'
+import { getMediaByIds, uploadImage, uploadVideo } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
 import { MIN_CATEGORY_COUNT } from '@/lib/helpers/category-selection'
 import { buildArticlePlacementMap } from '@/lib/helpers/article-placements'
 import {
   EDITOR_FETCH_PAGE_SIZE,
   EDITOR_POOL_PAGE_SIZE,
+  MIN_BODY_TEXT_LENGTH,
+  MIN_TITLE_LENGTH,
   REPORTER_UPLOAD_STATUS,
   fetchAllPaginatedArticles,
+  htmlTextLength,
   mergeArticlePages,
   type IPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
@@ -63,17 +66,21 @@ type AdminTranslatorType = (key: string, values?: Record<string, string | number
 export interface IArticleDetail {
   id: string
   title: string
+  body: string
   status: string
   media_ids: string[]
+  video_url: string | null
   max_image_count: number
   category_ids: string[]
   story_id: string | null
   international_potential: number | null
 }
 
+/** A media asset attached to an article (image or video). */
 export interface ILoadedMedia {
   id: string
   url: string
+  fileType: 'image' | 'video'
 }
 
 interface IEditorStatus {
@@ -207,6 +214,13 @@ interface IArticleDetailEditor {
   setArticleIdInput: Dispatch<SetStateAction<string>>
   detail: IArticleDetail | null
   setDetail: Dispatch<SetStateAction<IArticleDetail | null>>
+  title: string
+  setTitle: Dispatch<SetStateAction<string>>
+  body: string
+  setBody: Dispatch<SetStateAction<string>>
+  uploadingMedia: boolean
+  uploadImages: (files: FileList | null) => Promise<void>
+  uploadVideos: (files: FileList | null) => Promise<void>
   mediaItems: ILoadedMedia[]
   setMediaItems: Dispatch<SetStateAction<ILoadedMedia[]>>
   maxImageCount: number
@@ -223,7 +237,7 @@ interface IArticleDetailEditor {
   markDirty: () => void
   loadArticleDetail: (articleId: string) => Promise<void>
   loadArticleByIdInput: () => void
-  saveArticleChanges: () => Promise<void>
+  saveArticleChanges: () => Promise<boolean>
   publishSelected: () => Promise<void>
   publishArticleById: (articleId: string) => Promise<void>
 }
@@ -246,6 +260,9 @@ function useArticleDetailEditor(
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [articleIdInput, setArticleIdInput] = useState('')
   const [detail, setDetail] = useState<IArticleDetail | null>(null)
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [uploadingMedia, setUploadingMedia] = useState(false)
   const [mediaItems, setMediaItems] = useState<ILoadedMedia[]>([])
   const [maxImageCount, setMaxImageCount] = useState(5)
   const [categories, setCategories] = useState<ICategoryOut[]>([])
@@ -290,11 +307,14 @@ function useArticleDetailEditor(
       try {
         const article = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${articleId}`)
         setDetail(article)
+        setTitle(article.title ?? '')
+        setBody(article.body ?? '')
         setMaxImageCount(article.max_image_count)
         setSelectedCategoryIds(article.category_ids ?? [])
         setInternationalPotential(article.international_potential ?? null)
         setStoryId(article.story_id ?? '')
-        setMediaItems(await loadArticleMedia(article.media_ids))
+        const resolvedMedia = await loadArticleMedia(article.media_ids)
+        setMediaItems(withLegacyLeadVideo(resolvedMedia, article.video_url))
         setIsDirty(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : t('editor.errors.loadDetail'))
@@ -312,23 +332,64 @@ function useArticleDetailEditor(
     void loadArticleDetail(trimmedId)
   }, [articleIdInput, loadArticleDetail, setError, t])
 
-  const saveArticleChanges = useCallback(async () => {
+  // Append newly uploaded images to the gallery and flag the edit as dirty so
+  // the unsaved-changes guard and Save button reflect the pending media.
+  const uploadImages = useCallback(
+    async (files: FileList | null) => {
+      await uploadMediaInto(files, {
+        upload: uploadImage,
+        setMediaItems,
+        setUploadingMedia,
+        setError,
+        setIsDirty,
+        errorMessage: t('editor.errors.imageUpload'),
+      })
+    },
+    [setError, t],
+  )
+
+  const uploadVideos = useCallback(
+    async (files: FileList | null) => {
+      await uploadMediaInto(files, {
+        upload: uploadVideo,
+        setMediaItems,
+        setUploadingMedia,
+        setError,
+        setIsDirty,
+        errorMessage: t('editor.errors.videoUpload'),
+      })
+    },
+    [setError, t],
+  )
+
+  const saveArticleChanges = useCallback(async (): Promise<boolean> => {
     if (!detail) {
-      return
+      return false
     }
-    if (selectedCategoryIds.length < MIN_CATEGORY_COUNT) {
-      setError(t('editor.errors.selectCategory'))
-      return
+    const validationError = validateArticleEdits({ title, body, selectedCategoryIds, uploadingMedia }, t)
+    if (validationError) {
+      setError(validationError)
+      return false
     }
     setSaving(true)
     setError(null)
     setMessage(null)
     try {
+      // The lead video (used by story cards/hero) is the first video in the
+      // gallery; the public detail gallery shows every video in media_ids too.
+      const firstImageUrl = mediaItems.find((item) => item.fileType === 'image')?.url ?? null
+      const firstVideoUrl = mediaItems.find((item) => item.fileType === 'video')?.url ?? ''
       const updated = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${detail.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          media_ids: mediaItems.map((item) => item.id),
-          thumbnail_url: mediaItems[0]?.url ?? null,
+          title: title.trim(),
+          body,
+          // Persist images and videos together in gallery order; the backend
+          // derives the thumbnail from the first image and caps only images.
+          media_ids: mediaItems.filter((item) => item.id).map((item) => item.id),
+          // Empty string clears the lead video; the PATCH layer drops null but
+          // keeps an empty string, so this is how the last video is removed.
+          video_url: firstVideoUrl,
           max_image_count: maxImageCount,
           category_ids: selectedCategoryIds,
           // Send the trimmed id (empty string clears the group); the PATCH layer
@@ -338,22 +399,29 @@ function useArticleDetailEditor(
         }),
       })
       setDetail(updated)
+      setTitle(updated.title ?? '')
+      setBody(updated.body ?? '')
       setIsDirty(false)
       setMessage(t('editor.status.settingsSaved'))
       updateArticleRow(updated.id, {
         title: updated.title,
         status: updated.status,
-        thumbnail_url: mediaItems[0]?.url ?? null,
+        thumbnail_url: firstImageUrl,
       })
       void refreshStoryGroups()
       notifyEditorialPreviewStale(scope)
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : t('editor.errors.saveArticle'))
+      return false
     } finally {
       setSaving(false)
     }
   }, [
     detail,
+    title,
+    body,
+    uploadingMedia,
     mediaItems,
     maxImageCount,
     selectedCategoryIds,
@@ -415,6 +483,13 @@ function useArticleDetailEditor(
     setArticleIdInput,
     detail,
     setDetail,
+    title,
+    setTitle,
+    body,
+    setBody,
+    uploadingMedia,
+    uploadImages,
+    uploadVideos,
     mediaItems,
     setMediaItems,
     maxImageCount,
@@ -437,9 +512,108 @@ function useArticleDetailEditor(
   }
 }
 
+interface IArticleEditValidationInput {
+  title: string
+  body: string
+  selectedCategoryIds: string[]
+  uploadingMedia: boolean
+}
+
+/**
+ * Validate the editable article fields before issuing a PATCH.
+ *
+ * @param input Current title, body, category selection, and upload state.
+ * @param t Admin-namespace translator for localized messages.
+ * @returns A localized error message, or null when the edits are valid.
+ */
+function validateArticleEdits(
+  input: IArticleEditValidationInput,
+  t: AdminTranslatorType,
+): string | null {
+  if (input.uploadingMedia) {
+    return t('editor.errors.waitForUploads')
+  }
+  if (input.selectedCategoryIds.length < MIN_CATEGORY_COUNT) {
+    return t('editor.errors.selectCategory')
+  }
+  if (input.title.trim().length < MIN_TITLE_LENGTH) {
+    return t('editor.errors.titleTooShort')
+  }
+  if (htmlTextLength(input.body) < MIN_BODY_TEXT_LENGTH) {
+    return t('editor.errors.bodyTooShort')
+  }
+  return null
+}
+
 async function loadArticleMedia(mediaIds: string[]): Promise<ILoadedMedia[]> {
   const assets = await getMediaByIds(mediaIds)
-  return assets.map((asset) => ({ id: asset.id, url: asset.url }))
+  return assets.map((asset) => ({ id: asset.id, url: asset.url, fileType: asset.file_type }))
+}
+
+/**
+ * Include a legacy single ``video_url`` in the unified media gallery.
+ *
+ * Older articles store the lead video only in ``video_url`` (not ``media_ids``),
+ * so it has no media id to resolve. It is surfaced as an id-less gallery item so
+ * editors can see, reorder, or remove it; on save it is preserved via the
+ * derived lead ``video_url`` as long as it remains the first video.
+ *
+ * @param resolvedMedia Media resolved from the article's media_ids.
+ * @param videoUrl The article's legacy single video_url, if any.
+ * @returns The gallery items, with the legacy lead video prepended when needed.
+ */
+function withLegacyLeadVideo(
+  resolvedMedia: ILoadedMedia[],
+  videoUrl: string | null,
+): ILoadedMedia[] {
+  const leadVideo = videoUrl?.trim()
+  if (!leadVideo || resolvedMedia.some((item) => item.url === leadVideo)) {
+    return resolvedMedia
+  }
+  return [{ id: '', url: leadVideo, fileType: 'video' }, ...resolvedMedia]
+}
+
+interface IUploadMediaOptions {
+  upload: (file: File) => Promise<{ id: string; url: string; file_type: 'image' | 'video' }>
+  setMediaItems: Dispatch<SetStateAction<ILoadedMedia[]>>
+  setUploadingMedia: Dispatch<SetStateAction<boolean>>
+  setError: Dispatch<SetStateAction<string | null>>
+  setIsDirty: Dispatch<SetStateAction<boolean>>
+  errorMessage: string
+}
+
+/**
+ * Upload one or more files and append them to the media gallery.
+ *
+ * Appending (rather than replacing) lets editors add multiple images and videos
+ * across several picks; each appended item flags the form dirty.
+ *
+ * @param files Files selected from a picker, or null.
+ * @param options Uploader, state setters, and the localized error message.
+ * @returns Resolves once every file has uploaded or an error is surfaced.
+ */
+async function uploadMediaInto(
+  files: FileList | null,
+  options: IUploadMediaOptions,
+): Promise<void> {
+  if (!files?.length) {
+    return
+  }
+  options.setUploadingMedia(true)
+  options.setError(null)
+  try {
+    const uploaded: ILoadedMedia[] = []
+    for (const file of Array.from(files)) {
+      const media = await options.upload(file)
+      uploaded.push({ id: media.id, url: media.url, fileType: media.file_type })
+    }
+    options.setMediaItems((current) => [...current, ...uploaded])
+    options.setIsDirty(true)
+  } catch (err) {
+    options.setError(err instanceof Error ? err.message : options.errorMessage)
+  } finally {
+    options.setUploadingMedia(false)
+  }
 }
 
 interface IArticlePlacements {
@@ -1006,6 +1180,13 @@ export function useEditorNews(): IEditorNews {
     articleIdInput: detailEditor.articleIdInput,
     setArticleIdInput: detailEditor.setArticleIdInput,
     detail: detailEditor.detail,
+    title: detailEditor.title,
+    setTitle: detailEditor.setTitle,
+    body: detailEditor.body,
+    setBody: detailEditor.setBody,
+    uploadingMedia: detailEditor.uploadingMedia,
+    uploadImages: detailEditor.uploadImages,
+    uploadVideos: detailEditor.uploadVideos,
     mediaItems: detailEditor.mediaItems,
     setMediaItems: detailEditor.setMediaItems,
     maxImageCount: detailEditor.maxImageCount,
