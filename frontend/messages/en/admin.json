@@ -239,6 +239,7 @@
       "saveArticle": "Failed to save article",
       "publish": "Publish failed",
       "publishPlaced": "Failed to publish placed story",
+      "invalidDropPayload": "Could not read dragged story from another browser. Please drag the story card again.",
       "placementFailed": "Homepage placement failed",
       "publishPlacements": "Failed to publish homepage placements",
       "loadEditorData": "Failed to load editor data"

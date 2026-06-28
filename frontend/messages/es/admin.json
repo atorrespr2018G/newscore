@@ -239,6 +239,7 @@
       "saveArticle": "No se pudo guardar el artículo",
       "publish": "Error al publicar",
       "publishPlaced": "No se pudo publicar la noticia ubicada",
+      "invalidDropPayload": "No se pudo leer la noticia arrastrada desde otro navegador. Arrastra la tarjeta de nuevo.",
       "placementFailed": "Error al ubicar en la portada",
       "publishPlacements": "No se pudieron publicar las ubicaciones de la portada",
       "loadEditorData": "No se pudieron cargar los datos del editor"

@@ -811,6 +811,9 @@ function useHomepagePlacementEditor(
 
   const applyDropPlacement = useCallback(
     async (articleId: string, target: IPlacementTarget): Promise<boolean> => {
+      if (target.articleId === articleId) {
+        return false
+      }
       const cascadeSlotIds = await resolveDropCascadeSlotIds(articleId, target)
       const baseMutation = buildPlacementMutation(
         homepageSlotsRef.current,
@@ -1244,11 +1247,13 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
   const applyDropPlacement = useCallback(
     async (articleId: string, target: IPlacementTarget): Promise<boolean> => {
       const dropped = await fetchDroppedArticleDetail(articleId)
-      if (dropped) {
-        articleTitleByIdRef.current.set(articleId, dropped.title)
+      if (!dropped) {
+        setError(t('editor.errors.invalidDropPayload'))
+        return false
       }
+      articleTitleByIdRef.current.set(articleId, dropped.title)
       const placed = await placement.applyDropPlacement(articleId, target)
-      if (placed && dropped?.status === REPORTER_UPLOAD_STATUS) {
+      if (placed && dropped.status === REPORTER_UPLOAD_STATUS) {
         await publishDroppedArticle({
           articleId,
           scope,

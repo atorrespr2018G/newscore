@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { EditorArticleModal } from '@/components/features/editor-article-modal'
+import { clearDraggingArticleId, setDraggingArticleId } from '@/lib/editor/editor-drag-store'
 import type { ICategoryOut } from '@/lib/api/category-client'
 import type { IStoryGroupOut } from '@/lib/api/story-group-client'
 import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
@@ -228,8 +229,15 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
             draggable
             onDragStart={(event) => {
               event.dataTransfer.setData('text/plain', article.id)
+              // Some browser-to-browser drags expose generic text keys only.
+              event.dataTransfer.setData('text', article.id)
+              event.dataTransfer.setData('Text', article.id)
               event.dataTransfer.effectAllowed = 'move'
+              // Mirror the id to shared storage so the Placement window can read
+              // it on drop; native dataTransfer does not cross browser windows.
+              setDraggingArticleId(article.id)
             }}
+            onDragEnd={() => clearDraggingArticleId()}
             className={[
               'overflow-hidden rounded-lg border bg-white transition-colors',
               selectedId === article.id

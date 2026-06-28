@@ -8,6 +8,7 @@ import {
   usePlacementSlotId,
 } from '@/context/editor-placement-context'
 import type { IArticle } from '@/interfaces/article'
+import { consumeDraggingArticleId } from '@/lib/editor/editor-drag-store'
 import type { PlacementMoveDirectionType } from '@/lib/helpers/editor-placement'
 import type { IPlacementTarget } from '@/lib/helpers/editor-placement-targets'
 
@@ -15,6 +16,26 @@ type AdminTranslatorType = (key: string, values?: Record<string, string | number
 
 const CELL_ACTION_CLASS =
   'inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-1.5 py-0.5 text-[11px] font-medium text-neutral-700 shadow-sm hover:bg-neutral-100 disabled:opacity-40'
+
+/**
+ * Resolve the dragged story id from a drop event.
+ *
+ * Falls back to the cross-window drag store when the native dataTransfer payload
+ * is empty, which happens when the drag originates in another browser window.
+ *
+ * @param event Native drop event on a placement target.
+ * @returns The dragged story id, or an empty string when none is available.
+ */
+function resolveDroppedArticleId(event: React.DragEvent): string {
+  const transferTypes = ['text/plain', 'text', 'Text'] as const
+  for (const transferType of transferTypes) {
+    const value = event.dataTransfer.getData(transferType).trim()
+    if (value) {
+      return value
+    }
+  }
+  return consumeDraggingArticleId()?.trim() ?? ''
+}
 
 /**
  * Upward chevron glyph for the move-up control.
@@ -177,7 +198,7 @@ function PlacementEditableCard(props: IPlacementEditableCardProps): JSX.Element 
         if (saving) {
           return
         }
-        const draggedArticleId = event.dataTransfer.getData('text/plain').trim()
+        const draggedArticleId = resolveDroppedArticleId(event)
         if (draggedArticleId) {
           onDropPlacement(draggedArticleId, target)
         }
@@ -288,7 +309,7 @@ export function PlacementSectionDropZone(): JSX.Element | null {
         if (saving) {
           return
         }
-        const draggedArticleId = event.dataTransfer.getData('text/plain').trim()
+        const draggedArticleId = resolveDroppedArticleId(event)
         if (draggedArticleId) {
           onDropPlacement(draggedArticleId, appendTarget)
         }
