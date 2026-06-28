@@ -30,7 +30,6 @@ import {
   mergeArticlePages,
   type IPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
-import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
 import {
   appendCategoryCascadeUpdates,
   buildPlacementMutation,
@@ -46,8 +45,12 @@ import {
 } from '@/lib/helpers/editor-placement-targets'
 import { isHeroOrTopStoriesPositionKey } from '@/lib/helpers/feed-layout'
 import { layoutHasUnpublishedPlacementChanges } from '@/lib/helpers/slot-editor-pinned-ids'
-import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
-import type { IArticle } from '@/interfaces/article'
+import {
+  notifyEditorialPreviewStale,
+  subscribeToEditorialPreviewStale,
+} from '@/lib/helpers/editorial-preview-events'
+import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
+import type { IHomepageFeed } from '@/interfaces/feed'
 
 /**
  * Minimal translator signature for the `admin` namespace.
@@ -439,49 +442,57 @@ async function loadArticleMedia(mediaIds: string[]): Promise<ILoadedMedia[]> {
   return assets.map((asset) => ({ id: asset.id, url: asset.url }))
 }
 
-/**
- * Build a lookup of article preview models keyed by id, including the open detail.
- *
- * @param articles Loaded article pool rows.
- * @param detail Currently open article detail, if any.
- * @param mediaItems Media attached to the open detail.
- * @returns Map of article id to preview model.
- */
-function buildArticleById(
-  articles: IEditorStoryRow[],
-  detail: IArticleDetail | null,
-  mediaItems: ILoadedMedia[],
-): Map<string, IArticle> {
-  const map = new Map<string, IArticle>()
-  for (const article of articles) {
-    map.set(article.id, editorArticleRowToPreview(article))
-  }
-  if (detail) {
-    map.set(detail.id, mergeDetailPreview(map.get(detail.id), detail, mediaItems))
-  }
-  return map
+interface IArticlePlacements {
+  articlePlacements: Record<string, IArticlePlacementOut[]>
+  placementMap: ReturnType<typeof buildArticlePlacementMap>
+  loadArticlePlacements: () => Promise<void>
 }
 
-function mergeDetailPreview(
-  existing: IArticle | undefined,
-  detail: IArticleDetail,
-  mediaItems: ILoadedMedia[],
-): IArticle {
-  if (existing) {
-    return { ...existing, status: detail.status as IArticle['status'] }
-  }
-  return {
-    id: detail.id,
-    title: detail.title,
-    slug: '',
-    summary: null,
-    status: detail.status as IArticle['status'],
-    authorName: '',
-    thumbnailUrl: mediaItems[0]?.url ?? null,
-    videoUrl: null,
-    createdAt: '',
-    publishedAt: null,
-  }
+/**
+ * Load the market's article-to-placement map for pool location labels.
+ *
+ * Shared by the News page (per-card "location" + the New tab) and the Placement
+ * board (banners + post-mutation refresh), so the fetch logic lives in one place.
+ *
+ * @param scope Active editor market/page scope.
+ * @returns Placement records, the derived lookup map, and a reload action.
+ */
+function useArticlePlacements(scope: IEditorScope): IArticlePlacements {
+  const [articlePlacements, setArticlePlacements] = useState<Record<string, IArticlePlacementOut[]>>({})
+
+  const loadArticlePlacements = useCallback(async () => {
+    const data = await getArticlePlacements(scope.marketCode)
+    setArticlePlacements(data.placements)
+  }, [scope.marketCode])
+
+  const placementMap = useMemo(
+    () => buildArticlePlacementMap(articlePlacements),
+    [articlePlacements],
+  )
+
+  return { articlePlacements, placementMap, loadArticlePlacements }
+}
+
+/**
+ * Load the available categories once, surfacing failures on the status banner.
+ *
+ * @param status Shared status banners.
+ * @returns Loaded category list (empty until the request resolves).
+ */
+function useCategories(status: IEditorStatus): ICategoryOut[] {
+  const t = useTranslations('admin')
+  const { setError } = status
+  const [categories, setCategories] = useState<ICategoryOut[]>([])
+
+  useEffect(() => {
+    void getCategories()
+      .then((items) => setCategories(items))
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : t('editor.errors.loadCategories'))
+      })
+  }, [setError, t])
+
+  return categories
 }
 
 interface IHomepagePlacementEditor {
@@ -517,7 +528,7 @@ function useHomepagePlacementEditor(
   const { setError, setMessage, setSaving } = status
   const [homepageSlots, setHomepageSlots] = useState<ISlotOut[]>([])
   const homepageSlotsRef = useRef(homepageSlots)
-  const [articlePlacements, setArticlePlacements] = useState<Record<string, IArticlePlacementOut[]>>({})
+  const { articlePlacements, placementMap, loadArticlePlacements } = useArticlePlacements(scope)
 
   const categorySlugById = useMemo(() => {
     const map = new Map<string, string>()
@@ -540,15 +551,6 @@ function useHomepagePlacementEditor(
     setHomepageSlots(await getLayoutSlots(layout.id))
   }, [scope.marketCode, scope.pageName])
 
-  const loadArticlePlacements = useCallback(async () => {
-    const data = await getArticlePlacements(scope.marketCode)
-    setArticlePlacements(data.placements)
-  }, [scope.marketCode])
-
-  const placementMap = useMemo(
-    () => buildArticlePlacementMap(articlePlacements),
-    [articlePlacements],
-  )
   const placementTargets = useMemo(() => buildPlacementTargets(homepageSlots), [homepageSlots])
   const hasUnpublishedPlacements = useMemo(
     () => layoutHasUnpublishedPlacementChanges(homepageSlots),
@@ -881,72 +883,114 @@ function formatMoveMessage(
   })
 }
 
-export interface IEditorCuration
+export interface IEditorNews
   extends Omit<IArticleDetailEditor, 'setDetail'>,
     Pick<
       IEditorArticlePool,
       'articles' | 'searchArticles' | 'hasMoreArticles' | 'loadingMoreArticles' | 'loadMoreArticles'
-    >,
-    Omit<IHomepagePlacementEditor, 'articlePlacements' | 'loadHomepageSlots' | 'loadArticlePlacements'> {
+    > {
   loading: boolean
   error: string | null
   message: string | null
   saving: boolean
-  articleById: Map<string, IArticle>
+  placementMap: ReturnType<typeof buildArticlePlacementMap>
+}
+
+export interface IEditorPlacementBoard
+  extends Omit<
+    IHomepagePlacementEditor,
+    'articlePlacements' | 'placementMap' | 'loadHomepageSlots' | 'loadArticlePlacements'
+  > {
+  loading: boolean
+  error: string | null
+  message: string | null
+  saving: boolean
+  previewFeed: IHomepageFeed | null
+  previewLoading: boolean
+  previewError: string | null
+  refreshing: boolean
+  refreshPreview: () => Promise<void>
+}
+
+interface IDroppedArticleDetail {
+  title: string
+  status: string
 }
 
 /**
- * Orchestrate the editor curation page: article pool, detail editing, and homepage placement.
+ * Fetch a dropped story's title and status for the placement board.
  *
- * @returns All state and actions consumed by the editor page UI.
+ * The News card carries only the article id, so the board resolves the title
+ * (for staged-placement banners) and status (to auto-publish reporter drafts)
+ * with a single detail fetch. A failed lookup is non-fatal: the placement still
+ * proceeds and the banner falls back to the article id.
+ *
+ * @param articleId Article dragged from the News page.
+ * @returns Title/status, or null when the lookup fails.
  */
-export function useEditorCuration(): IEditorCuration {
+async function fetchDroppedArticleDetail(articleId: string): Promise<IDroppedArticleDetail | null> {
+  try {
+    const detail = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${articleId}`)
+    return { title: detail.title, status: detail.status }
+  } catch {
+    return null
+  }
+}
+
+interface IPublishDroppedArticleOptions {
+  articleId: string
+  scope: IEditorScope
+  status: Pick<IEditorStatus, 'setError' | 'setMessage' | 'setSaving'>
+  t: AdminTranslatorType
+}
+
+/**
+ * Publish a freshly placed reporter draft so it can reach the live page.
+ *
+ * @param options Article id, active scope, status setters, and the translator.
+ * @returns Resolves once the publish request settles.
+ */
+async function publishDroppedArticle(options: IPublishDroppedArticleOptions): Promise<void> {
+  const { articleId, scope, status, t } = options
+  status.setSaving(true)
+  status.setError(null)
+  try {
+    await apiFetch(`${apiConfig.news}/articles/${articleId}/publish`, { method: 'POST' })
+    status.setMessage(t('editor.status.placedAndPublished'))
+    notifyEditorialPreviewStale(scope)
+  } catch (err) {
+    status.setError(err instanceof Error ? err.message : t('editor.errors.publishPlaced'))
+  } finally {
+    status.setSaving(false)
+  }
+}
+
+/**
+ * Orchestrate the News page: article pool, detail editing, and placement labels.
+ *
+ * The placement canvas is intentionally NOT part of this page; only the per-card
+ * placement "location" lookup is loaded so editors can see where each story
+ * already sits. Stories leave this page by being dragged onto the Placement page.
+ *
+ * @returns State and actions consumed by the News page UI.
+ */
+export function useEditorNews(): IEditorNews {
   const t = useTranslations('admin')
   const scope = useEditorScope()
   const status = useEditorStatus()
   const pool = useEditorArticlePool()
   const detailEditor = useArticleDetailEditor(status, scope, pool.updateArticleRow)
-
-  const articleById = useMemo(
-    () => buildArticleById(pool.articles, detailEditor.detail, detailEditor.mediaItems),
-    [pool.articles, detailEditor.detail, detailEditor.mediaItems],
-  )
-  const articleTitleById = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const [articleId, article] of articleById) {
-      map.set(articleId, article.title)
-    }
-    return map
-  }, [articleById])
-
-  const placement = useHomepagePlacementEditor(status, scope, articleTitleById, detailEditor.categories)
-
-  const applyDropPlacement = useCallback(
-    async (articleId: string, target: IPlacementTarget): Promise<boolean> => {
-      const placed = await placement.applyDropPlacement(articleId, target)
-      // A freshly placed reporter draft is auto-published so it can reach the
-      // live page once the homepage layout is published.
-      if (placed && articleById.get(articleId)?.status === REPORTER_UPLOAD_STATUS) {
-        await detailEditor.publishArticleById(articleId)
-      }
-      return placed
-    },
-    [placement.applyDropPlacement, articleById, detailEditor.publishArticleById],
-  )
+  const { placementMap, loadArticlePlacements } = useArticlePlacements(scope)
 
   const { setLoading, setError } = status
   useEffect(() => {
     setLoading(true)
-    void Promise.all([
-      pool.loadArticles(),
-      placement.loadHomepageSlots(),
-      placement.loadArticlePlacements(),
-    ])
+    void Promise.all([pool.loadArticles(), loadArticlePlacements()])
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : t('editor.errors.loadEditorData'))
       })
       .finally(() => setLoading(false))
-  }, [pool.loadArticles, placement.loadHomepageSlots, placement.loadArticlePlacements, setLoading, setError, t])
+  }, [pool.loadArticles, loadArticlePlacements, setLoading, setError, t])
 
   return {
     loading: status.loading,
@@ -981,14 +1025,86 @@ export function useEditorCuration(): IEditorCuration {
     saveArticleChanges: detailEditor.saveArticleChanges,
     publishSelected: detailEditor.publishSelected,
     publishArticleById: detailEditor.publishArticleById,
+    placementMap,
+  }
+}
+
+/**
+ * Orchestrate the Placement page: homepage canvas, live preview, and publishing.
+ *
+ * Stories arrive by native drag-and-drop from the News page (id only), so the
+ * dropped article's detail is fetched once to resolve its title (for banners)
+ * and status (to auto-publish freshly placed reporter drafts). Titles are kept
+ * in a ref-backed map so the placement mutation callbacks stay stable.
+ *
+ * @returns State and actions consumed by the Placement page UI.
+ */
+export function useEditorPlacementBoard(): IEditorPlacementBoard {
+  const t = useTranslations('admin')
+  const scope = useEditorScope()
+  const status = useEditorStatus()
+  const categories = useCategories(status)
+  const articleTitleByIdRef = useRef<Map<string, string>>(new Map())
+  const placement = useHomepagePlacementEditor(status, scope, articleTitleByIdRef.current, categories)
+  const preview = useEditorPreviewFeed(scope, true)
+
+  // Pull a fresh feed whenever any window marks the homepage stale so the
+  // WYSIWYG placement canvas stays current.
+  const refreshRef = useRef(preview.refresh)
+  refreshRef.current = preview.refresh
+  useEffect(() => {
+    return subscribeToEditorialPreviewStale(() => {
+      void refreshRef.current()
+    })
+  }, [])
+
+  const { setLoading, setError, setMessage, setSaving } = status
+
+  const applyDropPlacement = useCallback(
+    async (articleId: string, target: IPlacementTarget): Promise<boolean> => {
+      const dropped = await fetchDroppedArticleDetail(articleId)
+      if (dropped) {
+        articleTitleByIdRef.current.set(articleId, dropped.title)
+      }
+      const placed = await placement.applyDropPlacement(articleId, target)
+      if (placed && dropped?.status === REPORTER_UPLOAD_STATUS) {
+        await publishDroppedArticle({
+          articleId,
+          scope,
+          status: { setError, setMessage, setSaving },
+          t,
+        })
+      }
+      return placed
+    },
+    [placement.applyDropPlacement, scope, setError, setMessage, setSaving, t],
+  )
+
+  useEffect(() => {
+    setLoading(true)
+    void Promise.all([placement.loadHomepageSlots(), placement.loadArticlePlacements()])
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : t('editor.errors.loadEditorData'))
+      })
+      .finally(() => setLoading(false))
+  }, [placement.loadHomepageSlots, placement.loadArticlePlacements, setLoading, setError, t])
+
+  return {
+    loading: status.loading,
+    error: status.error,
+    message: status.message,
+    saving: status.saving,
     homepageSlots: placement.homepageSlots,
-    placementMap: placement.placementMap,
     placementTargets: placement.placementTargets,
     hasUnpublishedPlacements: placement.hasUnpublishedPlacements,
     applyDropPlacement,
     applyRemovePlacement: placement.applyRemovePlacement,
     applyMovePlacement: placement.applyMovePlacement,
     publishHomepageChanges: placement.publishHomepageChanges,
-    articleById,
+    previewFeed: preview.previewFeed,
+    previewLoading: preview.loading,
+    previewError: preview.error,
+    refreshing: preview.refreshing,
+    refreshPreview: preview.refresh,
   }
 }

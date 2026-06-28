@@ -1,13 +1,20 @@
 'use client'
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { decodeJwtPayload } from '@/lib/helpers/jwt'
 import {
-  DEFAULT_EDITOR_SCOPE,
-  type IEditorScope,
-  DEFAULT_EDITOR_MARKET_CODE,
-} from '@/lib/editor/editor-scope'
-import { getStoredToken } from '@/lib/api/auth'
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import { type IEditorScope } from '@/lib/editor/editor-scope'
+import {
+  persistEditorScope,
+  resolveInitialEditorScope,
+  subscribeToEditorScope,
+} from '@/lib/editor/editor-scope-storage'
 
 interface IEditorScopeContextValue {
   scope: IEditorScope
@@ -23,17 +30,30 @@ interface IEditorScopeProviderProps {
 /**
  * Stores the active editor scope for admin workflow pages.
  *
+ * The scope is persisted to localStorage and synced across same-browser windows
+ * so the independent News and Placement pages always curate the same market/page.
+ *
  * @param children Nested admin route UI.
  * @returns Scope provider for editor routes.
  */
 export function EditorScopeProvider({ children }: IEditorScopeProviderProps): JSX.Element {
-  const [scope, setScope] = useState<IEditorScope>(() => resolveInitialEditorScope())
+  const [scope, setScopeState] = useState<IEditorScope>(() => resolveInitialEditorScope())
+
+  // A local change persists and broadcasts so the other editor window follows.
+  const setScope = useCallback((nextScope: IEditorScope) => {
+    setScopeState(nextScope)
+    persistEditorScope(nextScope)
+  }, [])
+
+  // Apply scope changes originating from another window without re-broadcasting.
+  useEffect(() => subscribeToEditorScope(setScopeState), [])
+
   const value = useMemo(
     () => ({
       scope,
       setScope,
     }),
-    [scope],
+    [scope, setScope],
   )
   return <EditorScopeContext.Provider value={value}>{children}</EditorScopeContext.Provider>
 }
@@ -60,22 +80,4 @@ export function useEditorScopeContext(): IEditorScopeContextValue {
     throw new Error('useEditorScope must be used within EditorScopeProvider')
   }
   return context
-}
-
-/**
- * Resolve initial editor scope from JWT claims when available.
- *
- * @returns Initial editor scope.
- */
-function resolveInitialEditorScope(): IEditorScope {
-  if (typeof window === 'undefined') {
-    return DEFAULT_EDITOR_SCOPE
-  }
-  const token = getStoredToken()
-  const payload = token ? decodeJwtPayload(token) : null
-  const payloadWithMarket = payload as { market_code?: string } | null
-  return {
-    ...DEFAULT_EDITOR_SCOPE,
-    marketCode: payloadWithMarket?.market_code ?? DEFAULT_EDITOR_MARKET_CODE,
-  }
 }

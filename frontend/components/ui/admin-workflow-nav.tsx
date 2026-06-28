@@ -24,7 +24,7 @@ export function AdminWorkflowNav(): JSX.Element | null {
       className="mb-6 flex flex-wrap gap-2 border-b border-neutral-200 pb-4"
     >
       {ADMIN_WORKFLOW_TABS.map((tab) => {
-        const isActive = pathname.startsWith(tab.href)
+        const isActive = pathname.startsWith(tab.activePrefix)
 
         return (
           <Link

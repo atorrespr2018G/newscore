@@ -327,7 +327,8 @@ interface IMastheadAdminLink {
 // Admin shortcuts share identical markup, so they are data-driven to avoid repetition.
 const MASTHEAD_ADMIN_LINKS: readonly IMastheadAdminLink[] = [
   { key: 'reporter', href: '/admin/reporter', labelKey: 'reporter' },
-  { key: 'editor', href: '/admin/editor', labelKey: 'editor' },
+  { key: 'editor', href: '/admin/editor/news', labelKey: 'editor' },
+  { key: 'placement', href: '/admin/editor/placement', labelKey: 'placement' },
   { key: 'preview', href: '/admin/preview', labelKey: 'preview' },
 ]
 

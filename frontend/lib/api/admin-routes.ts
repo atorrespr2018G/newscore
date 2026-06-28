@@ -33,7 +33,8 @@ export function getDefaultAdminRoute(role: AdminRoleType): string {
 /** Admin workflow routes available from the top nav tabs. */
 export const ADMIN_WORKFLOW_ROUTES = [
   '/admin/reporter',
-  '/admin/editor',
+  '/admin/editor/news',
+  '/admin/editor/placement',
   '/admin/preview',
 ] as const
 
@@ -43,14 +44,18 @@ export type AdminWorkflowRouteType = (typeof ADMIN_WORKFLOW_ROUTES)[number]
  * Tab paths and their `admin.workflow.*` message keys for the editorial tab bar.
  *
  * Labels are resolved at render time via `useTranslations` so the bar follows
- * the active UI locale; only the semantic key lives here.
+ * the active UI locale; only the semantic key lives here. `activePrefix` marks a
+ * tab active for its own sub-routes only, so News and Placement never both
+ * highlight at once even though they share the `/admin/editor` segment.
  */
 export const ADMIN_WORKFLOW_TABS: ReadonlyArray<{
   href: AdminWorkflowRouteType
   labelKey: string
+  activePrefix: string
 }> = [
-  { href: '/admin/reporter', labelKey: 'reporter' },
-  { href: '/admin/editor', labelKey: 'editor' },
+  { href: '/admin/reporter', labelKey: 'reporter', activePrefix: '/admin/reporter' },
+  { href: '/admin/editor/news', labelKey: 'news', activePrefix: '/admin/editor/news' },
+  { href: '/admin/editor/placement', labelKey: 'placement', activePrefix: '/admin/editor/placement' },
 ]
 
 /**

@@ -3,6 +3,8 @@
     "ariaLabel": "Flujo editorial",
     "reporter": "Reportero",
     "editor": "Editor",
+    "news": "Noticias",
+    "placement": "Ubicación",
     "review": "Revisión",
     "preview": "Vista previa"
   },
@@ -77,6 +79,14 @@
     "heading": "Editor",
     "previewLink": "Vista previa",
     "subtitle": "Prepara los cambios de ubicación en la portada, previsualízalos y publícalos cuando estén listos.",
+    "newsPage": {
+      "heading": "Noticias",
+      "subtitle": "Edita las noticias y arrastra una tarjeta a la página de Ubicación para colocarla en la portada."
+    },
+    "placementPage": {
+      "heading": "Ubicación",
+      "subtitle": "Arrastra noticias desde la página de Noticias a un espacio, previsualiza y publica cuando esté listo."
+    },
     "loading": "Cargando noticias…",
     "emptyPool": "Aún no hay noticias subidas.",
     "scope": {

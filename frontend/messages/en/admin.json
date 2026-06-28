@@ -3,6 +3,8 @@
     "ariaLabel": "Editorial workflow",
     "reporter": "Reporter",
     "editor": "Editor",
+    "news": "News",
+    "placement": "Placement",
     "review": "Review",
     "preview": "Preview"
   },
@@ -77,6 +79,14 @@
     "heading": "Editor",
     "previewLink": "Preview",
     "subtitle": "Stage homepage placement changes, preview them, then publish when ready.",
+    "newsPage": {
+      "heading": "News",
+      "subtitle": "Edit stories and drag a card onto the Placement page to place it on the homepage."
+    },
+    "placementPage": {
+      "heading": "Placement",
+      "subtitle": "Drag stories from the News page onto a slot, preview, then publish when ready."
+    },
     "loading": "Loading stories…",
     "emptyPool": "No uploaded stories yet.",
     "scope": {
