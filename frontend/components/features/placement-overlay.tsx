@@ -228,45 +228,129 @@ function PlacementEditableCard(props: IPlacementEditableCardProps): JSX.Element 
   )
 }
 
-interface IPlacementOverlayProps {
-  article: IArticle
+interface IPlacementDropOnlyCardProps {
+  target: IPlacementTarget
   children: ReactNode
 }
 
 /**
- * Make a rendered homepage card interactive when it maps to a pinned placement.
+ * Wrap a backfill/empty homepage cell so a pool story can be dropped into it.
  *
- * Backfill cards (not pinned in the current slot) and the public site render the
- * children untouched.
+ * Unlike {@link PlacementEditableCard} this renders no move/remove toolbar
+ * because the underlying cell holds no staged pin; it only accepts a drop at its
+ * fixed grid index. This is what lets sparse slots such as the hero receive a
+ * story on any visible card, not just on the rare card backed by a pin.
  *
- * @param props The article being rendered and the card markup to wrap.
+ * @param props The positional drop target and the rendered card markup.
+ * @returns A drop-enabled wrapper around the homepage card.
+ */
+function PlacementDropOnlyCard({ target, children }: IPlacementDropOnlyCardProps): JSX.Element {
+  const editor = useEditorPlacement()
+  const t = useTranslations('admin')
+  if (!editor) {
+    return <>{children}</>
+  }
+  const { saving, selectedArticleId, onDropPlacement } = editor
+
+  return (
+    <div
+      role="group"
+      tabIndex={selectedArticleId !== null && !saving ? 0 : -1}
+      aria-label={t('editor.canvas.dropTargetAria', { cell: `${target.slotLabel} ${target.index + 1}` })}
+      className="group/placement relative rounded outline-offset-2 outline-dashed outline-1 outline-transparent transition-shadow hover:outline-neutral-300"
+      onClickCapture={(event) => {
+        // Suppress article navigation so clicking a card never leaves the canvas.
+        event.preventDefault()
+      }}
+      onDragOver={(event) => {
+        if (!saving) {
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'move'
+        }
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        if (saving) {
+          return
+        }
+        const draggedArticleId = resolveDroppedArticleId(event)
+        if (draggedArticleId) {
+          onDropPlacement(draggedArticleId, target)
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget || selectedArticleId === null || saving) {
+          return
+        }
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return
+        }
+        event.preventDefault()
+        onDropPlacement(selectedArticleId, target)
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+interface IPlacementOverlayProps {
+  article: IArticle
+  /**
+   * Opt a backfill/empty card into accepting drops. Sparse slots such as the
+   * hero render almost no pinned cards, so without this their visible cards
+   * would reject every drop.
+   */
+  editorDroppable?: boolean
+  children: ReactNode
+}
+
+/**
+ * Make a rendered homepage card interactive inside the editor canvas.
+ *
+ * A card backed by a staged pin gets the full move/remove toolbar and inserts a
+ * dropped story before it. A backfill or empty card opted into `editorDroppable`
+ * accepts a drop that appends the story after the slot's pins. The public site
+ * (no editor context) renders the children untouched.
+ *
+ * @param props The article, whether the card accepts drops, and the card markup.
  * @returns The card, optionally wrapped with placement controls.
  */
-export function PlacementOverlay({ article, children }: IPlacementOverlayProps): JSX.Element {
+export function PlacementOverlay({ article, editorDroppable, children }: IPlacementOverlayProps): JSX.Element {
   const editor = useEditorPlacement()
   const slotId = usePlacementSlotId()
   if (!editor || !slotId) {
     return <>{children}</>
   }
   const info = editor.pinnedInfoBySlotId.get(slotId)
-  const index = info?.indexByArticleId.get(article.id)
-  if (info == null || index == null) {
+  if (info == null) {
     return <>{children}</>
   }
-  const target = editor.placementTargetByKey.get(placementTargetKey(slotId, index))
-  if (!target) {
-    return <>{children}</>
+  const pinnedIndex = info.indexByArticleId.get(article.id)
+  if (pinnedIndex != null) {
+    const target = editor.placementTargetByKey.get(placementTargetKey(slotId, pinnedIndex))
+    if (target) {
+      return (
+        <PlacementEditableCard
+          target={target}
+          isSelected={article.id === editor.selectedArticleId}
+          canMoveUp={pinnedIndex > 0}
+          canMoveDown={pinnedIndex < info.count - 1}
+        >
+          {children}
+        </PlacementEditableCard>
+      )
+    }
   }
-  return (
-    <PlacementEditableCard
-      target={target}
-      isSelected={article.id === editor.selectedArticleId}
-      canMoveUp={index > 0}
-      canMoveDown={index < info.count - 1}
-    >
-      {children}
-    </PlacementEditableCard>
-  )
+  if (editorDroppable && info.templateTarget) {
+    const appendTarget: IPlacementTarget = {
+      ...info.templateTarget,
+      index: info.appendIndex,
+      articleId: null,
+    }
+    return <PlacementDropOnlyCard target={appendTarget}>{children}</PlacementDropOnlyCard>
+  }
+  return <>{children}</>
 }
 
 /**
@@ -287,7 +371,7 @@ export function PlacementSectionDropZone(): JSX.Element | null {
   }
   const appendTarget: IPlacementTarget = {
     ...info.templateTarget,
-    index: info.count,
+    index: info.appendIndex,
     articleId: null,
   }
   const { saving, onDropPlacement } = editor

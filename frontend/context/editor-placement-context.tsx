@@ -13,6 +13,12 @@ interface ISlotPinnedInfo {
   indexByArticleId: Map<string, number>
   /** Number of pinned articles currently staged in the slot. */
   count: number
+  /**
+   * Cell index a freshly dropped story should land in so it appends after the
+   * slot's existing pins. The preview compacts pins to the front, so empty cells
+   * between pins are never rendered; appending is the only stable landing spot.
+   */
+  appendIndex: number
   /** Placement target for the slot's first cell, used to clone append targets. */
   templateTarget: IPlacementTarget | null
 }
@@ -72,6 +78,49 @@ interface IEditorPlacementProviderProps {
 }
 
 /**
+ * Count how many placement target cells a slot exposes.
+ *
+ * @param placementTargetByKey Lookup of placement targets by slot/index key.
+ * @param slotId Homepage slot id to tally.
+ * @returns Number of target cells configured for the slot.
+ */
+function countTargetsForSlot(
+  placementTargetByKey: Map<string, IPlacementTarget>,
+  slotId: string,
+): number {
+  let count = 0
+  for (const target of placementTargetByKey.values()) {
+    if (target.slotId === slotId) {
+      count += 1
+    }
+  }
+  return count
+}
+
+/**
+ * Resolve the cell index a dropped story should land in.
+ *
+ * Targets the first empty cell so drops fill the slot top-down; the preview
+ * compacts pins to the front, so the first empty cell is where a new story
+ * becomes visible right after the existing pins. A full slot falls back to the
+ * final cell, letting the shift-down insert evict the trailing story.
+ *
+ * @param pinnedIds Staged pin ids for the slot (may contain empty placeholders).
+ * @param cellCount Total target cells the slot exposes.
+ * @returns Zero-based cell index for the drop.
+ */
+function resolveAppendIndex(pinnedIds: string[], cellCount: number): number {
+  const limit = cellCount > 0 ? cellCount : pinnedIds.length
+  for (let index = 0; index < limit; index += 1) {
+    const id = pinnedIds[index]
+    if (!id || !id.trim()) {
+      return index
+    }
+  }
+  return Math.max(limit - 1, 0)
+}
+
+/**
  * Build the per-slot pinned lookup map from the editor's homepage slots.
  *
  * @param homepageSlots Homepage slots carrying staged draft pins.
@@ -87,13 +136,15 @@ function buildPinnedInfoBySlotId(
     const pinnedIds = editorPinnedIds(slot)
     const indexByArticleId = new Map<string, number>()
     pinnedIds.forEach((id, index) => {
-      if (id) {
+      if (id && id.trim()) {
         indexByArticleId.set(id, index)
       }
     })
+    const cellCount = countTargetsForSlot(placementTargetByKey, slot.id)
     pinnedInfoBySlotId.set(slot.id, {
       indexByArticleId,
       count: pinnedIds.length,
+      appendIndex: resolveAppendIndex(pinnedIds, cellCount),
       templateTarget: placementTargetByKey.get(placementTargetKey(slot.id, 0)) ?? null,
     })
   }

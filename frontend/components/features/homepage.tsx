@@ -89,6 +89,7 @@ function HeroLeftRail({ articles }: { articles: IArticle[] }): JSX.Element {
           <HomepageStoryCard
             key={article.id}
             article={article}
+            editorDroppable
             variant="hero-lead"
             kicker={idx === 0 ? tHome('hero.topKicker') : undefined}
             layout="stacked"
@@ -105,7 +106,7 @@ function HeroLead({ hero }: { hero: IArticle }): JSX.Element {
   const heroHref = `/article/${encodeURIComponent(hero.slug)}`
   const heroSummary = deckBelowTitle(hero.title, hero.summary, 200)
   return (
-    <PlacementOverlay article={hero}>
+    <PlacementOverlay article={hero} editorDroppable>
       <Link href={heroHref} className="group block" aria-label={hero.title}>
         <h2 className="font-sans text-[34px] font-normal leading-[1.05] tracking-tight text-neutral-950">
           {hero.title}
@@ -144,7 +145,12 @@ function HeroCenter({
         {relatedLinks.length > 0 ? (
           <ul className="mt-4 divide-y divide-neutral-200 border-t border-neutral-200 pt-2">
             {relatedLinks.map((article) => (
-              <HomepageStoryCard key={article.id} article={article} variant="headline-only" />
+              <HomepageStoryCard
+                key={article.id}
+                article={article}
+                editorDroppable
+                variant="headline-only"
+              />
             ))}
           </ul>
         ) : null}
@@ -152,7 +158,13 @@ function HeroCenter({
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
         {strip.map((article) => (
-          <HomepageStoryCard key={article.id} article={article} variant="compact" layout="stacked" />
+          <HomepageStoryCard
+            key={article.id}
+            article={article}
+            editorDroppable
+            variant="compact"
+            layout="stacked"
+          />
         ))}
       </div>
     </section>
@@ -169,6 +181,7 @@ function HeroRightRail({ articles }: { articles: IArticle[] }): JSX.Element {
             <HomepageStoryCard
               key={article.id}
               article={article}
+              editorDroppable
               variant="rail"
               titleFirst={idx === 0}
               showSummary={idx === 0}
@@ -183,7 +196,11 @@ function HeroRightRail({ articles }: { articles: IArticle[] }): JSX.Element {
 function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
   const hero = articles[0]
   if (!hero) {
-    return null
+    return (
+      <div className="rounded border border-dashed border-neutral-300 bg-neutral-50 p-4">
+        <PlacementSectionDropZone />
+      </div>
+    )
   }
 
   const { left, relatedLinks, strip, rightCards } = splitDefaultHeroArticles(articles)
