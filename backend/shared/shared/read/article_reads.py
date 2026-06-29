@@ -35,8 +35,10 @@ def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
         author_name=author_name,
         thumbnail_url=doc.get("thumbnail_url"),
         video_url=doc.get("video_url"),
+        category_ids=_category_ids_from_doc(doc),
         created_at=doc.get("created_at", ""),
         published_at=doc.get("published_at"),
+        review_submitted_at=doc.get("review_submitted_at"),
     )
 
 
@@ -49,7 +51,6 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         body=str(doc.get("body") or ""),
         tags=list(doc.get("tags") or []),
         category_id=doc.get("category_id"),
-        category_ids=_category_ids_from_doc(doc),
         story_id=doc.get("story_id"),
         international_potential=doc.get("international_potential"),
         market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],

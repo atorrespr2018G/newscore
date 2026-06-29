@@ -17,6 +17,7 @@ from news_storage_app.routers.categories import router as categories_router
 from news_storage_app.routers.media import router as media_router
 from news_storage_app.routers.search import router as search_router
 from news_storage_app.routers.tags import router as tags_router
+from news_storage_app.routers.workflow import router as workflow_router
 from news_storage_app.routers.utils import register_exception_handlers
 from shared.core.db import close_db, get_database, open_db
 from shared.core.indexes import ensure_indexes
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(categories_router)
     app.include_router(tags_router)
     app.include_router(search_router)
+    app.include_router(workflow_router)
 
     register_health_routes(app, service_name="news_storage_app")
 

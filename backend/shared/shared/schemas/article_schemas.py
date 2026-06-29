@@ -79,8 +79,10 @@ class ArticleOut(BaseModel):
     author_name: str
     thumbnail_url: str | None
     video_url: str | None = None
+    category_ids: list[str] = []
     created_at: str
     published_at: str | None
+    review_submitted_at: str | None = None
 
 
 class ArticleDetailOut(ArticleOut):
@@ -89,7 +91,6 @@ class ArticleDetailOut(ArticleOut):
     body: str
     tags: list[str]
     category_id: str | None
-    category_ids: list[str]
     story_id: str | None = None
     international_potential: int | None
     market_ids: list[str]

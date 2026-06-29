@@ -13,6 +13,7 @@ from layout_admin_app.routers.layouts import router as layouts_router
 from layout_admin_app.routers.slots import router as slots_router
 from layout_admin_app.routers.utils import register_exception_handlers
 from layout_admin_app.routers.widgets import router as widgets_router
+from layout_admin_app.routers.workflow import router as workflow_router
 from shared.core.db import close_db, get_database, open_db
 from shared.core.indexes import ensure_indexes
 from shared.core.logger import get_logger
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(layouts_router)
     app.include_router(slots_router)
     app.include_router(widgets_router)
+    app.include_router(workflow_router)
 
     register_health_routes(app, service_name="layout_admin_app")
 

@@ -25,6 +25,15 @@ class SlotRepository:
         doc = await self._layouts.find_one({"_id": layout_id}, {"_id": 1})
         return doc is not None
 
+    async def get_layout_market_id(self, layout_id: str) -> str | None:
+        """Return the market id a layout belongs to, if any."""
+
+        doc = await self._layouts.find_one({"_id": layout_id}, {"market_id": 1})
+        if doc is None:
+            return None
+        market_id = doc.get("market_id")
+        return str(market_id) if market_id is not None else None
+
     async def find_by_id(self, slot_id: str) -> dict[str, Any] | None:
         return await self._slots.find_one({"_id": slot_id})
 

@@ -5,6 +5,45 @@ import type { IArticlePlacement } from '@/lib/helpers/article-placements'
 export const EDITOR_FETCH_PAGE_SIZE = 200
 
 /**
+ * Multi-field search/filter criteria for the editor and placement story pools.
+ *
+ * Fields combine with AND on the backend. A non-empty `newsId` is an exact
+ * article-id lookup that overrides every other field and matches all statuses.
+ */
+export interface IEditorSearchFilters {
+  title: string
+  categoryId: string
+  createdFrom: string
+  createdTo: string
+  newsId: string
+}
+
+/** An empty filter set, used to reset the pool's filter bar. */
+export const EMPTY_EDITOR_SEARCH_FILTERS: IEditorSearchFilters = {
+  title: '',
+  categoryId: '',
+  createdFrom: '',
+  createdTo: '',
+  newsId: '',
+}
+
+/**
+ * Determine whether any search filter is set (and therefore a search runs).
+ *
+ * @param filters Current filter-bar values.
+ * @returns True when at least one filter has a non-empty trimmed value.
+ */
+export function hasActiveSearchFilters(filters: IEditorSearchFilters): boolean {
+  return (
+    filters.title.trim() !== '' ||
+    filters.categoryId.trim() !== '' ||
+    filters.createdFrom.trim() !== '' ||
+    filters.createdTo.trim() !== '' ||
+    filters.newsId.trim() !== ''
+  )
+}
+
+/**
  * Page size used when lazily loading the editor's article pool.
  *
  * Kept small so the pool grows in bounded increments on demand instead of

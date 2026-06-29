@@ -10,6 +10,7 @@ import {
 import { apiConfig } from '@/lib/api/config'
 import { apiFetch } from '@/lib/api/rest-client'
 import { EDITOR_FETCH_PAGE_SIZE, fetchAllPaginatedArticles } from '@/lib/helpers/editor-curation'
+import { useMarkWorkflowViewSeen } from '@/hooks/use-workflow-badges'
 
 /** Lifecycle status for stories awaiting editorial approval. */
 const REVIEW_STATUS = 'review'
@@ -140,6 +141,7 @@ const SEND_BACK_TRANSITION: IReviewTransition = {
 export default function ReviewPage(): JSX.Element {
   const t = useTranslations('admin')
   const { rows, loading, error, message, workingId, approve, sendBack } = useReviewQueue()
+  useMarkWorkflowViewSeen('review')
 
   return (
     <div>

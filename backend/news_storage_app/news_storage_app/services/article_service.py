@@ -766,9 +766,11 @@ async def submit_for_review(
         raise ConflictError("Only draft articles can be submitted for review")
 
     now = _utc_now_iso()
+    # review_submitted_at marks when the story entered the queue so the Review
+    # tab badge can count stories newer than the editor's last visit.
     updated = await repo.find_one_and_update(
         article_id,
-        {"status": "review", "updated_at": now},
+        {"status": "review", "review_submitted_at": now, "updated_at": now},
     )
     if updated is None:
         raise NotFoundError("Article not found")

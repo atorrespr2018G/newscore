@@ -18,8 +18,10 @@ pyproject.toml
 ./shared/core/logger.py
 ./shared/core/markets.py
 ./shared/core/pagination.py
+./shared/core/placement_events.py
 ./shared/core/request_context.py
 ./shared/core/rest_app.py
+./shared/core/view_state.py
 ./shared/helpers/__init__.py
 ./shared/helpers/html_sanitize.py
 ./shared/models/__init__.py
@@ -50,6 +52,7 @@ pyproject.toml
 ./shared/schemas/layout_schemas.py
 ./shared/schemas/media_schemas.py
 ./shared/schemas/user_schemas.py
+./shared/schemas/workflow_schemas.py
 newscore_shared.egg-info/PKG-INFO
 newscore_shared.egg-info/SOURCES.txt
 newscore_shared.egg-info/dependency_links.txt
@@ -74,8 +77,10 @@ shared/core/indexes.py
 shared/core/logger.py
 shared/core/markets.py
 shared/core/pagination.py
+shared/core/placement_events.py
 shared/core/request_context.py
 shared/core/rest_app.py
+shared/core/view_state.py
 shared/helpers/__init__.py
 shared/helpers/html_sanitize.py
 shared/models/__init__.py
@@ -106,3 +111,4 @@ shared/schemas/common.py
 shared/schemas/layout_schemas.py
 shared/schemas/media_schemas.py
 shared/schemas/user_schemas.py
+shared/schemas/workflow_schemas.py

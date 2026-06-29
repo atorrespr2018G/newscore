@@ -31,6 +31,7 @@ import {
   fetchAllPaginatedArticles,
   htmlTextLength,
   mergeArticlePages,
+  type IEditorSearchFilters,
   type IPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
 import {
@@ -52,6 +53,7 @@ import {
   notifyEditorialPreviewStale,
   subscribeToEditorialPreviewStale,
 } from '@/lib/helpers/editorial-preview-events'
+import { notifyWorkflowBadgesRefresh } from '@/lib/api/workflow-badges-client'
 import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
 import type { IHomepageFeed } from '@/interfaces/feed'
 
@@ -113,7 +115,7 @@ interface IEditorArticlePool {
   loadingMoreArticles: boolean
   loadArticles: () => Promise<void>
   loadMoreArticles: () => Promise<void>
-  searchArticles: (query: string) => Promise<IEditorStoryRow[]>
+  searchArticles: (filters: IEditorSearchFilters) => Promise<IEditorStoryRow[]>
   updateArticleRow: (articleId: string, patch: Partial<IEditorStoryRow>) => void
 }
 
@@ -157,12 +159,15 @@ function useEditorArticlePool(): IEditorArticlePool {
     }
   }, [])
 
-  const searchArticles = useCallback(async (query: string): Promise<IEditorStoryRow[]> => {
-    return fetchAllPaginatedArticles(
-      (page) => `${apiConfig.news}/search?${buildSearchPageParams(page, query)}`,
-      (url) => apiFetch(url),
-    )
-  }, [])
+  const searchArticles = useCallback(
+    async (filters: IEditorSearchFilters): Promise<IEditorStoryRow[]> => {
+      return fetchAllPaginatedArticles(
+        (page) => `${apiConfig.news}/search?${buildSearchPageParams(page, filters)}`,
+        (url) => apiFetch(url),
+      )
+    },
+    [],
+  )
 
   const updateArticleRow = useCallback(
     (articleId: string, patch: Partial<IEditorStoryRow>) => {
@@ -199,13 +204,56 @@ function fetchArticlesPage(page: number): Promise<IPaginatedArticles> {
   return apiFetch<IPaginatedArticles>(`${apiConfig.news}/articles?${params.toString()}`)
 }
 
-function buildSearchPageParams(page: number, query: string): string {
+/**
+ * Build the query string for one page of a multi-field article search.
+ *
+ * A non-empty news id is forwarded as an exact `article_id` override and the
+ * remaining filters are dropped, mirroring the backend's precedence rules.
+ *
+ * @param page One-based page number to fetch.
+ * @param filters Active filter-bar values.
+ * @returns URL-encoded query string for the `/search` endpoint.
+ */
+function buildSearchPageParams(page: number, filters: IEditorSearchFilters): string {
   const params = new URLSearchParams({
     page: String(page),
     page_size: String(EDITOR_FETCH_PAGE_SIZE),
-    q: query,
   })
+  const newsId = filters.newsId.trim()
+  if (newsId) {
+    params.set('article_id', newsId)
+    return params.toString()
+  }
+  appendSearchFilterParams(params, filters)
   return params.toString()
+}
+
+/**
+ * Append the non-id search filters to a params object when they are set.
+ *
+ * @param params Target query params (mutated in place).
+ * @param filters Active filter-bar values.
+ */
+function appendSearchFilterParams(
+  params: URLSearchParams,
+  filters: IEditorSearchFilters,
+): void {
+  const title = filters.title.trim()
+  const categoryId = filters.categoryId.trim()
+  const createdFrom = filters.createdFrom.trim()
+  const createdTo = filters.createdTo.trim()
+  if (title) {
+    params.set('q', title)
+  }
+  if (categoryId) {
+    params.set('category_id', categoryId)
+  }
+  if (createdFrom) {
+    params.set('created_from', createdFrom)
+  }
+  if (createdTo) {
+    params.set('created_to', createdTo)
+  }
 }
 
 interface IArticleDetailEditor {
@@ -740,6 +788,9 @@ function useHomepagePlacementEditor(
       setMessage(formatPublishResult(t, result.published_slot_count))
       await Promise.all([loadHomepageSlots(), loadArticlePlacements()])
       notifyEditorialPreviewStale(scope)
+      // Nudge the masthead Placement badge to recount now instead of waiting
+      // for its poll interval, so the counter reflects this publish immediately.
+      notifyWorkflowBadgesRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('editor.errors.publishPlacements'))
     } finally {
@@ -773,6 +824,9 @@ function useHomepagePlacementEditor(
         await Promise.all([loadArticlePlacements(), loadHomepageSlots()])
         setMessage(buildSuccessMessage(previousSlots))
         notifyEditorialPreviewStale(scope)
+        // A drop/move records a placement_event server-side; nudge the masthead
+        // Placement badge to recount now rather than on its next poll.
+        notifyWorkflowBadgesRefresh()
         return true
       } catch (err) {
         setHomepageSlots(previousSlots)

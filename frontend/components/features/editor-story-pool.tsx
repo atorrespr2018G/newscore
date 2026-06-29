@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { EditorArticleModal } from '@/components/features/editor-article-modal'
 import { clearDraggingArticleId, setDraggingArticleId } from '@/lib/editor/editor-drag-store'
@@ -15,7 +15,12 @@ import {
   formatArticlePlacements,
   type IArticlePlacement,
 } from '@/lib/helpers/article-placements'
-import { isNewReporterArticle } from '@/lib/helpers/editor-curation'
+import {
+  EMPTY_EDITOR_SEARCH_FILTERS,
+  hasActiveSearchFilters,
+  isNewReporterArticle,
+  type IEditorSearchFilters,
+} from '@/lib/helpers/editor-curation'
 
 const EDITOR_SEARCH_DEBOUNCE_MS = 300
 
@@ -26,6 +31,7 @@ export interface IEditorStoryRow {
   status: string
   author_name: string
   thumbnail_url: string | null
+  category_ids?: string[]
 }
 
 type PlacementFilterType = 'all' | 'unplaced' | 'homepage'
@@ -57,7 +63,7 @@ interface IEditorStoryPoolProps {
   articles: IEditorStoryRow[]
   selectedId: string | null
   placementMap: Map<string, IArticlePlacement[]>
-  onSearch: (query: string) => Promise<IEditorStoryRow[]>
+  onSearch: (filters: IEditorSearchFilters) => Promise<IEditorStoryRow[]>
   onSelect: (articleId: string) => void
   categories: ICategoryOut[]
   selectedCategoryIds: string[]
@@ -133,22 +139,29 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
   } = props
   const t = useTranslations('admin')
   const [isModalOpen, setModalOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filters, setFilters] = useState<IEditorSearchFilters>(EMPTY_EDITOR_SEARCH_FILTERS)
+  const [debouncedFilters, setDebouncedFilters] = useState<IEditorSearchFilters>(
+    EMPTY_EDITOR_SEARCH_FILTERS,
+  )
   const [searchResults, setSearchResults] = useState<IEditorStoryRow[] | null>(null)
   const [searchLoading, setSearchLoading] = useState(false)
   const [placementFilter, setPlacementFilter] = useState<PlacementFilterType>('all')
   const [activeTab, setActiveTab] = useState<NewsTabType>('all')
 
+  // Serialize so the debounce only re-fires when a filter value actually changes.
+  const filtersKey = JSON.stringify(filters)
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setDebouncedSearch(searchQuery.trim())
+      setDebouncedFilters(filters)
     }, EDITOR_SEARCH_DEBOUNCE_MS)
     return () => window.clearTimeout(timer)
-  }, [searchQuery])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey])
+
+  const searchActive = hasActiveSearchFilters(debouncedFilters)
 
   useEffect(() => {
-    if (!debouncedSearch) {
+    if (!searchActive) {
       setSearchResults(null)
       setSearchLoading(false)
       return
@@ -156,7 +169,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
 
     let cancelled = false
     setSearchLoading(true)
-    void onSearch(debouncedSearch)
+    void onSearch(debouncedFilters)
       .then((results) => {
         if (!cancelled) {
           setSearchResults(results)
@@ -176,7 +189,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [debouncedSearch, onSearch])
+  }, [debouncedFilters, searchActive, onSearch])
 
   const sourceArticles = searchResults ?? articles
 
@@ -203,23 +216,14 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     <div className="flex flex-col">
       <NewsTabBar activeTab={activeTab} newCount={newCount} onTabChange={setActiveTab} />
 
-      <div className="pb-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto] md:items-end">
-          <label className="text-sm font-medium text-neutral-700">
-            {t('editor.pool.searchLabel')}
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t('editor.pool.searchPlaceholder')}
-              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-            />
-          </label>
-          {activeTab === 'all' ? (
-            <PlacementFilterButtons activeFilter={placementFilter} onFilterChange={setPlacementFilter} />
-          ) : null}
-        </div>
-      </div>
+      <PoolFilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        categories={categories}
+        showPlacementFilters={activeTab === 'all'}
+        placementFilter={placementFilter}
+        onPlacementFilterChange={setPlacementFilter}
+      />
 
       <div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -301,7 +305,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
         ) : null}
         {!searchLoading && visibleArticles.length === 0 ? (
           <p className="rounded border border-dashed border-neutral-300 px-3 py-5 text-sm text-neutral-500">
-            {t(resolveEmptyMessageKey(activeTab, debouncedSearch))}
+            {t(resolveEmptyMessageKey(activeTab, searchActive))}
           </p>
         ) : null}
         {searchResults === null && hasMore ? (
@@ -394,11 +398,11 @@ function PoolLoadMore({ loadingMore, onLoadMore }: IPoolLoadMoreProps): JSX.Elem
  * Resolve the `admin` message key for the current empty-state.
  *
  * @param activeTab Which source list is active.
- * @param debouncedSearch Trimmed, debounced search query.
+ * @param searchActive Whether a backend search is currently applied.
  * @returns Translation key for the empty-state message.
  */
-function resolveEmptyMessageKey(activeTab: NewsTabType, debouncedSearch: string): string {
-  if (debouncedSearch) {
+function resolveEmptyMessageKey(activeTab: NewsTabType, searchActive: boolean): string {
+  if (searchActive) {
     return 'editor.pool.empty.search'
   }
   if (activeTab === 'new') {
@@ -448,6 +452,201 @@ function NewsTabBar(props: INewsTabBarProps): JSX.Element {
             {newCount}
           </span>
         ) : null}
+      </button>
+    </div>
+  )
+}
+
+/** Tailwind classes for a filter control, greyed out when disabled. */
+function filterControlClass(disabled: boolean): string {
+  return [
+    'mt-1 w-full rounded border px-3 py-2 text-sm',
+    disabled ? 'border-neutral-200 bg-neutral-100 text-neutral-400' : 'border-neutral-300',
+  ].join(' ')
+}
+
+interface IFilterFieldProps {
+  label: string
+  hint?: string
+  children: ReactNode
+}
+
+/**
+ * Labeled wrapper for a single filter control with an optional hint line.
+ *
+ * @param props Label text, optional hint, and the control to render.
+ * @returns The labeled filter field.
+ */
+function FilterField({ label, hint, children }: IFilterFieldProps): JSX.Element {
+  return (
+    <label className="text-sm font-medium text-neutral-700">
+      {label}
+      {children}
+      {hint ? (
+        <span className="mt-1 block text-xs font-normal text-amber-600">{hint}</span>
+      ) : null}
+    </label>
+  )
+}
+
+interface IPoolFilterBarProps {
+  filters: IEditorSearchFilters
+  onFiltersChange: Dispatch<SetStateAction<IEditorSearchFilters>>
+  categories: ICategoryOut[]
+  showPlacementFilters: boolean
+  placementFilter: PlacementFilterType
+  onPlacementFilterChange: (filter: PlacementFilterType) => void
+}
+
+/**
+ * Multi-field filter bar for the story pool (title, category, date range, id).
+ *
+ * @param props Filter state, change handlers, and category options.
+ * @returns The filter bar UI.
+ */
+function PoolFilterBar(props: IPoolFilterBarProps): JSX.Element {
+  const {
+    filters,
+    onFiltersChange,
+    categories,
+    showPlacementFilters,
+    placementFilter,
+    onPlacementFilterChange,
+  } = props
+  // A news id is an exact-match override; the other filters are ignored while set.
+  const overrideActive = filters.newsId.trim() !== ''
+  const update = (patch: Partial<IEditorSearchFilters>): void =>
+    onFiltersChange((current) => ({ ...current, ...patch }))
+
+  return (
+    <div className="space-y-3 pb-4">
+      <PoolPrimaryFilters
+        filters={filters}
+        categories={categories}
+        disabled={overrideActive}
+        onUpdate={update}
+      />
+      <PoolIdFilterRow
+        filters={filters}
+        overrideActive={overrideActive}
+        onUpdate={update}
+        onClear={() => onFiltersChange(EMPTY_EDITOR_SEARCH_FILTERS)}
+      />
+      {showPlacementFilters && !overrideActive ? (
+        <div className="flex flex-wrap gap-2">
+          <PlacementFilterButtons
+            activeFilter={placementFilter}
+            onFilterChange={onPlacementFilterChange}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+interface IPoolPrimaryFiltersProps {
+  filters: IEditorSearchFilters
+  categories: ICategoryOut[]
+  disabled: boolean
+  onUpdate: (patch: Partial<IEditorSearchFilters>) => void
+}
+
+/**
+ * Title, category, and created-date-range controls of the filter bar.
+ *
+ * @param props Filter state, categories, disabled flag, and update handler.
+ * @returns The primary filter controls grid.
+ */
+function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
+  const { filters, categories, disabled, onUpdate } = props
+  const t = useTranslations('admin')
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 md:items-end lg:grid-cols-4">
+      <FilterField label={t('editor.pool.filterBar.titleLabel')}>
+        <input
+          type="text"
+          value={filters.title}
+          disabled={disabled}
+          onChange={(event) => onUpdate({ title: event.target.value })}
+          placeholder={t('editor.pool.searchPlaceholder')}
+          className={filterControlClass(disabled)}
+        />
+      </FilterField>
+      <FilterField label={t('editor.pool.filterBar.categoryLabel')}>
+        <select
+          value={filters.categoryId}
+          disabled={disabled}
+          onChange={(event) => onUpdate({ categoryId: event.target.value })}
+          className={filterControlClass(disabled)}
+        >
+          <option value="">{t('editor.pool.filterBar.categoryAll')}</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+      </FilterField>
+      <FilterField label={t('editor.pool.filterBar.dateFromLabel')}>
+        <input
+          type="date"
+          value={filters.createdFrom}
+          disabled={disabled}
+          onChange={(event) => onUpdate({ createdFrom: event.target.value })}
+          className={filterControlClass(disabled)}
+        />
+      </FilterField>
+      <FilterField label={t('editor.pool.filterBar.dateToLabel')}>
+        <input
+          type="date"
+          value={filters.createdTo}
+          disabled={disabled}
+          onChange={(event) => onUpdate({ createdTo: event.target.value })}
+          className={filterControlClass(disabled)}
+        />
+      </FilterField>
+    </div>
+  )
+}
+
+interface IPoolIdFilterRowProps {
+  filters: IEditorSearchFilters
+  overrideActive: boolean
+  onUpdate: (patch: Partial<IEditorSearchFilters>) => void
+  onClear: () => void
+}
+
+/**
+ * News-id exact-match field plus the clear-all-filters button.
+ *
+ * @param props Filter state, override flag, update handler, and clear handler.
+ * @returns The id filter row.
+ */
+function PoolIdFilterRow(props: IPoolIdFilterRowProps): JSX.Element {
+  const { filters, overrideActive, onUpdate, onClear } = props
+  const t = useTranslations('admin')
+
+  return (
+    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+      <FilterField
+        label={t('editor.pool.filterBar.newsIdLabel')}
+        hint={overrideActive ? t('editor.pool.filterBar.newsIdOverride') : undefined}
+      >
+        <input
+          type="text"
+          value={filters.newsId}
+          onChange={(event) => onUpdate({ newsId: event.target.value })}
+          placeholder={t('editor.pool.filterBar.newsIdPlaceholder')}
+          className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 font-mono text-xs"
+        />
+      </FilterField>
+      <button
+        type="button"
+        onClick={onClear}
+        className="rounded border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+      >
+        {t('editor.pool.filterBar.clear')}
       </button>
     </div>
   )

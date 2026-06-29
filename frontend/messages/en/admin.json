@@ -137,6 +137,17 @@
       "searching": "Searching stories…",
       "loadMore": "Load more stories",
       "loadingMore": "Loading more…",
+      "filterBar": {
+        "titleLabel": "Title",
+        "categoryLabel": "Category",
+        "categoryAll": "All categories",
+        "dateFromLabel": "Created from",
+        "dateToLabel": "Created to",
+        "newsIdLabel": "News id",
+        "newsIdPlaceholder": "Exact article id…",
+        "newsIdOverride": "News id overrides the other filters.",
+        "clear": "Clear filters"
+      },
       "tabs": {
         "all": "All news",
         "new": "New"

@@ -7,6 +7,7 @@ import { EditorCanvasSkeleton } from '@/components/features/editor-skeletons'
 import { HomepagePlacementCanvas } from '@/components/features/homepage-placement-canvas'
 import { useToast } from '@/components/ui/toast'
 import { useEditorPlacementBoard, type IEditorPlacementBoard } from '@/hooks/use-editor-curation'
+import { useMarkWorkflowViewSeen } from '@/hooks/use-workflow-badges'
 
 /**
  * Placement page: the WYSIWYG homepage canvas, live preview, and publishing.
@@ -19,6 +20,7 @@ import { useEditorPlacementBoard, type IEditorPlacementBoard } from '@/hooks/use
 export default function EditorPlacementPage(): JSX.Element {
   const board = useEditorPlacementBoard()
   useEditorToasts(board.error, board.message)
+  useMarkWorkflowViewSeen('placement')
 
   return (
     <div>

@@ -137,6 +137,17 @@
       "searching": "Buscando noticias…",
       "loadMore": "Cargar más noticias",
       "loadingMore": "Cargando más…",
+      "filterBar": {
+        "titleLabel": "Título",
+        "categoryLabel": "Categoría",
+        "categoryAll": "Todas las categorías",
+        "dateFromLabel": "Creado desde",
+        "dateToLabel": "Creado hasta",
+        "newsIdLabel": "Id de noticia",
+        "newsIdPlaceholder": "Id exacto del artículo…",
+        "newsIdOverride": "El id de noticia anula los demás filtros.",
+        "clear": "Borrar filtros"
+      },
       "tabs": {
         "all": "Todas las noticias",
         "new": "Nuevas"

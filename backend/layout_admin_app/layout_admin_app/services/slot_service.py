@@ -11,6 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from shared.core.audit import write_event
 from shared.core.cache_invalidation import invalidate_homepage_for_layout
 from shared.core.exceptions import NotFoundError, ValidationError
+from shared.core.placement_events import compute_added_ids, record_placements
 from shared.repositories.slot_repository import SlotRepository
 from shared.schemas.layout_schemas import SlotCreate, SlotOut, SlotUpdate
 
@@ -82,6 +83,41 @@ def _to_out(doc: dict[str, Any]) -> SlotOut:
         order_index=int(doc.get("order_index") or 0),
         updated_at=doc.get("updated_at", ""),
     )
+
+
+async def _record_slot_placements(
+    db: AsyncIOMotorDatabase,
+    repo: SlotRepository,
+    *,
+    slot_id: str,
+    layout_id: str,
+    existing: dict[str, Any],
+    update_doc: dict[str, Any],
+) -> None:
+    """Log placement events for article ids newly pinned into a slot.
+
+    Diffs the live and staged pin arrays so each freshly added story records a
+    ``placed_at`` used by the Placement tab badge.
+
+    Args:
+        db: Database connection.
+        repo: Slot repository for resolving the layout's market.
+        slot_id: Slot receiving the pins.
+        layout_id: Layout the slot belongs to.
+        existing: Slot document prior to the update.
+        update_doc: Clamped update payload that was applied.
+    """
+
+    added: list[str] = []
+    if "pinned_ids" in update_doc:
+        added += compute_added_ids(existing.get("pinned_ids"), update_doc["pinned_ids"])
+    if "draft_pinned_ids" in update_doc:
+        added += compute_added_ids(existing.get("draft_pinned_ids"), update_doc["draft_pinned_ids"])
+    if not added:
+        return
+
+    market_id = await repo.get_layout_market_id(layout_id)
+    await record_placements(db, article_ids=added, slot_id=slot_id, market_id=market_id)
 
 
 async def create(
@@ -256,6 +292,14 @@ async def update(
     if doc is None:
         raise NotFoundError("Slot not found")
     await repo.touch_layout(str(doc["layout_id"]), update_doc["updated_at"])
+    await _record_slot_placements(
+        db,
+        repo,
+        slot_id=slot_id,
+        layout_id=str(doc["layout_id"]),
+        existing=existing,
+        update_doc=update_doc,
+    )
     if "pinned_ids" in update_doc:
         await invalidate_homepage_for_layout(db, str(doc["layout_id"]))
     if actor_id:

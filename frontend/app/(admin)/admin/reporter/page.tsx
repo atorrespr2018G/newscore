@@ -1,7 +1,15 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { LocalizedFileInput } from '@/components/ui/localized-file-input'
 import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/rich-text-editor'
@@ -23,7 +31,7 @@ import {
 const MAX_TITLE_LENGTH = 200
 const MIN_BODY_TEXT_LENGTH = 10
 
-interface IUploadedImage {
+interface IUploadedMedia {
   id: string
   url: string
 }
@@ -88,13 +96,14 @@ export default function ReporterUploadPage(): JSX.Element {
   )
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [images, setImages] = useState<IUploadedImage[]>([])
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [images, setImages] = useState<IUploadedMedia[]>([])
+  const [videos, setVideos] = useState<IUploadedMedia[]>([])
   const [marketId, setMarketId] = useState<string | null>(null)
   const [categories, setCategories] = useState<ICategoryOut[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [videoDragIndex, setVideoDragIndex] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -118,41 +127,63 @@ export default function ReporterUploadPage(): JSX.Element {
       })
   }, [t])
 
-  const handleImageUpload = useCallback(async (files: FileList | null) => {
-    if (!files?.length) {
-      return
-    }
-    setUploadingMedia(true)
-    setError(null)
-    try {
-      const uploaded: IUploadedImage[] = []
-      for (const file of Array.from(files)) {
-        const media: IMediaOut = await uploadImage(file)
-        uploaded.push({ id: media.id, url: media.url })
+  /**
+   * Upload every selected file through `upload` and append the results to a
+   * media list, surfacing a localized error on failure.
+   *
+   * @param options Selected files, the per-file uploader, the target list
+   *   setter, and the translation key used for upload failures.
+   */
+  const uploadFilesInto = useCallback(
+    async (options: {
+      files: FileList | null
+      upload: (file: File) => Promise<IMediaOut>
+      setList: Dispatch<SetStateAction<IUploadedMedia[]>>
+      errorKey: string
+    }): Promise<void> => {
+      const { files, upload, setList, errorKey } = options
+      if (!files?.length) {
+        return
       }
-      setImages((current) => [...current, ...uploaded])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('reporter.errors.imageUpload'))
-    } finally {
-      setUploadingMedia(false)
-    }
-  }, [t])
+      setUploadingMedia(true)
+      setError(null)
+      try {
+        const uploaded: IUploadedMedia[] = []
+        for (const file of Array.from(files)) {
+          const media: IMediaOut = await upload(file)
+          uploaded.push({ id: media.id, url: media.url })
+        }
+        setList((current) => [...current, ...uploaded])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t(errorKey))
+      } finally {
+        setUploadingMedia(false)
+      }
+    },
+    [t],
+  )
 
-  async function handleVideoUpload(file: File | null) {
-    if (!file) {
-      return
-    }
-    setUploadingMedia(true)
-    setError(null)
-    try {
-      const media = await uploadVideo(file)
-      setVideoUrl(media.url)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('reporter.errors.videoUpload'))
-    } finally {
-      setUploadingMedia(false)
-    }
-  }
+  const handleImageUpload = useCallback(
+    (files: FileList | null) =>
+      uploadFilesInto({
+        files,
+        upload: uploadImage,
+        setList: setImages,
+        errorKey: 'reporter.errors.imageUpload',
+      }),
+    [uploadFilesInto],
+  )
+
+  const handleVideoUpload = useCallback(
+    (files: FileList | null) =>
+      uploadFilesInto({
+        files,
+        upload: uploadVideo,
+        setList: setVideos,
+        errorKey: 'reporter.errors.videoUpload',
+      }),
+    [uploadFilesInto],
+  )
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -189,9 +220,12 @@ export default function ReporterUploadPage(): JSX.Element {
           category_ids: selectedCategoryIds,
           international_potential: internationalPotential,
           market_ids: [marketId],
-          media_ids: images.map((image) => image.id),
+          // Videos ride along in media_ids (uncapped on the backend) so a story
+          // can carry several clips; the first video also fills video_url as the
+          // lead/teaser clip for hero and card views.
+          media_ids: [...images.map((image) => image.id), ...videos.map((video) => video.id)],
           thumbnail_url: images[0]?.url ?? null,
-          video_url: videoUrl,
+          video_url: videos[0]?.url ?? null,
         }),
       })
       setSuccess(t('reporter.status.draftSaved', { title: article.title }))
@@ -199,7 +233,7 @@ export default function ReporterUploadPage(): JSX.Element {
       setTitle('')
       setBody('')
       setImages([])
-      setVideoUrl(null)
+      setVideos([])
       setSelectedCategoryIds([])
       setInternationalPotential(null)
     } catch (err) {
@@ -405,18 +439,61 @@ export default function ReporterUploadPage(): JSX.Element {
         </div>
 
         <div>
-          <p className="text-sm font-medium text-neutral-700">{t('reporter.fields.video')}</p>
+          <p className="text-sm font-medium text-neutral-700">{t('reporter.fields.videos')}</p>
           <LocalizedFileInput
             accept="video/*"
+            multiple
             disabled={uploadingMedia}
-            onSelect={(files) => void handleVideoUpload(files?.[0] ?? null)}
-            buttonLabel={t('reporter.fields.chooseFile')}
+            onSelect={(files) => void handleVideoUpload(files)}
+            buttonLabel={t('reporter.fields.chooseFiles')}
             emptyLabel={t('reporter.fields.noFileSelected')}
             formatSelected={(count) => t('reporter.fields.filesSelected', { count })}
           />
-          {videoUrl ? (
-            <p className="mt-1 text-xs text-neutral-500">{t('reporter.fields.videoAttached')}</p>
-          ) : null}
+          {videos.length > 0 ? (
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              {videos.map((video, index) => (
+                <li
+                  key={video.id}
+                  draggable
+                  onDragStart={() => setVideoDragIndex(index)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => {
+                    if (videoDragIndex === null || videoDragIndex === index) {
+                      return
+                    }
+                    setVideos((current) => moveItem(current, videoDragIndex, index))
+                    setVideoDragIndex(null)
+                  }}
+                  className="flex items-center gap-3 rounded border border-neutral-200 bg-white p-2"
+                >
+                  <video
+                    src={`${video.url}#t=0.1`}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="h-16 w-16 rounded bg-black object-cover"
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs text-neutral-500">
+                      {t('reporter.fields.videoPosition', { position: index + 1 })}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVideos((current) => current.filter((item) => item.id !== video.id))
+                      }
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      {t('reporter.fields.remove')}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-neutral-500">{t('reporter.fields.videosEmpty')}</p>
+          )}
         </div>
 
         <button

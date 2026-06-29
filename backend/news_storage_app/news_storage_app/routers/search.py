@@ -15,13 +15,29 @@ router = APIRouter()
 
 @router.get("/search", response_model=PaginatedResponse)
 async def search(
-    q: str = Query(..., min_length=1, max_length=200),
+    q: str | None = Query(None, max_length=200),
+    category_id: str | None = Query(None, max_length=100),
+    created_from: str | None = Query(None, max_length=40),
+    created_to: str | None = Query(None, max_length=40),
+    article_id: str | None = Query(None, max_length=100),
     db: AsyncIOMotorDatabase = Depends(get_db),
     pagination: PaginationParams = PaginationDep,
 ) -> PaginatedResponse:
-    """Search articles by title or slug substring."""
+    """Search articles by title/slug, category, created-date range, or exact id.
 
-    items, total = await search_service.search_articles(db, query=q, pagination=pagination)
+    Filters combine with AND; a non-empty ``article_id`` overrides the others and
+    matches across all statuses.
+    """
+
+    items, total = await search_service.search_articles(
+        db,
+        query=q,
+        category_id=category_id,
+        created_from=created_from,
+        created_to=created_to,
+        article_id=article_id,
+        pagination=pagination,
+    )
     return PaginatedResponse(
         items=items,
         total=total,
