@@ -40,6 +40,7 @@ export default function PreviewPage(): JSX.Element {
             feed={previewFeed}
             loading={refreshing}
             error={error}
+            homepageSlots={homepageSlots}
             layout="standalone"
             onRefresh={() => void refresh()}
             refreshing={refreshing}

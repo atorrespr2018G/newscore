@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import {
   placementTargetKey,
   useEditorPlacement,
+  usePlacementHighlight,
   usePlacementSlotId,
 } from '@/context/editor-placement-context'
 import type { IArticle } from '@/interfaces/article'
@@ -150,9 +151,30 @@ function PlacementCellToolbar(props: IPlacementCellToolbarProps): JSX.Element {
 interface IPlacementEditableCardProps {
   target: IPlacementTarget
   isSelected: boolean
+  isNewlyPlaced: boolean
   canMoveUp: boolean
   canMoveDown: boolean
   children: ReactNode
+}
+
+/**
+ * Resolve the outline classes for an editable placement card.
+ *
+ * Selection takes priority, then the red "newly placed" highlight for staged
+ * but unpublished stories, falling back to the subtle hover affordance.
+ *
+ * @param isSelected Whether the card's story is the active selection.
+ * @param isNewlyPlaced Whether the story is staged but not yet published.
+ * @returns Tailwind outline classes for the card wrapper.
+ */
+function resolveCardOutlineClass(isSelected: boolean, isNewlyPlaced: boolean): string {
+  if (isSelected) {
+    return 'outline outline-2 outline-brand'
+  }
+  if (isNewlyPlaced) {
+    return 'outline outline-2 outline-red-500'
+  }
+  return 'outline-dashed outline-1 outline-transparent hover:outline-neutral-300'
 }
 
 /**
@@ -161,11 +183,11 @@ interface IPlacementEditableCardProps {
  * Only mounted when an editor placement context is active, so the admin
  * translations and interaction handlers never run on the public site.
  *
- * @param props Resolved target, selection flag, move capabilities, and the card.
+ * @param props Resolved target, selection/newly-placed flags, move capabilities, and the card.
  * @returns Interactive placement wrapper around the homepage card.
  */
 function PlacementEditableCard(props: IPlacementEditableCardProps): JSX.Element {
-  const { target, isSelected, canMoveUp, canMoveDown, children } = props
+  const { target, isSelected, isNewlyPlaced, canMoveUp, canMoveDown, children } = props
   const editor = useEditorPlacement()
   const t = useTranslations('admin')
   // The provider always exists here; the guard narrows the nullable context.
@@ -181,7 +203,7 @@ function PlacementEditableCard(props: IPlacementEditableCardProps): JSX.Element 
       aria-label={t('editor.canvas.dropTargetAria', { cell: `${target.slotLabel} ${target.index + 1}` })}
       className={[
         'group/placement relative rounded outline-offset-2 transition-shadow',
-        isSelected ? 'outline outline-2 outline-brand' : 'outline-dashed outline-1 outline-transparent hover:outline-neutral-300',
+        resolveCardOutlineClass(isSelected, isNewlyPlaced),
       ].join(' ')}
       onClickCapture={(event) => {
         // Suppress article navigation so clicking a card never leaves the canvas.
@@ -214,6 +236,11 @@ function PlacementEditableCard(props: IPlacementEditableCardProps): JSX.Element 
         onDropPlacement(selectedArticleId, target)
       }}
     >
+      {isNewlyPlaced ? (
+        <span className="pointer-events-none absolute left-1 top-1 z-10 inline-flex items-center rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-4 tracking-wide text-white shadow-sm">
+          {t('editor.canvas.newlyPlaced')}
+        </span>
+      ) : null}
       <PlacementCellToolbar
         target={target}
         canMoveUp={canMoveUp}
@@ -306,6 +333,27 @@ interface IPlacementOverlayProps {
 }
 
 /**
+ * Draw the read-only "newly placed" ring and badge around a preview card.
+ *
+ * Used by the standalone Preview, which has no drag/drop or toolbar controls but
+ * should still flag staged-but-unpublished stories the same way the canvas does.
+ *
+ * @param props The rendered card markup to highlight.
+ * @returns The card wrapped in a non-interactive red highlight.
+ */
+function PlacementHighlightCard({ children }: { children: ReactNode }): JSX.Element {
+  const t = useTranslations('admin')
+  return (
+    <div className="relative rounded outline outline-2 outline-red-500 outline-offset-2">
+      <span className="pointer-events-none absolute left-1 top-1 z-10 inline-flex items-center rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-4 tracking-wide text-white shadow-sm">
+        {t('editor.canvas.newlyPlaced')}
+      </span>
+      {children}
+    </div>
+  )
+}
+
+/**
  * Make a rendered homepage card interactive inside the editor canvas.
  *
  * A card backed by a staged pin gets the full move/remove toolbar and inserts a
@@ -319,7 +367,12 @@ interface IPlacementOverlayProps {
 export function PlacementOverlay({ article, editorDroppable, children }: IPlacementOverlayProps): JSX.Element {
   const editor = useEditorPlacement()
   const slotId = usePlacementSlotId()
+  const highlight = usePlacementHighlight()
   if (!editor || !slotId) {
+    // Read-only preview: ring staged-but-unpublished cards without interactivity.
+    if (slotId && highlight?.get(slotId)?.has(article.id)) {
+      return <PlacementHighlightCard>{children}</PlacementHighlightCard>
+    }
     return <>{children}</>
   }
   const info = editor.pinnedInfoBySlotId.get(slotId)
@@ -334,6 +387,7 @@ export function PlacementOverlay({ article, editorDroppable, children }: IPlacem
         <PlacementEditableCard
           target={target}
           isSelected={article.id === editor.selectedArticleId}
+          isNewlyPlaced={info.newlyPlacedIds.has(article.id)}
           canMoveUp={pinnedIndex > 0}
           canMoveDown={pinnedIndex < info.count - 1}
         >

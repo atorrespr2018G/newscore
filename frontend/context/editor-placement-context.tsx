@@ -11,6 +11,12 @@ import { editorPinnedIds } from '@/lib/helpers/slot-editor-pinned-ids'
 interface ISlotPinnedInfo {
   /** Maps a pinned article id to its zero-based index within the slot. */
   indexByArticleId: Map<string, number>
+  /**
+   * Article ids staged into this slot but not yet published, i.e. present in
+   * ``draft_pinned_ids`` but absent from the live ``pinned_ids``. Drives the
+   * "newly placed" highlight, which clears once the placement is published.
+   */
+  newlyPlacedIds: Set<string>
   /** Number of pinned articles currently staged in the slot. */
   count: number
   /**
@@ -36,6 +42,17 @@ interface IEditorPlacementContextValue {
 
 const EditorPlacementContext = createContext<IEditorPlacementContextValue | null>(null)
 const PlacementSlotContext = createContext<string | null>(null)
+
+/**
+ * Read-only "newly placed" highlight map keyed by slot id.
+ *
+ * Each entry holds the article ids staged into that slot but not yet published.
+ * Supplied by {@link PlacementHighlightProvider} so non-interactive previews can
+ * draw the same highlight as the interactive placement canvas.
+ */
+type PlacementHighlightValueType = Map<string, Set<string>>
+
+const PlacementHighlightContext = createContext<PlacementHighlightValueType | null>(null)
 
 /**
  * Build the stable key used to look up a placement target by slot and index.
@@ -64,6 +81,15 @@ export function useEditorPlacement(): IEditorPlacementContextValue | null {
  */
 export function usePlacementSlotId(): string | null {
   return useContext(PlacementSlotContext)
+}
+
+/**
+ * Read the read-only "newly placed" highlight map for the current preview.
+ *
+ * @returns Slot-id keyed staged-unpublished id sets, or null when not previewing.
+ */
+export function usePlacementHighlight(): PlacementHighlightValueType | null {
+  return useContext(PlacementHighlightContext)
 }
 
 interface IEditorPlacementProviderProps {
@@ -121,6 +147,30 @@ function resolveAppendIndex(pinnedIds: string[], cellCount: number): number {
 }
 
 /**
+ * Resolve the staged-but-unpublished article ids for a slot.
+ *
+ * An id counts as newly placed when it appears in the staged draft pins but not
+ * in the live published pins, so the highlight clears automatically on publish.
+ *
+ * @param slot Slot payload carrying draft and live pin arrays.
+ * @returns Set of article ids placed since the last publish.
+ */
+function computeNewlyPlacedIds(slot: ISlotOut): Set<string> {
+  const draftIds = slot.draft_pinned_ids
+  if (draftIds == null) {
+    return new Set<string>()
+  }
+  const publishedIds = new Set(slot.pinned_ids)
+  const newlyPlaced = new Set<string>()
+  for (const id of draftIds) {
+    if (id && id.trim() && !publishedIds.has(id)) {
+      newlyPlaced.add(id)
+    }
+  }
+  return newlyPlaced
+}
+
+/**
  * Build the per-slot pinned lookup map from the editor's homepage slots.
  *
  * @param homepageSlots Homepage slots carrying staged draft pins.
@@ -143,6 +193,7 @@ function buildPinnedInfoBySlotId(
     const cellCount = countTargetsForSlot(placementTargetByKey, slot.id)
     pinnedInfoBySlotId.set(slot.id, {
       indexByArticleId,
+      newlyPlacedIds: computeNewlyPlacedIds(slot),
       count: pinnedIds.length,
       appendIndex: resolveAppendIndex(pinnedIds, cellCount),
       templateTarget: placementTargetByKey.get(placementTargetKey(slot.id, 0)) ?? null,
@@ -190,6 +241,37 @@ export function EditorPlacementProvider(props: IEditorPlacementProviderProps): J
   return <EditorPlacementContext.Provider value={value}>{children}</EditorPlacementContext.Provider>
 }
 
+interface IPlacementHighlightProviderProps {
+  homepageSlots: ISlotOut[]
+  children: ReactNode
+}
+
+/**
+ * Provide read-only "newly placed" highlight data to a homepage preview.
+ *
+ * Unlike {@link EditorPlacementProvider} this adds no drag/drop or move/remove
+ * interactivity; it only lets cards draw the staged-but-unpublished ring so the
+ * standalone Preview matches the interactive placement canvas.
+ *
+ * @param props Homepage slots carrying draft/live pins and the preview subtree.
+ * @returns The subtree wrapped with highlight context.
+ */
+export function PlacementHighlightProvider(props: IPlacementHighlightProviderProps): JSX.Element {
+  const { homepageSlots, children } = props
+  const value = useMemo<PlacementHighlightValueType>(() => {
+    const highlightBySlotId = new Map<string, Set<string>>()
+    for (const slot of homepageSlots) {
+      const newlyPlaced = computeNewlyPlacedIds(slot)
+      if (newlyPlaced.size > 0) {
+        highlightBySlotId.set(slot.id, newlyPlaced)
+      }
+    }
+    return highlightBySlotId
+  }, [homepageSlots])
+
+  return <PlacementHighlightContext.Provider value={value}>{children}</PlacementHighlightContext.Provider>
+}
+
 interface IPlacementSlotScopeProps {
   slotId: string
   children: ReactNode
@@ -198,14 +280,16 @@ interface IPlacementSlotScopeProps {
 /**
  * Scope a homepage module subtree to a single slot id for placement overlays.
  *
- * Renders children untouched when no editor placement context is active.
+ * Active when either the interactive editor context or the read-only highlight
+ * context is present; renders children untouched on the public site.
  *
  * @param props Slot id and the module subtree to scope.
  * @returns The scoped subtree, or the bare children on the public site.
  */
 export function PlacementSlotScope({ slotId, children }: IPlacementSlotScopeProps): JSX.Element {
   const editor = useEditorPlacement()
-  if (!editor) {
+  const highlight = usePlacementHighlight()
+  if (!editor && !highlight) {
     return <>{children}</>
   }
   return <PlacementSlotContext.Provider value={slotId}>{children}</PlacementSlotContext.Provider>

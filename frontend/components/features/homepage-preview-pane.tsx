@@ -1,7 +1,9 @@
 'use client'
 
 import { HomepageContent } from '@/components/features/homepage'
+import { PlacementHighlightProvider } from '@/context/editor-placement-context'
 import type { IHomepageFeed } from '@/interfaces/feed'
+import type { ISlotOut } from '@/lib/api/layout-client'
 
 type HomepagePreviewPaneLayoutType = 'embedded' | 'standalone'
 
@@ -9,6 +11,11 @@ interface IHomepagePreviewPaneProps {
   feed: IHomepageFeed | null
   loading: boolean
   error: string | null
+  /**
+   * Homepage slots carrying draft/live pins. When supplied, staged-but-unpublished
+   * stories are ringed in the preview to mirror the placement canvas.
+   */
+  homepageSlots?: ISlotOut[]
   layout?: HomepagePreviewPaneLayoutType
   onRefresh?: () => void
   refreshing?: boolean
@@ -21,7 +28,7 @@ interface IHomepagePreviewPaneProps {
  * @returns Preview frame with homepage module stack.
  */
 export function HomepagePreviewPane(props: IHomepagePreviewPaneProps): JSX.Element {
-  const { feed, loading, error, layout = 'embedded', onRefresh, refreshing = false } = props
+  const { feed, loading, error, homepageSlots = [], layout = 'embedded', onRefresh, refreshing = false } = props
   const isStandalone = layout === 'standalone'
 
   return (
@@ -62,7 +69,9 @@ export function HomepagePreviewPane(props: IHomepagePreviewPaneProps): JSX.Eleme
         ) : null}
         {feed ? (
           <div className="rounded border border-dashed border-neutral-300 bg-white p-4">
-            <HomepageContent feed={feed} />
+            <PlacementHighlightProvider homepageSlots={homepageSlots}>
+              <HomepageContent feed={feed} />
+            </PlacementHighlightProvider>
           </div>
         ) : null}
       </div>

@@ -107,6 +107,7 @@
       "emptyTarget": "Empty target",
       "occupied": "Occupied: {id}",
       "draftBadge": "Draft",
+      "newlyPlaced": "New",
       "dropTargetAria": "Drop target {cell}",
       "dropZone": "Drop a story here to add it",
       "loading": "Loading placement canvas…",

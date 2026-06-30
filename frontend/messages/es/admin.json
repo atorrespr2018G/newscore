@@ -107,6 +107,7 @@
       "emptyTarget": "Espacio vacío",
       "occupied": "Ocupado: {id}",
       "draftBadge": "Borrador",
+      "newlyPlaced": "Nuevo",
       "dropTargetAria": "Destino {cell}",
       "dropZone": "Suelta una noticia aquí para añadirla",
       "loading": "Cargando lienzo de ubicación…",
