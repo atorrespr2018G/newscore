@@ -127,14 +127,20 @@ async function resolveArticleMedia(mediaIds: string[]): Promise<IResolvedMediaIt
   if (mediaIds.length === 0) {
     return []
   }
-  const assets = await getMediaByIds(mediaIds)
-  return assets.map((asset) => ({
-    id: asset.id,
-    url: asset.url,
-    fileType: asset.file_type,
-    width: asset.width,
-    height: asset.height,
-  }))
+  try {
+    const assets = await getMediaByIds(mediaIds)
+    return assets.map((asset) => ({
+      id: asset.id,
+      url: asset.url,
+      fileType: asset.file_type,
+      width: asset.width,
+      height: asset.height,
+    }))
+  } catch {
+    // Gallery media is optional for the read overlay; a failed batch lookup should
+    // not block editors from reviewing draft copy before publish.
+    return []
+  }
 }
 
 /**

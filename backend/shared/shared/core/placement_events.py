@@ -13,7 +13,7 @@ from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from shared.read.collections import PLACEMENT_EVENTS_COLLECTION
+from shared.read.collections import PLACEMENT_EVENTS_COLLECTION, SLOTS_COLLECTION
 
 
 def _utc_now_iso() -> str:
@@ -83,24 +83,87 @@ async def record_placements(
         )
 
 
+def article_has_staged_unpublished_placement(slot: dict[str, Any], article_id: str) -> bool:
+    """Return whether an article is staged in a slot but not yet published live.
+
+    Matches the frontend draft-minus-live highlight: the slot must still carry a
+    ``draft_pinned_ids`` array and the article must appear there but not in live
+    ``pinned_ids``.
+
+    Args:
+        slot: Slot document from MongoDB.
+        article_id: Article id to test.
+
+    Returns:
+        True when the article is a staged-but-unpublished pin in the slot.
+    """
+
+    draft_ids = slot.get("draft_pinned_ids")
+    if draft_ids is None:
+        return False
+    pinned_ids = {value for value in (slot.get("pinned_ids") or []) if value and str(value).strip()}
+    return article_id in draft_ids and article_id not in pinned_ids
+
+
+async def clear_placement_events(
+    db: AsyncIOMotorDatabase,
+    *,
+    slot_id: str,
+    article_ids: list[str],
+) -> None:
+    """Delete placement events for article ids promoted to the live layout.
+
+    Args:
+        db: Database connection.
+        slot_id: Slot whose staged pins were published.
+        article_ids: Article ids cleared from the unpublished placement badge.
+    """
+
+    if not article_ids:
+        return
+    await db[PLACEMENT_EVENTS_COLLECTION].delete_many(
+        {"slot_id": slot_id, "article_id": {"$in": article_ids}},
+    )
+
+
 async def count_new_placements(
     db: AsyncIOMotorDatabase,
     *,
     market_id: str,
     since: str | None,
 ) -> int:
-    """Count placement events for a market newer than a last-seen timestamp.
+    """Count still-unpublished placements newer than a last-seen timestamp.
+
+    Only events whose ``(article_id, slot_id)`` pair remains staged in
+    ``draft_pinned_ids`` but absent from live ``pinned_ids`` are counted, so the
+    Placement tab badge drops to zero once homepage placements are published.
 
     Args:
         db: Database connection.
         market_id: Market scope to count within.
-        since: ISO-8601 last-seen timestamp; None counts all events.
+        since: ISO-8601 last-seen timestamp; None counts all matching events.
 
     Returns:
-        Number of placement events with ``placed_at`` strictly after ``since``.
+        Number of unpublished placement events with ``placed_at`` after ``since``.
     """
 
     query: dict[str, Any] = {"market_id": market_id}
     if since is not None:
         query["placed_at"] = {"$gt": since}
-    return await db[PLACEMENT_EVENTS_COLLECTION].count_documents(query)
+
+    events = db[PLACEMENT_EVENTS_COLLECTION].find(query, {"article_id": 1, "slot_id": 1})
+    slots = db[SLOTS_COLLECTION]
+    slot_cache: dict[str, dict[str, Any] | None] = {}
+    total = 0
+
+    async for event in events:
+        slot_id = str(event.get("slot_id") or "")
+        article_id = str(event.get("article_id") or "")
+        if not slot_id or not article_id:
+            continue
+        if slot_id not in slot_cache:
+            slot_cache[slot_id] = await slots.find_one({"_id": slot_id})
+        slot = slot_cache[slot_id]
+        if slot is not None and article_has_staged_unpublished_placement(slot, article_id):
+            total += 1
+    return total

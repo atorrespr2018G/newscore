@@ -21,7 +21,7 @@ async def get_new_placements_count(
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> NewCountOut:
-    """Count stories newly placed since the user last opened the Placement tab."""
+    """Count staged homepage placements still awaiting publish for the Placement tab."""
 
     count = await workflow_service.count_new_placements_for_user(
         db, user_id=current_user.sub, market_code=market

@@ -18,6 +18,10 @@ async def count_new_placements_for_user(
 ) -> int:
     """Count stories placed in a market since the user last opened Placement.
 
+    Only placements that are still staged (draft pins not yet promoted live) are
+    included, so publishing homepage placements clears the badge without reopening
+    the Placement tab.
+
     Args:
         db: Database connection.
         user_id: Authenticated user id.

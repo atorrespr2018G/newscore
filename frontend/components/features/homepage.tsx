@@ -1,7 +1,6 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import { Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSectionLabels } from '@/hooks/use-section-labels'
@@ -12,6 +11,7 @@ import { useFeed } from '@/hooks/use-feed'
 import {
   ArticleLeadMedia,
 } from '@/components/ui/article-lead-media'
+import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import {
   normalizedPositionKey,
   selectHomepageSections,
@@ -103,11 +103,10 @@ function HeroLeftRail({ articles }: { articles: IArticle[] }): JSX.Element {
 }
 
 function HeroLead({ hero }: { hero: IArticle }): JSX.Element {
-  const heroHref = `/article/${encodeURIComponent(hero.slug)}`
   const heroSummary = deckBelowTitle(hero.title, hero.summary, 200)
   return (
     <PlacementOverlay article={hero} editorDroppable>
-      <Link href={heroHref} className="group block" aria-label={hero.title}>
+      <EditorialArticleLink article={hero} className="group block" ariaLabel={hero.title}>
         <h2 className="font-sans text-[34px] font-normal leading-[1.05] tracking-tight text-neutral-950">
           {hero.title}
         </h2>
@@ -123,7 +122,7 @@ function HeroLead({ hero }: { hero: IArticle }): JSX.Element {
             <span className="line-clamp-3">{heroSummary}</span>
           </p>
         ) : null}
-      </Link>
+      </EditorialArticleLink>
     </PlacementOverlay>
   )
 }
@@ -356,7 +355,7 @@ export function HomepageContent({ feed }: { feed: IHomepageFeed }): JSX.Element 
   const gridPreviousSlot = sections.postPoliticsSlots.at(-1) ?? sections.politicsSlot
 
   return (
-    <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline">
+    <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
       <PlacementSlotScope slotId={sections.heroSlot.id}>
         <HeroBlock articles={sections.heroSlot.articles} />
       </PlacementSlotScope>

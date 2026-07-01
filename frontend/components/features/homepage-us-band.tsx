@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
+import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
 import { PlacementSlotScope } from '@/context/editor-placement-context'
@@ -80,13 +80,12 @@ export function HomepageUsBand({ slot, title: titleOverride }: IHomepageUsBandPr
 }
 
 function UsPictureNewsScreen({ article }: { article: IArticle }): JSX.Element {
-  const href = `/article/${encodeURIComponent(article.slug)}`
   const imgSrc = articleImageSrc(article)
 
   return (
     <PlacementOverlay article={article}>
       <article className="group">
-        <Link href={href} className="block">
+        <EditorialArticleLink article={article} className="block">
           <div className="overflow-hidden rounded border border-neutral-200 bg-neutral-100">
             <div className="relative aspect-[16/9] w-full">
               <Image
@@ -107,7 +106,7 @@ function UsPictureNewsScreen({ article }: { article: IArticle }): JSX.Element {
           >
             {article.title}
           </p>
-        </Link>
+        </EditorialArticleLink>
       </article>
     </PlacementOverlay>
   )
@@ -132,34 +131,29 @@ function UsBandAdScreen(): JSX.Element {
 function UsSideTextLinks({ articles }: { articles: IArticle[] }): JSX.Element {
   return (
     <ul className="space-y-6 border-t border-neutral-200 pt-8">
-      {articles.map((article) => {
-        const href = `/article/${encodeURIComponent(article.slug)}`
-
-        return (
+      {articles.map((article) => (
           <li key={article.id}>
             <PlacementOverlay article={article}>
-              <Link
-                href={href}
+              <EditorialArticleLink
+                article={article}
                 className="group block font-sans text-[17px] font-normal leading-snug text-neutral-950 hover:text-neutral-950 hover:underline"
               >
                 <span className="line-clamp-3">{article.title}</span>
-              </Link>
+              </EditorialArticleLink>
             </PlacementOverlay>
           </li>
-        )
-      })}
+        ))}
     </ul>
   )
 }
 
 function UsSideStory({ article }: { article: IArticle }): JSX.Element {
-  const href = `/article/${encodeURIComponent(article.slug)}`
   const imgSrc = articleImageSrc(article)
 
   return (
     <PlacementOverlay article={article}>
       <article className="group">
-        <Link href={href} className="block">
+        <EditorialArticleLink article={article} className="block">
           <div className="overflow-hidden bg-neutral-100">
             <div className="relative aspect-[4/3] w-full">
               <Image
@@ -175,20 +169,19 @@ function UsSideStory({ article }: { article: IArticle }): JSX.Element {
           <p className="mt-3 line-clamp-3 overflow-hidden font-sans text-[17px] font-normal leading-snug text-neutral-950 group-hover:underline">
             {article.title}
           </p>
-        </Link>
+        </EditorialArticleLink>
       </article>
     </PlacementOverlay>
   )
 }
 
 function UsSpotlightHero({ article }: { article: IArticle }): JSX.Element {
-  const href = `/article/${encodeURIComponent(article.slug)}`
   const imgSrc = articleImageSrc(article)
 
   return (
     <PlacementOverlay article={article}>
       <article className="group">
-        <Link href={href} className="block">
+        <EditorialArticleLink article={article} className="block">
           <div className="overflow-hidden bg-neutral-100">
             <div className="relative aspect-[16/10] w-full sm:aspect-[4/3]">
               <Image
@@ -210,7 +203,7 @@ function UsSpotlightHero({ article }: { article: IArticle }): JSX.Element {
           >
             {article.title}
           </p>
-        </Link>
+        </EditorialArticleLink>
       </article>
     </PlacementOverlay>
   )

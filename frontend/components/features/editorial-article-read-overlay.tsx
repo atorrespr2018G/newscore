@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { ArticleBodyLayout, ArticleHeader } from '@/components/features/article-reading-view'
 import { useEditorialArticlePreview } from '@/context/editorial-article-preview-context'
 import type { ArticleStatusType } from '@/interfaces/article'
@@ -75,17 +76,20 @@ export function EditorialArticleReadOverlay(): JSX.Element | null {
   const t = useTranslations('admin')
   const preview = useEditorialArticlePreview()
   const isOpen = preview?.isOpen ?? false
-  const closePreview = preview?.closePreview ?? (() => undefined)
+  const handleClose = preview?.closePreview ?? (() => undefined)
 
-  useEscapeToClose(isOpen, closePreview)
+  useEscapeToClose(isOpen, handleClose)
 
   if (!preview?.isOpen) {
     return null
   }
 
-  const { articleDetail, loading, error } = preview
+  const { articleDetail, selectedArticle, loading, error, closePreview } = preview
 
-  return (
+  const displayStatus: ArticleStatusType | null =
+    articleDetail?.status ?? selectedArticle?.status ?? null
+
+  const overlay = (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:p-8"
       role="dialog"
@@ -98,7 +102,7 @@ export function EditorialArticleReadOverlay(): JSX.Element | null {
       }}
     >
       <div className="w-full max-w-5xl rounded-lg bg-white shadow-xl">
-        <OverlayHeader status={articleDetail?.status ?? null} onClose={closePreview} />
+        <OverlayHeader status={displayStatus} onClose={closePreview} />
         <div className="site-container px-4 py-8 sm:px-6">
           {loading && !articleDetail ? (
             <p className="text-neutral-600">{t('preview.articleRead.loading')}</p>
@@ -118,4 +122,10 @@ export function EditorialArticleReadOverlay(): JSX.Element | null {
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') {
+    return overlay
+  }
+
+  return createPortal(overlay, document.body)
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
+import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { COMPACT_SIDE_THUMB_WIDTH } from '@/components/ui/story-card'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
@@ -342,14 +343,12 @@ function RightRailColumn({
 }
 
 function TodayFeaturedNewsScreen({ article }: { article: IArticle }): JSX.Element {
-  const href = `/article/${encodeURIComponent(article.slug)}`
-
   return (
     <PlacementOverlay article={article}>
       <article className="group">
-        <Link href={href} className="block" aria-label={article.title}>
+        <EditorialArticleLink article={article} className="block" ariaLabel={article.title}>
           <HomepageStoryThumb article={article} />
-        </Link>
+        </EditorialArticleLink>
       </article>
     </PlacementOverlay>
   )

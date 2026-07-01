@@ -11,7 +11,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from shared.core.audit import write_event
 from shared.core.cache_invalidation import invalidate_homepage_for_layout
 from shared.core.exceptions import NotFoundError, ValidationError
-from shared.core.placement_events import compute_added_ids, record_placements
+from shared.core.placement_events import (
+    clear_placement_events,
+    compute_added_ids,
+    record_placements,
+)
 from shared.repositories.slot_repository import SlotRepository
 from shared.schemas.layout_schemas import SlotCreate, SlotOut, SlotUpdate
 
@@ -213,15 +217,22 @@ async def publish_draft_pins_for_layout(
     for doc in docs:
         if doc.get("draft_pinned_ids") is None:
             continue
+        slot_id = str(doc["_id"])
+        staged_article_ids = [
+            article_id
+            for article_id in (doc.get("draft_pinned_ids") or [])
+            if article_id and str(article_id).strip()
+        ]
         pinned_limit = _resolve_slot_pinned_limit(doc)
         live_pins = _clamp_pinned_ids(list(doc.get("draft_pinned_ids") or []), pinned_limit)
         updated = await repo.promote_draft_pins(
-            str(doc["_id"]),
+            slot_id,
             pinned_ids=live_pins,
             updated_at=now,
         )
         if updated is not None:
             published_count += 1
+            await clear_placement_events(db, slot_id=slot_id, article_ids=staged_article_ids)
 
     if published_count > 0:
         await repo.touch_layout(layout_id, now)

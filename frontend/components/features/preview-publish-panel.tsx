@@ -6,6 +6,7 @@ import { apiConfig } from '@/lib/api/config'
 import { publishHomepagePlacements } from '@/lib/api/layout-client'
 import { apiFetch } from '@/lib/api/rest-client'
 import { useReviewQueue } from '@/hooks/use-review-queue'
+import { notifyWorkflowBadgesRefresh } from '@/lib/api/workflow-badges-client'
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
 import { collectUnpublishedPreviewArticles } from '@/lib/helpers/preview-publish-articles'
 import type { IReviewArticle } from '@/lib/helpers/review-queue'
@@ -54,6 +55,7 @@ export function PreviewPublishPanel(props: IPreviewPublishPanelProps): JSX.Eleme
           : t('preview.panel.homepage.published', { count: result.published_slot_count }),
       )
       notifyEditorialPreviewStale()
+      notifyWorkflowBadgesRefresh()
       await onPublished()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('editor.errors.publishPlacements'))
@@ -70,6 +72,7 @@ export function PreviewPublishPanel(props: IPreviewPublishPanelProps): JSX.Eleme
       await apiFetch(`${apiConfig.news}/articles/${articleId}/publish`, { method: 'POST' })
       setMessage(t('preview.panel.drafts.published', { title }))
       notifyEditorialPreviewStale()
+      notifyWorkflowBadgesRefresh()
       await onPublished()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('editor.errors.publish'))
@@ -86,6 +89,7 @@ export function PreviewPublishPanel(props: IPreviewPublishPanelProps): JSX.Eleme
     setMessage(null)
     await action(article)
     notifyEditorialPreviewStale()
+    notifyWorkflowBadgesRefresh()
     await onPublished()
   }
 

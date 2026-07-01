@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
+import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import { ArticleLeadMedia } from '@/components/ui/article-lead-media'
 import { articleCardPreviewVideoSrc } from '@/lib/helpers/article-video-src'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
@@ -100,10 +100,6 @@ function showsSummaryBelowMedia(
   return variant === 'rail' || variant === 'grid'
 }
 
-function storyHref(article: IArticle): string {
-  return `/article/${encodeURIComponent(article.slug)}`
-}
-
 interface IStoryCardActivatorProps {
   article: IArticle
   className?: string
@@ -125,23 +121,15 @@ function StoryCardActivator({
   onArticleClick,
   children,
 }: IStoryCardActivatorProps): JSX.Element {
-  if (onArticleClick) {
-    return (
-      <button
-        type="button"
-        className={[className, 'cursor-pointer text-left'].filter(Boolean).join(' ')}
-        style={style}
-        onClick={() => onArticleClick(article)}
-      >
-        {children}
-      </button>
-    )
-  }
-
   return (
-    <Link href={storyHref(article)} className={className} style={style}>
+    <EditorialArticleLink
+      article={article}
+      className={className}
+      style={style}
+      onArticleClick={onArticleClick}
+    >
       {children}
-    </Link>
+    </EditorialArticleLink>
   )
 }
 

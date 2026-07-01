@@ -16,6 +16,8 @@ if str(_ROOT / "news_storage_app") not in sys.path:
 
 from shared.core.exceptions import ValidationError
 from shared.core.placement_events import (
+    article_has_staged_unpublished_placement,
+    clear_placement_events,
     compute_added_ids,
     count_new_placements,
     record_placements,
@@ -40,6 +42,20 @@ def test_compute_added_ids_handles_none_and_duplicates() -> None:
 
     assert compute_added_ids(None, ["a", "a", "b"]) == ["a", "b"]
     assert compute_added_ids(["a"], None) == []
+
+
+def test_article_has_staged_unpublished_placement() -> None:
+    """Staged-only pins count; live pins and cleared drafts do not."""
+
+    staged_slot = {
+        "draft_pinned_ids": ["a", "b"],
+        "pinned_ids": ["a"],
+    }
+    assert article_has_staged_unpublished_placement(staged_slot, "b") is True
+    assert article_has_staged_unpublished_placement(staged_slot, "a") is False
+
+    published_slot = {"pinned_ids": ["a"], "draft_pinned_ids": None}
+    assert article_has_staged_unpublished_placement(published_slot, "a") is False
 
 
 def test_validate_view_rejects_unknown() -> None:
@@ -88,33 +104,84 @@ async def test_record_placements_noop_when_empty() -> None:
 
 @pytest.mark.asyncio
 async def test_count_new_placements_applies_since_bound() -> None:
-    """A last-seen timestamp scopes the count to newer placements."""
+    """Only still-unpublished events newer than last-seen are counted."""
 
-    collection = MagicMock()
-    collection.count_documents = AsyncMock(return_value=3)
-    db = _mock_db(collection)
+    events = MagicMock()
+    events.find = MagicMock(
+        return_value=AsyncIterator(
+            [
+                {"article_id": "new", "slot_id": "s1"},
+                {"article_id": "live", "slot_id": "s1"},
+            ],
+        ),
+    )
+    slots = MagicMock()
+    slots.find_one = AsyncMock(
+        side_effect=[
+            {"_id": "s1", "draft_pinned_ids": ["new"], "pinned_ids": []},
+            {"_id": "s1", "draft_pinned_ids": ["live"], "pinned_ids": ["live"]},
+        ],
+    )
+    db = MagicMock()
+    db.__getitem__ = MagicMock(side_effect=lambda name: events if name == "placement_events" else slots)
 
     total = await count_new_placements(db, market_id="m1", since="2026-01-01T00:00:00+00:00")
 
-    assert total == 3
-    query = collection.count_documents.await_args.args[0]
+    assert total == 1
+    events.find.assert_called_once()
+    query = events.find.call_args.args[0]
     assert query["market_id"] == "m1"
     assert query["placed_at"] == {"$gt": "2026-01-01T00:00:00+00:00"}
 
 
 @pytest.mark.asyncio
-async def test_count_new_placements_without_since_counts_all() -> None:
-    """No last-seen timestamp counts every placement in the market."""
+async def test_count_new_placements_without_since_counts_all_unpublished() -> None:
+    """No last-seen timestamp still filters out already-published placements."""
 
-    collection = MagicMock()
-    collection.count_documents = AsyncMock(return_value=7)
-    db = _mock_db(collection)
+    events = MagicMock()
+    events.find = MagicMock(
+        return_value=AsyncIterator([{"article_id": "a", "slot_id": "s1"}]),
+    )
+    slots = MagicMock()
+    slots.find_one = AsyncMock(return_value={"_id": "s1", "draft_pinned_ids": None, "pinned_ids": ["a"]})
+    db = MagicMock()
+    db.__getitem__ = MagicMock(side_effect=lambda name: events if name == "placement_events" else slots)
 
     total = await count_new_placements(db, market_id="m1", since=None)
 
-    assert total == 7
-    query = collection.count_documents.await_args.args[0]
+    assert total == 0
+    query = events.find.call_args.args[0]
     assert "placed_at" not in query
+
+
+@pytest.mark.asyncio
+async def test_clear_placement_events_deletes_matching_rows() -> None:
+    """Published slot/article pairs remove their placement-event rows."""
+
+    collection = MagicMock()
+    collection.delete_many = AsyncMock()
+    db = _mock_db(collection)
+
+    await clear_placement_events(db, slot_id="s1", article_ids=["a", "b"])
+
+    collection.delete_many.assert_awaited_once_with(
+        {"slot_id": "s1", "article_id": {"$in": ["a", "b"]}},
+    )
+
+
+class AsyncIterator:
+    """Minimal async iterator for mocking Motor cursors in unit tests."""
+
+    def __init__(self, items: list[dict]) -> None:
+        self._items = list(items)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if not self._items:
+            raise StopAsyncIteration
+        return self._items.pop(0)
 
 
 @pytest.mark.asyncio
