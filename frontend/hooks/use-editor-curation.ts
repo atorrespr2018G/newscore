@@ -821,7 +821,7 @@ function useHomepagePlacementEditor(
         })
         setHomepageSlots(mergedSlots)
         homepageSlotsRef.current = mergedSlots
-        await Promise.all([loadArticlePlacements(), loadHomepageSlots()])
+        await loadArticlePlacements()
         setMessage(buildSuccessMessage(previousSlots))
         notifyEditorialPreviewStale(scope)
         // A drop/move records a placement_event server-side; nudge the masthead
@@ -837,7 +837,7 @@ function useHomepagePlacementEditor(
         setSaving(false)
       }
     },
-    [loadArticlePlacements, loadHomepageSlots, scope, setError, setMessage, setSaving, t],
+    [loadArticlePlacements, scope, setError, setMessage, setSaving, t],
   )
 
   /**
@@ -1290,9 +1290,12 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
   // WYSIWYG placement canvas stays current.
   const refreshRef = useRef(preview.refresh)
   refreshRef.current = preview.refresh
+  const loadSlotsRef = useRef(placement.loadHomepageSlots)
+  loadSlotsRef.current = placement.loadHomepageSlots
   useEffect(() => {
     return subscribeToEditorialPreviewStale(() => {
       void refreshRef.current()
+      void loadSlotsRef.current()
     })
   }, [])
 
@@ -1307,6 +1310,9 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
       }
       articleTitleByIdRef.current.set(articleId, dropped.title)
       const placed = await placement.applyDropPlacement(articleId, target)
+      if (placed) {
+        await preview.refresh()
+      }
       if (placed && dropped.status === REPORTER_UPLOAD_STATUS) {
         await publishDroppedArticle({
           articleId,
@@ -1317,7 +1323,7 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
       }
       return placed
     },
-    [placement.applyDropPlacement, scope, setError, setMessage, setSaving, t],
+    [placement.applyDropPlacement, preview.refresh, scope, setError, setMessage, setSaving, t],
   )
 
   useEffect(() => {

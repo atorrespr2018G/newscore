@@ -79,7 +79,7 @@ export function useWorkflowBadges(): IWorkflowBadgeCounts {
 /**
  * Mark a workflow view as seen on mount, clearing its badge for this user.
  *
- * Call from the Placement and Review pages so opening the tab zeroes the count
+ * Call from the Placement and Preview pages so opening the tab zeroes the count
  * both on the backend (last-seen) and immediately in the masthead badge.
  *
  * @param view Workflow view the mounted page represents.

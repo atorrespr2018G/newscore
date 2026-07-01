@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { HomepageContent } from '@/components/features/homepage'
-import { EditorPlacementProvider } from '@/context/editor-placement-context'
+import { EditorPlacementProvider, PlacementHighlightProvider } from '@/context/editor-placement-context'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import type { ISlotOut } from '@/lib/api/layout-client'
 import type { PlacementMoveDirectionType } from '@/lib/helpers/editor-placement'
@@ -92,9 +92,11 @@ export function HomepagePlacementCanvas(props: IHomepagePlacementCanvasProps): J
             onRemovePlacement={onRemovePlacement}
             onMovePlacement={onMovePlacement}
           >
-            <div className="rounded border border-dashed border-neutral-300 bg-white p-4">
-              <HomepageContent feed={feed} />
-            </div>
+            <PlacementHighlightProvider homepageSlots={homepageSlots}>
+              <div className="rounded border border-dashed border-neutral-300 bg-white p-4">
+                <HomepageContent feed={feed} />
+              </div>
+            </PlacementHighlightProvider>
           </EditorPlacementProvider>
         ) : null}
       </div>

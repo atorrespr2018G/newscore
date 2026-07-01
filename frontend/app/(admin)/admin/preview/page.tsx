@@ -1,18 +1,22 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { HomepagePreviewPane } from '@/components/features/homepage-preview-pane'
 import { PreviewPublishPanel } from '@/components/features/preview-publish-panel'
 import { useHomepagePreviewFeed } from '@/hooks/use-homepage-preview-feed'
+import { useMarkWorkflowViewSeen } from '@/hooks/use-workflow-badges'
 import { layoutHasUnpublishedPlacementChanges } from '@/lib/helpers/slot-editor-pinned-ids'
 
 /**
- * Full-page homepage preview for editors (draft pins and staged placements).
+ * Full-page homepage preview for editors (draft pins, review approvals, and publishing).
  *
  * @returns Standalone preview workspace.
  */
 export default function PreviewPage(): JSX.Element {
+  const t = useTranslations('admin')
   const { previewFeed, homepageSlots, loading, refreshing, error, refresh } = useHomepagePreviewFeed()
+  useMarkWorkflowViewSeen('review')
 
   const hasUnpublishedPlacements = useMemo(
     () => layoutHasUnpublishedPlacementChanges(homepageSlots),
@@ -21,10 +25,8 @@ export default function PreviewPage(): JSX.Element {
 
   return (
     <div>
-      <h1 className="font-serif text-2xl font-bold">Preview</h1>
-      <p className="mt-1 text-sm text-neutral-600">
-        Review staged homepage layout and publish layout or story changes directly from this page.
-      </p>
+      <h1 className="font-serif text-2xl font-bold">{t('preview.heading')}</h1>
+      <p className="mt-1 text-sm text-neutral-600">{t('preview.subtitle')}</p>
 
       <div className="mt-6 space-y-6">
         <PreviewPublishPanel
@@ -34,7 +36,7 @@ export default function PreviewPage(): JSX.Element {
         />
 
         {loading && !previewFeed ? (
-          <p className="text-neutral-600">Loading homepage preview…</p>
+          <p className="text-neutral-600">{t('preview.loading')}</p>
         ) : (
           <HomepagePreviewPane
             feed={previewFeed}

@@ -76,7 +76,6 @@ export function canAccessAdminPath(role: AdminRoleType, pathname: string): boole
       pathname === '/admin' ||
       pathname.startsWith('/admin/reporter') ||
       pathname.startsWith('/admin/editor') ||
-      pathname.startsWith('/admin/review') ||
       pathname.startsWith('/admin/preview')
     )
   }

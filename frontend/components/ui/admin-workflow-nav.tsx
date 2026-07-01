@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ADMIN_WORKFLOW_TABS } from '@/lib/api/admin-routes'
 
 /**
- * Tab navigation for the Reporter, Editor, and Review workflow pages.
+ * Tab navigation for the Reporter, Editor, and Preview workflow pages.
  *
  * @returns Localized workflow tab bar, or null on non-workflow admin routes.
  */

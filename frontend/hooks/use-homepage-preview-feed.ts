@@ -49,7 +49,7 @@ export function useHomepagePreviewFeed(): IUseHomepagePreviewFeedResult {
     const invalidateScope = staleScope ?? scope
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: editorKeys.previewFeed(invalidateScope) }),
-      queryClient.invalidateQueries({ queryKey: editorKeys.placements(invalidateScope) }),
+      queryClient.invalidateQueries({ queryKey: editorKeys.slots(invalidateScope) }),
     ])
   }, [pathname, queryClient, scope, staleScope, staleToken])
 

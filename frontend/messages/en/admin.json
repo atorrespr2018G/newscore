@@ -5,7 +5,6 @@
     "editor": "Editor",
     "news": "News",
     "placement": "Placement",
-    "review": "Review",
     "preview": "Preview"
   },
   "reporter": {
@@ -255,6 +254,31 @@
       "placementFailed": "Homepage placement failed",
       "publishPlacements": "Failed to publish homepage placements",
       "loadEditorData": "Failed to load editor data"
+    }
+  },
+  "preview": {
+    "heading": "Preview",
+    "subtitle": "Preview staged homepage layout, approve submitted stories, and publish when ready.",
+    "loading": "Loading homepage preview…",
+    "panel": {
+      "heading": "Publishing",
+      "description": "Publish staged homepage layout changes, approve submitted stories, and publish draft stories shown in this preview.",
+      "homepage": {
+        "heading": "Homepage layout",
+        "ready": "Staged placement changes are ready to publish.",
+        "noneStaged": "No staged homepage placement changes.",
+        "none": "No staged homepage placement changes to publish.",
+        "published": "Published homepage placement changes across {count, plural, one {# slot} other {# slots}}.",
+        "publish": "Publish homepage",
+        "publishing": "Publishing…"
+      },
+      "drafts": {
+        "heading": "Draft stories in preview",
+        "empty": "No draft stories in this preview.",
+        "publish": "Publish",
+        "publishing": "Publishing…",
+        "published": "Published \"{title}\"."
+      }
     }
   },
   "review": {

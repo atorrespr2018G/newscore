@@ -5,7 +5,6 @@
     "editor": "Editor",
     "news": "Noticias",
     "placement": "Ubicación",
-    "review": "Revisión",
     "preview": "Vista previa"
   },
   "reporter": {
@@ -255,6 +254,31 @@
       "placementFailed": "Error al ubicar en la portada",
       "publishPlacements": "No se pudieron publicar las ubicaciones de la portada",
       "loadEditorData": "No se pudieron cargar los datos del editor"
+    }
+  },
+  "preview": {
+    "heading": "Vista previa",
+    "subtitle": "Previsualiza la portada, aprueba noticias enviadas y publica cuando esté listo.",
+    "loading": "Cargando vista previa de la portada…",
+    "panel": {
+      "heading": "Publicación",
+      "description": "Publica cambios de ubicación en la portada, aprueba noticias enviadas y publica borradores visibles en esta vista previa.",
+      "homepage": {
+        "heading": "Diseño de portada",
+        "ready": "Hay cambios de ubicación listos para publicar.",
+        "noneStaged": "No hay cambios de ubicación pendientes.",
+        "none": "No hay cambios de ubicación pendientes para publicar.",
+        "published": "Se publicaron cambios de ubicación en {count, plural, one {# sección} other {# secciones}}.",
+        "publish": "Publicar portada",
+        "publishing": "Publicando…"
+      },
+      "drafts": {
+        "heading": "Borradores en la vista previa",
+        "empty": "No hay borradores en esta vista previa.",
+        "publish": "Publicar",
+        "publishing": "Publicando…",
+        "published": "Se publicó \"{title}\"."
+      }
     }
   },
   "review": {

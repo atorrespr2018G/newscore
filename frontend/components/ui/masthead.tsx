@@ -332,8 +332,7 @@ const MASTHEAD_ADMIN_LINKS: readonly IMastheadAdminLink[] = [
   { key: 'reporter', href: '/admin/reporter', labelKey: 'reporter' },
   { key: 'editor', href: '/admin/editor/news', labelKey: 'editor' },
   { key: 'placement', href: '/admin/editor/placement', labelKey: 'placement', badgeView: 'placement' },
-  { key: 'review', href: '/admin/review', labelKey: 'review', badgeView: 'review' },
-  { key: 'preview', href: '/admin/preview', labelKey: 'preview' },
+  { key: 'preview', href: '/admin/preview', labelKey: 'preview', badgeView: 'review' },
 ]
 
 function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }): JSX.Element {

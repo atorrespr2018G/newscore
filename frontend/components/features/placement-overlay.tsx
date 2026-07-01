@@ -354,6 +354,24 @@ function PlacementHighlightCard({ children }: { children: ReactNode }): JSX.Elem
 }
 
 /**
+ * Whether a card should show the staged-but-unpublished red highlight.
+ *
+ * @param slotId Homepage slot id for the card.
+ * @param articleId Article id rendered in the card.
+ * @param newlyPlacedIds Staged ids from the interactive editor context.
+ * @param highlight Read-only highlight map from preview/placement providers.
+ * @returns True when the card is newly placed and not yet published live.
+ */
+function isArticleNewlyPlaced(
+  slotId: string,
+  articleId: string,
+  newlyPlacedIds: Set<string>,
+  highlight: ReturnType<typeof usePlacementHighlight>,
+): boolean {
+  return newlyPlacedIds.has(articleId) || Boolean(highlight?.get(slotId)?.has(articleId))
+}
+
+/**
  * Make a rendered homepage card interactive inside the editor canvas.
  *
  * A card backed by a staged pin gets the full move/remove toolbar and inserts a
@@ -379,6 +397,7 @@ export function PlacementOverlay({ article, editorDroppable, children }: IPlacem
   if (info == null) {
     return <>{children}</>
   }
+  const isNewlyPlaced = isArticleNewlyPlaced(slotId, article.id, info.newlyPlacedIds, highlight)
   const pinnedIndex = info.indexByArticleId.get(article.id)
   if (pinnedIndex != null) {
     const target = editor.placementTargetByKey.get(placementTargetKey(slotId, pinnedIndex))
@@ -387,7 +406,7 @@ export function PlacementOverlay({ article, editorDroppable, children }: IPlacem
         <PlacementEditableCard
           target={target}
           isSelected={article.id === editor.selectedArticleId}
-          isNewlyPlaced={info.newlyPlacedIds.has(article.id)}
+          isNewlyPlaced={isNewlyPlaced}
           canMoveUp={pinnedIndex > 0}
           canMoveDown={pinnedIndex < info.count - 1}
         >
@@ -395,6 +414,9 @@ export function PlacementOverlay({ article, editorDroppable, children }: IPlacem
         </PlacementEditableCard>
       )
     }
+  }
+  if (isNewlyPlaced) {
+    return <PlacementHighlightCard>{children}</PlacementHighlightCard>
   }
   if (editorDroppable && info.templateTarget) {
     const appendTarget: IPlacementTarget = {
