@@ -2,7 +2,9 @@
 
 import { useTranslations } from 'next-intl'
 import { HomepageContent } from '@/components/features/homepage'
+import { EditorialArticleReadOverlay } from '@/components/features/editorial-article-read-overlay'
 import { EditorPlacementProvider, PlacementHighlightProvider } from '@/context/editor-placement-context'
+import { EditorialArticlePreviewProvider } from '@/context/editorial-article-preview-context'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import type { ISlotOut } from '@/lib/api/layout-client'
 import type { PlacementMoveDirectionType } from '@/lib/helpers/editor-placement'
@@ -83,21 +85,24 @@ export function HomepagePlacementCanvas(props: IHomepagePlacementCanvasProps): J
           </p>
         ) : null}
         {feed ? (
-          <EditorPlacementProvider
-            placementTargets={placementTargets}
-            homepageSlots={homepageSlots}
-            selectedArticleId={selectedArticleId}
-            saving={saving}
-            onDropPlacement={onDropPlacement}
-            onRemovePlacement={onRemovePlacement}
-            onMovePlacement={onMovePlacement}
-          >
-            <PlacementHighlightProvider homepageSlots={homepageSlots}>
-              <div className="rounded border border-dashed border-neutral-300 bg-white p-4">
-                <HomepageContent feed={feed} />
-              </div>
-            </PlacementHighlightProvider>
-          </EditorPlacementProvider>
+          <EditorialArticlePreviewProvider>
+            <EditorPlacementProvider
+              placementTargets={placementTargets}
+              homepageSlots={homepageSlots}
+              selectedArticleId={selectedArticleId}
+              saving={saving}
+              onDropPlacement={onDropPlacement}
+              onRemovePlacement={onRemovePlacement}
+              onMovePlacement={onMovePlacement}
+            >
+              <PlacementHighlightProvider homepageSlots={homepageSlots}>
+                <div className="rounded border border-dashed border-neutral-300 bg-white p-4">
+                  <HomepageContent feed={feed} />
+                </div>
+              </PlacementHighlightProvider>
+            </EditorPlacementProvider>
+            <EditorialArticleReadOverlay />
+          </EditorialArticlePreviewProvider>
         ) : null}
       </div>
     </section>

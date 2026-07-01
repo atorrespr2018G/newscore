@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
@@ -37,6 +37,8 @@ export interface IStoryCardProps {
   plainTitle?: boolean
   /** Underline titles on hover instead of the default brand color (homepage). */
   underlineOnHover?: boolean
+  /** When set, opens an in-context preview instead of navigating to the article page. */
+  onArticleClick?: (article: IArticle) => void
 }
 
 const TITLE_HOVER_BRAND = 'group-hover:text-brand'
@@ -100,6 +102,47 @@ function showsSummaryBelowMedia(
 
 function storyHref(article: IArticle): string {
   return `/article/${encodeURIComponent(article.slug)}`
+}
+
+interface IStoryCardActivatorProps {
+  article: IArticle
+  className?: string
+  style?: CSSProperties
+  onArticleClick?: (article: IArticle) => void
+  children: ReactNode
+}
+
+/**
+ * Render a story card as either a navigation link or an in-context preview trigger.
+ *
+ * @param props Article, styling, optional click handler, and child content.
+ * @returns A link on the public site or a button in editorial preview surfaces.
+ */
+function StoryCardActivator({
+  article,
+  className,
+  style,
+  onArticleClick,
+  children,
+}: IStoryCardActivatorProps): JSX.Element {
+  if (onArticleClick) {
+    return (
+      <button
+        type="button"
+        className={[className, 'cursor-pointer text-left'].filter(Boolean).join(' ')}
+        style={style}
+        onClick={() => onArticleClick(article)}
+      >
+        {children}
+      </button>
+    )
+  }
+
+  return (
+    <Link href={storyHref(article)} className={className} style={style}>
+      {children}
+    </Link>
+  )
 }
 
 interface IStoryImage {
@@ -169,18 +212,20 @@ function HeadlineOnlyStoryCard({
   titleClassName,
   plainTitle = false,
   underlineOnHover = false,
+  onArticleClick,
 }: IStoryCardProps): JSX.Element {
   return (
     <li className={className}>
-      <Link
-        href={storyHref(article)}
+      <StoryCardActivator
+        article={article}
+        onArticleClick={onArticleClick}
         className={[
           headlineOnlyLinkClass(plainTitle, underlineOnHover),
           compact ? '' : 'py-3',
         ].join(' ')}
       >
         <span className={belowMediaTextClass(titleClassName)}>{article.title}</span>
-      </Link>
+      </StoryCardActivator>
     </li>
   )
 }
@@ -191,10 +236,15 @@ function TextLinkStoryCard({
   titleClassName,
   plainTitle = false,
   underlineOnHover = false,
+  onArticleClick,
 }: IStoryCardProps): JSX.Element {
   return (
     <article className={className}>
-      <Link href={storyHref(article)} className={textLinkClass(plainTitle, underlineOnHover)}>
+      <StoryCardActivator
+        article={article}
+        onArticleClick={onArticleClick}
+        className={textLinkClass(plainTitle, underlineOnHover)}
+      >
         <span
           className={[
             'block min-h-[calc(1em*1.375*3)] overflow-hidden leading-snug',
@@ -204,7 +254,7 @@ function TextLinkStoryCard({
         >
           {textLinkDisplayText(article)}
         </span>
-      </Link>
+      </StoryCardActivator>
     </article>
   )
 }
@@ -222,6 +272,7 @@ function CompactStoryCard({
   summaryClassName,
   plainTitle = false,
   underlineOnHover = false,
+  onArticleClick,
 }: IStoryCardProps): JSX.Element {
   const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'compact', layout, showSummary ?? titleFirst)
@@ -231,8 +282,9 @@ function CompactStoryCard({
 
   return (
     <article className={['group', className].filter(Boolean).join(' ')}>
-      <Link
-        href={storyHref(article)}
+      <StoryCardActivator
+        article={article}
+        onArticleClick={onArticleClick}
         className={compactLinkClass(layout, usesFixedSideThumb)}
         style={usesFixedSideThumb ? { gridTemplateColumns: `${width}px minmax(0, 1fr)` } : undefined}
       >
@@ -258,7 +310,7 @@ function CompactStoryCard({
           as="p"
         />
         {summary ? <StorySummary summary={summary} className={belowMediaTextClass(summaryClassName)} /> : null}
-      </Link>
+      </StoryCardActivator>
     </article>
   )
 }
@@ -274,6 +326,7 @@ function RailStoryCard({
   summaryClassName,
   plainTitle = false,
   underlineOnHover = false,
+  onArticleClick,
 }: IStoryCardProps): JSX.Element {
   const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'rail', layout, showSummary ?? titleFirst)
@@ -281,7 +334,7 @@ function RailStoryCard({
 
   return (
     <article className={['group', className].filter(Boolean).join(' ')}>
-      <Link href={storyHref(article)} className="block">
+      <StoryCardActivator article={article} onArticleClick={onArticleClick} className="block">
         {titleFirst ? (
           <StoryTitle
             title={article.title}
@@ -311,7 +364,7 @@ function RailStoryCard({
           />
         )}
         {summary ? <StorySummary summary={summary} className={belowMediaTextClass(summaryClassName)} /> : null}
-      </Link>
+      </StoryCardActivator>
     </article>
   )
 }
@@ -328,6 +381,7 @@ function HeroLeadStoryCard({
   summaryClassName,
   plainTitle = false,
   underlineOnHover = false,
+  onArticleClick,
 }: IStoryCardProps): JSX.Element {
   const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'hero-lead', layout, showSummary ?? titleFirst)
@@ -343,8 +397,9 @@ function HeroLeadStoryCard({
         .filter(Boolean)
         .join(' ')}
     >
-      <Link
-        href={storyHref(article)}
+      <StoryCardActivator
+        article={article}
+        onArticleClick={onArticleClick}
         className={layout === 'side' ? 'group grid grid-cols-[160px_1fr] gap-4' : 'group block'}
       >
         {stackedFeatured ? (
@@ -378,7 +433,7 @@ function HeroLeadStoryCard({
           />
         )}
         {summary ? <StorySummary summary={summary} className={belowMediaTextClass(summaryClassName)} /> : null}
-      </Link>
+      </StoryCardActivator>
     </article>
   )
 }
@@ -394,13 +449,14 @@ function GridStoryCard({
   summaryClassName,
   plainTitle = false,
   underlineOnHover = false,
+  onArticleClick,
 }: IStoryCardProps): JSX.Element {
   const { src, unoptimized, previewVideoSrc } = storyImage(article)
   const summary = storySummary(article, 'grid', layout, showSummary ?? titleFirst)
 
   return (
     <article className={['group', className].filter(Boolean).join(' ')}>
-      <Link href={storyHref(article)} className="block">
+      <StoryCardActivator article={article} onArticleClick={onArticleClick} className="block">
         <StoryThumb
           src={src}
           alt={article.title}
@@ -420,7 +476,7 @@ function GridStoryCard({
         {showAuthor ? (
           <p className="mt-1 text-xs font-semibold text-neutral-600">{article.authorName}</p>
         ) : null}
-      </Link>
+      </StoryCardActivator>
     </article>
   )
 }

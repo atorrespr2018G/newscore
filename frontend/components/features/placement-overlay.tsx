@@ -205,10 +205,6 @@ function PlacementEditableCard(props: IPlacementEditableCardProps): JSX.Element 
         'group/placement relative rounded outline-offset-2 transition-shadow',
         resolveCardOutlineClass(isSelected, isNewlyPlaced),
       ].join(' ')}
-      onClickCapture={(event) => {
-        // Suppress article navigation so clicking a card never leaves the canvas.
-        event.preventDefault()
-      }}
       onDragOver={(event) => {
         if (!saving) {
           event.preventDefault()
@@ -285,10 +281,6 @@ function PlacementDropOnlyCard({ target, children }: IPlacementDropOnlyCardProps
       tabIndex={selectedArticleId !== null && !saving ? 0 : -1}
       aria-label={t('editor.canvas.dropTargetAria', { cell: `${target.slotLabel} ${target.index + 1}` })}
       className="group/placement relative rounded outline-offset-2 outline-dashed outline-1 outline-transparent transition-shadow hover:outline-neutral-300"
-      onClickCapture={(event) => {
-        // Suppress article navigation so clicking a card never leaves the canvas.
-        event.preventDefault()
-      }}
       onDragOver={(event) => {
         if (!saving) {
           event.preventDefault()

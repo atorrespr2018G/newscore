@@ -1,7 +1,9 @@
 'use client'
 
 import { HomepageContent } from '@/components/features/homepage'
+import { EditorialArticleReadOverlay } from '@/components/features/editorial-article-read-overlay'
 import { PlacementHighlightProvider } from '@/context/editor-placement-context'
+import { EditorialArticlePreviewProvider } from '@/context/editorial-article-preview-context'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import type { ISlotOut } from '@/lib/api/layout-client'
 
@@ -68,11 +70,14 @@ export function HomepagePreviewPane(props: IHomepagePreviewPaneProps): JSX.Eleme
           </p>
         ) : null}
         {feed ? (
-          <div className="rounded border border-dashed border-neutral-300 bg-white p-4">
-            <PlacementHighlightProvider homepageSlots={homepageSlots}>
-              <HomepageContent feed={feed} />
-            </PlacementHighlightProvider>
-          </div>
+          <EditorialArticlePreviewProvider>
+            <div className="rounded border border-dashed border-neutral-300 bg-white p-4">
+              <PlacementHighlightProvider homepageSlots={homepageSlots}>
+                <HomepageContent feed={feed} />
+              </PlacementHighlightProvider>
+            </div>
+            <EditorialArticleReadOverlay />
+          </EditorialArticlePreviewProvider>
         ) : null}
       </div>
     </section>

@@ -260,6 +260,14 @@
     "heading": "Preview",
     "subtitle": "Preview staged homepage layout, approve submitted stories, and publish when ready.",
     "loading": "Loading homepage preview…",
+    "articleRead": {
+      "heading": "Article preview",
+      "close": "Close",
+      "closeAria": "Close article preview",
+      "loading": "Loading article…",
+      "loadError": "Could not load article: {message}",
+      "unpublishedBadge": "{status}"
+    },
     "panel": {
       "heading": "Publishing",
       "description": "Publish staged homepage layout changes, approve submitted stories, and publish draft stories shown in this preview.",

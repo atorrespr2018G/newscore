@@ -260,6 +260,14 @@
     "heading": "Vista previa",
     "subtitle": "Previsualiza la portada, aprueba noticias enviadas y publica cuando esté listo.",
     "loading": "Cargando vista previa de la portada…",
+    "articleRead": {
+      "heading": "Vista previa del artículo",
+      "close": "Cerrar",
+      "closeAria": "Cerrar vista previa del artículo",
+      "loading": "Cargando artículo…",
+      "loadError": "No se pudo cargar el artículo: {message}",
+      "unpublishedBadge": "{status}"
+    },
     "panel": {
       "heading": "Publicación",
       "description": "Publica cambios de ubicación en la portada, aprueba noticias enviadas y publica borradores visibles en esta vista previa.",

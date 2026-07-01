@@ -1,5 +1,8 @@
+'use client'
+
 import { PlacementOverlay } from '@/components/features/placement-overlay'
 import { StoryCard, type IStoryCardProps } from '@/components/ui/story-card'
+import { useEditorialArticlePreview } from '@/context/editorial-article-preview-context'
 
 /** Homepage story card props plus the optional editor drop opt-in. */
 interface IHomepageStoryCardProps extends IStoryCardProps {
@@ -18,9 +21,16 @@ interface IHomepageStoryCardProps extends IStoryCardProps {
  * @returns The placement-aware homepage story card.
  */
 export function HomepageStoryCard({ editorDroppable, ...props }: IHomepageStoryCardProps): JSX.Element {
+  const preview = useEditorialArticlePreview()
+
   return (
     <PlacementOverlay article={props.article} editorDroppable={editorDroppable}>
-      <StoryCard {...props} underlineOnHover plainTitle={props.plainTitle ?? true} />
+      <StoryCard
+        {...props}
+        underlineOnHover={props.underlineOnHover ?? true}
+        plainTitle={props.plainTitle ?? true}
+        onArticleClick={preview?.openPreview}
+      />
     </PlacementOverlay>
   )
 }
