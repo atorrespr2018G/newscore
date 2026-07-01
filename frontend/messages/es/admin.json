@@ -266,7 +266,11 @@
       "closeAria": "Cerrar vista previa del artículo",
       "loading": "Cargando artículo…",
       "loadError": "No se pudo cargar el artículo: {message}",
-      "unpublishedBadge": "{status}"
+      "unpublishedBadge": "{status}",
+      "previewTab": "Vista previa",
+      "editTab": "Editar",
+      "loadingEdit": "Cargando imágenes y videos…",
+      "editNotReady": "Espere a que terminen de cargar las imágenes y los videos antes de guardar."
     },
     "panel": {
       "heading": "Publicación",

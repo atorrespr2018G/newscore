@@ -53,6 +53,10 @@ import {
   notifyEditorialPreviewStale,
   subscribeToEditorialPreviewStale,
 } from '@/lib/helpers/editorial-preview-events'
+import {
+  buildArticleGalleryMedia,
+  galleryItemsToLoadedMedia,
+} from '@/lib/helpers/article-media-gallery'
 import { notifyWorkflowBadgesRefresh } from '@/lib/api/workflow-badges-client'
 import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
 import type { IHomepageFeed } from '@/interfaces/feed'
@@ -72,6 +76,7 @@ export interface IArticleDetail {
   status: string
   media_ids: string[]
   video_url: string | null
+  thumbnail_url: string | null
   max_image_count: number
   category_ids: string[]
   story_id: string | null
@@ -361,8 +366,12 @@ function useArticleDetailEditor(
         setSelectedCategoryIds(article.category_ids ?? [])
         setInternationalPotential(article.international_potential ?? null)
         setStoryId(article.story_id ?? '')
-        const resolvedMedia = await loadArticleMedia(article.media_ids)
-        setMediaItems(withLegacyLeadVideo(resolvedMedia, article.video_url))
+        const galleryItems = await buildArticleGalleryMedia({
+          media_ids: article.media_ids,
+          thumbnail_url: article.thumbnail_url,
+          video_url: article.video_url,
+        })
+        setMediaItems(galleryItemsToLoadedMedia(galleryItems))
         setIsDirty(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : t('editor.errors.loadDetail'))
@@ -449,6 +458,12 @@ function useArticleDetailEditor(
       setDetail(updated)
       setTitle(updated.title ?? '')
       setBody(updated.body ?? '')
+      const galleryItems = await buildArticleGalleryMedia({
+        media_ids: updated.media_ids,
+        thumbnail_url: updated.thumbnail_url,
+        video_url: updated.video_url,
+      })
+      setMediaItems(galleryItemsToLoadedMedia(galleryItems))
       setIsDirty(false)
       setMessage(t('editor.status.settingsSaved'))
       updateArticleRow(updated.id, {
@@ -574,7 +589,8 @@ interface IArticleEditValidationInput {
  * @param t Admin-namespace translator for localized messages.
  * @returns A localized error message, or null when the edits are valid.
  */
-function validateArticleEdits(
+/** Validate editable article fields before issuing a PATCH. */
+export function validateArticleEdits(
   input: IArticleEditValidationInput,
   t: AdminTranslatorType,
 ): string | null {
@@ -593,7 +609,8 @@ function validateArticleEdits(
   return null
 }
 
-async function loadArticleMedia(mediaIds: string[]): Promise<ILoadedMedia[]> {
+/** Load and classify media assets for the article edit gallery. */
+export async function loadArticleMedia(mediaIds: string[]): Promise<ILoadedMedia[]> {
   const assets = await getMediaByIds(mediaIds)
   return assets.map((asset) => ({ id: asset.id, url: asset.url, fileType: asset.file_type }))
 }
@@ -610,7 +627,8 @@ async function loadArticleMedia(mediaIds: string[]): Promise<ILoadedMedia[]> {
  * @param videoUrl The article's legacy single video_url, if any.
  * @returns The gallery items, with the legacy lead video prepended when needed.
  */
-function withLegacyLeadVideo(
+/** Prepend a legacy lead video_url to the unified edit gallery when needed. */
+export function withLegacyLeadVideo(
   resolvedMedia: ILoadedMedia[],
   videoUrl: string | null,
 ): ILoadedMedia[] {
@@ -640,7 +658,8 @@ interface IUploadMediaOptions {
  * @param options Uploader, state setters, and the localized error message.
  * @returns Resolves once every file has uploaded or an error is surfaced.
  */
-async function uploadMediaInto(
+/** Upload files and append them to the article edit media gallery. */
+export async function uploadMediaInto(
   files: FileList | null,
   options: IUploadMediaOptions,
 ): Promise<void> {

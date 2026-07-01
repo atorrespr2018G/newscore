@@ -1,7 +1,10 @@
 import type { IArticleDetail, IArticleMedia, ArticleStatusType } from '@/interfaces/article'
 import { apiConfig } from '@/lib/api/config'
-import { getMediaByIds } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
+import {
+  buildArticleGalleryMedia,
+  type IGalleryMediaItem,
+} from '@/lib/helpers/article-media-gallery'
 
 /** Admin REST article detail shape returned by GET /articles/{id}. */
 export interface IAdminArticleDetailOut {
@@ -19,16 +22,10 @@ export interface IAdminArticleDetailOut {
   category_id: string | null
   story_id: string | null
   media_ids: string[]
+  category_ids?: string[]
+  international_potential?: number | null
+  max_image_count?: number
   view_count: number
-}
-
-/** Resolved media item used when mapping admin detail to the reading view. */
-interface IResolvedMediaItem {
-  id: string
-  url: string
-  fileType: string
-  width: number | null
-  height: number | null
 }
 
 const VALID_STATUSES: ArticleStatusType[] = ['draft', 'review', 'published', 'archived']
@@ -46,34 +43,12 @@ function normalizedStatus(status: string): ArticleStatusType {
 }
 
 /**
- * Include a legacy single video_url in the unified media gallery.
- *
- * Older articles store the lead video only in video_url (not media_ids), so it
- * has no media id to resolve. It is surfaced as an id-less gallery item so the
- * reading view can render the lead video.
- *
- * @param resolvedMedia Media resolved from the article's media_ids.
- * @param videoUrl The article's legacy single video_url, if any.
- * @returns Gallery items with the legacy lead video prepended when needed.
- */
-export function withLegacyLeadVideo(
-  resolvedMedia: IResolvedMediaItem[],
-  videoUrl: string | null,
-): IResolvedMediaItem[] {
-  const leadVideo = videoUrl?.trim()
-  if (!leadVideo || resolvedMedia.some((item) => item.url === leadVideo)) {
-    return resolvedMedia
-  }
-  return [{ id: '', url: leadVideo, fileType: 'video', width: null, height: null }, ...resolvedMedia]
-}
-
-/**
  * Map resolved media items to the frontend article media interface.
  *
  * @param items Resolved media from the admin API.
  * @returns Media assets for the reading view.
  */
-function mapResolvedMedia(items: IResolvedMediaItem[]): IArticleMedia[] {
+function mapResolvedMedia(items: IGalleryMediaItem[]): IArticleMedia[] {
   return items.map((item) => ({
     id: item.id,
     url: item.url,
@@ -92,7 +67,7 @@ function mapResolvedMedia(items: IResolvedMediaItem[]): IArticleMedia[] {
  */
 export function mapAdminArticleDetailToReadingView(
   detail: IAdminArticleDetailOut,
-  resolvedMedia: IResolvedMediaItem[],
+  resolvedMedia: IGalleryMediaItem[],
 ): IArticleDetail {
   const media = mapResolvedMedia(resolvedMedia)
   return {
@@ -118,32 +93,6 @@ export function mapAdminArticleDetailToReadingView(
 }
 
 /**
- * Resolve media_ids from the admin API into gallery items.
- *
- * @param mediaIds Ordered media ids from the article detail.
- * @returns Resolved media in the requested order.
- */
-async function resolveArticleMedia(mediaIds: string[]): Promise<IResolvedMediaItem[]> {
-  if (mediaIds.length === 0) {
-    return []
-  }
-  try {
-    const assets = await getMediaByIds(mediaIds)
-    return assets.map((asset) => ({
-      id: asset.id,
-      url: asset.url,
-      fileType: asset.file_type,
-      width: asset.width,
-      height: asset.height,
-    }))
-  } catch {
-    // Gallery media is optional for the read overlay; a failed batch lookup should
-    // not block editors from reviewing draft copy before publish.
-    return []
-  }
-}
-
-/**
  * Fetch a full article for the editorial read overlay via the admin REST API.
  *
  * Works for draft, review, and published stories; the public GraphQL query
@@ -155,9 +104,10 @@ async function resolveArticleMedia(mediaIds: string[]): Promise<IResolvedMediaIt
  */
 export async function fetchAdminArticleForReading(articleId: string): Promise<IArticleDetail> {
   const detail = await apiFetch<IAdminArticleDetailOut>(`${apiConfig.news}/articles/${articleId}`)
-  const resolvedMedia = withLegacyLeadVideo(
-    await resolveArticleMedia(detail.media_ids ?? []),
-    detail.video_url,
-  )
+  const resolvedMedia = await buildArticleGalleryMedia({
+    media_ids: detail.media_ids,
+    thumbnail_url: detail.thumbnail_url,
+    video_url: detail.video_url,
+  })
   return mapAdminArticleDetailToReadingView(detail, resolvedMedia)
 }

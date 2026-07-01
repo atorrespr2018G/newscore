@@ -91,19 +91,10 @@ export function EditorArticleModal(props: IEditorArticleModalProps): JSX.Element
       <div className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
         <ModalHeader status={detail?.status ?? null} onClose={handleClose} />
         {detail ? (
-          <ModalBody {...props} />
+          <EditorArticleEditPanel {...props} onSave={() => void handleSave()} onClose={handleClose} />
         ) : (
           <p className="px-5 py-10 text-center text-sm text-neutral-500">{t('editor.loading')}</p>
         )}
-        {detail ? (
-          <ModalFooter
-            status={detail.status}
-            saving={saving}
-            onSave={() => void handleSave()}
-            onPublish={props.onPublish}
-            onCancel={handleClose}
-          />
-        ) : null}
       </div>
     </div>
   )
@@ -167,13 +158,43 @@ function ModalHeader({ status, onClose }: IModalHeaderProps): JSX.Element {
   )
 }
 
+interface IEditorArticleEditPanelProps extends Omit<IEditorArticleModalProps, 'isOpen' | 'onSave'> {
+  onSave: () => void
+}
+
+/**
+ * Scrollable article edit form with save/publish footer for popup editors.
+ *
+ * @param props Edit state, upload handlers, and save/publish callbacks.
+ * @returns The article edit form and action footer.
+ */
+export function EditorArticleEditPanel(props: IEditorArticleEditPanelProps): JSX.Element {
+  const { detail, saving, onSave, onPublish, onClose } = props
+  if (!detail) {
+    return <></>
+  }
+
+  return (
+    <>
+      <ModalBody {...props} />
+      <ModalFooter
+        status={detail.status}
+        saving={saving}
+        onSave={onSave}
+        onPublish={onPublish}
+        onCancel={onClose}
+      />
+    </>
+  )
+}
+
 /**
  * Scrollable modal body composing the full set of article edit controls.
  *
  * @param props The modal props forwarded from the parent.
  * @returns The article edit form contents.
  */
-function ModalBody(props: IEditorArticleModalProps): JSX.Element {
+function ModalBody(props: IEditorArticleEditPanelProps): JSX.Element {
   const t = useTranslations('admin')
   const toolbarLabels = useToolbarLabels()
   return (

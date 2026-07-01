@@ -266,7 +266,11 @@
       "closeAria": "Close article preview",
       "loading": "Loading article…",
       "loadError": "Could not load article: {message}",
-      "unpublishedBadge": "{status}"
+      "unpublishedBadge": "{status}",
+      "previewTab": "Preview",
+      "editTab": "Edit",
+      "loadingEdit": "Loading pictures and videos…",
+      "editNotReady": "Wait for pictures and videos to finish loading before saving."
     },
     "panel": {
       "heading": "Publishing",
