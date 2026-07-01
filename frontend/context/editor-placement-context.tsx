@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import type { ISlotOut } from '@/lib/api/layout-client'
 import type { PlacementMoveDirectionType } from '@/lib/helpers/editor-placement'
 import type { IPlacementTarget } from '@/lib/helpers/editor-placement-targets'
+import { buildNewlyPlacedIdsBySlotId } from '@/lib/helpers/placement-highlight'
 import { editorPinnedIds } from '@/lib/helpers/slot-editor-pinned-ids'
 
 /** Pinned-article lookup for a single homepage slot in the editor canvas. */
@@ -12,9 +13,9 @@ interface ISlotPinnedInfo {
   /** Maps a pinned article id to its zero-based index within the slot. */
   indexByArticleId: Map<string, number>
   /**
-   * Article ids staged into this slot but not yet published, i.e. present in
-   * ``draft_pinned_ids`` but absent from the live ``pinned_ids``. Drives the
-   * "newly placed" highlight, which clears once the placement is published.
+   * Article ids that should show the "newly placed" highlight in this slot.
+   * Includes local draft-minus-live ids plus any story newly placed elsewhere
+   * (e.g. hero cascade) that is staged in this slot's pins.
    */
   newlyPlacedIds: Set<string>
   /** Number of pinned articles currently staged in the slot. */
@@ -147,39 +148,17 @@ function resolveAppendIndex(pinnedIds: string[], cellCount: number): number {
 }
 
 /**
- * Resolve the staged-but-unpublished article ids for a slot.
- *
- * An id counts as newly placed when it appears in the staged draft pins but not
- * in the live published pins, so the highlight clears automatically on publish.
- *
- * @param slot Slot payload carrying draft and live pin arrays.
- * @returns Set of article ids placed since the last publish.
- */
-function computeNewlyPlacedIds(slot: ISlotOut): Set<string> {
-  const draftIds = slot.draft_pinned_ids
-  if (draftIds == null) {
-    return new Set<string>()
-  }
-  const publishedIds = new Set(slot.pinned_ids)
-  const newlyPlaced = new Set<string>()
-  for (const id of draftIds) {
-    if (id && id.trim() && !publishedIds.has(id)) {
-      newlyPlaced.add(id)
-    }
-  }
-  return newlyPlaced
-}
-
-/**
  * Build the per-slot pinned lookup map from the editor's homepage slots.
  *
  * @param homepageSlots Homepage slots carrying staged draft pins.
  * @param placementTargetByKey Lookup of placement targets by slot/index key.
+ * @param newlyPlacedBySlotId Cascade-aware highlight map for staged pins.
  * @returns Map of slot id to its pinned-article index lookup and capacity.
  */
 function buildPinnedInfoBySlotId(
   homepageSlots: ISlotOut[],
   placementTargetByKey: Map<string, IPlacementTarget>,
+  newlyPlacedBySlotId: Map<string, Set<string>>,
 ): Map<string, ISlotPinnedInfo> {
   const pinnedInfoBySlotId = new Map<string, ISlotPinnedInfo>()
   for (const slot of homepageSlots) {
@@ -193,7 +172,7 @@ function buildPinnedInfoBySlotId(
     const cellCount = countTargetsForSlot(placementTargetByKey, slot.id)
     pinnedInfoBySlotId.set(slot.id, {
       indexByArticleId,
-      newlyPlacedIds: computeNewlyPlacedIds(slot),
+      newlyPlacedIds: newlyPlacedBySlotId.get(slot.id) ?? new Set<string>(),
       count: pinnedIds.length,
       appendIndex: resolveAppendIndex(pinnedIds, cellCount),
       templateTarget: placementTargetByKey.get(placementTargetKey(slot.id, 0)) ?? null,
@@ -227,9 +206,14 @@ export function EditorPlacementProvider(props: IEditorPlacementProviderProps): J
     for (const target of placementTargets) {
       placementTargetByKey.set(placementTargetKey(target.slotId, target.index), target)
     }
+    const newlyPlacedBySlotId = buildNewlyPlacedIdsBySlotId(homepageSlots)
     return {
       placementTargetByKey,
-      pinnedInfoBySlotId: buildPinnedInfoBySlotId(homepageSlots, placementTargetByKey),
+      pinnedInfoBySlotId: buildPinnedInfoBySlotId(
+        homepageSlots,
+        placementTargetByKey,
+        newlyPlacedBySlotId,
+      ),
       selectedArticleId,
       saving,
       onDropPlacement,
@@ -258,16 +242,10 @@ interface IPlacementHighlightProviderProps {
  */
 export function PlacementHighlightProvider(props: IPlacementHighlightProviderProps): JSX.Element {
   const { homepageSlots, children } = props
-  const value = useMemo<PlacementHighlightValueType>(() => {
-    const highlightBySlotId = new Map<string, Set<string>>()
-    for (const slot of homepageSlots) {
-      const newlyPlaced = computeNewlyPlacedIds(slot)
-      if (newlyPlaced.size > 0) {
-        highlightBySlotId.set(slot.id, newlyPlaced)
-      }
-    }
-    return highlightBySlotId
-  }, [homepageSlots])
+  const value = useMemo<PlacementHighlightValueType>(
+    () => buildNewlyPlacedIdsBySlotId(homepageSlots),
+    [homepageSlots],
+  )
 
   return <PlacementHighlightContext.Provider value={value}>{children}</PlacementHighlightContext.Provider>
 }
