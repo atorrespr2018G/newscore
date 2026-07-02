@@ -235,10 +235,8 @@ function ArticleAdRibbon({ index }: { index: number }): JSX.Element {
  * @returns The article body layout.
  */
 export function ArticleBodyLayout({ article }: { article: IArticleDetail }): JSX.Element {
-  const t = useTranslations('common')
   const body = articleBodyText(article)
-  const headline = articleHeadline(article, t('untitledStory'))
-  const chunks = articleBodyHtmlChunks({ body, headline })
+  const chunks = articleBodyHtmlChunks(body)
 
   return (
     <div className="mt-8 space-y-8">

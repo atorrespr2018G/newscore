@@ -140,8 +140,7 @@ function ArticleAdRibbon({ index }: { index: number }): JSX.Element {
 
 function ArticleBodyLayout({ article }: { article: IArticleDetail }): JSX.Element {
   const body = articleBodyText(article)
-  const headline = articleHeadline(article)
-  const chunks = articleBodyHtmlChunks({ body, headline })
+  const chunks = articleBodyHtmlChunks(body)
 
   return (
     <div className="mt-8 space-y-8">
