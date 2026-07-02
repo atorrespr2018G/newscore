@@ -9,7 +9,7 @@ import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
 import { useFeed } from '@/hooks/use-feed'
 import { useLanguageRegistry } from '@/hooks/use-language-registry'
 import { useSectionLabels } from '@/hooks/use-section-labels'
-import { useWorkflowBadges, type IWorkflowBadgeCounts } from '@/hooks/use-workflow-badges'
+import { ADMINISTRATOR_ROUTE } from '@/lib/api/admin-routes'
 import {
   isHomepageSectionVisible,
   sectionAnchorId,
@@ -116,19 +116,21 @@ function useMeasuredHeights(
   const [navHeight, setNavHeight] = useState(0)
 
   useEffect(() => {
-    const ribbonEl = ribbonRef.current
     const navEl = navRef.current
-    if (!ribbonEl || !navEl) return
+    if (!navEl) return
 
     const updateHeights = (): void => {
-      setRibbonHeight(ribbonEl.offsetHeight)
+      setRibbonHeight(ribbonRef.current?.offsetHeight ?? 0)
       setNavHeight(navEl.offsetHeight)
     }
 
     updateHeights()
     const observer = new ResizeObserver(updateHeights)
-    observer.observe(ribbonEl)
     observer.observe(navEl)
+    const ribbonEl = ribbonRef.current
+    if (ribbonEl) {
+      observer.observe(ribbonEl)
+    }
     return () => observer.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
@@ -319,22 +321,6 @@ function MastheadMobileSectionNavigationFallback({
   )
 }
 
-interface IMastheadAdminLink {
-  key: string
-  href: string
-  labelKey: string
-  /** Which workflow badge count, if any, decorates this link. */
-  badgeView?: keyof IWorkflowBadgeCounts
-}
-
-// Admin shortcuts share identical markup, so they are data-driven to avoid repetition.
-const MASTHEAD_ADMIN_LINKS: readonly IMastheadAdminLink[] = [
-  { key: 'reporter', href: '/admin/reporter', labelKey: 'reporter' },
-  { key: 'editor', href: '/admin/editor/news', labelKey: 'editor' },
-  { key: 'placement', href: '/admin/editor/placement', labelKey: 'placement', badgeView: 'placement' },
-  { key: 'preview', href: '/admin/preview', labelKey: 'preview', badgeView: 'review' },
-]
-
 function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }): JSX.Element {
   const tCommon = useTranslations('common')
 
@@ -455,65 +441,21 @@ function MastheadUtilityBadges(): JSX.Element {
   )
 }
 
-function MastheadAdminLink({
-  href,
-  label,
-  active,
-  badgeCount = 0,
-  badgeLabel,
-}: {
-  href: string
-  label: string
-  active: boolean
-  badgeCount?: number
-  badgeLabel?: string
-}): JSX.Element {
+function MastheadAdministratorLink({ pathname }: { pathname: string }): JSX.Element {
+  const tNav = useTranslations('navigation')
+
   return (
     <Link
-      href={href}
+      href={ADMINISTRATOR_ROUTE}
       className={[
-        'inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
-        active
+        'inline-flex items-center rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
+        pathname.startsWith('/admin')
           ? 'border-[color:var(--brand-red)] bg-[color:var(--brand-red)] text-white'
           : 'border-neutral-300 text-neutral-900 hover:text-neutral-950',
       ].join(' ')}
     >
-      {label}
-      {badgeCount > 0 ? (
-        <span
-          aria-label={badgeLabel}
-          className={[
-            'inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-4',
-            active ? 'bg-white text-[color:var(--brand-red)]' : 'bg-[color:var(--brand-red)] text-white',
-          ].join(' ')}
-        >
-          {badgeCount > 99 ? '99+' : badgeCount}
-        </span>
-      ) : null}
+      {tNav('administrator')}
     </Link>
-  )
-}
-
-function MastheadAdminLinks({ pathname }: { pathname: string }): JSX.Element {
-  const tNav = useTranslations('navigation')
-  const badges = useWorkflowBadges()
-
-  return (
-    <>
-      {MASTHEAD_ADMIN_LINKS.map((link) => {
-        const badgeCount = link.badgeView ? badges[link.badgeView] : 0
-        return (
-          <MastheadAdminLink
-            key={link.key}
-            href={link.href}
-            label={tNav(link.labelKey)}
-            active={pathname.startsWith(link.href)}
-            badgeCount={badgeCount}
-            badgeLabel={badgeCount > 0 ? tNav('newItemsBadge', { count: badgeCount }) : undefined}
-          />
-        )
-      })}
-    </>
   )
 }
 
@@ -523,7 +465,7 @@ function MastheadActions({ pathname }: { pathname: string }): JSX.Element {
       <MastheadLanguageSelector />
       <MastheadMarketSelector />
       <MastheadUtilityBadges />
-      <MastheadAdminLinks pathname={pathname} />
+      <MastheadAdministratorLink pathname={pathname} />
     </div>
   )
 }

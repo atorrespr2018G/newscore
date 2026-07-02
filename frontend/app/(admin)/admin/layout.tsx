@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
+import { AdminWorkflowSideNav } from '@/components/ui/admin-workflow-nav'
 import { ToastProvider } from '@/components/ui/toast'
 import { EditorScopeProvider } from '@/context/editor-scope-context'
 import { EditorialPreviewSyncProvider } from '@/context/editorial-preview-sync-context'
@@ -18,7 +19,7 @@ interface IAdminLayoutProps {
   children: ReactNode
 }
 
-/** Editorial workflow pages using the public masthead (Reporter / Editor / Preview tabs). */
+/** Editorial workflow pages with masthead Administrator link and workflow side panel. */
 export default function AdminLayout({ children }: IAdminLayoutProps): JSX.Element {
   const [queryClient] = useState(() => new QueryClient())
   const pathname = usePathname()
@@ -37,8 +38,11 @@ export default function AdminLayout({ children }: IAdminLayoutProps): JSX.Elemen
         <EditorialPreviewSyncProvider>
           <ToastProvider>
             <Masthead showAdRibbon={false} />
-            <main id="main-content" className="site-container py-8">
-              {children}
+            <main id="main-content" className="site-container pt-10 pb-8">
+              <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+                <AdminWorkflowSideNav />
+                <div className="min-w-0 flex-1">{children}</div>
+              </div>
             </main>
           </ToastProvider>
         </EditorialPreviewSyncProvider>

@@ -31,7 +31,7 @@ const ZERO_COUNTS: IWorkflowBadgeCounts = { placement: 0, review: 0 }
  *
  * Counts refresh on mount, every {@link WORKFLOW_BADGE_POLL_MS} ms, on window
  * focus, and whenever a mark-seen action dispatches the refresh event. Fetching
- * is disabled outside the admin app so the shared masthead stays inert publicly.
+ * is disabled outside the admin app so badge fetches stay inert on public pages.
  *
  * @returns The current placement and review badge counts.
  */
@@ -52,7 +52,7 @@ export function useWorkflowBadges(): IWorkflowBadgeCounts {
       setCounts({ placement, review })
     } catch {
       // Badge counts are best-effort; ignore transient fetch failures so the
-      // masthead never surfaces an error for a non-critical indicator.
+      // workflow nav never surfaces an error for a non-critical indicator.
     }
   }, [])
 
@@ -80,7 +80,7 @@ export function useWorkflowBadges(): IWorkflowBadgeCounts {
  * Mark a workflow view as seen on mount, clearing its badge for this user.
  *
  * Call from the Placement and Preview pages so opening the tab zeroes the count
- * both on the backend (last-seen) and immediately in the masthead badge.
+ * both on the backend (last-seen) and immediately in the side nav badge.
  *
  * @param view Workflow view the mounted page represents.
  */

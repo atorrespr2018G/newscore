@@ -30,7 +30,10 @@ export function getDefaultAdminRoute(role: AdminRoleType): string {
   return '/admin/login'
 }
 
-/** Admin workflow routes available from the top nav tabs. */
+/** Masthead entry point for the editorial admin app. */
+export const ADMINISTRATOR_ROUTE = '/admin'
+
+/** Admin workflow routes available from the side panel tabs. */
 export const ADMIN_WORKFLOW_ROUTES = [
   '/admin/reporter',
   '/admin/editor/news',
@@ -40,22 +43,26 @@ export const ADMIN_WORKFLOW_ROUTES = [
 
 export type AdminWorkflowRouteType = (typeof ADMIN_WORKFLOW_ROUTES)[number]
 
+export type AdminWorkflowBadgeViewType = 'placement' | 'review'
+
 /**
- * Tab paths and their `admin.workflow.*` message keys for the editorial tab bar.
+ * Tab paths and their `admin.workflow.*` message keys for the editorial side panel.
  *
  * Labels are resolved at render time via `useTranslations` so the bar follows
  * the active UI locale; only the semantic key lives here. `activePrefix` marks a
- * tab active for its own sub-routes only, so News and Placement never both
+ * tab active for its own sub-routes only, so Editor and Placement never both
  * highlight at once even though they share the `/admin/editor` segment.
  */
 export const ADMIN_WORKFLOW_TABS: ReadonlyArray<{
   href: AdminWorkflowRouteType
   labelKey: string
   activePrefix: string
+  badgeView?: AdminWorkflowBadgeViewType
 }> = [
   { href: '/admin/reporter', labelKey: 'reporter', activePrefix: '/admin/reporter' },
-  { href: '/admin/editor/news', labelKey: 'news', activePrefix: '/admin/editor/news' },
-  { href: '/admin/editor/placement', labelKey: 'placement', activePrefix: '/admin/editor/placement' },
+  { href: '/admin/editor/news', labelKey: 'editor', activePrefix: '/admin/editor/news' },
+  { href: '/admin/editor/placement', labelKey: 'placement', activePrefix: '/admin/editor/placement', badgeView: 'placement' },
+  { href: '/admin/preview', labelKey: 'preview', activePrefix: '/admin/preview', badgeView: 'review' },
 ]
 
 /**
