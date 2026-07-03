@@ -40,7 +40,7 @@ export function EditorialArticleLink({
     return (
       <button
         type="button"
-        className={[className, 'cursor-pointer text-left'].filter(Boolean).join(' ')}
+        className={[className, 'w-full cursor-pointer text-left'].filter(Boolean).join(' ')}
         style={style}
         aria-label={ariaLabel ?? article.title}
         onClick={() => clickHandler(article)}

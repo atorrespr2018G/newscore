@@ -514,7 +514,7 @@ function StoryThumb({
   return (
     <div
       className={[
-        'overflow-hidden rounded border border-neutral-200 bg-neutral-100',
+        'w-full overflow-hidden rounded border border-neutral-200 bg-neutral-100',
         className,
       ]
         .filter(Boolean)
