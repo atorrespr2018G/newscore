@@ -11,7 +11,7 @@ import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/ric
 import type { ICategoryOut } from '@/lib/api/category-client'
 import type { IStoryGroupOut } from '@/lib/api/story-group-client'
 import { MAX_TITLE_LENGTH, moveItem } from '@/lib/helpers/editor-curation'
-import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
+import type { IArticleDetail, ILoadedMedia } from '@/interfaces/editor-article'
 
 interface IEditorArticleModalProps {
   isOpen: boolean
@@ -53,7 +53,7 @@ interface IEditorArticleModalProps {
  */
 export function EditorArticleModal(props: IEditorArticleModalProps): JSX.Element | null {
   const t = useTranslations('admin')
-  const { isOpen, onClose, detail, saving, isDirty, onSave } = props
+  const { isOpen, onClose, detail, isDirty, onSave } = props
 
   // Confirm before discarding unsaved edits when closing via Escape/overlay.
   function handleClose(): void {
@@ -385,7 +385,7 @@ function ModalMediaSection({
             <MediaPreview item={item} index={index} />
             <div className="flex items-center gap-2 border-t border-neutral-200 px-2 py-1.5">
               <span className="flex-1 text-xs font-medium text-neutral-500">
-                #{index + 1} · {t(`editor.detail.type.${item.fileType}`)}
+                #{index + 1} Â· {t(`editor.detail.type.${item.fileType}`)}
               </span>
               <button
                 type="button"

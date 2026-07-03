@@ -110,7 +110,6 @@ async def _resolve_slot_articles_with_pinned_loader(
 
     pinned_ids = _compact_pinned_ids(list(slot.get("pinned_ids") or []))
     query_rule = slot.get("query_rule")
-    has_query_rule = isinstance(query_rule, dict)
 
     pinned_articles = await _load_pinned_articles(
         db,
@@ -121,7 +120,7 @@ async def _resolve_slot_articles_with_pinned_loader(
         pinned_loader=pinned_loader,
     )
 
-    if not has_query_rule:
+    if not isinstance(query_rule, dict):
         return pinned_articles
 
     limit = _query_rule_limit(query_rule)

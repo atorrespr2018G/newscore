@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping, Sequence, cast
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -244,7 +244,7 @@ async def list_story_groups(
         {"$sort": {"article_count": -1, "_id": 1}},
         {"$limit": limit},
     ]
-    cursor = db[ARTICLES_COLLECTION].aggregate(pipeline)
+    cursor = db[ARTICLES_COLLECTION].aggregate(cast(Sequence[Mapping[str, Any]], pipeline))
     return [
         StoryGroupOut(
             id=str(row["_id"]),

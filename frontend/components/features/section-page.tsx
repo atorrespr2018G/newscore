@@ -19,6 +19,7 @@ import {
 } from '@/lib/helpers/feed-layout'
 import { belowMediaTextClass, deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
+import { EmptyState, ErrorState, LoadingState, SectionSkeleton } from '@/components/ui/feed-state'
 import {
   COMPACT_SIDE_THUMB_HEIGHT,
   COMPACT_SIDE_THUMB_WIDTH,
@@ -40,10 +41,6 @@ const HomepageSection = dynamic(
   () => import('@/components/features/homepage-section').then((m) => m.HomepageSection),
   { loading: () => <SectionSkeleton /> },
 )
-
-function SectionSkeleton(): JSX.Element {
-  return <div className="h-32 animate-pulse rounded border border-neutral-200 bg-neutral-100" />
-}
 
 function AdRibbon(): JSX.Element {
   const t = useTranslations('common')
@@ -481,17 +478,17 @@ export function SectionPage({
   const { data, loading, error } = usePageFeed(pageName)
   const feedData = data ?? initialFeed
 
-  if (loading && !feedData) return <div className="text-neutral-600">{t('loading')}</div>
-  if (error && !feedData) return <div className="text-red-700">{t('failedToLoad', { message: error.message })}</div>
+  if (loading && !feedData) return <LoadingState message={t('loading')} />
+  if (error && !feedData) return <ErrorState message={t('failedToLoad', { message: error.message })} />
 
   const slots = feedData?.slots ?? []
   if (slots.length === 0) {
     return (
-      <div className="text-neutral-600">
+      <EmptyState>
         {t.rich('noStoriesYet', {
           command: () => <code className="text-sm">{t('seedCommand')}</code>,
         })}
-      </div>
+      </EmptyState>
     )
   }
 

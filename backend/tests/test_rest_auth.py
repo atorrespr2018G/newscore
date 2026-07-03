@@ -30,7 +30,7 @@ async def test_login_rejects_invalid_credentials() -> None:
     db.__getitem__ = MagicMock(return_value=collection)
 
     with pytest.raises(PermissionError, match="Invalid credentials"):
-        await auth_service.login(db, LoginRequest(email="nope@example.com", password="wrong"))
+        await auth_service.login(db, LoginRequest(email="nope@example.com", password="wrong1"))
 
 
 @pytest.mark.asyncio

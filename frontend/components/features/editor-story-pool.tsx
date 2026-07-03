@@ -8,7 +8,7 @@ import { EditorArticleModal } from '@/components/features/editor-article-modal'
 import { clearDraggingArticleId, setDraggingArticleId } from '@/lib/editor/editor-drag-store'
 import type { ICategoryOut } from '@/lib/api/category-client'
 import type { IStoryGroupOut } from '@/lib/api/story-group-client'
-import type { IArticleDetail, ILoadedMedia } from '@/hooks/use-editor-curation'
+import type { IArticleDetail, IEditorStoryRow, ILoadedMedia } from '@/interfaces/editor-article'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
 import {
   formatAllArticlePlacements,
@@ -23,16 +23,6 @@ import {
 } from '@/lib/helpers/editor-curation'
 
 const EDITOR_SEARCH_DEBOUNCE_MS = 300
-
-export interface IEditorStoryRow {
-  id: string
-  title: string
-  slug: string
-  status: string
-  author_name: string
-  thumbnail_url: string | null
-  category_ids?: string[]
-}
 
 type PlacementFilterType = 'all' | 'unplaced' | 'homepage'
 

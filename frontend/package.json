@@ -9,7 +9,9 @@
     "lint": "next lint",
     "codegen": "graphql-codegen --config codegen.ts",
     "typecheck": "tsc --noEmit",
-    "validate-i18n": "node scripts/validate-i18n.mjs"
+    "validate-i18n": "node scripts/validate-i18n.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@apollo/client": "^3.13.8",
@@ -38,6 +40,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "postcss": "^8.5.4",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.6"
   }
 }

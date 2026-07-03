@@ -74,10 +74,30 @@ async def list_users(
 ) -> tuple[list[UserOut], int]:
     """List users with pagination."""
 
-    total = await db[USERS_COLLECTION].count_documents({})
+    return await _list_users_by_filter(db, pagination, filter_query={})
+
+
+async def list_reporters(
+    db: AsyncIOMotorDatabase,
+    pagination: PaginationParams,
+) -> tuple[list[UserOut], int]:
+    """List users with reporter role and pagination."""
+
+    return await _list_users_by_filter(db, pagination, filter_query={"role": "reporter"})
+
+
+async def _list_users_by_filter(
+    db: AsyncIOMotorDatabase,
+    pagination: PaginationParams,
+    *,
+    filter_query: dict[str, Any],
+) -> tuple[list[UserOut], int]:
+    """List users matching a MongoDB filter with pagination."""
+
+    total = await db[USERS_COLLECTION].count_documents(filter_query)
     cursor = (
         db[USERS_COLLECTION]
-        .find({})
+        .find(filter_query)
         .sort("created_at", -1)
         .skip(pagination.skip)
         .limit(pagination.page_size)
@@ -168,13 +188,25 @@ async def assign_role(
 
 
 async def update_reporter_bio(db: AsyncIOMotorDatabase, *, reporter_id: str, bio: str) -> UserOut:
-    """Update the bio for a reporter user."""
+    """Update the bio for a reporter user.
+
+    Args:
+        db: MongoDB database handle.
+        reporter_id: Target reporter user id.
+        bio: New bio text.
+
+    Returns:
+        Updated reporter profile.
+
+    Raises:
+        NotFoundError: When the user does not exist or is not a reporter.
+    """
 
     doc = await db[USERS_COLLECTION].find_one_and_update(
-        {"_id": reporter_id},
+        {"_id": reporter_id, "role": "reporter"},
         {"$set": {"bio": bio}},
         return_document=ReturnDocument.AFTER,
     )
     if doc is None:
-        raise NotFoundError("User not found")
+        raise NotFoundError("Reporter not found")
     return _to_user_out(doc)

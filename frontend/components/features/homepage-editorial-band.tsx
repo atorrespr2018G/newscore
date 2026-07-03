@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { EditorialArticleLink } from '@/components/ui/editorial-article-link'

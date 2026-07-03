@@ -9,4 +9,10 @@
 mongo_data/
 media/images/
 media/videos/
+*.tsbuildinfo
+*.egg-info/
+.coverage
+htmlcov/
+.env.local
+.env.*.local
 

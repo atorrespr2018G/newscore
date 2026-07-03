@@ -129,7 +129,6 @@ export function EditorialArticleReadOverlay(): JSX.Element | null {
     selectedArticle,
     loading,
     error,
-    closePreview,
     mode,
     setMode,
     editDetail,

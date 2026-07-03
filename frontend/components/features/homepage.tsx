@@ -21,6 +21,7 @@ import type { IEditorialBandSlots } from '@/lib/helpers/feed-layout'
 import { shouldRenderHomepageGridAd } from '@/lib/helpers/homepage-ad-placement'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
+import { EmptyState, ErrorState, LoadingState, SectionSkeleton } from '@/components/ui/feed-state'
 import type { IFeedSlot, IHomepageFeed } from '@/interfaces/feed'
 
 const HomepageEditorialBand = dynamic(
@@ -37,10 +38,6 @@ const HomepageSection = dynamic(
   () => import('@/components/features/homepage-section').then((m) => m.HomepageSection),
   { loading: () => <SectionSkeleton /> },
 )
-
-function SectionSkeleton(): JSX.Element {
-  return <div className="h-32 animate-pulse rounded border border-neutral-200 bg-neutral-100" />
-}
 
 function RightPromo(): JSX.Element {
   const t = useTranslations('home')
@@ -381,16 +378,16 @@ export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.
   const { data, loading, error } = useFeed()
   const feedData = data ?? initialFeed
 
-  if (loading && !feedData) return <div className="text-neutral-600">{t('loading')}</div>
-  if (error && !feedData) return <div className="text-red-700">{t('failedToLoad', { message: error.message })}</div>
+  if (loading && !feedData) return <LoadingState message={t('loading')} />
+  if (error && !feedData) return <ErrorState message={t('failedToLoad', { message: error.message })} />
 
   if (!feedData || feedData.slots.length === 0) {
     return (
-      <div className="text-neutral-600">
+      <EmptyState>
         {t.rich('noStoriesYet', {
           command: () => <code className="text-sm">{t('seedCommand')}</code>,
         })}
-      </div>
+      </EmptyState>
     )
   }
 

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from news_storage_app.services import search_service
+from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
 from shared.core.pagination import PaginationDep, PaginationParams
 from shared.schemas.common import PaginatedResponse
@@ -22,6 +23,7 @@ async def search(
     article_id: str | None = Query(None, max_length=100),
     db: AsyncIOMotorDatabase = Depends(get_db),
     pagination: PaginationParams = PaginationDep,
+    _: TokenPayload = Depends(require_role("reporter", "editor", "admin")),
 ) -> PaginatedResponse:
     """Search articles by title/slug, category, created-date range, or exact id.
 

@@ -1,4 +1,4 @@
-import type { IEditorStoryRow } from '@/components/features/editor-story-pool'
+import type { IEditorStoryRow } from '@/interfaces/editor-article'
 import type { IArticlePlacement } from '@/lib/helpers/article-placements'
 
 /** Page size used when fetching search results for the editor pool. */

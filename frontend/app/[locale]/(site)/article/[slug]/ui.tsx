@@ -4,6 +4,7 @@ import type { IArticleDetail } from '@/interfaces/article'
 import { useArticle } from '@/hooks/use-article'
 import { StoryFollowups } from '@/components/features/story-followups'
 import { ArticleBodyLayout, ArticleHeader } from '@/components/features/article-reading-view'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/feed-state'
 import { useTranslations } from 'next-intl'
 
 interface IArticleClientProps {
@@ -23,13 +24,13 @@ export function ArticleClient({ slug, initialArticle }: IArticleClientProps): JS
   const article = data ?? initialArticle
 
   if (loading && !article) {
-    return <div className="text-neutral-600">{t('loading')}</div>
+    return <LoadingState message={t('loading')} />
   }
   if (error && !article) {
-    return <div className="text-red-700">{t('failedToLoad', { message: error.message })}</div>
+    return <ErrorState message={t('failedToLoad', { message: error.message })} />
   }
   if (!article) {
-    return <div className="text-neutral-600">{t('notFound')}</div>
+    return <EmptyState>{t('notFound')}</EmptyState>
   }
 
   return (

@@ -51,6 +51,7 @@ def get_logger(name: str) -> logging.Logger:
     handler = logging.StreamHandler()
     fmt = os.getenv("LOG_FORMAT", "text").lower()
 
+    formatter: logging.Formatter
     if fmt == "json":
         formatter = _JsonFormatter()
     else:

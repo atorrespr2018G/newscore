@@ -19,12 +19,8 @@ import {
 } from '@/lib/helpers/admin-article-reading'
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
 import type { IArticleDetail as IReadingArticleDetail } from '@/interfaces/article'
-import {
-  type IArticleDetail,
-  type ILoadedMedia,
-  uploadMediaInto,
-  validateArticleEdits,
-} from '@/hooks/use-editor-curation'
+import type { IArticleDetail, ILoadedMedia } from '@/interfaces/editor-article'
+import { uploadMediaInto, validateArticleEdits } from '@/lib/helpers/article-detail-editor'
 
 export interface IEditorialArticlePreviewEditor {
   editDetail: IArticleDetail | null

@@ -1,5 +1,5 @@
 import { getMediaByIds } from '@/lib/api/media-client'
-import type { ILoadedMedia } from '@/hooks/use-editor-curation'
+import type { ILoadedMedia } from '@/interfaces/editor-article'
 
 /** Resolved gallery item used by the reading view and edit form. */
 export interface IGalleryMediaItem {
