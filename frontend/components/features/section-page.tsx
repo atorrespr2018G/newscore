@@ -73,9 +73,12 @@ function HeroRailAd(): JSX.Element {
 function HeroPictureNewsScreen({
   article,
   plainStoryTitles = false,
+  largeTitle = false,
 }: {
   article: IArticle
   plainStoryTitles?: boolean
+  /** Match the hero headline size (first column only). */
+  largeTitle?: boolean
 }): JSX.Element {
   const href = `/article/${encodeURIComponent(article.slug)}`
   const imgSrc = articleImageSrc(article)
@@ -98,7 +101,9 @@ function HeroPictureNewsScreen({
         <h3
           className={[
             plainStoryTitles
-              ? 'mt-2 overflow-hidden font-sans text-[15px] font-normal leading-snug text-neutral-950 group-hover:underline'
+              ? largeTitle
+                ? 'mt-2 overflow-hidden text-3xl font-normal leading-tight text-neutral-950 group-hover:underline'
+                : 'mt-2 overflow-hidden text-[15px] font-normal leading-snug text-neutral-950 group-hover:underline'
               : 'mt-2 overflow-hidden text-[15px] font-extrabold leading-snug text-neutral-950 group-hover:text-brand',
             belowMediaTextClass(),
           ].join(' ')}
@@ -126,6 +131,8 @@ interface IHeroLayoutConfig {
   leftRailTextLinkCount?: number
   /** Text-only headline links (no thumbnail) below right-rail picture stories. */
   rightRailTextLinkCount?: number
+  /** Picture-card count appended to the right rail (defaults to 2). */
+  rightCardCount?: number
   /** Hide the last left-rail text link without shifting later hero slices. */
   hideLastLeftRailTextLink?: boolean
   /** Hide the last right-rail text link without shifting later hero slices. */
@@ -150,6 +157,7 @@ interface IResolvedHeroLayout {
   gridColsClass: string | undefined
   leftRailTextLinkCount: number
   rightRailTextLinkCount: number
+  rightCardCount: number
   hideLastLeftRailTextLink: boolean
   hideLastRightRailTextLink: boolean
 }
@@ -168,6 +176,7 @@ function resolveHeroLayoutConfig(layout?: IHeroLayoutConfig): IResolvedHeroLayou
     gridColsClass: layout?.gridColsClass,
     leftRailTextLinkCount: layout?.leftRailTextLinkCount ?? 0,
     rightRailTextLinkCount: layout?.rightRailTextLinkCount ?? 0,
+    rightCardCount: layout?.rightCardCount ?? 2,
     hideLastLeftRailTextLink: layout?.hideLastLeftRailTextLink ?? false,
     hideLastRightRailTextLink: layout?.hideLastRightRailTextLink ?? false,
   }
@@ -281,7 +290,7 @@ function HeroCenterColumn({
       {screenNews.length > 0 ? (
         <div className="mt-4 grid grid-cols-1 gap-4 border-t border-neutral-200 pt-4">
           {screenNews.map((article) => (
-            <HeroPictureNewsScreen key={article.id} article={article} plainStoryTitles={plainStoryTitles} />
+            <HeroPictureNewsScreen key={article.id} article={article} plainStoryTitles={plainStoryTitles} largeTitle={plainStoryTitles} />
           ))}
         </div>
       ) : null}
@@ -319,7 +328,13 @@ function HeroRightColumn({
   return (
     <aside className={useFrColumns ? 'min-w-0' : 'min-w-0 lg:col-span-3'}>
       <div className="space-y-4">
-        {rightRailLeadAd ? <HeroRailAd /> : null}
+        {rightRailLeadAd ? (
+          <>
+            <HeroRailAd />
+            <HeroRailAd />
+            <HeroRailAd />
+          </>
+        ) : null}
         {rightScreenNews.map((article) => (
           <HeroPictureNewsScreen key={article.id} article={article} plainStoryTitles={plainStoryTitles} />
         ))}
@@ -562,8 +577,9 @@ export function WorldPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX
       leftRailTextLinkCount: 0,
       hideLastLeftRailTextLink: false,
       centerScreenNewsCount: 4,
-      rightScreenNewsCount: 2,
-      rightRailTextLinkCount: 8,
+      rightScreenNewsCount: 1,
+      rightRailTextLinkCount: 6,
+      rightCardCount: 1,
       hideLastRightRailTextLink: true,
       gridColsClass: 'lg:grid-cols-[4.8fr_3fr_3fr]',
     },

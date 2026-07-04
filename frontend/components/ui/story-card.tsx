@@ -48,17 +48,17 @@ const HEADLINE_LINK_HOVER_BRAND =
 const HEADLINE_LINK_HOVER_UNDERLINE =
   'group block text-[14px] font-extrabold leading-snug text-neutral-950 hover:text-neutral-950 hover:underline'
 const PLAIN_HEADLINE_LINK_HOVER_BRAND =
-  'group block font-sans text-[14px] font-normal leading-snug text-neutral-950 hover:text-brand'
+  'group block font-serif text-[14px] font-normal leading-snug text-neutral-950 hover:text-brand'
 const PLAIN_HEADLINE_LINK_HOVER_UNDERLINE =
-  'group block font-sans text-[14px] font-normal leading-snug text-neutral-950 hover:text-neutral-950 hover:underline'
+  'group block font-serif text-[14px] font-normal leading-snug text-neutral-950 hover:text-neutral-950 hover:underline'
 const TEXT_LINK_HOVER_BRAND =
   'group block text-[15px] font-extrabold leading-snug text-neutral-950 hover:text-brand'
 const TEXT_LINK_HOVER_UNDERLINE =
   'group block text-[15px] font-extrabold leading-snug text-neutral-950 hover:text-neutral-950 hover:underline'
 const PLAIN_TEXT_LINK_HOVER_BRAND =
-  'group block font-sans text-[15px] font-normal leading-snug text-neutral-950 hover:text-brand'
+  'group block font-serif text-[15px] font-normal leading-snug text-neutral-950 hover:text-brand'
 const PLAIN_TEXT_LINK_HOVER_UNDERLINE =
-  'group block font-sans text-[15px] font-normal leading-snug text-neutral-950 hover:text-neutral-950 hover:underline'
+  'group block font-serif text-[15px] font-normal leading-snug text-neutral-950 hover:text-neutral-950 hover:underline'
 
 function titleHoverClass(underlineOnHover: boolean): string {
   return underlineOnHover ? TITLE_HOVER_UNDERLINE : TITLE_HOVER_BRAND
@@ -579,7 +579,7 @@ function StoryTitle({
           'mt-1 line-clamp-3 overflow-hidden leading-snug text-neutral-950',
           titleHoverClass(underlineOnHover),
           sizeClass,
-          plainTitle ? 'font-sans' : '',
+          plainTitle ? 'font-serif' : '',
           titleClassName ?? '',
         ].join(' ')}
       >

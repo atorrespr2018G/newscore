@@ -221,6 +221,7 @@ export interface ISectionHeroSliceConfig {
   rightScreenNewsCount: number
   leftRailTextLinkCount: number
   rightRailTextLinkCount: number
+  rightCardCount: number
 }
 
 export interface ISectionHeroSlices {
@@ -251,7 +252,7 @@ function splitCenterScreenHeroArticles(
     screenNews: take(config.centerScreenNewsCount),
     rightRailTextLinks: take(config.rightRailTextLinkCount),
     rightScreenNews: take(config.rightScreenNewsCount),
-    rightCards: take(SECTION_HERO_RIGHT_CARD_COUNT),
+    rightCards: take(config.rightCardCount),
     relatedLinks: [],
     strip: [],
   }
