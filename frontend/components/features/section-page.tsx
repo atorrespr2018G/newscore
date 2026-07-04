@@ -610,7 +610,7 @@ export function WorldPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX
       leftRailCount: 6,
       leftRailTextLinkCount: 0,
       hideLastLeftRailTextLink: false,
-      centerScreenNewsCount: 4,
+      centerScreenNewsCount: 3,
       rightScreenNewsCount: 1,
       rightRailTextLinkCount: 6,
       rightCardCount: 1,
