@@ -124,6 +124,9 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
 
 export const COMPACT_SIX_BAND_ARTICLE_LIMIT = 6
 
+/** Total articles fetched for paginated compact bands (e.g. Asia). */
+export const COMPACT_SIX_BAND_EXTENDED_LIMIT = 12
+
 
 
 export function isCompactSixBandPositionKey(positionKey: string): boolean {

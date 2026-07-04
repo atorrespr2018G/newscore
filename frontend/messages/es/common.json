@@ -22,6 +22,8 @@
   "latestNews": "Últimas noticias",
   "morePhotos": "Más fotos",
   "photoGallery": "Galería de fotos",
+  "previous": "Anterior",
+  "next": "Siguiente",
   "previousPhoto": "Foto anterior",
   "nextPhoto": "Foto siguiente",
   "photoCounter": "{current} de {total}",

@@ -744,7 +744,7 @@ WORLD_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "position_key": "world-latest",
         "order_index": 4,
         "category_slug": "world",
-        "limit": 6,
+        "limit": 12,
         "presentation_type": "grid_4",
         "display_name_us": "Asia",
         "display_name_co": "Asia",
