@@ -21,8 +21,6 @@ import { belowMediaTextClass, deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { EmptyState, ErrorState, LoadingState, SectionSkeleton } from '@/components/ui/feed-state'
 import {
-  COMPACT_SIDE_THUMB_HEIGHT,
-  COMPACT_SIDE_THUMB_WIDTH,
   StoryCard,
   type IStoryCardProps,
 } from '@/components/ui/story-card'
@@ -112,14 +110,6 @@ function HeroPictureNewsScreen({
   )
 }
 
-const COMPACT_SIDE_THUMB_WIDTH_ENLARGED = Math.round(COMPACT_SIDE_THUMB_WIDTH * 1.2)
-const HERO_CENTER_SCREEN_THUMB_SCALE = 1.3
-const HERO_CENTER_SCREEN_THUMB_WIDTH = Math.round(
-  COMPACT_SIDE_THUMB_WIDTH_ENLARGED * HERO_CENTER_SCREEN_THUMB_SCALE,
-)
-const HERO_CENTER_SCREEN_THUMB_HEIGHT = Math.round(
-  COMPACT_SIDE_THUMB_HEIGHT * HERO_CENTER_SCREEN_THUMB_SCALE,
-)
 
 interface IHeroLayoutConfig {
   swapSideColumns?: boolean
@@ -199,24 +189,30 @@ function HeroLeftColumn({
   context,
   left,
   leftTextLinks,
+  plainStoryTitles = false,
 }: {
   context: IHeroColumnContext
   left: IArticle[]
   leftTextLinks: IArticle[]
+  plainStoryTitles?: boolean
 }): JSX.Element {
   const { StoryCardComponent, usesCenterScreenNews, useFrColumns } = context
 
   return (
     <div className={useFrColumns ? 'min-w-0 space-y-4' : 'min-w-0 space-y-4 lg:col-span-3'}>
-      {left.map((article) => (
-        <StoryCardComponent
-          key={article.id}
-          article={article}
-          variant="rail"
-          titleFirst={!usesCenterScreenNews}
-          showSummary={!usesCenterScreenNews}
-        />
-      ))}
+      {usesCenterScreenNews
+        ? left.map((article) => (
+            <HeroPictureNewsScreen key={article.id} article={article} plainStoryTitles={plainStoryTitles} />
+          ))
+        : left.map((article) => (
+            <StoryCardComponent
+              key={article.id}
+              article={article}
+              variant="rail"
+              titleFirst
+              showSummary
+            />
+          ))}
       {leftTextLinks.length > 0 ? (
         <ul className="divide-y divide-neutral-200 border-t border-neutral-200 pt-4">
           {leftTextLinks.map((article) => (
@@ -238,6 +234,7 @@ interface IHeroCenterColumnProps {
   relatedLinks: IArticle[]
   screenNews: IArticle[]
   strip: IArticle[]
+  plainStoryTitles?: boolean
 }
 
 function HeroCenterColumn({
@@ -248,6 +245,7 @@ function HeroCenterColumn({
   relatedLinks,
   screenNews,
   strip,
+  plainStoryTitles = false,
 }: IHeroCenterColumnProps): JSX.Element {
   const { StoryCardComponent, usesCenterScreenNews, useFrColumns } = context
   const heroHref = `/article/${encodeURIComponent(hero.slug)}`
@@ -281,16 +279,9 @@ function HeroCenterColumn({
       </div>
 
       {screenNews.length > 0 ? (
-        <div className="mt-4 space-y-4 border-t border-neutral-200 pt-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-neutral-200 pt-4">
           {screenNews.map((article) => (
-            <StoryCardComponent
-              key={article.id}
-              article={article}
-              variant="compact"
-              layout="side"
-              sideThumbWidth={HERO_CENTER_SCREEN_THUMB_WIDTH}
-              sideThumbHeight={HERO_CENTER_SCREEN_THUMB_HEIGHT}
-            />
+            <HeroPictureNewsScreen key={article.id} article={article} plainStoryTitles={plainStoryTitles} />
           ))}
         </div>
       ) : null}
@@ -374,7 +365,7 @@ function HeroBlock({ articles, layout, plainStoryTitles = false }: IHeroBlockPro
     ? slices.rightRailTextLinks.slice(0, -1)
     : slices.rightRailTextLinks
 
-  const leftColumn = <HeroLeftColumn context={context} left={slices.left} leftTextLinks={visibleLeftTextLinks} />
+  const leftColumn = <HeroLeftColumn context={context} left={slices.left} leftTextLinks={visibleLeftTextLinks} plainStoryTitles={plainStoryTitles} />
   const centerColumn = (
     <HeroCenterColumn
       context={context}
@@ -384,6 +375,7 @@ function HeroBlock({ articles, layout, plainStoryTitles = false }: IHeroBlockPro
       relatedLinks={slices.relatedLinks}
       screenNews={slices.screenNews}
       strip={slices.strip}
+      plainStoryTitles={plainStoryTitles}
     />
   )
   const gridClass = context.useFrColumns
@@ -566,10 +558,10 @@ export function WorldPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX
     hero: {
       swapSideColumns: true,
       rightRailLeadAd: true,
-      leftRailCount: 4,
-      leftRailTextLinkCount: 5,
-      hideLastLeftRailTextLink: true,
-      centerScreenNewsCount: 8,
+      leftRailCount: 6,
+      leftRailTextLinkCount: 0,
+      hideLastLeftRailTextLink: false,
+      centerScreenNewsCount: 4,
       rightScreenNewsCount: 2,
       rightRailTextLinkCount: 8,
       hideLastRightRailTextLink: true,
