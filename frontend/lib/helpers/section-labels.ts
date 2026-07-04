@@ -344,6 +344,8 @@ export function homepageSectionTitle(
 
 const SECTION_PAGE_ROUTES: Record<string, string> = {
 
+  politics: '/politics',
+
   world: '/world',
 
 }
@@ -353,6 +355,8 @@ const SECTION_PAGE_ROUTES: Record<string, string> = {
 /** CMS page_name for section routes (defaults to the position key). */
 
 const SECTION_PAGE_NAMES: Record<string, string> = {
+
+  politics: 'politics',
 
   world: 'world',
 

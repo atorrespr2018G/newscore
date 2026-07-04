@@ -565,6 +565,40 @@ export function SectionPage({
   )
 }
 
+/** Politics section page with the same layout style as World. */
+export function PoliticsPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { sectionLabel } = useSectionLabels()
+  const config: ISectionPageConfig = {
+    pageName: 'politics',
+    title: sectionLabel('politics'),
+    hero: {
+      swapSideColumns: true,
+      rightRailLeadAd: true,
+      leftRailCount: 6,
+      leftRailTextLinkCount: 0,
+      hideLastLeftRailTextLink: false,
+      centerScreenNewsCount: 4,
+      rightScreenNewsCount: 1,
+      rightRailTextLinkCount: 6,
+      rightCardCount: 1,
+      hideLastRightRailTextLink: true,
+      gridColsClass: 'lg:grid-cols-[4.8fr_3fr_3fr]',
+    },
+    editorial: {
+      hideLeadHeadlineLinks: true,
+      showTrailingNewsScreen: true,
+    },
+    plainStoryTitles: true,
+  }
+
+  return (
+    <SectionPage
+      config={config}
+      initialFeed={initialFeed}
+    />
+  )
+}
+
 export function WorldPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { sectionLabel } = useSectionLabels()
   const config: ISectionPageConfig = {

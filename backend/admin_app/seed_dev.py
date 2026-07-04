@@ -271,6 +271,28 @@ US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
             "legacy_titles": ["State attorneys general probe election misinformation networks"],
             "tags": ["seed", "us", "politics", "elections", "midterms", "voting"],
         },
+        "Supreme Court agrees to hear challenge to federal agency powers",
+        "Governors push back on new federal education mandates",
+        "White House unveils executive order on AI in government",
+        "Bipartisan group proposes Social Security reform framework",
+        "Pentagon budget faces scrutiny in Armed Services hearings",
+        "State legislatures advance new voting access measures",
+        "Justice Department opens antitrust review of tech mergers",
+        "Congressional Budget Office projects rising deficit through 2030",
+        "EPA finalizes stricter tailpipe emission standards for 2028",
+        "FTC moves to ban noncompete clauses in employment contracts",
+        "Census data sparks new redistricting battles in swing states",
+        "Veterans Affairs expands mental health coverage for recent vets",
+        "Infrastructure law delivers first wave of broadband grants",
+        "Senate confirms new ambassador to NATO amid alliance tensions",
+        "Campaign finance watchdog flags record dark-money spending",
+        "Attorney general testifies on fentanyl enforcement strategy",
+        "Labor board rules on gig worker classification dispute",
+        "Homeland Security committee debates border technology upgrades",
+        "Lawmakers introduce bipartisan bill to lower prescription drug costs",
+        "Federal court blocks portions of new social media age law",
+        "Trade representative announces tariff review on allied imports",
+        "House ethics panel opens inquiry into member stock trades",
     ],
     "finance": [
         "Study links screen time to sleep disruption in teens",
@@ -419,6 +441,28 @@ CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
             "legacy_titles": ["Fiscales estatales investigan redes de desinformación electoral"],
             "tags": ["seed", "co", "politics", "elecciones", "voto"],
         },
+        "Corte Suprema acepta caso sobre poderes de agencias federales",
+        "Gobernadores rechazan nuevos mandatos federales de educación",
+        "Casa Blanca firma orden ejecutiva sobre IA en el gobierno",
+        "Grupo bipartidista propone reforma al Seguro Social",
+        "Presupuesto del Pentágono enfrenta escrutinio en audiencias",
+        "Legislaturas estatales avanzan medidas de acceso al voto",
+        "Departamento de Justicia abre revisión antimonopolio de fusiones tech",
+        "Oficina de Presupuesto proyecta déficit creciente hasta 2030",
+        "EPA finaliza estándares más estrictos de emisiones para 2028",
+        "FTC busca prohibir cláusulas de no competencia en contratos laborales",
+        "Datos del censo desatan batallas de redistribución en estados clave",
+        "Asuntos de Veteranos amplía cobertura de salud mental",
+        "Ley de infraestructura entrega primera ronda de fondos para banda ancha",
+        "Senado confirma nuevo embajador ante la OTAN tras tensiones",
+        "Vigilante de finanzas electorales alerta sobre gasto récord de dinero oscuro",
+        "Fiscal general testifica sobre estrategia contra el fentanilo",
+        "Junta laboral emite fallo sobre clasificación de trabajadores gig",
+        "Comité de seguridad debate mejoras tecnológicas en la frontera",
+        "Legisladores presentan proyecto bipartidista para abaratar medicamentos",
+        "Tribunal federal bloquea partes de nueva ley de edad en redes sociales",
+        "Representante comercial anuncia revisión de aranceles a aliados",
+        "Panel de ética de la Cámara abre investigación sobre compra de acciones",
     ],
     "finance": [
         "Estudio vincula pantallas con alteraciones del sueño",
@@ -731,6 +775,81 @@ WORLD_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "presentation_type": "grid_4",
         "display_name_us": "Africa",
         "display_name_co": "África",
+    },
+]
+
+POLITICS_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
+    {
+        "position_key": "hero",
+        "order_index": 0,
+        "category_slug": "politics",
+        "limit": 30,
+        "presentation_type": "hero",
+        "display_name_us": "Politics",
+        "display_name_co": "Política",
+    },
+    {
+        "position_key": "more-top-stories",
+        "order_index": 1,
+        "category_slug": "politics",
+        "limit": 7,
+        "presentation_type": "editorial_lead",
+        "display_name_us": "Congress",
+        "display_name_co": "Congreso",
+    },
+    {
+        "position_key": "politics-spotlight",
+        "order_index": 2,
+        "category_slug": "politics",
+        "limit": 5,
+        "presentation_type": "editorial_spotlight",
+        "display_name_us": "Elections",
+        "display_name_co": "Elecciones",
+    },
+    {
+        "position_key": "editorial-rail",
+        "order_index": 3,
+        "category_slug": "politics",
+        "limit": 6,
+        "presentation_type": "rail_compact",
+        "display_name_us": "White House",
+        "display_name_co": "Casa Blanca",
+    },
+    {
+        "position_key": "politics-latest",
+        "order_index": 4,
+        "category_slug": "politics",
+        "limit": 6,
+        "presentation_type": "grid_4",
+        "display_name_us": "Policy",
+        "display_name_co": "Política Pública",
+    },
+    {
+        "position_key": "politics-courts",
+        "order_index": 5,
+        "category_slug": "politics",
+        "limit": 6,
+        "presentation_type": "grid_4",
+        "display_name_us": "Courts & Law",
+        "display_name_co": "Tribunales y Leyes",
+    },
+    {
+        "position_key": "politics-state",
+        "order_index": 6,
+        "category_slug": "politics",
+        "limit": 6,
+        "presentation_type": "grid_4",
+        "display_name_us": "State Politics",
+        "display_name_co": "Política Estatal",
+    },
+    {
+        "position_key": "politics-opinion",
+        "order_index": 7,
+        "category_slug": "politics",
+        "limit": 6,
+        "presentation_type": "grid_4",
+        "display_name_us": "Opinion",
+        "display_name_co": "Opinión",
     },
 ]
 
@@ -1263,6 +1382,28 @@ async def _ensure_market_world_page(
     )
 
 
+async def _ensure_market_politics_page(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+    display_name_key: str,
+    slug_to_category_id: dict[str, str],
+    pinned_article_ids: list[str],
+) -> None:
+    """Seed the politics section page layout and slots for a market."""
+    await _ensure_market_page(
+        db,
+        page_name="politics",
+        slot_specs=POLITICS_PAGE_SLOT_SPECS,
+        market_id=market_id,
+        market_code=market_code,
+        display_name_key=display_name_key,
+        slug_to_category_id=slug_to_category_id,
+        pinned_article_ids=pinned_article_ids,
+    )
+
+
 async def _ensure_breaking_widgets(db: AsyncIOMotorDatabase) -> None:
     for market in MARKET_DEFS:
         code = str(market["code"])
@@ -1326,6 +1467,14 @@ async def seed_dev() -> None:
                 pinned_article_ids=article_ids,
             )
             await _ensure_market_world_page(
+                db,
+                market_id=market_id,
+                market_code=code,
+                display_name_key=str(market["display_name_key"]),
+                slug_to_category_id=slug_to_category_id,
+                pinned_article_ids=article_ids,
+            )
+            await _ensure_market_politics_page(
                 db,
                 market_id=market_id,
                 market_code=code,

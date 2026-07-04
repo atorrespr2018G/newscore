@@ -52,6 +52,7 @@
     "appDescription": "Plataforma de noticias",
     "homeTitle": "NewsCore — Inicio",
     "homeDescription": "Noticias principales y últimas actualizaciones.",
-    "worldDescription": "Noticias internacionales y últimas actualizaciones."
+    "worldDescription": "Noticias internacionales y últimas actualizaciones.",
+    "politicsDescription": "Noticias de política, elecciones y gobierno."
   }
 }
