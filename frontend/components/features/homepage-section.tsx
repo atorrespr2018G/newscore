@@ -11,7 +11,6 @@ import { PlacementSectionDropZone } from '@/components/features/placement-overla
 import { cardVariantForPresentation } from '@/lib/presentation-registry'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import {
-  COMPACT_SIX_BAND_ARTICLE_LIMIT,
   COMPACT_SIX_BAND_EXTENDED_LIMIT,
   isCompactSixBandPositionKey,
   isUsBandPositionKey,
@@ -88,11 +87,9 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   }
 
   if (isCompactSixBandPositionKey(slot.positionKey)) {
-    const isPaginated = slot.positionKey.trim().toLowerCase() === 'world-latest'
-    const limit = isPaginated ? COMPACT_SIX_BAND_EXTENDED_LIMIT : COMPACT_SIX_BAND_ARTICLE_LIMIT
     return (
       <HomepageCompactSixBand
-        slot={{ ...slot, articles: slot.articles.slice(0, limit) }}
+        slot={{ ...slot, articles: slot.articles.slice(0, COMPACT_SIX_BAND_EXTENDED_LIMIT) }}
         pageName={pageName}
       />
     )
