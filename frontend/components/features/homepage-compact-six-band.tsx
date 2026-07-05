@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { PlacementSlotScope } from '@/context/editor-placement-context'
@@ -8,6 +8,21 @@ import { PlacementSectionDropZone } from '@/components/features/placement-overla
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { COMPACT_SIX_BAND_ARTICLE_LIMIT, sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
+
+const MOBILE_ARTICLES_PER_PAGE = 2
+const TABLET_ARTICLES_PER_PAGE = 3
+const DESKTOP_BREAKPOINT = 1024
+const TABLET_BREAKPOINT = 640
+
+function articlesPerPageForWidth(width: number): number {
+  if (width >= DESKTOP_BREAKPOINT) {
+    return COMPACT_SIX_BAND_ARTICLE_LIMIT
+  }
+  if (width >= TABLET_BREAKPOINT) {
+    return TABLET_ARTICLES_PER_PAGE
+  }
+  return MOBILE_ARTICLES_PER_PAGE
+}
 
 interface IHomepageCompactSixBandProps {
   slot: IFeedSlot
@@ -23,10 +38,27 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
   const { homepageSectionTitle } = useSectionLabels(pageName)
   const t = useTranslations('common')
   const allArticles = slot.articles
-  const totalPages = Math.ceil(allArticles.length / COMPACT_SIX_BAND_ARTICLE_LIMIT)
+  const [articlesPerPage, setArticlesPerPage] = useState(COMPACT_SIX_BAND_ARTICLE_LIMIT)
+  const totalPages = Math.ceil(allArticles.length / articlesPerPage)
   const isPaginated = totalPages > 1
 
   const [page, setPage] = useState(0)
+
+  useEffect(() => {
+    const syncArticlesPerPage = (): void => {
+      setArticlesPerPage(articlesPerPageForWidth(window.innerWidth))
+    }
+
+    syncArticlesPerPage()
+    window.addEventListener('resize', syncArticlesPerPage)
+    return () => window.removeEventListener('resize', syncArticlesPerPage)
+  }, [])
+
+  useEffect(() => {
+    if (page >= totalPages) {
+      setPage(Math.max(0, totalPages - 1))
+    }
+  }, [page, totalPages])
 
   if (allArticles.length === 0) {
     return null
@@ -55,8 +87,8 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-3">
                       {allArticles
                         .slice(
-                          pageIndex * COMPACT_SIX_BAND_ARTICLE_LIMIT,
-                          (pageIndex + 1) * COMPACT_SIX_BAND_ARTICLE_LIMIT,
+                          pageIndex * articlesPerPage,
+                          (pageIndex + 1) * articlesPerPage,
                         )
                         .map((article) => (
                           <HomepageStoryCard
@@ -90,7 +122,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-3">
-            {allArticles.slice(0, COMPACT_SIX_BAND_ARTICLE_LIMIT).map((article) => (
+            {allArticles.slice(0, articlesPerPage).map((article) => (
               <HomepageStoryCard
                 key={article.id}
                 article={article}
