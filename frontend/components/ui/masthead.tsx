@@ -51,6 +51,78 @@ const DEFAULT_MASTHEAD_SECTION_KEYS = [
   'entertainment',
 ] as const
 
+const FLORIDA_STATE_CODE = 'fl'
+
+const FLORIDA_COUNTY_OPTIONS = [
+  'Alachua',
+  'Baker',
+  'Bay',
+  'Bradford',
+  'Brevard',
+  'Broward',
+  'Calhoun',
+  'Charlotte',
+  'Citrus',
+  'Clay',
+  'Collier',
+  'Columbia',
+  'DeSoto',
+  'Dixie',
+  'Duval',
+  'Escambia',
+  'Flagler',
+  'Franklin',
+  'Gadsden',
+  'Gilchrist',
+  'Glades',
+  'Gulf',
+  'Hamilton',
+  'Hardee',
+  'Hendry',
+  'Hernando',
+  'Highlands',
+  'Hillsborough',
+  'Holmes',
+  'Indian River',
+  'Jackson',
+  'Jefferson',
+  'Lafayette',
+  'Lake',
+  'Lee',
+  'Leon',
+  'Levy',
+  'Liberty',
+  'Madison',
+  'Manatee',
+  'Marion',
+  'Martin',
+  'Miami-Dade',
+  'Monroe',
+  'Nassau',
+  'Okaloosa',
+  'Okeechobee',
+  'Orange',
+  'Osceola',
+  'Palm Beach',
+  'Pasco',
+  'Pinellas',
+  'Polk',
+  'Putnam',
+  'Santa Rosa',
+  'Sarasota',
+  'Seminole',
+  'St. Johns',
+  'St. Lucie',
+  'Sumter',
+  'Suwannee',
+  'Taylor',
+  'Union',
+  'Volusia',
+  'Wakulla',
+  'Walton',
+  'Washington',
+] as const
+
 function useMounted(): boolean {
   const [isMounted, setIsMounted] = useState(false)
 
@@ -492,15 +564,31 @@ function MastheadLocalitySelector(): JSX.Element | null {
   return null
 }
 
-function MastheadUtilityBadges(): JSX.Element {
-  const tNav = useTranslations('navigation')
+function MastheadFloridaCountySelector(): JSX.Element | null {
+  const { marketCode, town } = useMarket()
+  const [county, setCounty] = useState('')
+
+  if (marketCode !== US_MARKET_CODE || town !== FLORIDA_STATE_CODE) {
+    return null
+  }
 
   return (
-    <>
-      <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
-        {tNav('watch')}
-      </span>
-    </>
+    <label className="flex items-center gap-2">
+      <span className="sr-only">County</span>
+      <select
+        value={county}
+        onChange={(event) => setCounty(event.target.value)}
+        className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
+        aria-label="Select Florida county"
+      >
+        <option value="">County</option>
+        {FLORIDA_COUNTY_OPTIONS.map((countyOption) => (
+          <option key={countyOption} value={countyOption}>
+            {countyOption}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -529,7 +617,7 @@ function MastheadActions({ pathname }: { pathname: string }): JSX.Element {
       <MastheadLanguageSelector />
       <MastheadMarketSelector />
       <MastheadLocalitySelector />
-      <MastheadUtilityBadges />
+      <MastheadFloridaCountySelector />
       <MastheadAdministratorLink pathname={pathname} />
     </div>
   )

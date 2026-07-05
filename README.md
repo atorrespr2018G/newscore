@@ -1,10 +1,6 @@
 # NewsCore (Newscore)
 
-
-
 Full-stack news platform:
-
-
 
 - **Frontend**: Next.js 14 on `http://localhost:3000`
 
@@ -24,21 +20,13 @@ Full-stack news platform:
 
 - **Redis**: `localhost:6379`
 
-
-
-For backend service roles, see [docs/backend-apps.md](docs/backend-apps.md).  
+For backend service roles, see [docs/backend-apps.md](docs/backend-apps.md).
 
 For GraphQL federation details, see [docs/graphql-federation-plan.md](docs/graphql-federation-plan.md).
 
-
-
 ## Quickstart
 
-
-
 1. Create a `.env` from the template:
-
-
 
 ```bash
 
@@ -46,11 +34,7 @@ cp .env.example .env
 
 ```
 
-
-
 2. Start everything:
-
-
 
 ```bash
 
@@ -64,39 +48,21 @@ To confirm the site subgraph is up before opening the homepage:
 
 - `http://localhost:5013/health` — should return `{"status":"ok","service":"site_subgraph"}`. A connection error here means the router will fail `homepageFeed` queries until the container finishes starting (or you run `docker compose restart site_subgraph graphql_router`).
 
-
-
 3. Open the homepage:
-
-
 
 - `http://localhost:3000`
 
-
-
 4. Explore GraphQL:
-
-
 
 - `http://localhost:4000/graphql` (Apollo Router sandbox when enabled)
 
-
-
 ## First data to see a feed
-
-
 
 The homepage feed is driven by an **active** `homepage` layout plus slots, and **published** articles.
 
-
-
 ### Seed dev data (recommended)
 
-
-
 Run this once after the stack is up:
-
-
 
 ```bash
 
@@ -120,23 +86,15 @@ MongoDB indexes are created idempotently on REST app startup via `backend/shared
 
 Defaults (override via `.env`):
 
-
-
 - `SEED_ADMIN_EMAIL=admin@newscore.local`
 
 - `SEED_ADMIN_PASSWORD=admin123!`
 
 - `SEED_ADMIN_FULL_NAME=NewsCore Admin`
 
-
-
 ### Manual flow (optional)
 
-
-
 Suggested manual flow:
-
-
 
 - Login via Admin API `POST /auth/login` to get a JWT
 
@@ -155,3 +113,8 @@ A minimal admin route group is available at `http://localhost:3000/admin/login`.
 REST APIs are versioned at `/api/v1/admin`, `/api/v1/news`, and `/api/v1/layout` through Nginx. Direct port access (`:5001`–`:5003`) remains available for local development.
 
 docker compose restart frontend
+
+ngrok http 3000 --url=https://discard-karate-clambake.ngrok-free.dev
+
+docker compose up --build
+docker compose exec admin_app python seed_dev.py
