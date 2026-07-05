@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useRouter } from 'next/navigation'
 
 import {
   DEFAULT_MARKET_CODE,
@@ -119,6 +120,7 @@ interface IMarketProviderProps {
  * Active news market (country edition). Persisted in localStorage and cookie.
  */
 export function MarketProvider({ children }: IMarketProviderProps): JSX.Element {
+  const router = useRouter()
   const [marketCode, setMarketCodeState] = useState(DEFAULT_MARKET_CODE)
   const [town, setTownState] = useState<string | null>(null)
 
@@ -128,29 +130,33 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
     setTownState(readStoredLocalityForMarket(storedMarket))
   }, [])
 
-  const setMarketCode = useCallback((code: string) => {
-    const normalized = code.trim().toLowerCase()
-    if (!isValidMarketCode(normalized)) {
-      return
-    }
-    setMarketCodeState(normalized)
-    window.localStorage.setItem(MARKET_STORAGE_KEY, normalized)
-    document.cookie = `${MARKET_COOKIE_NAME}=${normalized};path=/;max-age=31536000;samesite=lax`
+  const setMarketCode = useCallback(
+    (code: string) => {
+      const normalized = code.trim().toLowerCase()
+      if (!isValidMarketCode(normalized) || normalized === marketCode) {
+        return
+      }
+      setMarketCodeState(normalized)
+      window.localStorage.setItem(MARKET_STORAGE_KEY, normalized)
+      document.cookie = `${MARKET_COOKIE_NAME}=${normalized};path=/;max-age=31536000;samesite=lax`
 
-    if (normalized === PUERTO_RICO_MARKET_CODE || normalized === US_MARKET_CODE) {
-      const nextTown = readStoredLocalityForMarket(normalized)
-      setTownState(nextTown)
-      if (nextTown) {
-        persistTown(nextTown)
+      if (normalized === PUERTO_RICO_MARKET_CODE || normalized === US_MARKET_CODE) {
+        const nextTown = readStoredLocalityForMarket(normalized)
+        setTownState(nextTown)
+        if (nextTown) {
+          persistTown(nextTown)
+        } else {
+          clearPersistedTown()
+        }
       } else {
+        setTownState(null)
         clearPersistedTown()
       }
-      return
-    }
 
-    setTownState(null)
-    clearPersistedTown()
-  }, [])
+      router.refresh()
+    },
+    [marketCode, router],
+  )
 
   const setTown = useCallback(
     (townCode: string | null) => {
