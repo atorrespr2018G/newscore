@@ -58,6 +58,8 @@ def _article_market_query(market_id: str, town: str | None = None) -> dict[str, 
     q: dict[str, Any] = {"status": "published", "market_ids": market_id}
     if town:
         q["town_id"] = town.strip()
+    else:
+        q["$or"] = [{"town_id": None}, {"town_id": {"$exists": False}}]
     return q
 
 

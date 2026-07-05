@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useLocale } from '@/context/locale-context'
 import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
+import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
+import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 import { useFeed } from '@/hooks/use-feed'
 import { useLanguageRegistry } from '@/hooks/use-language-registry'
 import { useSectionLabels } from '@/hooks/use-section-labels'
@@ -199,6 +201,18 @@ function MastheadMobileSectionNav({
   )
 }
 
+function withMoreLink(navLinks: IMastheadNavLink[], moreLabel: string): IMastheadNavLink[] {
+  return [
+    ...navLinks,
+    {
+      key: 'more',
+      href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
+      label: moreLabel,
+      active: false,
+    },
+  ]
+}
+
 function buildFallbackNavLinks(
   pathname: string,
   activeSection: string | undefined,
@@ -216,18 +230,6 @@ function buildFallbackNavLinks(
       active: activeSection?.toLowerCase() === positionKey || isPageRouteMatch,
     }
   })
-}
-
-function withMoreLink(navLinks: IMastheadNavLink[], moreLabel: string): IMastheadNavLink[] {
-  return [
-    ...navLinks,
-    {
-      key: 'more',
-      href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
-      label: moreLabel,
-      active: false,
-    },
-  ]
 }
 
 function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
@@ -382,6 +384,16 @@ function MastheadMobileToggle({
   )
 }
 
+function MastheadListenBadge(): JSX.Element {
+  const tNav = useTranslations('navigation')
+
+  return (
+    <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
+      {tNav('listen')}
+    </span>
+  )
+}
+
 function MastheadLanguageSelector(): JSX.Element {
   const { locale, setLocale } = useLocale()
   const languages = useLanguageRegistry()
@@ -429,6 +441,57 @@ function MastheadMarketSelector(): JSX.Element {
   )
 }
 
+function MastheadLocalitySelector(): JSX.Element | null {
+  const { marketCode, town, setTown } = useMarket()
+  const tNav = useTranslations('navigation')
+  const selectClassName =
+    'rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]'
+
+  if (marketCode === US_MARKET_CODE) {
+    return (
+      <label className="flex items-center gap-2">
+        <span className="sr-only">{tNav('state')}</span>
+        <select
+          value={town ?? ''}
+          onChange={(event) => setTown(event.target.value || null)}
+          className={selectClassName}
+          aria-label={tNav('selectState')}
+        >
+          <option value="">{tNav('localityDefaultUs')}</option>
+          {US_STATE_OPTIONS.map((stateOption) => (
+            <option key={stateOption.code} value={stateOption.code}>
+              {stateOption.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+
+  if (marketCode === PUERTO_RICO_MARKET_CODE) {
+    return (
+      <label className="flex items-center gap-2">
+        <span className="sr-only">{tNav('town')}</span>
+        <select
+          value={town ?? ''}
+          onChange={(event) => setTown(event.target.value || null)}
+          className={selectClassName}
+          aria-label={tNav('selectTown')}
+        >
+          <option value="">{tNav('localityDefaultPr')}</option>
+          {PUERTO_RICO_TOWN_OPTIONS.map((townOption) => (
+            <option key={townOption.code} value={townOption.code}>
+              {townOption.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+
+  return null
+}
+
 function MastheadUtilityBadges(): JSX.Element {
   const tNav = useTranslations('navigation')
 
@@ -462,8 +525,10 @@ function MastheadAdministratorLink({ pathname }: { pathname: string }): JSX.Elem
 function MastheadActions({ pathname }: { pathname: string }): JSX.Element {
   return (
     <div className="ml-auto flex items-center gap-3">
+      <MastheadListenBadge />
       <MastheadLanguageSelector />
       <MastheadMarketSelector />
+      <MastheadLocalitySelector />
       <MastheadUtilityBadges />
       <MastheadAdministratorLink pathname={pathname} />
     </div>

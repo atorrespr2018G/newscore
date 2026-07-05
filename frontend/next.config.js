@@ -32,12 +32,21 @@ const nextConfig = {
     remotePatterns,
   },
   async rewrites() {
+    const apiProxyTarget = (
+      process.env.API_INTERNAL_URL ?? 'http://nginx'
+    ).replace(/\/$/, '')
     const mediaProxyTarget = (
-      process.env.MEDIA_INTERNAL_URL ??
-      process.env.NEXT_PUBLIC_NEWS_API_URL ??
-      'http://localhost:5002'
+      process.env.MEDIA_INTERNAL_URL ?? 'http://news_storage_app:5002'
     ).replace(/\/$/, '')
     return [
+      {
+        source: '/graphql',
+        destination: `${apiProxyTarget}/graphql`,
+      },
+      {
+        source: '/api/:path*',
+        destination: `${apiProxyTarget}/api/:path*`,
+      },
       {
         source: '/media/:path*',
         destination: `${mediaProxyTarget}/media/:path*`,

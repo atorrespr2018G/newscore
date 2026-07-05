@@ -9,6 +9,7 @@ export const DEFAULT_MARKET_CODE = 'us'
 
 export const MARKET_OPTIONS: IMarketOption[] = [
   { code: 'us', label: 'USA' },
+  { code: 'pr', label: 'Puerto Rico' },
   { code: 'co', label: 'Colombia' },
 ]
 

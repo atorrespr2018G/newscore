@@ -180,6 +180,7 @@ services:
     env_file: .env
     environment:
       GRAPHQL_INTERNAL_URL: http://graphql_router:4000/graphql
+      API_INTERNAL_URL: http://nginx
       MEDIA_INTERNAL_URL: http://news_storage_app:5002
     depends_on:
       graphql_router:

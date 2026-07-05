@@ -528,6 +528,161 @@ CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
     ],
 }
 
+PR_TOWN_LABELS: dict[str, str] = {
+    "adjuntas": "Adjuntas",
+    "aguada": "Aguada",
+    "aguadilla": "Aguadilla",
+    "aguas-buenas": "Aguas Buenas",
+    "aibonito": "Aibonito",
+    "anasco": "Añasco",
+    "arecibo": "Arecibo",
+    "arroyo": "Arroyo",
+    "barceloneta": "Barceloneta",
+    "barranquitas": "Barranquitas",
+    "bayamon": "Bayamón",
+    "cabo-rojo": "Cabo Rojo",
+    "caguas": "Caguas",
+    "camuy": "Camuy",
+    "canovanas": "Canóvanas",
+    "carolina": "Carolina",
+    "catano": "Cataño",
+    "cayey": "Cayey",
+    "ceiba": "Ceiba",
+    "ciales": "Ciales",
+    "cidra": "Cidra",
+    "coamo": "Coamo",
+    "comerio": "Comerío",
+    "corozal": "Corozal",
+    "culebra": "Culebra",
+    "dorado": "Dorado",
+    "fajardo": "Fajardo",
+    "florida": "Florida",
+    "guanica": "Guánica",
+    "guayama": "Guayama",
+    "guayanilla": "Guayanilla",
+    "guaynabo": "Guaynabo",
+    "gurabo": "Gurabo",
+    "hatillo": "Hatillo",
+    "hormigueros": "Hormigueros",
+    "humacao": "Humacao",
+    "isabela": "Isabela",
+    "jayuya": "Jayuya",
+    "juana-diaz": "Juana Díaz",
+    "juncos": "Juncos",
+    "lajas": "Lajas",
+    "lares": "Lares",
+    "las-marias": "Las Marías",
+    "las-piedras": "Las Piedras",
+    "loiza": "Loíza",
+    "luquillo": "Luquillo",
+    "manati": "Manatí",
+    "maricao": "Maricao",
+    "maunabo": "Maunabo",
+    "mayaguez": "Mayagüez",
+    "moca": "Moca",
+    "morovis": "Morovis",
+    "naguabo": "Naguabo",
+    "naranjito": "Naranjito",
+    "orocovis": "Orocovis",
+    "patillas": "Patillas",
+    "penuelas": "Peñuelas",
+    "ponce": "Ponce",
+    "quebradillas": "Quebradillas",
+    "rincon": "Rincón",
+    "rio-grande": "Río Grande",
+    "sabana-grande": "Sabana Grande",
+    "salinas": "Salinas",
+    "san-german": "San Germán",
+    "san-juan": "San Juan",
+    "san-lorenzo": "San Lorenzo",
+    "san-sebastian": "San Sebastián",
+    "santa-isabel": "Santa Isabel",
+    "toa-alta": "Toa Alta",
+    "toa-baja": "Toa Baja",
+    "trujillo-alto": "Trujillo Alto",
+    "utuado": "Utuado",
+    "vega-alta": "Vega Alta",
+    "vega-baja": "Vega Baja",
+    "vieques": "Vieques",
+    "villalba": "Villalba",
+    "yabucoa": "Yabucoa",
+    "yauco": "Yauco",
+}
+
+PUERTO_RICO_TOWN_IDS: tuple[str, ...] = tuple(
+    sorted(PR_TOWN_LABELS.keys(), key=lambda town_id: PR_TOWN_LABELS[town_id].casefold()),
+)
+
+PR_TOWN_HEADLINES: dict[str, str] = {
+    "san-juan": "San Juan council approves harbor modernization plan",
+    "ponce": "Ponce cultural district expands evening festival hours",
+    "mayaguez": "Mayagüez port expansion aims to boost Caribbean trade routes",
+    "caguas": "Caguas tech hub draws mainland remote-work relocations",
+    "bayamon": "Bayamón transit corridor adds express bus lanes",
+    "carolina": "Carolina airport district reports record passenger traffic",
+    "arecibo": "Arecibo observatory site reopens visitor center after upgrades",
+    "guaynabo": "Guaynabo business park secures new pharmaceutical tenant",
+}
+
+
+def _pr_town_headline(town_id: str) -> str:
+    """Return the primary local headline for a Puerto Rico municipality.
+
+    Args:
+        town_id: Municipality slug used in article filters.
+
+    Returns:
+        Headline text for the town's primary local story.
+    """
+    custom = PR_TOWN_HEADLINES.get(town_id)
+    if custom is not None:
+        return custom
+    label = PR_TOWN_LABELS[town_id]
+    return f"{label} community leaders outline local development priorities"
+
+PR_ARTICLE_STORIES: dict[str, list[str]] = {
+    "us": [
+        "San Juan waterfront project wins federal resilience grant",
+        "Ponce merchants reopen after hurricane recovery milestone",
+        "Mayagüez port expansion aims to boost Caribbean trade routes",
+        "Caguas tech hub draws mainland remote-work relocations",
+        "Rincón tourism board reports record winter visitor season",
+        "Vieques ferry schedule changes spark commuter debate",
+    ],
+    "politics": [
+        "Governor outlines fiscal plan ahead of budget hearings",
+        "Status commission schedules public forums on statehood debate",
+        "Legislature advances energy reform targeting island grid",
+        "San Juan mayor calls for faster federal disaster reimbursements",
+        "Opposition leaders press for transparency in contract awards",
+        "Resident commissioner testifies on Medicaid funding gap",
+    ],
+    "business": [
+        "Manufacturing incentives attract pharmaceutical expansion",
+        "Island banks report steady growth in small-business lending",
+        "Renewable developers bid on new solar farm parcels",
+        "Tourism revenue rebounds with cruise season uptick",
+        "Tax incentive debate shapes next investment cycle",
+        "Retailers adapt supply chains after shipping cost spike",
+    ],
+    "sports": [
+        "Boricua boxer returns home after world-title defense",
+        "Winter league baseball draws sold-out crowds in Carolina",
+        "National basketball team opens Olympic qualifying camp",
+        "Surf championship brings international athletes to Isabela",
+        "High school volleyball rivalry sets attendance record",
+        "Marathon organizers announce expanded safety protocols",
+    ],
+    "entertainment": [
+        "Reggaeton festival lineup celebrates island artists",
+        "Old San Juan film shoot closes streets for period drama",
+        "Museum opens exhibit on bomba and plena traditions",
+        "Theater company revives classic play with modern cast",
+        "Food festival highlights regional chefs and artisans",
+        "Carnival planners preview new parade route changes",
+    ],
+}
+
 HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     {
         "position_key": "hero",
@@ -880,6 +1035,19 @@ MARKET_DEFS: list[dict[str, Any]] = [
             {"text": "Política: Senado aprueba ley Secure America de $70.000 millones", "severity": "medium"},
         ],
     },
+    {
+        "code": "pr",
+        "country": "Puerto Rico",
+        "label": "Puerto Rico",
+        "default_locale": "es-PR",
+        "article_stories": PR_ARTICLE_STORIES,
+        "display_name_key": "display_name_us",
+        "breaking_items": [
+            {"text": "Última hora: Noticia principal en San Juan", "severity": "high"},
+            {"text": "Actualización: Nuevos detalles desde la isla", "severity": "medium"},
+            {"text": "Política: Legislativo avanza reforma energética", "severity": "medium"},
+        ],
+    },
 ]
 
 
@@ -1222,6 +1390,87 @@ async def _ensure_market_articles(
     return article_ids
 
 
+async def _ensure_puerto_rico_town_articles(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    market_id: str,
+    slug_to_category_id: dict[str, str],
+) -> None:
+    """Create or update town-scoped articles for each Puerto Rico municipality."""
+
+    us_category_id = slug_to_category_id["us"]
+    for town_id in PUERTO_RICO_TOWN_IDS:
+        title = _pr_town_headline(town_id)
+        existing = await db[ARTICLES_COLLECTION].find_one(
+            {
+                "category_id": us_category_id,
+                "market_ids": market_id,
+                "town_id": town_id,
+                "title": title,
+            },
+        )
+        now = _utc_now_iso()
+        fields = _market_article_fields(
+            title,
+            title=title,
+            market_code="pr",
+            category_slug="us",
+            video_url=None,
+            now=now,
+        )
+        if existing is not None:
+            await db[ARTICLES_COLLECTION].update_one(
+                {"_id": existing["_id"]},
+                {"$set": fields},
+            )
+            continue
+
+        article_id = str(uuid4())
+        doc = {
+            "_id": article_id,
+            "slug": f"pr-{town_id}-local-{article_id[:8]}",
+            "status": "published",
+            "author_id": author_id,
+            "category_id": us_category_id,
+            "market_ids": [market_id],
+            "town_id": town_id,
+            "media_ids": [],
+            "view_count": 0,
+            "created_at": now,
+            **fields,
+        }
+        await db[ARTICLES_COLLECTION].insert_one(doc)
+
+        for category_slug in ("politics", "business", "sports", "entertainment"):
+            category_id = slug_to_category_id[category_slug]
+            category_title = f"{PR_TOWN_LABELS[town_id]} {category_slug} update"
+            category_fields = _market_article_fields(
+                category_title,
+                title=category_title,
+                market_code="pr",
+                category_slug=category_slug,
+                video_url=None,
+                now=now,
+            )
+            category_doc = {
+                "_id": str(uuid4()),
+                "slug": f"pr-{town_id}-{category_slug}-{uuid4().hex[:8]}",
+                "status": "published",
+                "author_id": author_id,
+                "category_id": category_id,
+                "market_ids": [market_id],
+                "town_id": town_id,
+                "media_ids": [],
+                "view_count": 0,
+                "created_at": now,
+                **category_fields,
+            }
+            await db[ARTICLES_COLLECTION].insert_one(category_doc)
+
+    logger.info("Ensured Puerto Rico town articles for market pr")
+
+
 async def _upsert_slot(
     db: AsyncIOMotorDatabase,
     *,
@@ -1458,6 +1707,13 @@ async def seed_dev() -> None:
                 article_stories=market["article_stories"],
                 slug_to_category_id=slug_to_category_id,
             )
+            if code == "pr":
+                await _ensure_puerto_rico_town_articles(
+                    db,
+                    author_id=str(admin["_id"]),
+                    market_id=market_id,
+                    slug_to_category_id=slug_to_category_id,
+                )
             await _ensure_market_homepage(
                 db,
                 market_id=market_id,
