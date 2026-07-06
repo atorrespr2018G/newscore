@@ -1,8 +1,8 @@
 import { gql } from '@apollo/client'
 
 export const HOMEPAGE_FEED_QUERY = gql`
-  query HomepageFeed($market: String!, $town: String, $pageName: String) {
-    homepageFeed(market: $market, town: $town, pageName: $pageName) {
+  query HomepageFeed($market: String!, $town: String, $regionCode: String, $pageName: String) {
+    homepageFeed(market: $market, town: $town, regionCode: $regionCode, pageName: $pageName) {
       layoutId
       pageName
       slots {

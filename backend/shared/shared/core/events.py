@@ -24,6 +24,7 @@ async def publish_cache_invalidation(payload: dict[str, Any]) -> None:
 async def publish_homepage_feed_invalidation(
     *,
     market_codes: list[str] | None = None,
+    region_codes: list[str] | None = None,
     all_markets: bool = False,
 ) -> None:
     """Request homepage feed cache invalidation without knowing Redis key patterns."""
@@ -31,6 +32,8 @@ async def publish_homepage_feed_invalidation(
     payload: dict[str, Any] = {"scope": "homepage_feed"}
     if all_markets:
         payload["all"] = True
+    elif region_codes:
+        payload["region_codes"] = [code.strip().lower() for code in region_codes if code.strip()]
     elif market_codes:
         payload["market_codes"] = [code.strip().lower() for code in market_codes if code.strip()]
     else:

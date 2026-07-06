@@ -13,7 +13,9 @@ from layout_admin_app.services.slot_service import publish_draft_pins_for_layout
 from shared.core.audit import write_event
 from shared.core.cache_invalidation import invalidate_homepage_for_layout, invalidate_homepage_for_market_ids
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
+from shared.core.feature_flags import geo_dual_write_enabled
 from shared.core.pagination import PaginationParams
+from shared.core.regions import get_region_by_code
 from shared.read.layout_reads import get_active_layout
 from shared.read.market_reads import get_market_by_code
 from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate, PublishPlacementsOut
@@ -21,6 +23,7 @@ from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate,
 LAYOUTS_COLLECTION = "layouts"
 SLOTS_COLLECTION = "slots"
 MARKETS_COLLECTION = "markets"
+REGIONS_COLLECTION = "regions"
 
 
 def _utc_now_iso() -> str:
@@ -32,6 +35,9 @@ def _to_out(doc: dict[str, Any]) -> LayoutOut:
         id=str(doc["_id"]),
         page_name=doc["page_name"],
         market_id=str(doc["market_id"]) if doc.get("market_id") else None,
+        region_id=str(doc["region_id"]) if doc.get("region_id") else None,
+        scope_mode=str(doc.get("scope_mode") or "exact"),
+        inherit_depth_limit=doc.get("inherit_depth_limit"),
         slot_ids=list(doc.get("slot_ids") or []),
         is_active=bool(doc.get("is_active", True)),
         updated_at=doc.get("updated_at", ""),
@@ -48,15 +54,54 @@ async def _validate_market_id(db: AsyncIOMotorDatabase, market_id: str) -> str:
     return normalized
 
 
+async def _resolve_region_id_for_layout(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str | None,
+    explicit_region_id: str | None,
+) -> str | None:
+    """Resolve a region owner id for layout dual-write."""
+
+    if explicit_region_id:
+        region = await db[REGIONS_COLLECTION].find_one(
+            {"_id": explicit_region_id.strip(), "is_active": True},
+            {"_id": 1},
+        )
+        if region is None:
+            raise ValidationError(f"Unknown region_id: {explicit_region_id}")
+        return str(region["_id"])
+
+    if not market_id:
+        return None
+    market = await db[MARKETS_COLLECTION].find_one({"_id": market_id}, {"code": 1})
+    if market is None:
+        return None
+    region = await get_region_by_code(db, str(market.get("code") or ""))
+    if region is None:
+        return None
+    return str(region["_id"])
+
+
 async def create(
     db: AsyncIOMotorDatabase,
     body: LayoutCreate,
     *,
     actor_id: str | None = None,
 ) -> LayoutOut:
-    market_id = await _validate_market_id(db, body.market_id)
+    market_id = await _validate_market_id(db, body.market_id) if body.market_id else None
+    region_id = await _resolve_region_id_for_layout(
+        db,
+        market_id=market_id,
+        explicit_region_id=body.region_id,
+    )
     existing = await db[LAYOUTS_COLLECTION].find_one(
-        {"page_name": body.page_name, "market_id": market_id},
+        {
+            "page_name": body.page_name,
+            "$or": [
+                {"market_id": market_id} if market_id else {"market_id": None},
+                {"region_id": region_id} if region_id else {"region_id": None},
+            ],
+        },
         {"_id": 1},
     )
     if existing is not None:
@@ -68,6 +113,9 @@ async def create(
         "_id": layout_id,
         "page_name": body.page_name,
         "market_id": market_id,
+        "region_id": region_id if geo_dual_write_enabled() else body.region_id,
+        "scope_mode": body.scope_mode,
+        "inherit_depth_limit": body.inherit_depth_limit,
         "slot_ids": [],
         "is_active": body.is_active,
         "updated_at": now,
@@ -115,8 +163,19 @@ async def get_by_page_name(
     db: AsyncIOMotorDatabase,
     page_name: str,
     *,
-    market_id: str,
+    market_id: str | None = None,
+    region_id: str | None = None,
 ) -> LayoutOut:
+    if region_id:
+        resolved = await get_active_layout(db, market_id=market_id, region_id=region_id, page_name=page_name)
+        if resolved is not None:
+            doc = await db[LAYOUTS_COLLECTION].find_one({"_id": resolved["layout_id"]})
+            if doc is not None:
+                return _to_out(doc)
+
+    if not market_id:
+        raise NotFoundError("Active layout not found for page")
+
     doc = await db[LAYOUTS_COLLECTION].find_one(
         {"page_name": page_name, "market_id": market_id, "is_active": True},
     )
@@ -182,6 +241,18 @@ async def update(
         raise NotFoundError("Layout not found")
 
     update_doc = {k: v for k, v in body.model_dump().items() if v is not None}
+    if geo_dual_write_enabled() and ("market_id" in update_doc or "region_id" in update_doc):
+        market_id = (
+            await _validate_market_id(db, str(update_doc["market_id"]))
+            if "market_id" in update_doc
+            else str(existing.get("market_id") or "") or None
+        )
+        update_doc["market_id"] = market_id
+        update_doc["region_id"] = await _resolve_region_id_for_layout(
+            db,
+            market_id=market_id,
+            explicit_region_id=str(update_doc["region_id"]) if update_doc.get("region_id") else None,
+        )
     update_doc["updated_at"] = _utc_now_iso()
     doc = await db[LAYOUTS_COLLECTION].find_one_and_update(
         {"_id": layout_id},

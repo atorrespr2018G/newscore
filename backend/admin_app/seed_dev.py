@@ -1682,6 +1682,20 @@ async def _invalidate_homepage_feed_cache() -> None:
         raise RuntimeError("Failed to publish homepage feed cache invalidation") from exc
 
 
+async def _ensure_geo_regions_and_backfill() -> None:
+    """Run geo hierarchy backfill so seeded data is region-ready."""
+
+    from pathlib import Path
+
+    from migrations.backfill_geo_regions import run_backfill
+
+    report = await run_backfill(
+        dry_run=False,
+        report_path=Path("backend/admin_app/migrations/reports/seed_geo_reconciliation.json"),
+    )
+    logger.info("Geo backfill complete: %s", report.get("reconciliation"))
+
+
 async def seed_dev() -> None:
     if os.getenv("ALLOW_DEV_SEED", "true").lower() not in {"1", "true", "yes"}:
         raise RuntimeError("Dev seed disabled. Set ALLOW_DEV_SEED=true to run seed_dev.py.")
@@ -1740,6 +1754,7 @@ async def seed_dev() -> None:
             )
 
         await _ensure_breaking_widgets(db)
+        await _ensure_geo_regions_and_backfill()
         await _invalidate_homepage_feed_cache()
     finally:
         client.close()

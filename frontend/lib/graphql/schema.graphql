@@ -1,5 +1,5 @@
 type Query {
-  homepageFeed(market: String!, town: String, pageName: String): HomepageFeed!
+  homepageFeed(market: String!, town: String, regionCode: String, pageName: String): HomepageFeed!
   articleBySlug(slug: String!, market: String!): Article
   breakingNews(market: String!): JSON
 }

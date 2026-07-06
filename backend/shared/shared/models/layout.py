@@ -10,6 +10,7 @@ from shared.models.common import utc_now
 
 
 SlotContentType = Literal["articles", "breaking", "video", "ad"]
+LayoutScopeMode = Literal["exact", "inherit_from_ancestor"]
 
 
 class Slot(BaseModel):
@@ -39,6 +40,9 @@ class Layout(BaseModel):
     id: str = Field(..., alias="_id")
     page_name: str
     market_id: str | None = None
+    region_id: str | None = None
+    scope_mode: LayoutScopeMode = "exact"
+    inherit_depth_limit: int | None = None
     slot_ids: list[str] = []
     is_active: bool = True
     updated_at: str = Field(default_factory=lambda: utc_now().isoformat())

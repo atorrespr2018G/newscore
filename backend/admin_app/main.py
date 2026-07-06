@@ -15,6 +15,7 @@ from shared.core.logger import get_logger
 from shared.core.rest_app import register_health_routes, register_rest_middleware
 
 from admin_app.routers.audit import router as audit_router
+from admin_app.routers.regions import router as regions_router
 from admin_app.routers.reporters import router as reporters_router
 from admin_app.routers.roles import router as roles_router
 from admin_app.routers.users import router as users_router
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(users_router)
     app.include_router(reporters_router)
     app.include_router(roles_router)
+    app.include_router(regions_router)
     app.include_router(audit_router)
 
     register_health_routes(app, service_name="admin_app")

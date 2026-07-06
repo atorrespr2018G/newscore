@@ -3,6 +3,7 @@ import { useMarket } from '@/context/market-context'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import { mapHomepageFeed } from '@/lib/graphql/mappers'
 import { HOMEPAGE_FEED_QUERY } from '@/lib/graphql/operations'
+import { toRegionCode } from '@/lib/region-code'
 
 /**
  * Fetches a named page feed for the active market from GraphQL.
@@ -10,9 +11,10 @@ import { HOMEPAGE_FEED_QUERY } from '@/lib/graphql/operations'
 export function usePageFeed(pageName: string) {
   const { marketCode, town } = useMarket()
   const normalizedPageName = pageName.trim().toLowerCase()
+  const regionCode = toRegionCode(marketCode, town)
 
   const result = useQuery(HOMEPAGE_FEED_QUERY, {
-    variables: { market: marketCode, town: town ?? null, pageName: normalizedPageName },
+    variables: { market: marketCode, town: town ?? null, regionCode, pageName: normalizedPageName },
     pollInterval: 1000 * 15,
     fetchPolicy: 'cache-and-network',
     ssr: false,

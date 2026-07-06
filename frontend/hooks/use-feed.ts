@@ -3,15 +3,17 @@ import { useMarket } from '@/context/market-context'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import { mapHomepageFeed } from '@/lib/graphql/mappers'
 import { HOMEPAGE_FEED_QUERY } from '@/lib/graphql/operations'
+import { toRegionCode } from '@/lib/region-code'
 
 /**
  * Fetches the homepage feed for the active market from GraphQL.
  */
 export function useFeed() {
   const { marketCode, town } = useMarket()
+  const regionCode = toRegionCode(marketCode, town)
 
   const result = useQuery(HOMEPAGE_FEED_QUERY, {
-    variables: { market: marketCode, town: town ?? null },
+    variables: { market: marketCode, town: town ?? null, regionCode },
     pollInterval: 1000 * 15,
     fetchPolicy: 'cache-and-network',
     ssr: false,

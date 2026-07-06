@@ -21,6 +21,7 @@ import { apiConfig } from '@/lib/api/config'
 import { getHomepageLayout } from '@/lib/api/layout-client'
 import { IMediaOut, uploadImage, uploadVideo } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
+import { toRegionCode } from '@/lib/region-code'
 import {
   INTERNATIONAL_POTENTIAL_OPTIONS,
   MAX_CATEGORY_COUNT,
@@ -112,12 +113,13 @@ export default function ReporterUploadPage(): JSX.Element {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    void getHomepageLayout(scope.marketCode, scope.pageName)
+    const regionCode = toRegionCode(scope.marketCode, scope.townId ?? null)
+    void getHomepageLayout(scope.marketCode, scope.pageName, regionCode)
       .then((layout) => setMarketId(layout.market_id))
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : t('reporter.errors.resolveMarket'))
       })
-  }, [scope.marketCode, scope.pageName, t])
+  }, [scope.marketCode, scope.pageName, scope.townId, t])
 
   useEffect(() => {
     void getCategories()
@@ -215,6 +217,8 @@ export default function ReporterUploadPage(): JSX.Element {
       const article = await apiFetch<IArticleOut>(`${apiConfig.news}/articles`, {
         method: 'POST',
         body: JSON.stringify({
+          direct_region_ids: [toRegionCode(scope.marketCode, scope.townId ?? null)],
+          region_visibility_mode: 'upward_only',
           title,
           body,
           category_ids: selectedCategoryIds,

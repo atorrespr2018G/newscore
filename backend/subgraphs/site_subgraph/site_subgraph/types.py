@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Annotated, Any
 
 import strawberry
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
-from shared.core.cache import get_json, set_json
+from shared.core.cache import get_json, get_region_feed_version, set_json
+from shared.core.feature_flags import geo_graphql_region_args
 from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.read import site_reads
 
@@ -77,14 +78,33 @@ class SiteQuery:
     async def homepage_feed(
         self,
         info: Info[SiteContext],
-        market: str = DEFAULT_MARKET_CODE,
-        town: str | None = None,
+        market: Annotated[
+            str,
+            strawberry.argument(deprecation_reason="Use regionCode."),
+        ] = DEFAULT_MARKET_CODE,
+        town: Annotated[
+            str | None,
+            strawberry.argument(deprecation_reason="Use regionCode."),
+        ] = None,
+        region_code: str | None = None,
         page_name: str = "homepage",
     ) -> HomepageFeed:
         """Return a page feed for a market (Redis-cached)."""
 
         normalized_page = page_name.strip().lower() or "homepage"
-        cache_key = homepage_feed_cache_key(market, town, page_name=normalized_page)
+        requested_region = (region_code or "").strip().lower() or None
+        if not geo_graphql_region_args():
+            requested_region = None
+
+        version_scope = requested_region or market
+        version = await get_region_feed_version(version_scope)
+        cache_key = homepage_feed_cache_key(
+            market,
+            town,
+            page_name=normalized_page,
+            region_code=requested_region,
+            version=version,
+        )
         cached = await get_json(cache_key)
         if cached is not None:
             return _feed_from_cache(cached)
@@ -93,6 +113,7 @@ class SiteQuery:
             info.context.db,
             market_code=market,
             town=town,
+            region_code=requested_region,
             page_name=normalized_page,
         )
         await set_json(key=cache_key, value=raw, ttl_seconds=HOMEPAGE_FEED_TTL_SECONDS)

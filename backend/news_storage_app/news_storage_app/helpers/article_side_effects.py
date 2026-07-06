@@ -8,7 +8,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.audit import write_event
-from shared.core.cache_invalidation import invalidate_homepage_for_market_ids
+from shared.core.cache_invalidation import invalidate_homepage_for_article, invalidate_homepage_for_market_ids
 
 
 def _utc_now_iso() -> str:
@@ -29,8 +29,7 @@ async def _invalidate_article_feed(db: AsyncIOMotorDatabase, doc: dict[str, Any]
         doc: Article document whose markets should be invalidated.
     """
 
-    market_ids = [str(mid) for mid in (doc.get("market_ids") or [])]
-    await invalidate_homepage_for_market_ids(db, market_ids)
+    await invalidate_homepage_for_article(db, doc)
 
 
 async def _write_audit(

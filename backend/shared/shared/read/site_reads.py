@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Awaitable, Callable, List
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from shared.core.feature_flags import geo_read_from_regions
 from shared.core.markets import DEFAULT_MARKET_CODE
+from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
 from shared.read.article_reads import article_out, list_by_ids_for_preview, list_published_by_ids
 from shared.read.collections import ARTICLES_COLLECTION, WIDGETS_COLLECTION
 from shared.read.layout_reads import get_active_layout
@@ -52,8 +53,22 @@ def _merge_slot_articles(
     return merged[:limit]
 
 
-def _article_market_query(market_id: str, town: str | None = None) -> dict[str, Any]:
-    """Mongo filter ensuring articles belong to the active market (and optional town)."""
+def _article_scope_query(
+    market_id: str | None,
+    *,
+    town: str | None = None,
+    region_id: str | None = None,
+) -> dict[str, Any]:
+    """Mongo filter for either region-scoped or legacy market-scoped reads."""
+
+    if geo_read_from_regions() and region_id:
+        return {
+            "status": "published",
+            "effective_region_ids": region_id,
+        }
+
+    if not market_id:
+        return {"status": "published", "_id": {"$in": []}}
 
     q: dict[str, Any] = {"status": "published", "market_ids": market_id}
     if town:
@@ -63,20 +78,31 @@ def _article_market_query(market_id: str, town: str | None = None) -> dict[str, 
     return q
 
 
-def _empty_feed(*, page_name: str, market_code: str) -> dict[str, Any]:
+def _empty_feed(
+    *,
+    page_name: str,
+    market_code: str,
+    region_code: str | None = None,
+) -> dict[str, Any]:
     """Build an empty feed payload."""
 
-    return {"layout_id": None, "page_name": page_name, "market_code": market_code, "slots": []}
+    return {
+        "layout_id": None,
+        "page_name": page_name,
+        "market_code": market_code,
+        "region_code": region_code,
+        "slots": [],
+    }
 
 
-PinnedLoader = Callable[..., Awaitable[list[ArticleOut]]]
+PinnedLoader = Callable[..., Awaitable[List[ArticleOut]]]
 
 
 async def _load_pinned_articles(
     db: AsyncIOMotorDatabase,
     *,
     pinned_ids: list[str],
-    market_id: str,
+    market_id: str | None,
     town: str | None,
     loader: AuthorNameLoader,
     pinned_loader: PinnedLoader,
@@ -99,7 +125,7 @@ async def _resolve_slot_articles_with_pinned_loader(
     db: AsyncIOMotorDatabase,
     *,
     slot: dict[str, Any],
-    market_id: str,
+    market_id: str | None,
     town: str | None,
     base_query: dict[str, Any],
     loader: AuthorNameLoader,
@@ -144,7 +170,7 @@ async def _resolve_slot_articles(
     db: AsyncIOMotorDatabase,
     *,
     slot: dict[str, Any],
-    market_id: str,
+    market_id: str | None,
     town: str | None,
     base_query: dict[str, Any],
     loader: AuthorNameLoader,
@@ -166,7 +192,7 @@ async def _resolve_slot_articles_preview(
     db: AsyncIOMotorDatabase,
     *,
     slot: dict[str, Any],
-    market_id: str,
+    market_id: str | None,
     town: str | None,
     base_query: dict[str, Any],
     loader: AuthorNameLoader,
@@ -239,22 +265,52 @@ async def get_home_feed(
     *,
     market_code: str = DEFAULT_MARKET_CODE,
     town: str | None = None,
+    region_code: str | None = None,
     page_name: str = "homepage",
 ) -> dict[str, Any]:
     """Assemble a page feed from active layout slots for a market."""
 
     normalized_page = page_name.strip().lower() or "homepage"
+    normalized_region_code = (region_code or "").strip().lower() or None
+    requested_region_code = normalized_region_code
+    region_id: str | None = None
+
+    if geo_read_from_regions():
+        if not requested_region_code:
+            requested_region_code = await resolve_region_code_from_legacy(
+                db,
+                market_code=market_code,
+                town=town,
+            )
+        if requested_region_code:
+            region_doc = await get_region_by_code(db, requested_region_code)
+            if region_doc is not None:
+                region_id = str(region_doc["_id"])
+
     market = await get_market_by_code(db, market_code)
     if market is None:
-        return _empty_feed(page_name=normalized_page, market_code=market_code)
+        return _empty_feed(
+            page_name=normalized_page,
+            market_code=market_code,
+            region_code=requested_region_code,
+        )
 
     market_id = str(market["_id"])
-    layout = await get_active_layout(db, market_id=market_id, page_name=normalized_page)
+    layout = await get_active_layout(
+        db,
+        market_id=market_id,
+        region_id=region_id,
+        page_name=normalized_page,
+    )
     if layout is None:
-        return _empty_feed(page_name=normalized_page, market_code=market_code)
+        return _empty_feed(
+            page_name=normalized_page,
+            market_code=market_code,
+            region_code=requested_region_code,
+        )
 
     loader = AuthorNameLoader(db)
-    base_query = _article_market_query(market_id, town)
+    base_query = _article_scope_query(market_id, town=town, region_id=region_id)
     out_slots = [
         _slot_to_feed_slot(
             slot,
@@ -274,6 +330,7 @@ async def get_home_feed(
         "layout_id": layout["layout_id"],
         "page_name": layout["page_name"],
         "market_code": market_code,
+        "region_code": requested_region_code,
         "slots": out_slots,
     }
 
@@ -283,22 +340,52 @@ async def get_home_feed_preview(
     *,
     market_code: str = DEFAULT_MARKET_CODE,
     town: str | None = None,
+    region_code: str | None = None,
     page_name: str = "homepage",
 ) -> dict[str, Any]:
     """Assemble a page feed preview with draft pins resolved (no Redis cache)."""
 
     normalized_page = page_name.strip().lower() or "homepage"
+    normalized_region_code = (region_code or "").strip().lower() or None
+    requested_region_code = normalized_region_code
+    region_id: str | None = None
+
+    if geo_read_from_regions():
+        if not requested_region_code:
+            requested_region_code = await resolve_region_code_from_legacy(
+                db,
+                market_code=market_code,
+                town=town,
+            )
+        if requested_region_code:
+            region_doc = await get_region_by_code(db, requested_region_code)
+            if region_doc is not None:
+                region_id = str(region_doc["_id"])
+
     market = await get_market_by_code(db, market_code)
     if market is None:
-        return _empty_feed(page_name=normalized_page, market_code=market_code)
+        return _empty_feed(
+            page_name=normalized_page,
+            market_code=market_code,
+            region_code=requested_region_code,
+        )
 
     market_id = str(market["_id"])
-    layout = await get_active_layout(db, market_id=market_id, page_name=normalized_page)
+    layout = await get_active_layout(
+        db,
+        market_id=market_id,
+        region_id=region_id,
+        page_name=normalized_page,
+    )
     if layout is None:
-        return _empty_feed(page_name=normalized_page, market_code=market_code)
+        return _empty_feed(
+            page_name=normalized_page,
+            market_code=market_code,
+            region_code=requested_region_code,
+        )
 
     loader = AuthorNameLoader(db)
-    base_query = _article_market_query(market_id, town)
+    base_query = _article_scope_query(market_id, town=town, region_id=region_id)
     out_slots = [
         _slot_to_feed_slot(
             slot,
@@ -318,5 +405,6 @@ async def get_home_feed_preview(
         "layout_id": layout["layout_id"],
         "page_name": layout["page_name"],
         "market_code": market_code,
+        "region_code": requested_region_code,
         "slots": out_slots,
     }

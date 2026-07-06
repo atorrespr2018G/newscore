@@ -4,24 +4,40 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 SlotContentType = Literal["articles", "breaking", "video", "ad"]
+LayoutScopeMode = Literal["exact", "inherit_from_ancestor"]
 
 
 class LayoutCreate(BaseModel):
     """Request body for POST /layouts."""
 
     page_name: str = Field(..., min_length=1, max_length=120)
-    market_id: str = Field(..., min_length=1)
+    market_id: str | None = Field(None, min_length=1)
+    region_id: str | None = Field(None, min_length=1)
+    scope_mode: LayoutScopeMode = "exact"
+    inherit_depth_limit: int | None = Field(None, ge=0)
     is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_scope_owner(self) -> "LayoutCreate":
+        """Require at least one scope owner for compatibility period."""
+
+        if not self.market_id and not self.region_id:
+            raise ValueError("Either market_id or region_id is required")
+        return self
 
 
 class LayoutUpdate(BaseModel):
     """Request body for PATCH /layouts/{id}."""
 
     is_active: bool | None = None
+    market_id: str | None = Field(None, min_length=1)
+    region_id: str | None = Field(None, min_length=1)
+    scope_mode: LayoutScopeMode | None = None
+    inherit_depth_limit: int | None = Field(None, ge=0)
 
 
 class LayoutOut(BaseModel):
@@ -30,6 +46,9 @@ class LayoutOut(BaseModel):
     id: str
     page_name: str
     market_id: str | None
+    region_id: str | None = None
+    scope_mode: LayoutScopeMode = "exact"
+    inherit_depth_limit: int | None = None
     slot_ids: list[str]
     is_active: bool
     updated_at: str

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 
 ArticleStatusType = Literal["draft", "review", "published", "archived"]
+RegionVisibilityMode = Literal["upward_only", "explicit_only", "custom"]
 
 DEFAULT_MAX_IMAGE_COUNT = 5
 
@@ -41,6 +42,9 @@ class ArticleCreate(BaseModel):
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
     )
     market_ids: list[str] = Field(..., min_length=1)
+    direct_region_ids: list[str] = []
+    region_visibility_mode: RegionVisibilityMode = "upward_only"
+    primary_region_id: str | None = None
     tags: list[str] = []
     thumbnail_url: str | None = None
     media_ids: list[str] = []
@@ -61,6 +65,9 @@ class ArticleUpdate(BaseModel):
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
     )
     market_ids: list[str] | None = Field(None, min_length=1)
+    direct_region_ids: list[str] | None = None
+    region_visibility_mode: RegionVisibilityMode | None = None
+    primary_region_id: str | None = None
     tags: list[str] | None = None
     thumbnail_url: str | None = None
     media_ids: list[str] | None = None
@@ -94,6 +101,10 @@ class ArticleDetailOut(ArticleOut):
     story_id: str | None = None
     international_potential: int | None
     market_ids: list[str]
+    direct_region_ids: list[str] = []
+    effective_region_ids: list[str] = []
+    region_visibility_mode: RegionVisibilityMode = "upward_only"
+    primary_region_id: str | None = None
     media_ids: list[str]
     max_image_count: int
     view_count: int

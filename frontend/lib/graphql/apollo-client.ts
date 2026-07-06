@@ -1,5 +1,22 @@
 import { ApolloClient, HttpLink, InMemoryCache } from '@apollo/client'
 
+function resolveBrowserGraphqlUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed.startsWith('/')) {
+    return trimmed
+  }
+
+  // In local Docker dev, Next runs on :3000 while Nginx gateway serves :80.
+  if (
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+    window.location.port === '3000'
+  ) {
+      return `${window.location.protocol}//${window.location.hostname}${trimmed}`
+  }
+
+  return `${window.location.origin}${trimmed}`
+}
+
 /**
  * GraphQL endpoint for the current runtime.
  * Browser uses the public host URL; server-side (Docker) uses the internal service name.
@@ -10,7 +27,7 @@ export function graphqlUrl(): string {
     if (!url) {
       throw new Error('Missing NEXT_PUBLIC_GRAPHQL_URL')
     }
-    return url
+    return resolveBrowserGraphqlUrl(url)
   }
 
   const internal = process.env.GRAPHQL_INTERNAL_URL

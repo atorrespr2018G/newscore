@@ -13,6 +13,7 @@ from news_storage_app.helpers.article_media import (
     _normalize_media_ids,
     _resolve_thumbnail_url,
 )
+from news_storage_app.helpers.article_regions import compute_create_region_fields
 from news_storage_app.helpers.article_side_effects import _utc_now_iso, _write_audit
 from news_storage_app.helpers.article_slug import _ensure_unique_slug
 from news_storage_app.helpers.article_validation import (
@@ -39,6 +40,7 @@ class _PreparedArticleFields:
     media_ids: list[str]
     thumbnail_url: str | None
     max_image_count: int
+    region_fields: dict[str, Any]
 
 
 async def _prepare_new_article(
@@ -72,6 +74,7 @@ async def _prepare_new_article(
     media_ids = _normalize_media_ids(body.media_ids)
     await _assert_image_cap(db, media_ids, max_image_count=max_image_count)
     thumbnail_url = await _resolve_thumbnail_url(db, media_ids=media_ids, explicit=body.thumbnail_url)
+    region_fields = await compute_create_region_fields(db, payload=body, market_ids=market_ids)
     return _PreparedArticleFields(
         slug=slug,
         market_ids=market_ids,
@@ -79,6 +82,7 @@ async def _prepare_new_article(
         media_ids=media_ids,
         thumbnail_url=thumbnail_url,
         max_image_count=max_image_count,
+        region_fields=region_fields,
     )
 
 
@@ -124,6 +128,7 @@ def _new_article_doc(
         "published_at": None,
         "created_at": now,
         "updated_at": now,
+        **fields.region_fields,
     }
 
 

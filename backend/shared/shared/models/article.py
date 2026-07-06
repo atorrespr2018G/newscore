@@ -10,6 +10,7 @@ from shared.models.common import utc_now
 
 
 ArticleStatusType = Literal["draft", "review", "published", "archived"]
+RegionVisibilityMode = Literal["upward_only", "explicit_only", "custom"]
 
 
 class Article(BaseModel):
@@ -27,6 +28,10 @@ class Article(BaseModel):
     international_potential: int | None = None
     market_ids: list[str] = []
     town_id: str | None = None
+    direct_region_ids: list[str] = []
+    effective_region_ids: list[str] = []
+    region_visibility_mode: RegionVisibilityMode = "upward_only"
+    primary_region_id: str | None = None
     tags: list[str] = []
     thumbnail_url: str | None = None
     media_ids: list[str] = []

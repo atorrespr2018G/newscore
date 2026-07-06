@@ -23,6 +23,9 @@ async def _handle_invalidation(payload: dict[str, Any]) -> None:
         await invalidate_all_homepage_feeds()
         return
 
+    for code in payload.get("region_codes") or []:
+        await invalidate_homepage_feed(str(code))
+
     for code in payload.get("market_codes") or []:
         await invalidate_homepage_feed(str(code))
 

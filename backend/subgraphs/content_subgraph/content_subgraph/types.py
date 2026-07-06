@@ -7,10 +7,20 @@ from strawberry.types import Info
 
 from content_subgraph.context import ContentContext
 from shared.core.exceptions import NotFoundError
+from shared.core.feature_flags import geo_graphql_region_args
 from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.core.pagination import PaginationParams
 from shared.read import article_reads, market_reads, media_reads
 from shared.schemas.article_schemas import ArticleDetailOut, ArticleOut
+
+
+def _market_from_region(region_code: str | None, fallback_market: str) -> str:
+    """Map a region code to its top-level market code for compatibility reads."""
+
+    normalized = (region_code or "").strip().lower()
+    if not normalized:
+        return fallback_market
+    return normalized.split("-", 1)[0]
 
 
 @strawberry.type
@@ -177,10 +187,14 @@ class ContentQuery:
         info: Info[ContentContext],
         slug: str,
         market: str = DEFAULT_MARKET_CODE,
+        region_code: str | None = None,
     ) -> Article | None:
         """Load a published article by slug for a market."""
 
-        market_doc = await market_reads.get_market_by_code(info.context.db, market)
+        requested_market = (
+            _market_from_region(region_code, market) if geo_graphql_region_args() else market
+        )
+        market_doc = await market_reads.get_market_by_code(info.context.db, requested_market)
         market_id = str(market_doc["_id"]) if market_doc else None
         try:
             detail = await article_reads.get_article_by_slug(
@@ -199,10 +213,14 @@ class ContentQuery:
         info: Info[ContentContext],
         q: str,
         market: str = DEFAULT_MARKET_CODE,
+        region_code: str | None = None,
     ) -> list[Article]:
         """Search published articles for a market."""
 
-        market_doc = await market_reads.get_market_by_code(info.context.db, market)
+        requested_market = (
+            _market_from_region(region_code, market) if geo_graphql_region_args() else market
+        )
+        market_doc = await market_reads.get_market_by_code(info.context.db, requested_market)
         market_id = str(market_doc["_id"]) if market_doc else None
         items = await article_reads.search_published(
             info.context.db,
@@ -220,10 +238,14 @@ class ContentQuery:
         page: int,
         page_size: int,
         market: str = DEFAULT_MARKET_CODE,
+        region_code: str | None = None,
     ) -> ArticleConnection:
         """List published articles for a category in a market."""
 
-        market_doc = await market_reads.get_market_by_code(info.context.db, market)
+        requested_market = (
+            _market_from_region(region_code, market) if geo_graphql_region_args() else market
+        )
+        market_doc = await market_reads.get_market_by_code(info.context.db, requested_market)
         market_id = str(market_doc["_id"]) if market_doc else None
         result = await article_reads.list_category_articles(
             info.context.db,

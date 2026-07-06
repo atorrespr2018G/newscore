@@ -458,6 +458,85 @@ For each phase record:
 6. Risks found.
 7. Go or no-go decision.
 
+## Plan Tracking Checklist
+
+Use this checklist as the single execution tracker during implementation.
+
+### Global Readiness
+
+- [ ] Feature flags exist in runtime config and default to off.
+- [ ] Index creation scripts are idempotent in staging and production.
+- [ ] Region tree seed source is approved (country/subdivision reference dataset).
+- [ ] Backfill dry-run completed on production-like snapshot.
+- [ ] Reconciliation report reviewed and signed by product + engineering.
+- [ ] Load test baseline captured before read cutover.
+- [ ] Rollback runbook tested in staging.
+
+### Phase Gates
+
+- [ ] Phase 0 signed off.
+- [ ] Phase 1 signed off.
+- [ ] Phase 2 signed off.
+- [ ] Phase 3 signed off.
+- [ ] Phase 4 signed off.
+- [ ] Phase 5 signed off.
+
+### Contract and Client Migration
+
+- [ ] GraphQL regionCode path available for all site feed consumers.
+- [ ] Compatibility adapter validated for legacy market/town callers.
+- [ ] Frontend clients migrated to send region payloads for admin writes.
+- [ ] Deprecated GraphQL args carry schema deprecation metadata.
+- [ ] Contract tests cover both new and legacy argument sets.
+
+### Observability Readiness
+
+- [ ] Dashboards include latency by region depth and fallback depth.
+- [ ] Alerts configured for p95 latency, error rate, invalidation delay.
+- [ ] Dual-write mismatch metric visible and alert threshold defined.
+- [ ] Log fields include request region_code and resolved layout source region.
+
+## Go/No-Go Criteria Per Environment
+
+Staging go criteria:
+1. All phase exit criteria satisfied through current phase.
+2. No Sev-1/Sev-2 defects open for region reads/writes.
+3. p95 regression within budget and cache hit ratio not degraded beyond threshold.
+4. Reconciliation mismatch count is 0 or explicitly waived.
+
+Production go criteria:
+1. Staging canary stable for agreed soak window.
+2. On-call schedule and rollback owner assigned for rollout window.
+3. Dashboard and alert checks green for 24 hours pre-rollout.
+4. Client compatibility confirmation from frontend and API consumers.
+
+No-go triggers:
+1. Feed error rate exceeds SLO for more than 10 minutes.
+2. Cache invalidation lag exceeds 5 seconds sustained.
+3. Dual-write mismatch spikes above agreed threshold.
+4. Any data integrity issue affecting publication visibility.
+
+## Risk Register (Initial)
+
+1. Risk: Incorrect region mapping during backfill causes under/over-distribution.
+	Mitigation: dry-run, sampled manual verification, mismatch report, exception list approval.
+2. Risk: Ancestor fallback increases query cost at depth spikes.
+	Mitigation: indexed ancestor/path fields, cached resolved layout source, load-test gates.
+3. Risk: Legacy clients rely on old market/town semantics edge cases.
+	Mitigation: compatibility adapter, dual-arg contract tests, phased deprecation window.
+4. Risk: Invalidation fan-out is too large for burst publish workflows.
+	Mitigation: version counters, bounded descendant updates, instrumentation and alerts.
+
+## Dependency and Decision Log
+
+Record decisions inline as the rollout progresses.
+
+1. Region canonical code format approved: pending.
+2. Country/subdivision source dataset approved: pending.
+3. Deprecation window length for market/town args approved: pending.
+4. Maximum allowed fallback depth override policy approved: pending.
+5. Exception process for unresolved legacy mapping approved: pending.
+
 ## Definition of Done
 
 1. Region hierarchy supports variable depth with validated ancestor chains.

@@ -12,6 +12,7 @@ from news_storage_app.helpers.article_media import (
     _resolve_max_image_count,
     _resolve_thumbnail_url,
 )
+from news_storage_app.helpers.article_regions import apply_update_region_fields
 from news_storage_app.helpers.article_side_effects import (
     _invalidate_feeds_for_update,
     _utc_now_iso,
@@ -152,6 +153,7 @@ async def update(
     _check_reporter_permissions(update_doc, actor_role)
     if "market_ids" in update_doc:
         update_doc["market_ids"] = await _validate_market_ids(db, list(update_doc["market_ids"]))
+    await apply_update_region_fields(db, existing=existing, update_doc=update_doc)
     await _normalize_update_categories(db, update_doc=update_doc)
     await _normalize_update_media(db, existing=existing, update_doc=update_doc)
     await _apply_slug_update(repo, update_doc=update_doc, article_id=article_id)

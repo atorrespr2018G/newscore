@@ -5,6 +5,7 @@ import type { IHomepageFeed } from '@/interfaces/feed'
 import { graphqlUrl } from '@/lib/graphql/apollo-client'
 import { mapArticleDetail, mapHomepageFeed } from '@/lib/graphql/mappers'
 import { ARTICLE_BY_SLUG_QUERY, HOMEPAGE_FEED_QUERY } from '@/lib/graphql/operations'
+import { toRegionCode } from '@/lib/region-code'
 
 interface IGraphqlResponse<T> {
   data?: T
@@ -58,9 +59,10 @@ export async function fetchPageFeed(
   town?: string | null,
 ): Promise<IHomepageFeed | undefined> {
   try {
+    const regionCode = toRegionCode(market, town)
     const data = await fetchGraphql<{ homepageFeed: Parameters<typeof mapHomepageFeed>[0]['homepageFeed'] }>(
       print(HOMEPAGE_FEED_QUERY),
-      { market, town: town ?? null, pageName },
+      { market, town: town ?? null, regionCode, pageName },
     )
     return mapHomepageFeed(data)
   } catch (error) {

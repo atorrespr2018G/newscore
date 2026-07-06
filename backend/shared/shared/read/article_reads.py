@@ -54,6 +54,12 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         story_id=doc.get("story_id"),
         international_potential=doc.get("international_potential"),
         market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],
+        direct_region_ids=[str(rid) for rid in (doc.get("direct_region_ids") or [])],
+        effective_region_ids=[str(rid) for rid in (doc.get("effective_region_ids") or [])],
+        region_visibility_mode=str(doc.get("region_visibility_mode") or "upward_only"),
+        primary_region_id=(
+            str(doc.get("primary_region_id")) if doc.get("primary_region_id") else None
+        ),
         media_ids=list(doc.get("media_ids") or []),
         max_image_count=int(doc.get("max_image_count") or DEFAULT_MAX_IMAGE_COUNT),
         view_count=int(doc.get("view_count") or 0),

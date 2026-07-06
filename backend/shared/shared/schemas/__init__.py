@@ -11,6 +11,7 @@ from shared.schemas.layout_schemas import (
     SlotUpdate,
 )
 from shared.schemas.media_schemas import MediaOut
+from shared.schemas.region_schemas import RegionCreate, RegionMove, RegionOut, RegionUpdate
 from shared.schemas.user_schemas import (
     LoginRequest,
     ReporterBioUpdate,
@@ -35,6 +36,10 @@ __all__ = [
     "SlotOut",
     "SlotUpdate",
     "MediaOut",
+    "RegionCreate",
+    "RegionMove",
+    "RegionOut",
+    "RegionUpdate",
     "LoginRequest",
     "ReporterBioUpdate",
     "TokenResponse",

@@ -61,6 +61,7 @@ async def delete_key(key: str) -> bool:
 
 
 LEGACY_HOMEPAGE_FEED_CACHE_KEY = "graphql:homepageFeed"
+REGION_FEED_VERSION_KEY_PREFIX = "graphql:homepageFeed:regionVersion"
 
 HOMEPAGE_FEED_TTL_SECONDS = 15
 
@@ -70,19 +71,55 @@ def homepage_feed_cache_key(
     town: str | None = None,
     *,
     page_name: str = "homepage",
+    region_code: str | None = None,
+    category_slug: str | None = None,
+    version: int = 1,
 ) -> str:
-    """Redis cache key for a market-scoped page feed."""
+    """Redis cache key for a page feed with optional region scope/version."""
 
     page_part = (page_name or "homepage").strip().lower()
-    market_part = (market or "us").strip().lower()
+    region_part = (region_code or market or "us").strip().lower()
+    category_part = (category_slug or "_").strip().lower()
+    if region_code:
+        return f"graphql:homepageFeed:{page_part}:{region_part}:{category_part}:v{max(1, int(version))}"
     town_part = (town or "_").strip().lower()
-    return f"graphql:homepageFeed:{page_part}:{market_part}:{town_part}"
+    return f"graphql:homepageFeed:{page_part}:{region_part}:{town_part}:v{max(1, int(version))}"
+
+
+def region_feed_version_key(region_code: str) -> str:
+    """Return Redis key storing the monotonic feed version for a region."""
+
+    normalized = (region_code or "us").strip().lower()
+    return f"{REGION_FEED_VERSION_KEY_PREFIX}:{normalized}"
+
+
+async def get_region_feed_version(region_code: str) -> int:
+    """Read current region feed version (defaults to 1)."""
+
+    raw = await get_redis().get(region_feed_version_key(region_code))
+    if raw is None:
+        return 1
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError):
+        return 1
+    return max(1, parsed)
+
+
+async def bump_region_feed_version(region_code: str) -> int:
+    """Increment and return region feed version."""
+
+    next_version = int(await get_redis().incr(region_feed_version_key(region_code)))
+    return max(1, next_version)
 
 
 async def invalidate_homepage_feed(market_code: str) -> int:
-    """Delete all homepage feed cache keys for a market. Returns keys removed."""
+    """Invalidate market-scoped feed cache by bumping region version and cleaning legacy keys."""
 
     market_part = (market_code or "us").strip().lower()
+    await bump_region_feed_version(market_part)
+
+    # Compatibility cleanup for old non-versioned keys that may still exist.
     pattern = f"graphql:homepageFeed:*:{market_part}:*"
     redis = get_redis()
     keys = [key async for key in redis.scan_iter(match=pattern)]

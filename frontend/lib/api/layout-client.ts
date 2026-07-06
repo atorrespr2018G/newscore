@@ -12,6 +12,9 @@ export interface ILayoutOut {
   id: string
   page_name: string
   market_id: string | null
+  region_id: string | null
+  scope_mode: 'exact' | 'inherit_from_ancestor'
+  inherit_depth_limit: number | null
   slot_ids: string[]
   is_active: boolean
   updated_at: string
@@ -70,9 +73,14 @@ interface ILayoutScopeParams {
 export function getHomepageLayout(
   marketCode = DEFAULT_EDITOR_MARKET_CODE,
   pageName = DEFAULT_EDITOR_PAGE_NAME,
+  regionCode?: string,
 ): Promise<ILayoutOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region_code', regionCode)
+  }
   return apiFetch<ILayoutOut>(
-    `${apiConfig.layout}/layouts/page/${encodeURIComponent(pageName)}?market=${encodeURIComponent(marketCode)}`,
+    `${apiConfig.layout}/layouts/page/${encodeURIComponent(pageName)}?${params.toString()}`,
   )
 }
 
@@ -135,6 +143,7 @@ interface IPreviewFeedOut {
   layout_id: string | null
   page_name: string
   market_code: string
+  region_code?: string | null
   slots: IPreviewFeedSlotOut[]
 }
 
@@ -187,6 +196,7 @@ export function getHomepagePreviewFeed(params: ILayoutScopeParams = {}): Promise
   if (params.townId) {
     queryParams.set('town', params.townId)
   }
+  queryParams.set('region_code', `${marketCode}${params.townId ? `-${params.townId}` : ''}`)
   return apiFetch<IPreviewFeedOut>(`${apiConfig.layout}/layouts/preview-feed?${queryParams.toString()}`, {
     cache: 'no-store',
   }).then(
