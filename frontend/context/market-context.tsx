@@ -25,6 +25,13 @@ import {
   TOWN_COOKIE_NAME,
   TOWN_STORAGE_KEY,
 } from '@/lib/puerto-rico-towns'
+import {
+  COUNTY_COOKIE_NAME,
+  COUNTY_STORAGE_KEY,
+  FLORIDA_STATE_CODE,
+  isValidFloridaCountyCode,
+  normalizeFloridaCountyCode,
+} from '@/lib/florida-counties'
 import { isValidUsStateCode, US_MARKET_CODE } from '@/lib/us-states'
 
 export { MARKET_OPTIONS, type IMarketOption }
@@ -32,8 +39,10 @@ export { MARKET_OPTIONS, type IMarketOption }
 interface IMarketContextValue {
   marketCode: string
   town: string | null
+  county: string | null
   setMarketCode: (code: string) => void
   setTown: (town: string | null) => void
+  setCounty: (county: string | null) => void
 }
 
 const MarketContext = createContext<IMarketContextValue | null>(null)
@@ -79,6 +88,23 @@ function readStoredLocalityForMarket(marketCode: string): string | null {
   return null
 }
 
+function readStoredCountyForScope(marketCode: string, town: string | null): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  if (marketCode !== US_MARKET_CODE || town !== FLORIDA_STATE_CODE) {
+    return null
+  }
+  const stored = window.localStorage.getItem(COUNTY_STORAGE_KEY)
+  if (stored) {
+    const normalized = normalizeFloridaCountyCode(stored)
+    if (isValidFloridaCountyCode(normalized)) {
+      return normalized
+    }
+  }
+  return null
+}
+
 function persistTown(townCode: string): void {
   window.localStorage.setItem(TOWN_STORAGE_KEY, townCode)
   document.cookie = `${TOWN_COOKIE_NAME}=${townCode};path=/;max-age=31536000;samesite=lax`
@@ -87,6 +113,17 @@ function persistTown(townCode: string): void {
 function clearPersistedTown(): void {
   window.localStorage.removeItem(TOWN_STORAGE_KEY)
   document.cookie = `${TOWN_COOKIE_NAME}=;path=/;max-age=0;samesite=lax`
+}
+
+function persistCounty(countyCode: string): void {
+  const normalized = normalizeFloridaCountyCode(countyCode)
+  window.localStorage.setItem(COUNTY_STORAGE_KEY, normalized)
+  document.cookie = `${COUNTY_COOKIE_NAME}=${normalized};path=/;max-age=31536000;samesite=lax`
+}
+
+function clearPersistedCounty(): void {
+  window.localStorage.removeItem(COUNTY_STORAGE_KEY)
+  document.cookie = `${COUNTY_COOKIE_NAME}=;path=/;max-age=0;samesite=lax`
 }
 
 /**
@@ -112,6 +149,20 @@ function isValidLocalityForMarket(marketCode: string, localityCode: string | nul
   return false
 }
 
+function isValidCountyForScope(
+  marketCode: string,
+  localityCode: string | null,
+  countyCode: string | null,
+): boolean {
+  if (countyCode === null) {
+    return true
+  }
+  if (marketCode !== US_MARKET_CODE || localityCode !== FLORIDA_STATE_CODE) {
+    return false
+  }
+  return isValidFloridaCountyCode(countyCode)
+}
+
 interface IMarketProviderProps {
   children: ReactNode
 }
@@ -123,11 +174,14 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
   const router = useRouter()
   const [marketCode, setMarketCodeState] = useState(DEFAULT_MARKET_CODE)
   const [town, setTownState] = useState<string | null>(null)
+  const [county, setCountyState] = useState<string | null>(null)
 
   useEffect(() => {
     const storedMarket = readStoredMarket()
+    const storedTown = readStoredLocalityForMarket(storedMarket)
     setMarketCodeState(storedMarket)
-    setTownState(readStoredLocalityForMarket(storedMarket))
+    setTownState(storedTown)
+    setCountyState(readStoredCountyForScope(storedMarket, storedTown))
   }, [])
 
   const setMarketCode = useCallback(
@@ -143,14 +197,23 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
       if (normalized === PUERTO_RICO_MARKET_CODE || normalized === US_MARKET_CODE) {
         const nextTown = readStoredLocalityForMarket(normalized)
         setTownState(nextTown)
+        const nextCounty = readStoredCountyForScope(normalized, nextTown)
+        setCountyState(nextCounty)
         if (nextTown) {
           persistTown(nextTown)
         } else {
           clearPersistedTown()
         }
+        if (nextCounty) {
+          persistCounty(nextCounty)
+        } else {
+          clearPersistedCounty()
+        }
       } else {
         setTownState(null)
+        setCountyState(null)
         clearPersistedTown()
+        clearPersistedCounty()
       }
 
       router.refresh()
@@ -169,13 +232,42 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
       } else {
         clearPersistedTown()
       }
+      const shouldKeepCounty = marketCode === US_MARKET_CODE && townCode === FLORIDA_STATE_CODE
+      if (!shouldKeepCounty) {
+        setCountyState(null)
+        clearPersistedCounty()
+      } else {
+        const restoredCounty = readStoredCountyForScope(marketCode, townCode)
+        setCountyState(restoredCounty)
+        if (restoredCounty) {
+          persistCounty(restoredCounty)
+        }
+      }
+      router.refresh()
     },
-    [marketCode],
+    [marketCode, router],
+  )
+
+  const setCounty = useCallback(
+    (countyCode: string | null) => {
+      const normalizedCounty = countyCode ? normalizeFloridaCountyCode(countyCode) : null
+      if (!isValidCountyForScope(marketCode, town, normalizedCounty)) {
+        return
+      }
+      setCountyState(normalizedCounty)
+      if (normalizedCounty) {
+        persistCounty(normalizedCounty)
+      } else {
+        clearPersistedCounty()
+      }
+      router.refresh()
+    },
+    [marketCode, router, town],
   )
 
   const value = useMemo(
-    () => ({ marketCode, town, setMarketCode, setTown }),
-    [marketCode, town, setMarketCode, setTown],
+    () => ({ marketCode, town, county, setMarketCode, setTown, setCounty }),
+    [county, marketCode, town, setCounty, setMarketCode, setTown],
   )
 
   return <MarketContext.Provider value={value}>{children}</MarketContext.Provider>

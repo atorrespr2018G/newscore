@@ -4,6 +4,7 @@ import {
   DEFAULT_EDITOR_SCOPE,
   type IEditorScope,
 } from '@/lib/editor/editor-scope'
+import { normalizeFloridaCountyCode } from '@/lib/florida-counties'
 import { decodeJwtPayload } from '@/lib/helpers/jwt'
 
 /** localStorage key persisting the active editor scope across windows. */
@@ -44,6 +45,10 @@ function parseEditorScope(raw: string): IEditorScope | null {
     return {
       marketCode: parsed.marketCode,
       townId: typeof parsed.townId === 'string' ? parsed.townId : null,
+      countyId:
+        typeof parsed.countyId === 'string'
+          ? normalizeFloridaCountyCode(parsed.countyId)
+          : null,
       pageName: parsed.pageName,
     }
   } catch {

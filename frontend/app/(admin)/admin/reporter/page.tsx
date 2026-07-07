@@ -113,13 +113,13 @@ export default function ReporterUploadPage(): JSX.Element {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    const regionCode = toRegionCode(scope.marketCode, scope.townId ?? null)
+    const regionCode = toRegionCode(scope.marketCode, scope.townId ?? null, scope.countyId ?? null)
     void getHomepageLayout(scope.marketCode, scope.pageName, regionCode)
       .then((layout) => setMarketId(layout.market_id))
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : t('reporter.errors.resolveMarket'))
       })
-  }, [scope.marketCode, scope.pageName, scope.townId, t])
+  }, [scope.countyId, scope.marketCode, scope.pageName, scope.townId, t])
 
   useEffect(() => {
     void getCategories()
@@ -217,7 +217,7 @@ export default function ReporterUploadPage(): JSX.Element {
       const article = await apiFetch<IArticleOut>(`${apiConfig.news}/articles`, {
         method: 'POST',
         body: JSON.stringify({
-          direct_region_ids: [toRegionCode(scope.marketCode, scope.townId ?? null)],
+          direct_region_ids: [toRegionCode(scope.marketCode, scope.townId ?? null, scope.countyId ?? null)],
           region_visibility_mode: 'upward_only',
           title,
           body,

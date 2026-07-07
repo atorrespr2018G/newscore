@@ -60,12 +60,21 @@ async def list_layouts(
 @router.get("/placements", response_model=ArticlePlacementsOut)
 async def get_layout_placements(
     market: str = Query(DEFAULT_MARKET_CODE),
+    town: str | None = Query(None),
+    region_code: str | None = Query(None),
     db: AsyncIOMotorDatabase = Depends(get_db),
     _: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> ArticlePlacementsOut:
     """Resolve article placements across homepage and world layouts."""
 
-    return ArticlePlacementsOut(placements=await get_article_placements(db, market_code=market))
+    return ArticlePlacementsOut(
+        placements=await get_article_placements(
+            db,
+            market_code=market,
+            town=town,
+            region_code=region_code,
+        )
+    )
 
 
 @router.get("/preview-feed")
@@ -91,6 +100,8 @@ async def get_preview_feed(
 @router.post("/publish-placements", response_model=PublishPlacementsOut)
 async def publish_layout_placements(
     market: str = Query(DEFAULT_MARKET_CODE),
+    town: str | None = Query(None),
+    region_code: str | None = Query(None),
     page_name: str = Query("homepage"),
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: TokenPayload = Depends(require_role("editor", "admin")),
@@ -101,6 +112,8 @@ async def publish_layout_placements(
         db,
         page_name=page_name,
         market_code=market,
+        town=town,
+        region_code=region_code,
         actor_id=current_user.sub,
     )
 

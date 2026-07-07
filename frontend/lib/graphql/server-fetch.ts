@@ -46,8 +46,9 @@ export async function fetchGraphql<T>(
 export async function fetchHomepageFeed(
   market: string,
   town?: string | null,
+  county?: string | null,
 ): Promise<IHomepageFeed | undefined> {
-  return fetchPageFeed(market, 'homepage', town)
+  return fetchPageFeed(market, 'homepage', town, county)
 }
 
 /**
@@ -57,9 +58,10 @@ export async function fetchPageFeed(
   market: string,
   pageName: string,
   town?: string | null,
+  county?: string | null,
 ): Promise<IHomepageFeed | undefined> {
   try {
-    const regionCode = toRegionCode(market, town)
+    const regionCode = toRegionCode(market, town, county)
     const data = await fetchGraphql<{ homepageFeed: Parameters<typeof mapHomepageFeed>[0]['homepageFeed'] }>(
       print(HOMEPAGE_FEED_QUERY),
       { market, town: town ?? null, regionCode, pageName },
@@ -70,6 +72,7 @@ export async function fetchPageFeed(
       market,
       pageName,
       town: town ?? null,
+      county: county ?? null,
       error,
     })
     throw error

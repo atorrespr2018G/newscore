@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getArticlePlacements, type IArticlePlacementOut } from '@/lib/api/layout-client'
+import { editorScopeRegionCode } from '@/lib/editor/editor-scope'
 import { buildArticlePlacementMap } from '@/lib/helpers/article-placements'
 import type { IEditorScope } from '@/lib/editor/editor-scope'
 
@@ -24,9 +25,13 @@ export function useArticlePlacements(scope: IEditorScope): IArticlePlacements {
   const [articlePlacements, setArticlePlacements] = useState<Record<string, IArticlePlacementOut[]>>({})
 
   const loadArticlePlacements = useCallback(async () => {
-    const data = await getArticlePlacements(scope.marketCode)
+    const data = await getArticlePlacements(
+      scope.marketCode,
+      editorScopeRegionCode(scope),
+      scope.townId,
+    )
     setArticlePlacements(data.placements)
-  }, [scope.marketCode])
+  }, [scope])
 
   const placementMap = useMemo(
     () => buildArticlePlacementMap(articlePlacements),

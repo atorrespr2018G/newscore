@@ -10,6 +10,8 @@
   "selectTown": "Select Puerto Rico town",
   "state": "State",
   "selectState": "Select US state",
+  "county": "County",
+  "selectCounty": "Select Florida county",
   "localityDefaultUs": "USA",
   "localityDefaultPr": "Puerto Rico",
   "listen": "Listen",

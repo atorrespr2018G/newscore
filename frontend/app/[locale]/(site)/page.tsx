@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 import { Homepage } from '@/components/features/homepage'
 import { fetchHomepageFeed } from '@/lib/graphql/server-fetch'
-import { getServerMarketCode } from '@/lib/market-server'
+import { getServerMarketScope } from '@/lib/market-server'
 import { getTranslations } from '@/lib/locale-server'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,8 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage(): Promise<JSX.Element> {
-  const market = getServerMarketCode()
-  const initialFeed = await fetchHomepageFeed(market)
+  const scope = getServerMarketScope()
+  const initialFeed = await fetchHomepageFeed(scope.marketCode, scope.town, scope.county)
 
   return (
     <main id="main-content" className="site-container py-8">

@@ -10,6 +10,8 @@
   "selectTown": "Seleccionar pueblo de Puerto Rico",
   "state": "Estado",
   "selectState": "Seleccionar estado de EE. UU.",
+  "county": "Condado",
+  "selectCounty": "Seleccionar condado de Florida",
   "localityDefaultUs": "EE. UU.",
   "localityDefaultPr": "Puerto Rico",
   "listen": "Escuchar",

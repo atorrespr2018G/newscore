@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 import { PoliticsPage } from '@/components/features/section-page'
 import { fetchPageFeed } from '@/lib/graphql/server-fetch'
-import { getServerMarketCode } from '@/lib/market-server'
+import { getServerMarketScope } from '@/lib/market-server'
 import { getTranslations } from '@/lib/locale-server'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,8 +16,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PoliticsRoutePage(): Promise<JSX.Element> {
-  const market = getServerMarketCode()
-  const initialFeed = await fetchPageFeed(market, 'politics')
+  const scope = getServerMarketScope()
+  const initialFeed = await fetchPageFeed(
+    scope.marketCode,
+    'politics',
+    scope.town,
+    scope.county,
+  )
 
   return (
     <main id="main-content" className="site-container py-8">

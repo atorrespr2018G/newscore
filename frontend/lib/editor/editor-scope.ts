@@ -1,7 +1,10 @@
+import { toRegionCode } from '@/lib/region-code'
+
 /** Editor scope driving all admin workflow reads and writes. */
 export interface IEditorScope {
   marketCode: string
   townId: string | null
+  countyId: string | null
   pageName: string
 }
 
@@ -12,6 +15,7 @@ export const DEFAULT_EDITOR_PAGE_NAME = 'homepage'
 export const DEFAULT_EDITOR_SCOPE: IEditorScope = {
   marketCode: DEFAULT_EDITOR_MARKET_CODE,
   townId: null,
+  countyId: null,
   pageName: DEFAULT_EDITOR_PAGE_NAME,
 }
 
@@ -30,4 +34,13 @@ export const EDITOR_MARKET_OPTIONS: ReadonlyArray<string> = ['us', 'co', 'uk', '
 export function isEditorMarketCode(marketCode: string): boolean {
   const normalized = marketCode.trim().toLowerCase()
   return EDITOR_MARKET_OPTIONS.includes(normalized)
+}
+
+/**
+ * Build a canonical region code for the active editor scope.
+ *
+ * Precedence is county > locality > market.
+ */
+export function editorScopeRegionCode(scope: IEditorScope): string {
+  return toRegionCode(scope.marketCode, scope.townId, scope.countyId)
 }

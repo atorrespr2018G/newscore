@@ -9,7 +9,7 @@ import {
   getLayoutSlots,
   type ISlotOut,
 } from '@/lib/api/layout-client'
-import type { IEditorScope } from '@/lib/editor/editor-scope'
+import { editorScopeRegionCode, type IEditorScope } from '@/lib/editor/editor-scope'
 import { editorKeys } from '@/lib/editor/query-keys'
 
 interface IUseEditorPreviewFeedResult {
@@ -39,6 +39,8 @@ export function useEditorPreviewFeed(
       getHomepagePreviewFeed({
         marketCode: scope.marketCode,
         townId: scope.townId,
+        countyId: scope.countyId,
+        regionCode: editorScopeRegionCode(scope),
         pageName: scope.pageName,
       }),
     enabled,
@@ -46,7 +48,11 @@ export function useEditorPreviewFeed(
   const slotsQuery = useQuery({
     queryKey: editorKeys.slots(scope),
     queryFn: async () => {
-      const layout = await getHomepageLayout(scope.marketCode, scope.pageName)
+      const layout = await getHomepageLayout(
+        scope.marketCode,
+        scope.pageName,
+        editorScopeRegionCode(scope),
+      )
       if (!layout.id) {
         return []
       }

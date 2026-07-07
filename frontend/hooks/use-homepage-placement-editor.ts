@@ -31,7 +31,7 @@ import {
   resolveCategoryCascadeSlotIds,
 } from '@/lib/helpers/editor-placement-messages'
 import { notifyWorkflowBadgesRefresh } from '@/lib/api/workflow-badges-client'
-import type { IEditorScope } from '@/lib/editor/editor-scope'
+import { editorScopeRegionCode, type IEditorScope } from '@/lib/editor/editor-scope'
 import type { IEditorStatus, IHomepagePlacementEditor } from '@/interfaces/editor-article'
 import { useArticlePlacements } from '@/hooks/use-article-placements'
 
@@ -71,13 +71,17 @@ export function useHomepagePlacementEditor(
   }, [homepageSlots])
 
   const loadHomepageSlots = useCallback(async () => {
-    const layout = await getHomepageLayout(scope.marketCode, scope.pageName)
+    const layout = await getHomepageLayout(
+      scope.marketCode,
+      scope.pageName,
+      editorScopeRegionCode(scope),
+    )
     if (!layout.id) {
       setHomepageSlots([])
       return
     }
     setHomepageSlots(await getLayoutSlots(layout.id))
-  }, [scope.marketCode, scope.pageName])
+  }, [scope])
 
   const placementTargets = useMemo(() => buildPlacementTargets(homepageSlots), [homepageSlots])
   const hasUnpublishedPlacements = useMemo(

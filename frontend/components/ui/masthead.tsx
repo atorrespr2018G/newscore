@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useLocale } from '@/context/locale-context'
 import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
+import { FLORIDA_COUNTY_OPTIONS, FLORIDA_STATE_CODE } from '@/lib/florida-counties'
 import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 import { useFeed } from '@/hooks/use-feed'
@@ -49,78 +50,6 @@ const DEFAULT_MASTHEAD_SECTION_KEYS = [
   'health',
   'finance',
   'entertainment',
-] as const
-
-const FLORIDA_STATE_CODE = 'fl'
-
-const FLORIDA_COUNTY_OPTIONS = [
-  'Alachua',
-  'Baker',
-  'Bay',
-  'Bradford',
-  'Brevard',
-  'Broward',
-  'Calhoun',
-  'Charlotte',
-  'Citrus',
-  'Clay',
-  'Collier',
-  'Columbia',
-  'DeSoto',
-  'Dixie',
-  'Duval',
-  'Escambia',
-  'Flagler',
-  'Franklin',
-  'Gadsden',
-  'Gilchrist',
-  'Glades',
-  'Gulf',
-  'Hamilton',
-  'Hardee',
-  'Hendry',
-  'Hernando',
-  'Highlands',
-  'Hillsborough',
-  'Holmes',
-  'Indian River',
-  'Jackson',
-  'Jefferson',
-  'Lafayette',
-  'Lake',
-  'Lee',
-  'Leon',
-  'Levy',
-  'Liberty',
-  'Madison',
-  'Manatee',
-  'Marion',
-  'Martin',
-  'Miami-Dade',
-  'Monroe',
-  'Nassau',
-  'Okaloosa',
-  'Okeechobee',
-  'Orange',
-  'Osceola',
-  'Palm Beach',
-  'Pasco',
-  'Pinellas',
-  'Polk',
-  'Putnam',
-  'Santa Rosa',
-  'Sarasota',
-  'Seminole',
-  'St. Johns',
-  'St. Lucie',
-  'Sumter',
-  'Suwannee',
-  'Taylor',
-  'Union',
-  'Volusia',
-  'Wakulla',
-  'Walton',
-  'Washington',
 ] as const
 
 function useMounted(): boolean {
@@ -565,8 +494,8 @@ function MastheadLocalitySelector(): JSX.Element | null {
 }
 
 function MastheadFloridaCountySelector(): JSX.Element | null {
-  const { marketCode, town } = useMarket()
-  const [county, setCounty] = useState('')
+  const { marketCode, town, county, setCounty } = useMarket()
+  const tNav = useTranslations('navigation')
 
   if (marketCode !== US_MARKET_CODE || town !== FLORIDA_STATE_CODE) {
     return null
@@ -574,17 +503,17 @@ function MastheadFloridaCountySelector(): JSX.Element | null {
 
   return (
     <label className="flex items-center gap-2">
-      <span className="sr-only">County</span>
+      <span className="sr-only">{tNav('county')}</span>
       <select
-        value={county}
-        onChange={(event) => setCounty(event.target.value)}
+        value={county ?? ''}
+        onChange={(event) => setCounty(event.target.value || null)}
         className="rounded-sm border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
-        aria-label="Select Florida county"
+        aria-label={tNav('selectCounty')}
       >
-        <option value="">County</option>
+        <option value="">{tNav('county')}</option>
         {FLORIDA_COUNTY_OPTIONS.map((countyOption) => (
-          <option key={countyOption} value={countyOption}>
-            {countyOption}
+          <option key={countyOption.code} value={countyOption.code}>
+            {countyOption.label}
           </option>
         ))}
       </select>

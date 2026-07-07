@@ -15,7 +15,7 @@ from shared.core.cache_invalidation import invalidate_homepage_for_layout, inval
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.feature_flags import geo_dual_write_enabled
 from shared.core.pagination import PaginationParams
-from shared.core.regions import get_region_by_code
+from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
 from shared.read.layout_reads import get_active_layout
 from shared.read.market_reads import get_market_by_code
 from shared.schemas.layout_schemas import LayoutCreate, LayoutOut, LayoutUpdate, PublishPlacementsOut
@@ -189,6 +189,8 @@ async def publish_placements(
     *,
     page_name: str,
     market_code: str,
+    town: str | None = None,
+    region_code: str | None = None,
     actor_id: str | None = None,
 ) -> PublishPlacementsOut:
     """Promote staged draft homepage placements to the live layout.
@@ -212,7 +214,26 @@ async def publish_placements(
         raise NotFoundError("Market not found")
 
     market_id = str(market["_id"])
-    layout = await get_active_layout(db, market_id=market_id, page_name=normalized_page)
+    requested_region_code = (region_code or "").strip().lower() or None
+    if not requested_region_code and town:
+        requested_region_code = await resolve_region_code_from_legacy(
+            db,
+            market_code=market_code,
+            town=town,
+        )
+
+    region_id: str | None = None
+    if requested_region_code:
+        region = await get_region_by_code(db, requested_region_code)
+        if region is not None:
+            region_id = str(region["_id"])
+
+    layout = await get_active_layout(
+        db,
+        market_id=market_id,
+        region_id=region_id,
+        page_name=normalized_page,
+    )
     if layout is None:
         raise NotFoundError("Active layout not found for page")
 

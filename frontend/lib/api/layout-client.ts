@@ -6,6 +6,7 @@ import {
   DEFAULT_EDITOR_MARKET_CODE,
   DEFAULT_EDITOR_PAGE_NAME,
 } from '@/lib/editor/editor-scope'
+import { toRegionCode } from '@/lib/region-code'
 
 /** Layout metadata returned by the layout admin API. */
 export interface ILayoutOut {
@@ -61,6 +62,8 @@ const HERO_POSITION_KEY = 'hero'
 interface ILayoutScopeParams {
   marketCode?: string
   townId?: string | null
+  countyId?: string | null
+  regionCode?: string | null
   pageName?: string
 }
 
@@ -102,10 +105,17 @@ export function getLayoutSlots(layoutId: string): Promise<ISlotOut[]> {
  */
 export function getArticlePlacements(
   marketCode = DEFAULT_EDITOR_MARKET_CODE,
+  regionCode?: string,
+  townId?: string | null,
 ): Promise<IArticlePlacementsOut> {
-  return apiFetch<IArticlePlacementsOut>(
-    `${apiConfig.layout}/layouts/placements?market=${encodeURIComponent(marketCode)}`,
-  )
+  const params = new URLSearchParams({ market: marketCode })
+  if (townId) {
+    params.set('town', townId)
+  }
+  if (regionCode) {
+    params.set('region_code', regionCode)
+  }
+  return apiFetch<IArticlePlacementsOut>(`${apiConfig.layout}/layouts/placements?${params.toString()}`)
 }
 
 /**
@@ -189,6 +199,8 @@ export function mapPreviewFeedToHomepageFeed(payload: IPreviewFeedOut): IHomepag
 export function getHomepagePreviewFeed(params: ILayoutScopeParams = {}): Promise<IHomepageFeed> {
   const marketCode = params.marketCode ?? DEFAULT_EDITOR_MARKET_CODE
   const pageName = params.pageName ?? DEFAULT_EDITOR_PAGE_NAME
+  const resolvedRegionCode =
+    params.regionCode ?? toRegionCode(marketCode, params.townId ?? null, params.countyId ?? null)
   const queryParams = new URLSearchParams({
     market: marketCode,
     page_name: pageName,
@@ -196,7 +208,7 @@ export function getHomepagePreviewFeed(params: ILayoutScopeParams = {}): Promise
   if (params.townId) {
     queryParams.set('town', params.townId)
   }
-  queryParams.set('region_code', `${marketCode}${params.townId ? `-${params.townId}` : ''}`)
+  queryParams.set('region_code', resolvedRegionCode)
   return apiFetch<IPreviewFeedOut>(`${apiConfig.layout}/layouts/preview-feed?${queryParams.toString()}`, {
     cache: 'no-store',
   }).then(
@@ -227,9 +239,12 @@ export function patchSlotDraftPinnedIds(slotId: string, draftPinnedIds: string[]
 export function publishHomepagePlacements(scope: ILayoutScopeParams = {}): Promise<IPublishPlacementsOut> {
   const marketCode = scope.marketCode ?? DEFAULT_EDITOR_MARKET_CODE
   const pageName = scope.pageName ?? DEFAULT_EDITOR_PAGE_NAME
+  const resolvedRegionCode =
+    scope.regionCode ?? toRegionCode(marketCode, scope.townId ?? null, scope.countyId ?? null)
   const params = new URLSearchParams({
     market: marketCode,
     page_name: pageName,
+    region_code: resolvedRegionCode,
   })
   if (scope.townId) {
     params.set('town', scope.townId)

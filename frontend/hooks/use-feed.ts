@@ -9,8 +9,8 @@ import { toRegionCode } from '@/lib/region-code'
  * Fetches the homepage feed for the active market from GraphQL.
  */
 export function useFeed() {
-  const { marketCode, town } = useMarket()
-  const regionCode = toRegionCode(marketCode, town)
+  const { marketCode, town, county } = useMarket()
+  const regionCode = toRegionCode(marketCode, town, county)
 
   const result = useQuery(HOMEPAGE_FEED_QUERY, {
     variables: { market: marketCode, town: town ?? null, regionCode },

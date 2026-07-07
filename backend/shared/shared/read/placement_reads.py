@@ -8,6 +8,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.markets import DEFAULT_MARKET_CODE
+from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
 from shared.read.collections import ARTICLES_COLLECTION
 from shared.read.layout_reads import get_active_layout
 from shared.read.market_reads import get_market_by_code
@@ -49,6 +50,17 @@ def _published_market_query(market_id: str) -> dict[str, Any]:
     """Mongo filter for published articles in a market."""
 
     return {"status": "published", "market_ids": market_id}
+
+
+def _published_scope_query(market_id: str, region_id: str | None) -> dict[str, Any]:
+    """Mongo filter for region-aware (or market fallback) published articles."""
+
+    if region_id:
+        return {
+            "status": "published",
+            "effective_region_ids": region_id,
+        }
+    return _published_market_query(market_id)
 
 
 async def _article_ids_for_query_rule(
@@ -132,6 +144,8 @@ async def get_article_placements(
     db: AsyncIOMotorDatabase,
     *,
     market_code: str = DEFAULT_MARKET_CODE,
+    town: str | None = None,
+    region_code: str | None = None,
     page_names: tuple[str, ...] = DEFAULT_EDITOR_PAGE_NAMES,
 ) -> dict[str, list[ArticlePlacementOut]]:
     """Resolve homepage/world slot placements for editor staging and review.
@@ -150,11 +164,30 @@ async def get_article_placements(
         return {}
 
     market_id = str(market["_id"])
-    base_query = _published_market_query(market_id)
+    requested_region_code = (region_code or "").strip().lower() or None
+    if not requested_region_code and town:
+        requested_region_code = await resolve_region_code_from_legacy(
+            db,
+            market_code=market_code,
+            town=town,
+        )
+
+    region_id: str | None = None
+    if requested_region_code:
+        region = await get_region_by_code(db, requested_region_code)
+        if region is not None:
+            region_id = str(region["_id"])
+
+    base_query = _published_scope_query(market_id, region_id)
     placements_by_article: dict[str, list[ArticlePlacementOut]] = defaultdict(list)
 
     for page_name in page_names:
-        layout = await get_active_layout(db, market_id=market_id, page_name=page_name)
+        layout = await get_active_layout(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            page_name=page_name,
+        )
         if layout is None:
             continue
 
