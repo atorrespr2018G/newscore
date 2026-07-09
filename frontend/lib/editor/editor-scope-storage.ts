@@ -130,6 +130,20 @@ export function resolveInitialEditorScope(): IEditorScope {
   if (stored) {
     return normalizeEditorScope(stored)
   }
+  return resolveEditorScopeFromToken()
+}
+
+/**
+ * Resolve an editor scope from auth context only (ignores shared scope storage).
+ *
+ * Useful for admin surfaces that must not follow Placement scope changes.
+ *
+ * @returns Normalized scope using JWT market fallback.
+ */
+export function resolveEditorScopeFromToken(): IEditorScope {
+  if (typeof window === 'undefined') {
+    return DEFAULT_EDITOR_SCOPE
+  }
   const token = getStoredToken()
   const payload = token ? decodeJwtPayload(token) : null
   const payloadWithMarket = payload as { market_code?: string } | null
