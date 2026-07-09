@@ -2,9 +2,12 @@ import { getStoredToken } from '@/lib/api/auth'
 import {
   DEFAULT_EDITOR_MARKET_CODE,
   DEFAULT_EDITOR_SCOPE,
+  isEditorMarketCode,
   type IEditorScope,
 } from '@/lib/editor/editor-scope'
-import { normalizeFloridaCountyCode } from '@/lib/florida-counties'
+import { FLORIDA_STATE_CODE, normalizeFloridaCountyCode } from '@/lib/florida-counties'
+import { PUERTO_RICO_MARKET_CODE, isValidPuertoRicoTownCode } from '@/lib/puerto-rico-towns'
+import { US_MARKET_CODE, isValidUsStateCode } from '@/lib/us-states'
 import { decodeJwtPayload } from '@/lib/helpers/jwt'
 
 /** localStorage key persisting the active editor scope across windows. */
@@ -14,6 +17,42 @@ const EDITOR_SCOPE_STORAGE_KEY = 'editor-scope'
 const EDITOR_SCOPE_CHANNEL_NAME = 'editor-scope-sync'
 
 let broadcastChannel: BroadcastChannel | null = null
+
+function normalizeEditorScope(partial: Partial<IEditorScope>): IEditorScope {
+  const normalizedMarket =
+    typeof partial.marketCode === 'string' ? partial.marketCode.trim().toLowerCase() : DEFAULT_EDITOR_MARKET_CODE
+  const marketCode = isEditorMarketCode(normalizedMarket)
+    ? normalizedMarket
+    : DEFAULT_EDITOR_MARKET_CODE
+
+  let townId: string | null = typeof partial.townId === 'string' ? partial.townId.trim().toLowerCase() : null
+  let countyId: string | null =
+    typeof partial.countyId === 'string' ? normalizeFloridaCountyCode(partial.countyId) : null
+
+  if (marketCode === US_MARKET_CODE) {
+    if (!townId || !isValidUsStateCode(townId)) {
+      townId = null
+    }
+    if (townId !== FLORIDA_STATE_CODE) {
+      countyId = null
+    }
+  } else if (marketCode === PUERTO_RICO_MARKET_CODE) {
+    if (!townId || !isValidPuertoRicoTownCode(townId)) {
+      townId = null
+    }
+    countyId = null
+  } else {
+    townId = null
+    countyId = null
+  }
+
+  return {
+    marketCode,
+    townId,
+    countyId,
+    pageName: typeof partial.pageName === 'string' ? partial.pageName : DEFAULT_EDITOR_SCOPE.pageName,
+  }
+}
 
 /**
  * Lazily open the shared broadcast channel for editor scope sync.
@@ -42,15 +81,7 @@ function parseEditorScope(raw: string): IEditorScope | null {
     if (typeof parsed.marketCode !== 'string' || typeof parsed.pageName !== 'string') {
       return null
     }
-    return {
-      marketCode: parsed.marketCode,
-      townId: typeof parsed.townId === 'string' ? parsed.townId : null,
-      countyId:
-        typeof parsed.countyId === 'string'
-          ? normalizeFloridaCountyCode(parsed.countyId)
-          : null,
-      pageName: parsed.pageName,
-    }
+    return normalizeEditorScope(parsed)
   } catch {
     return null
   }
@@ -78,8 +109,9 @@ export function persistEditorScope(scope: IEditorScope): void {
   if (typeof window === 'undefined') {
     return
   }
-  localStorage.setItem(EDITOR_SCOPE_STORAGE_KEY, JSON.stringify(scope))
-  getBroadcastChannel()?.postMessage(scope)
+  const normalizedScope = normalizeEditorScope(scope)
+  localStorage.setItem(EDITOR_SCOPE_STORAGE_KEY, JSON.stringify(normalizedScope))
+  getBroadcastChannel()?.postMessage(normalizedScope)
 }
 
 /**
@@ -96,15 +128,15 @@ export function resolveInitialEditorScope(): IEditorScope {
   }
   const stored = readStoredEditorScope()
   if (stored) {
-    return stored
+    return normalizeEditorScope(stored)
   }
   const token = getStoredToken()
   const payload = token ? decodeJwtPayload(token) : null
   const payloadWithMarket = payload as { market_code?: string } | null
-  return {
+  return normalizeEditorScope({
     ...DEFAULT_EDITOR_SCOPE,
     marketCode: payloadWithMarket?.market_code ?? DEFAULT_EDITOR_MARKET_CODE,
-  }
+  })
 }
 
 /**

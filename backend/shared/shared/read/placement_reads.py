@@ -8,7 +8,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.markets import DEFAULT_MARKET_CODE
-from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
+from shared.core.regions import get_ancestor_chain, get_region_by_code, resolve_region_code_from_legacy
 from shared.read.collections import ARTICLES_COLLECTION
 from shared.read.layout_reads import get_active_layout
 from shared.read.market_reads import get_market_by_code
@@ -63,11 +63,22 @@ def _published_scope_query(market_id: str, region_id: str | None) -> dict[str, A
     return _published_market_query(market_id)
 
 
+def _published_scope_queries(market_id: str, region_id: str | None) -> list[dict[str, Any]]:
+    """Return ordered published-article queries with market fallback."""
+
+    if region_id:
+        return [
+            {"status": "published", "effective_region_ids": region_id},
+            _published_market_query(market_id),
+        ]
+    return [_published_market_query(market_id)]
+
+
 async def _article_ids_for_query_rule(
     db: AsyncIOMotorDatabase,
     *,
     query_rule: dict[str, Any],
-    base_query: dict[str, Any],
+    base_queries: list[dict[str, Any]],
     limit: int | None = None,
     excluded_ids: set[str] | None = None,
 ) -> list[str]:
@@ -76,30 +87,36 @@ async def _article_ids_for_query_rule(
     Args:
         db: Database connection.
         query_rule: Slot query rule payload.
-        base_query: Base article filter (market + published).
+        base_queries: Ordered article filters (region first, then market fallback).
 
     Returns:
         Ordered article ids matching the rule.
     """
 
     query_limit = limit if limit is not None else _query_rule_limit(query_rule)
-    query: dict[str, Any] = dict(base_query)
-    if excluded_ids:
-        query["_id"] = {"$nin": list(excluded_ids)}
     category_id = query_rule.get("category_id")
-    if category_id:
-        # Match legacy single-category articles plus multi-category articles
-        # that include this category in their category_ids list.
-        query["$or"] = [{"category_id": category_id}, {"category_ids": category_id}]
-    cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
-    return [str(doc["_id"]) async for doc in cursor]
+
+    for base_query in base_queries:
+        query: dict[str, Any] = dict(base_query)
+        if excluded_ids:
+            query["_id"] = {"$nin": list(excluded_ids)}
+        if category_id:
+            # Match legacy single-category articles plus multi-category articles
+            # that include this category in their category_ids list.
+            query["$or"] = [{"category_id": category_id}, {"category_ids": category_id}]
+        cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
+        docs = [doc async for doc in cursor]
+        if docs:
+            return [str(doc["_id"]) for doc in docs]
+
+    return []
 
 
 async def _article_ids_for_slot(
     db: AsyncIOMotorDatabase,
     *,
     slot: dict[str, Any],
-    base_query: dict[str, Any],
+    base_queries: list[dict[str, Any]],
     use_draft_pins: bool = False,
 ) -> list[str]:
     """Resolve ordered article ids occupying a slot.
@@ -107,7 +124,7 @@ async def _article_ids_for_slot(
     Args:
         db: Database connection.
         slot: Slot document from layout reads.
-        base_query: Base article filter (market + published).
+        base_queries: Base article filters (region first, then market fallback).
         use_draft_pins: When True, resolve staged editor pins instead of live pins.
 
     Returns:
@@ -133,7 +150,7 @@ async def _article_ids_for_slot(
     query_ids = await _article_ids_for_query_rule(
         db,
         query_rule=query_rule,
-        base_query=base_query,
+        base_queries=base_queries,
         limit=limit,
         excluded_ids=set(pinned_ids),
     )
@@ -178,24 +195,20 @@ async def get_article_placements(
         if region is not None:
             region_id = str(region["_id"])
 
-    base_query = _published_scope_query(market_id, region_id)
+    base_queries = _published_scope_queries(market_id, region_id)
     placements_by_article: dict[str, list[ArticlePlacementOut]] = defaultdict(list)
 
-    for page_name in page_names:
-        layout = await get_active_layout(
-            db,
-            market_id=market_id,
-            region_id=region_id,
-            page_name=page_name,
-        )
-        if layout is None:
-            continue
-
-        for slot in layout["slots"]:
+    async def collect_from_layout(
+        active_layout: dict[str, Any],
+        *,
+        active_base_queries: list[dict[str, Any]],
+        page_name: str,
+    ) -> None:
+        for slot in active_layout["slots"]:
             article_ids = await _article_ids_for_slot(
                 db,
                 slot=slot,
-                base_query=base_query,
+                base_queries=active_base_queries,
                 use_draft_pins=True,
             )
             if not article_ids:
@@ -212,5 +225,37 @@ async def get_article_placements(
                         position=index,
                     ),
                 )
+
+    for page_name in page_names:
+        layout = await get_active_layout(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            page_name=page_name,
+        )
+        if layout is None:
+            continue
+
+        before_count = len(placements_by_article)
+        await collect_from_layout(layout, active_base_queries=base_queries, page_name=page_name)
+        if region_id and len(placements_by_article) == before_count:
+            chain = await get_ancestor_chain(db, region_id)
+            for ancestor in chain[1:]:
+                ancestor_id = str(ancestor["_id"])
+                ancestor_layout = await get_active_layout(
+                    db,
+                    market_id=market_id,
+                    region_id=ancestor_id,
+                    page_name=page_name,
+                )
+                if ancestor_layout is None:
+                    continue
+                await collect_from_layout(
+                    ancestor_layout,
+                    active_base_queries=_published_scope_queries(market_id, ancestor_id),
+                    page_name=page_name,
+                )
+                if len(placements_by_article) > before_count:
+                    break
 
     return dict(placements_by_article)

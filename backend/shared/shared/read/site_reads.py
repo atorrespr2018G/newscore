@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.feature_flags import geo_read_from_regions
 from shared.core.markets import DEFAULT_MARKET_CODE
-from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
+from shared.core.regions import get_ancestor_chain, get_region_by_code, resolve_region_code_from_legacy
 from shared.read.article_reads import article_out, list_by_ids_for_preview, list_published_by_ids
 from shared.read.collections import ARTICLES_COLLECTION, WIDGETS_COLLECTION
 from shared.read.layout_reads import get_active_layout
@@ -78,6 +78,23 @@ def _article_scope_query(
     return q
 
 
+def _article_scope_queries(
+    market_id: str | None,
+    *,
+    town: str | None = None,
+    region_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Return ordered scope queries with a market fallback for empty regions."""
+
+    market_query = _article_scope_query(market_id, town=town, region_id=None)
+    if geo_read_from_regions() and region_id:
+        return [
+            {"status": "published", "effective_region_ids": region_id},
+            _article_scope_query(market_id, town=None, region_id=None),
+        ]
+    return [market_query]
+
+
 def _empty_feed(
     *,
     page_name: str,
@@ -127,7 +144,7 @@ async def _resolve_slot_articles_with_pinned_loader(
     slot: dict[str, Any],
     market_id: str | None,
     town: str | None,
-    base_query: dict[str, Any],
+    base_queries: list[dict[str, Any]],
     loader: AuthorNameLoader,
     pinned_loader: PinnedLoader,
 ) -> list[ArticleOut]:
@@ -158,7 +175,7 @@ async def _resolve_slot_articles_with_pinned_loader(
     query_articles = await _query_rule_articles(
         db,
         query_rule=query_rule,
-        base_query=base_query,
+        base_queries=base_queries,
         loader=loader,
         limit=limit,
         excluded_ids={article.id for article in pinned_articles},
@@ -172,7 +189,7 @@ async def _resolve_slot_articles(
     slot: dict[str, Any],
     market_id: str | None,
     town: str | None,
-    base_query: dict[str, Any],
+    base_queries: list[dict[str, Any]],
     loader: AuthorNameLoader,
 ) -> list[ArticleOut]:
     """Resolve slot articles using published-only pinned ids."""
@@ -182,7 +199,7 @@ async def _resolve_slot_articles(
         slot=slot,
         market_id=market_id,
         town=town,
-        base_query=base_query,
+        base_queries=base_queries,
         loader=loader,
         pinned_loader=list_published_by_ids,
     )
@@ -194,7 +211,7 @@ async def _resolve_slot_articles_preview(
     slot: dict[str, Any],
     market_id: str | None,
     town: str | None,
-    base_query: dict[str, Any],
+    base_queries: list[dict[str, Any]],
     loader: AuthorNameLoader,
 ) -> list[ArticleOut]:
     """Resolve slot articles with draft-inclusive pinned ids and published query-fill."""
@@ -204,7 +221,7 @@ async def _resolve_slot_articles_preview(
         slot=slot,
         market_id=market_id,
         town=town,
-        base_query=base_query,
+        base_queries=base_queries,
         loader=loader,
         pinned_loader=list_by_ids_for_preview,
     )
@@ -214,7 +231,7 @@ async def _query_rule_articles(
     db: AsyncIOMotorDatabase,
     *,
     query_rule: dict[str, Any],
-    base_query: dict[str, Any],
+    base_queries: list[dict[str, Any]],
     loader: AuthorNameLoader,
     limit: int | None = None,
     excluded_ids: set[str] | None = None,
@@ -222,18 +239,24 @@ async def _query_rule_articles(
     """Resolve slot articles from a query-rule specification."""
 
     query_limit = limit if limit is not None else _query_rule_limit(query_rule)
-    query: dict[str, Any] = dict(base_query)
-    if excluded_ids:
-        query["_id"] = {"$nin": list(excluded_ids)}
     category_id = query_rule.get("category_id")
-    if category_id:
-        # Match legacy single-category articles plus multi-category articles
-        # that include this category in their category_ids list.
-        query["$or"] = [{"category_id": category_id}, {"category_ids": category_id}]
-    cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
-    docs = [doc async for doc in cursor]
-    await loader.load_many([str(doc["author_id"]) for doc in docs])
-    return [article_out(doc, author_name=await loader.load(str(doc["author_id"]))) for doc in docs]
+
+    for base_query in base_queries:
+        query: dict[str, Any] = dict(base_query)
+        if excluded_ids:
+            query["_id"] = {"$nin": list(excluded_ids)}
+        if category_id:
+            # Match legacy single-category articles plus multi-category articles
+            # that include this category in their category_ids list.
+            query["$or"] = [{"category_id": category_id}, {"category_ids": category_id}]
+        cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
+        docs = [doc async for doc in cursor]
+        if not docs:
+            continue
+        await loader.load_many([str(doc["author_id"]) for doc in docs])
+        return [article_out(doc, author_name=await loader.load(str(doc["author_id"]))) for doc in docs]
+
+    return []
 
 
 def _slot_to_feed_slot(slot: dict[str, Any], articles: list[ArticleOut]) -> dict[str, Any]:
@@ -310,21 +333,51 @@ async def get_home_feed(
         )
 
     loader = AuthorNameLoader(db)
-    base_query = _article_scope_query(market_id, town=town, region_id=region_id)
-    out_slots = [
-        _slot_to_feed_slot(
-            slot,
-            await _resolve_slot_articles(
+    base_queries = _article_scope_queries(market_id, town=town, region_id=region_id)
+
+    async def build_slots(
+        active_layout: dict[str, Any],
+        *,
+        active_base_queries: list[dict[str, Any]],
+        active_town: str | None,
+    ) -> list[dict[str, Any]]:
+        return [
+            _slot_to_feed_slot(
+                slot,
+                await _resolve_slot_articles(
+                    db,
+                    slot=slot,
+                    market_id=market_id,
+                    town=active_town,
+                    base_queries=active_base_queries,
+                    loader=loader,
+                ),
+            )
+            for slot in active_layout["slots"]
+        ]
+
+    out_slots = await build_slots(layout, active_base_queries=base_queries, active_town=town)
+    if region_id and not any(slot["articles"] for slot in out_slots):
+        chain = await get_ancestor_chain(db, region_id)
+        for ancestor in chain[1:]:
+            ancestor_id = str(ancestor["_id"])
+            ancestor_layout = await get_active_layout(
                 db,
-                slot=slot,
                 market_id=market_id,
-                town=town,
-                base_query=base_query,
-                loader=loader,
-            ),
-        )
-        for slot in layout["slots"]
-    ]
+                region_id=ancestor_id,
+                page_name=normalized_page,
+            )
+            if ancestor_layout is None:
+                continue
+            ancestor_slots = await build_slots(
+                ancestor_layout,
+                active_base_queries=_article_scope_queries(market_id, town=None, region_id=ancestor_id),
+                active_town=None,
+            )
+            if any(slot["articles"] for slot in ancestor_slots):
+                layout = ancestor_layout
+                out_slots = ancestor_slots
+                break
 
     return {
         "layout_id": layout["layout_id"],
@@ -385,21 +438,51 @@ async def get_home_feed_preview(
         )
 
     loader = AuthorNameLoader(db)
-    base_query = _article_scope_query(market_id, town=town, region_id=region_id)
-    out_slots = [
-        _slot_to_feed_slot(
-            slot,
-            await _resolve_slot_articles_preview(
+    base_queries = _article_scope_queries(market_id, town=town, region_id=region_id)
+
+    async def build_slots(
+        active_layout: dict[str, Any],
+        *,
+        active_base_queries: list[dict[str, Any]],
+        active_town: str | None,
+    ) -> list[dict[str, Any]]:
+        return [
+            _slot_to_feed_slot(
+                slot,
+                await _resolve_slot_articles_preview(
+                    db,
+                    slot=slot_with_preview_pins(slot),
+                    market_id=market_id,
+                    town=active_town,
+                    base_queries=active_base_queries,
+                    loader=loader,
+                ),
+            )
+            for slot in active_layout["slots"]
+        ]
+
+    out_slots = await build_slots(layout, active_base_queries=base_queries, active_town=town)
+    if region_id and not any(slot["articles"] for slot in out_slots):
+        chain = await get_ancestor_chain(db, region_id)
+        for ancestor in chain[1:]:
+            ancestor_id = str(ancestor["_id"])
+            ancestor_layout = await get_active_layout(
                 db,
-                slot=slot_with_preview_pins(slot),
                 market_id=market_id,
-                town=town,
-                base_query=base_query,
-                loader=loader,
-            ),
-        )
-        for slot in layout["slots"]
-    ]
+                region_id=ancestor_id,
+                page_name=normalized_page,
+            )
+            if ancestor_layout is None:
+                continue
+            ancestor_slots = await build_slots(
+                ancestor_layout,
+                active_base_queries=_article_scope_queries(market_id, town=None, region_id=ancestor_id),
+                active_town=None,
+            )
+            if any(slot["articles"] for slot in ancestor_slots):
+                layout = ancestor_layout
+                out_slots = ancestor_slots
+                break
 
     return {
         "layout_id": layout["layout_id"],

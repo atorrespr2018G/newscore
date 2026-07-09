@@ -3,7 +3,6 @@
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { EditorScopeSwitcher } from '@/components/features/editor-scope-switcher'
 import { EditorStoryPool } from '@/components/features/editor-story-pool'
 import { EditorPoolSkeleton } from '@/components/features/editor-skeletons'
 import { useToast } from '@/components/ui/toast'
@@ -25,7 +24,6 @@ export default function EditorNewsPage(): JSX.Element {
   return (
     <div>
       <NewsHeader />
-      <EditorScopeSwitcher />
 
       {news.loading ? (
         <div className="mt-6">

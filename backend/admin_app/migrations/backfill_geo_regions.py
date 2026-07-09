@@ -18,7 +18,7 @@ from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
-from shared.core.regions import effective_region_ids
+from shared.core.regions import effective_region_ids, get_ancestor_chain
 
 REGIONS_COLLECTION = "regions"
 MARKETS_COLLECTION = "markets"
@@ -42,6 +42,7 @@ class BackfillStats:
     articles_updated: int = 0
     layouts_scanned: int = 0
     layouts_updated: int = 0
+    layouts_created: int = 0
     unresolved_market_ids: int = 0
     unresolved_town_ids: int = 0
 
@@ -332,6 +333,157 @@ async def _backfill_layouts(
         stats.layouts_updated += 1
 
 
+async def _clone_layout_slots(
+    db: AsyncIOMotorDatabase,
+    *,
+    source_layout_id: str,
+    target_layout_id: str,
+    dry_run: bool,
+) -> list[str]:
+    """Clone all slots from source layout to target layout preserving order."""
+
+    slots_cursor = db["slots"].find({"layout_id": source_layout_id})
+    slots = [slot async for slot in slots_cursor]
+    slots.sort(key=lambda slot: int(slot.get("order_index") or 0))
+
+    slot_ids: list[str] = []
+    for slot in slots:
+        slot_id = str(uuid4())
+        slot_ids.append(slot_id)
+        if dry_run:
+            continue
+        await db["slots"].insert_one(
+            {
+                "_id": slot_id,
+                "layout_id": target_layout_id,
+                "position_key": slot.get("position_key"),
+                "content_type": slot.get("content_type"),
+                "display_name": slot.get("display_name"),
+                "presentation_type": slot.get("presentation_type"),
+                "pinned_ids": list(slot.get("pinned_ids") or []),
+                "draft_pinned_ids": (
+                    list(slot.get("draft_pinned_ids"))
+                    if slot.get("draft_pinned_ids") is not None
+                    else None
+                ),
+                "query_rule": slot.get("query_rule"),
+                "order_index": int(slot.get("order_index") or 0),
+                "updated_at": _utc_now_iso(),
+            }
+        )
+
+    return slot_ids
+
+
+async def _find_source_layout_for_region(
+    db: AsyncIOMotorDatabase,
+    *,
+    page_name: str,
+    target_region_id: str,
+    fallback_market_id: str,
+) -> dict[str, Any] | None:
+    """Resolve best source layout from ancestor region chain, then market layout."""
+
+    ancestor_chain = await get_ancestor_chain(db, target_region_id)
+    for node in ancestor_chain[1:]:
+        layout = await db[LAYOUTS_COLLECTION].find_one(
+            {
+                "page_name": page_name,
+                "region_id": str(node["_id"]),
+                "is_active": True,
+            }
+        )
+        if layout is not None:
+            return layout
+
+    return await db[LAYOUTS_COLLECTION].find_one(
+        {
+            "page_name": page_name,
+            "market_id": fallback_market_id,
+            "is_active": True,
+        }
+    )
+
+
+async def _ensure_rollout_region_layouts(
+    db: AsyncIOMotorDatabase,
+    *,
+    dry_run: bool,
+    stats: BackfillStats,
+) -> None:
+    """Ensure homepage layouts exist for rollout region scopes."""
+
+    market_docs = db[MARKETS_COLLECTION].find({}, {"_id": 1, "code": 1})
+    market_id_by_code = {_norm(str(doc.get("code") or "")): str(doc["_id"]) async for doc in market_docs}
+
+    rollout_region_codes = (
+        "us",
+        "us-fl",
+        "us-fl-miami-dade",
+        "pr",
+        "pr-san-juan",
+    )
+
+    for region_code in rollout_region_codes:
+        region = await db[REGIONS_COLLECTION].find_one(
+            {"code": region_code, "is_active": True},
+            {"_id": 1, "country_code": 1},
+        )
+        if region is None:
+            continue
+
+        existing = await db[LAYOUTS_COLLECTION].find_one(
+            {
+                "page_name": "homepage",
+                "region_id": str(region["_id"]),
+                "is_active": True,
+            },
+            {"_id": 1},
+        )
+        if existing is not None:
+            continue
+
+        country_code = _norm(str(region.get("country_code") or ""))
+        fallback_market_id = market_id_by_code.get(country_code)
+        if not fallback_market_id:
+            continue
+
+        source_layout = await _find_source_layout_for_region(
+            db,
+            page_name="homepage",
+            target_region_id=str(region["_id"]),
+            fallback_market_id=fallback_market_id,
+        )
+        if source_layout is None:
+            continue
+
+        new_layout_id = str(uuid4())
+        now = _utc_now_iso()
+        cloned_slot_ids = await _clone_layout_slots(
+            db,
+            source_layout_id=str(source_layout["_id"]),
+            target_layout_id=new_layout_id,
+            dry_run=dry_run,
+        )
+
+        if not dry_run:
+            await db[LAYOUTS_COLLECTION].insert_one(
+                {
+                    "_id": new_layout_id,
+                    "page_name": "homepage",
+                    "market_id": fallback_market_id,
+                    "region_id": str(region["_id"]),
+                    "scope_mode": "inherit_from_ancestor",
+                    "inherit_depth_limit": None,
+                    "slot_ids": cloned_slot_ids,
+                    "is_active": True,
+                    "updated_at": now,
+                }
+            )
+
+        stats.layouts_created += 1
+
+
 async def _collect_reconciliation(db: AsyncIOMotorDatabase) -> dict[str, Any]:
     active_articles = await db[ARTICLES_COLLECTION].count_documents({"status": "published"})
     articles_with_effective = await db[ARTICLES_COLLECTION].count_documents(
@@ -371,6 +523,7 @@ async def run_backfill(*, dry_run: bool, report_path: Path) -> dict[str, Any]:
 
         await _backfill_articles(db, dry_run=dry_run, stats=stats)
         await _backfill_layouts(db, dry_run=dry_run, stats=stats)
+        await _ensure_rollout_region_layouts(db, dry_run=dry_run, stats=stats)
 
         reconciliation = await _collect_reconciliation(db)
     finally:
@@ -383,6 +536,13 @@ async def run_backfill(*, dry_run: bool, report_path: Path) -> dict[str, Any]:
             "top_level": ["us", "pr"],
             "us_state": "fl",
             "pr_children_kind": "municipality",
+            "rollout_homepage_region_codes": [
+                "us",
+                "us-fl",
+                "us-fl-miami-dade",
+                "pr",
+                "pr-san-juan",
+            ],
         },
         "stats": {
             "regions_created": stats.regions_created,
@@ -391,6 +551,7 @@ async def run_backfill(*, dry_run: bool, report_path: Path) -> dict[str, Any]:
             "articles_updated": stats.articles_updated,
             "layouts_scanned": stats.layouts_scanned,
             "layouts_updated": stats.layouts_updated,
+            "layouts_created": stats.layouts_created,
             "unresolved_market_ids": stats.unresolved_market_ids,
             "unresolved_town_ids": stats.unresolved_town_ids,
         },
