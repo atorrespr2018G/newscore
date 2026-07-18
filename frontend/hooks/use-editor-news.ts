@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { useEditorScope } from '@/context/editor-scope-context'
 import { useEditorStatus } from '@/hooks/use-editor-status'
 import { useEditorArticlePool } from '@/hooks/use-editor-article-pool'
 import { useArticleDetailEditor } from '@/hooks/use-article-detail-editor'
 import { useArticlePlacements } from '@/hooks/use-article-placements'
 import type { IEditorNews } from '@/interfaces/editor-article'
-import type { IEditorScope } from '@/lib/editor/editor-scope'
-import { resolveEditorScopeFromToken } from '@/lib/editor/editor-scope-storage'
 
 /**
  * Orchestrate the News page: article pool, detail editing, and placement labels.
@@ -21,7 +20,7 @@ import { resolveEditorScopeFromToken } from '@/lib/editor/editor-scope-storage'
  */
 export function useEditorNews(): IEditorNews {
   const t = useTranslations('admin')
-  const [scope] = useState<IEditorScope>(() => resolveEditorScopeFromToken())
+  const scope = useEditorScope()
   const status = useEditorStatus()
   const pool = useEditorArticlePool()
   const detailEditor = useArticleDetailEditor(status, scope, pool.updateArticleRow)

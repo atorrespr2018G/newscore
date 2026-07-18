@@ -35,6 +35,21 @@ export interface IArticleDetail {
   category_ids: string[]
   story_id: string | null
   international_potential: number | null
+  market_ids: string[]
+  direct_region_ids: string[]
+  effective_region_ids: string[]
+  primary_region_id: string | null
+}
+
+export interface IEditorScopeDebug {
+  articleId: string
+  queryPath: string
+  primaryRegionId: string | null
+  directRegionIds: string[]
+  effectiveRegionIds: string[]
+  regionToken: string | null
+  regionLookupSource: 'code' | 'region-id' | 'none' | 'lookup-error'
+  resolvedRegionCode: string | null
 }
 
 /** A media asset attached to an article (image or video). */
@@ -82,6 +97,7 @@ export interface IArticleDetailEditor {
   setArticleIdInput: Dispatch<SetStateAction<string>>
   detail: IArticleDetail | null
   setDetail: Dispatch<SetStateAction<IArticleDetail | null>>
+  scopeDebug: IEditorScopeDebug | null
   title: string
   setTitle: Dispatch<SetStateAction<string>>
   body: string

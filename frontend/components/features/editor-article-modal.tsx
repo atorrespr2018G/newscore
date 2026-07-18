@@ -5,11 +5,16 @@ import { useEffect, useMemo } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { InlineArticleTaxonomyEditor } from '@/components/features/inline-article-taxonomy-editor'
 import { StoryGroupCombobox } from '@/components/features/story-group-combobox'
+import { useEditorScopeContext } from '@/context/editor-scope-context'
 import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { LocalizedFileInput } from '@/components/ui/localized-file-input'
 import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/rich-text-editor'
+import { FLORIDA_COUNTY_OPTIONS, FLORIDA_STATE_CODE } from '@/lib/florida-counties'
 import type { ICategoryOut } from '@/lib/api/category-client'
 import type { IStoryGroupOut } from '@/lib/api/story-group-client'
+import { toRegionCode } from '@/lib/region-code'
+import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
+import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 import { MAX_TITLE_LENGTH, moveItem } from '@/lib/helpers/editor-curation'
 import type { IArticleDetail, ILoadedMedia } from '@/interfaces/editor-article'
 
@@ -199,6 +204,8 @@ function ModalBody(props: IEditorArticleEditPanelProps): JSX.Element {
   const toolbarLabels = useToolbarLabels()
   return (
     <div className="space-y-5 px-5 py-4">
+      <ScopeDefinitionEditor />
+
       <div>
         <span className="block text-sm font-medium text-neutral-700">
           {t('editor.detail.headline')}
@@ -271,6 +278,135 @@ function ModalBody(props: IEditorArticleEditPanelProps): JSX.Element {
         uploadingMedia={props.uploadingMedia}
       />
     </div>
+  )
+}
+
+/**
+ * Scope controls shown in the selected-news modal so editors can adjust where
+ * the story is being curated (market/state/county/town) without leaving edit mode.
+ *
+ * @returns Scope selector block and computed scope definition.
+ */
+function ScopeDefinitionEditor(): JSX.Element {
+  const t = useTranslations('admin')
+  const tNav = useTranslations('navigation')
+  const { scope, setScope } = useEditorScopeContext()
+
+  const showLocality = scope.marketCode === US_MARKET_CODE || scope.marketCode === PUERTO_RICO_MARKET_CODE
+  const showCounty = scope.marketCode === US_MARKET_CODE && scope.townId === FLORIDA_STATE_CODE
+
+  const stateLabel =
+    scope.marketCode === US_MARKET_CODE && scope.townId
+      ? US_STATE_OPTIONS.find((state) => state.code === scope.townId)?.label ?? scope.townId.toUpperCase()
+      : null
+  const townLabel =
+    scope.marketCode === PUERTO_RICO_MARKET_CODE && scope.townId
+      ? PUERTO_RICO_TOWN_OPTIONS.find((town) => town.code === scope.townId)?.label ?? scope.townId
+      : null
+  const countyLabel =
+    showCounty && scope.countyId
+      ? FLORIDA_COUNTY_OPTIONS.find((county) => county.code === scope.countyId)?.label ?? scope.countyId
+      : null
+
+  const definitionParts = [scope.marketCode.toUpperCase()]
+  if (stateLabel) {
+    definitionParts.push(stateLabel)
+  }
+  if (townLabel) {
+    definitionParts.push(townLabel)
+  }
+  if (countyLabel) {
+    definitionParts.push(countyLabel)
+  }
+  const regionCode = toRegionCode(scope.marketCode, scope.townId, scope.countyId)
+
+  function patchScope(patch: Partial<typeof scope>): void {
+    setScope({ ...scope, ...patch })
+  }
+
+  return (
+    <fieldset className="rounded border border-neutral-200 bg-neutral-50 p-3">
+      <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+        Scope definition
+      </legend>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className="text-xs font-medium text-neutral-700">
+          {t('editor.scope.market')}
+          <select
+            value={scope.marketCode}
+            onChange={(event) =>
+              patchScope({
+                marketCode: event.target.value,
+                townId: null,
+                countyId: null,
+              })
+            }
+            className="mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm capitalize"
+          >
+            <option value="us">US</option>
+            <option value="pr">PR</option>
+            <option value="co">CO</option>
+          </select>
+        </label>
+
+        {showLocality ? (
+          <label className="text-xs font-medium text-neutral-700">
+            {scope.marketCode === US_MARKET_CODE ? tNav('state') : tNav('town')}
+            <select
+              value={scope.townId ?? ''}
+              onChange={(event) =>
+                patchScope({
+                  townId: event.target.value || null,
+                  countyId:
+                    scope.marketCode === US_MARKET_CODE && event.target.value === FLORIDA_STATE_CODE
+                      ? scope.countyId
+                      : null,
+                })
+              }
+              className="mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">
+                {scope.marketCode === US_MARKET_CODE ? tNav('localityDefaultUs') : tNav('localityDefaultPr')}
+              </option>
+              {scope.marketCode === US_MARKET_CODE
+                ? US_STATE_OPTIONS.map((state) => (
+                    <option key={state.code} value={state.code}>
+                      {state.label}
+                    </option>
+                  ))
+                : PUERTO_RICO_TOWN_OPTIONS.map((town) => (
+                    <option key={town.code} value={town.code}>
+                      {town.label}
+                    </option>
+                  ))}
+            </select>
+          </label>
+        ) : null}
+
+        {showCounty ? (
+          <label className="text-xs font-medium text-neutral-700">
+            {tNav('county')}
+            <select
+              value={scope.countyId ?? ''}
+              onChange={(event) => patchScope({ countyId: event.target.value || null })}
+              className="mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">{tNav('county')}</option>
+              {FLORIDA_COUNTY_OPTIONS.map((county) => (
+                <option key={county.code} value={county.code}>
+                  {county.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      <p className="mt-3 text-xs text-neutral-600">
+        Definition: <span className="font-medium text-neutral-800">{definitionParts.join(' / ')}</span>{' '}
+        <span className="text-neutral-500">({regionCode})</span>
+      </p>
+    </fieldset>
   )
 }
 

@@ -140,6 +140,10 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
       category_ids: detail.category_ids ?? [],
       story_id: detail.story_id,
       international_potential: detail.international_potential ?? null,
+      market_ids: detail.market_ids ?? [],
+      direct_region_ids: detail.direct_region_ids ?? [],
+      effective_region_ids: detail.effective_region_ids ?? [],
+      primary_region_id: detail.primary_region_id ?? null,
     }
   }, [])
 

@@ -5,8 +5,10 @@ import { useTranslations } from 'next-intl'
 import { apiConfig } from '@/lib/api/config'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { getStoryGroups, type IStoryGroupOut } from '@/lib/api/story-group-client'
+import { getRegionById } from '@/lib/api/region-client'
 import { uploadImage, uploadVideo } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
+import { useEditorScopeContext } from '@/context/editor-scope-context'
 import {
   buildArticleGalleryMedia,
   galleryItemsToLoadedMedia,
@@ -14,13 +16,93 @@ import {
 import { uploadMediaInto, validateArticleEdits } from '@/lib/helpers/article-detail-editor'
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
 import type { IEditorScope } from '@/lib/editor/editor-scope'
+import { normalizeFloridaCountyCode } from '@/lib/florida-counties'
 import type {
   IArticleDetail,
   IArticleDetailEditor,
+  IEditorScopeDebug,
   IEditorStatus,
   IEditorStoryRow,
   ILoadedMedia,
 } from '@/interfaces/editor-article'
+import { PUERTO_RICO_MARKET_CODE } from '@/lib/puerto-rico-towns'
+import { US_MARKET_CODE } from '@/lib/us-states'
+
+/**
+ * Convert canonical region code into editor scope fields.
+ *
+ * Supports rollout scopes such as `us`, `us-fl`, `us-fl-miami-dade`,
+ * `pr`, and `pr-san-juan`.
+ */
+function scopeFromRegionCode(regionCode: string): Pick<IEditorScope, 'marketCode' | 'townId' | 'countyId'> | null {
+  const normalized = regionCode.trim().toLowerCase()
+  if (!normalized) {
+    return null
+  }
+
+  const parts = normalized.split('-')
+  const marketCode = parts[0]
+  if (!marketCode) {
+    return null
+  }
+
+  if (marketCode === US_MARKET_CODE) {
+    if (parts.length === 1) {
+      return { marketCode, townId: null, countyId: null }
+    }
+    const stateCode = parts[1] ?? null
+    if (!stateCode) {
+      return { marketCode, townId: null, countyId: null }
+    }
+    const countyCode = parts.length > 2 ? normalizeFloridaCountyCode(parts.slice(2).join('-')) : null
+    return {
+      marketCode,
+      townId: stateCode,
+      countyId: countyCode || null,
+    }
+  }
+
+  if (marketCode === PUERTO_RICO_MARKET_CODE) {
+    return {
+      marketCode,
+      townId: parts.length > 1 ? parts.slice(1).join('-') : null,
+      countyId: null,
+    }
+  }
+
+  return { marketCode, townId: null, countyId: null }
+}
+
+function looksLikeRegionCode(value: string): boolean {
+  return /^(us|pr|co)(-[a-z0-9]+)*$/i.test(value.trim())
+}
+
+async function resolveRegionCode(
+  token: string,
+): Promise<{ code: string | null; source: 'code' | 'region-id' | 'lookup-error' }> {
+  const normalized = token.trim().toLowerCase()
+  if (!normalized) {
+    return { code: null, source: 'lookup-error' }
+  }
+  if (looksLikeRegionCode(normalized)) {
+    return { code: normalized, source: 'code' }
+  }
+  try {
+    const region = await getRegionById(normalized)
+    return { code: region.code.trim().toLowerCase() || null, source: 'region-id' }
+  } catch {
+    return { code: null, source: 'lookup-error' }
+  }
+}
+
+function scopesEqual(a: IEditorScope, b: IEditorScope): boolean {
+  return (
+    a.marketCode === b.marketCode &&
+    a.townId === b.townId &&
+    a.countyId === b.countyId &&
+    a.pageName === b.pageName
+  )
+}
 
 /**
  * Manage the selected article's media/publish editing workflow.
@@ -36,10 +118,12 @@ export function useArticleDetailEditor(
   updateArticleRow: (articleId: string, patch: Partial<IEditorStoryRow>) => void,
 ): IArticleDetailEditor {
   const t = useTranslations('admin')
+  const { setScope } = useEditorScopeContext()
   const { setError, setMessage, setSaving } = status
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [articleIdInput, setArticleIdInput] = useState('')
   const [detail, setDetail] = useState<IArticleDetail | null>(null)
+  const [scopeDebug, setScopeDebug] = useState<IEditorScopeDebug | null>(null)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [uploadingMedia, setUploadingMedia] = useState(false)
@@ -84,8 +168,53 @@ export function useArticleDetailEditor(
       setMessage(null)
       setSelectedId(articleId)
       setArticleIdInput(articleId)
+      setScopeDebug(null)
       try {
         const article = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${articleId}`)
+
+        const regionToken =
+          article.primary_region_id ??
+          article.direct_region_ids?.[0] ??
+          article.effective_region_ids?.[0] ??
+          null
+        if (regionToken) {
+          const regionResolution = await resolveRegionCode(regionToken)
+          const regionCode = regionResolution.code
+          const resolvedScope = regionCode ? scopeFromRegionCode(regionCode) : null
+          setScopeDebug({
+            articleId,
+            queryPath: `${apiConfig.news}/articles/${articleId}`,
+            primaryRegionId: article.primary_region_id ?? null,
+            directRegionIds: article.direct_region_ids ?? [],
+            effectiveRegionIds: article.effective_region_ids ?? [],
+            regionToken,
+            regionLookupSource: regionResolution.source,
+            resolvedRegionCode: regionCode,
+          })
+          if (resolvedScope) {
+            const nextScope: IEditorScope = {
+              ...scope,
+              marketCode: resolvedScope.marketCode,
+              townId: resolvedScope.townId,
+              countyId: resolvedScope.countyId,
+            }
+            if (!scopesEqual(scope, nextScope)) {
+              setScope(nextScope)
+            }
+          }
+        } else {
+          setScopeDebug({
+            articleId,
+            queryPath: `${apiConfig.news}/articles/${articleId}`,
+            primaryRegionId: article.primary_region_id ?? null,
+            directRegionIds: article.direct_region_ids ?? [],
+            effectiveRegionIds: article.effective_region_ids ?? [],
+            regionToken: null,
+            regionLookupSource: 'none',
+            resolvedRegionCode: null,
+          })
+        }
+
         setDetail(article)
         setTitle(article.title ?? '')
         setBody(article.body ?? '')
@@ -104,7 +233,7 @@ export function useArticleDetailEditor(
         setError(err instanceof Error ? err.message : t('editor.errors.loadDetail'))
       }
     },
-    [setError, setMessage, t],
+    [scope, setError, setMessage, setScope, t],
   )
 
   const loadArticleByIdInput = useCallback(() => {
@@ -273,6 +402,7 @@ export function useArticleDetailEditor(
     setArticleIdInput,
     detail,
     setDetail,
+    scopeDebug,
     title,
     setTitle,
     body,
