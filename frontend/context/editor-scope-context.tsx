@@ -12,6 +12,7 @@ import {
 import { type IEditorScope } from '@/lib/editor/editor-scope'
 import {
   persistEditorScope,
+  resolveEditorScopeFromToken,
   resolveInitialEditorScope,
   subscribeToEditorScope,
 } from '@/lib/editor/editor-scope-storage'
@@ -25,28 +26,49 @@ const EditorScopeContext = createContext<IEditorScopeContextValue | null>(null)
 
 interface IEditorScopeProviderProps {
   children: ReactNode
+  /**
+   * When false, scope stays within this subtree and ignores Placement's shared
+   * market/state/town selection (used by the News editor page).
+   */
+  sync?: boolean
 }
 
 /**
  * Stores the active editor scope for admin workflow pages.
  *
- * The scope is persisted to localStorage and synced across same-browser windows
- * so the independent News and Placement pages always curate the same market/page.
+ * With the default `sync` mode the scope is persisted to localStorage and synced
+ * across same-browser windows so the Placement page and preview stay aligned.
+ * News uses `sync={false}` so Placement scope changes do not affect the editor.
  *
- * @param children Nested admin route UI.
+ * @param props Nested admin route UI and optional sync mode.
  * @returns Scope provider for editor routes.
  */
-export function EditorScopeProvider({ children }: IEditorScopeProviderProps): JSX.Element {
-  const [scope, setScopeState] = useState<IEditorScope>(() => resolveInitialEditorScope())
+export function EditorScopeProvider({
+  children,
+  sync = true,
+}: IEditorScopeProviderProps): JSX.Element {
+  const [scope, setScopeState] = useState<IEditorScope>(() =>
+    sync ? resolveInitialEditorScope() : resolveEditorScopeFromToken(),
+  )
 
   // A local change persists and broadcasts so the other editor window follows.
-  const setScope = useCallback((nextScope: IEditorScope) => {
-    setScopeState(nextScope)
-    persistEditorScope(nextScope)
-  }, [])
+  const setScope = useCallback(
+    (nextScope: IEditorScope) => {
+      setScopeState(nextScope)
+      if (sync) {
+        persistEditorScope(nextScope)
+      }
+    },
+    [sync],
+  )
 
   // Apply scope changes originating from another window without re-broadcasting.
-  useEffect(() => subscribeToEditorScope(setScopeState), [])
+  useEffect(() => {
+    if (!sync) {
+      return
+    }
+    return subscribeToEditorScope(setScopeState)
+  }, [sync])
 
   const value = useMemo(
     () => ({

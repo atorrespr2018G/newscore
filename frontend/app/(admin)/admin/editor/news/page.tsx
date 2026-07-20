@@ -6,6 +6,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { EditorStoryPool } from '@/components/features/editor-story-pool'
 import { EditorPoolSkeleton } from '@/components/features/editor-skeletons'
 import { useToast } from '@/components/ui/toast'
+import { EditorScopeProvider } from '@/context/editor-scope-context'
 import { useEditorNews, type IEditorNews } from '@/hooks/use-editor-curation'
 
 /**
@@ -17,6 +18,14 @@ import { useEditorNews, type IEditorNews } from '@/hooks/use-editor-curation'
  * @returns The News workflow page.
  */
 export default function EditorNewsPage(): JSX.Element {
+  return (
+    <EditorScopeProvider sync={false}>
+      <EditorNewsPageContent />
+    </EditorScopeProvider>
+  )
+}
+
+function EditorNewsPageContent(): JSX.Element {
   const news = useEditorNews()
   useEditorToasts(news.error, news.message)
   useUnsavedChangesGuard(news.isDirty)
