@@ -5,10 +5,14 @@ import type { IArticlePlacement } from '@/lib/helpers/article-placements'
 export const EDITOR_FETCH_PAGE_SIZE = 200
 
 /**
- * Multi-field search/filter criteria for the editor and placement story pools.
+ * Multi-field search/filter criteria for the editor story pool.
  *
  * Fields combine with AND on the backend. A non-empty `newsId` is an exact
  * article-id lookup that overrides every other field and matches all statuses.
+ *
+ * Location fields (`marketCode` / `townId` / `countyId`) mirror the Placement
+ * scope switcher UI but live only in this filter object — they never write to
+ * the Placement `EditorScope` store.
  */
 export interface IEditorSearchFilters {
   title: string
@@ -16,6 +20,9 @@ export interface IEditorSearchFilters {
   createdFrom: string
   createdTo: string
   newsId: string
+  marketCode: string
+  townId: string
+  countyId: string
 }
 
 /** An empty filter set, used to reset the pool's filter bar. */
@@ -25,6 +32,9 @@ export const EMPTY_EDITOR_SEARCH_FILTERS: IEditorSearchFilters = {
   createdFrom: '',
   createdTo: '',
   newsId: '',
+  marketCode: '',
+  townId: '',
+  countyId: '',
 }
 
 /**
@@ -39,7 +49,10 @@ export function hasActiveSearchFilters(filters: IEditorSearchFilters): boolean {
     filters.categoryId.trim() !== '' ||
     filters.createdFrom.trim() !== '' ||
     filters.createdTo.trim() !== '' ||
-    filters.newsId.trim() !== ''
+    filters.newsId.trim() !== '' ||
+    filters.marketCode.trim() !== '' ||
+    filters.townId.trim() !== '' ||
+    filters.countyId.trim() !== ''
   )
 }
 

@@ -21,14 +21,18 @@ async def search(
     created_from: str | None = Query(None, max_length=40),
     created_to: str | None = Query(None, max_length=40),
     article_id: str | None = Query(None, max_length=100),
+    market: str | None = Query(None, max_length=20),
+    town: str | None = Query(None, max_length=80),
+    region_code: str | None = Query(None, max_length=120),
     db: AsyncIOMotorDatabase = Depends(get_db),
     pagination: PaginationParams = PaginationDep,
     _: TokenPayload = Depends(require_role("reporter", "editor", "admin")),
 ) -> PaginatedResponse:
-    """Search articles by title/slug, category, created-date range, or exact id.
+    """Search articles by title/slug, category, created-date range, location, or id.
 
     Filters combine with AND; a non-empty ``article_id`` overrides the others and
-    matches across all statuses.
+    matches across all statuses. Location filters (``market`` / ``town`` /
+    ``region_code``) are independent of the Placement editor scope.
     """
 
     items, total = await search_service.search_articles(
@@ -38,6 +42,9 @@ async def search(
         created_from=created_from,
         created_to=created_to,
         article_id=article_id,
+        market=market,
+        town=town,
+        region_code=region_code,
         pagination=pagination,
     )
     return PaginatedResponse(

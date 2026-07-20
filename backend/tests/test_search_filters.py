@@ -16,6 +16,7 @@ if str(_ROOT / "news_storage_app") not in sys.path:
 
 from news_storage_app.services.search_service import (
     _build_created_at_filter,
+    _build_location_filter,
     _build_search_filter,
     search_articles,
 )
@@ -70,6 +71,51 @@ def test_search_filter_empty_when_no_inputs() -> None:
         query=None, category_id=None, created_from=None, created_to=None
     ) == {}
 
+
+def test_location_filter_region_with_legacy_fallback() -> None:
+    """Region id and legacy market/town combine under $or."""
+
+    result = _build_location_filter(
+        region_id="reg-us-fl",
+        market_id="mkt-us",
+        town="fl",
+    )
+    assert result == {
+        "$or": [
+            {"effective_region_ids": "reg-us-fl"},
+            {"market_ids": "mkt-us", "town_id": "fl"},
+        ]
+    }
+
+
+def test_location_filter_region_only() -> None:
+    """Region id alone yields an effective_region_ids clause."""
+
+    assert _build_location_filter(
+        region_id="reg-us",
+        market_id=None,
+        town=None,
+    ) == {"effective_region_ids": "reg-us"}
+
+
+def test_search_filter_includes_location() -> None:
+    """Location joins the other filters under $and."""
+
+    result = _build_search_filter(
+        query=None,
+        category_id=None,
+        created_from=None,
+        created_to=None,
+        region_id="reg-us",
+        market_id="mkt-us",
+        town=None,
+    )
+    assert result == {
+        "$or": [
+            {"effective_region_ids": "reg-us"},
+            {"market_ids": "mkt-us"},
+        ]
+    }
 
 class _AsyncCursor:
     """Minimal async-iterable cursor stub yielding a fixed list of docs."""

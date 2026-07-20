@@ -11,6 +11,7 @@ import {
   type IEditorSearchFilters,
   type IPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
+import { toRegionCode } from '@/lib/region-code'
 import type { IEditorArticlePool, IEditorStoryRow } from '@/interfaces/editor-article'
 
 /**
@@ -66,6 +67,9 @@ export function appendSearchFilterParams(
   const categoryId = filters.categoryId.trim()
   const createdFrom = filters.createdFrom.trim()
   const createdTo = filters.createdTo.trim()
+  const marketCode = filters.marketCode.trim().toLowerCase()
+  const townId = filters.townId.trim().toLowerCase()
+  const countyId = filters.countyId.trim().toLowerCase()
   if (title) {
     params.set('q', title)
   }
@@ -77,6 +81,13 @@ export function appendSearchFilterParams(
   }
   if (createdTo) {
     params.set('created_to', createdTo)
+  }
+  if (marketCode) {
+    params.set('market', marketCode)
+    if (townId) {
+      params.set('town', townId)
+    }
+    params.set('region_code', toRegionCode(marketCode, townId || null, countyId || null))
   }
 }
 

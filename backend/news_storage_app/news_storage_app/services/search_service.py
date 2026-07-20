@@ -1,8 +1,9 @@
 """Search service for editor article lookup.
 
 Supports a single-field title/slug substring search plus optional structured
-filters (category, created-date range) combined with AND. An exact article-id
-lookup overrides every other filter and matches across all statuses.
+filters (category, created-date range, market/region) combined with AND. An
+exact article-id lookup overrides every other filter and matches across all
+statuses.
 """
 
 from __future__ import annotations
@@ -13,9 +14,11 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.pagination import PaginationParams
+from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
 from shared.read.article_reads import article_out
 from shared.read.collections import ARTICLES_COLLECTION
 from shared.read.loaders import AuthorNameLoader
+from shared.read.market_reads import get_market_by_code
 from shared.schemas.article_schemas import ArticleOut
 
 # A bare date (YYYY-MM-DD) needs widening to the end of the day so a created_to
@@ -68,20 +71,75 @@ def _build_created_at_filter(created_from: str | None, created_to: str | None) -
     return {"created_at": bounds} if bounds else {}
 
 
+def _build_legacy_location_filter(
+    *,
+    market_id: str | None,
+    town: str | None,
+) -> dict[str, Any]:
+    """Build a legacy market_ids / town_id location filter.
+
+    Args:
+        market_id: Resolved market document id, if any.
+        town: Optional town/state locality code.
+
+    Returns:
+        A MongoDB filter for legacy location fields, or empty when unused.
+    """
+
+    if not market_id:
+        return {}
+    clause: dict[str, Any] = {"market_ids": market_id}
+    if town and town.strip():
+        clause["town_id"] = town.strip().lower()
+    return clause
+
+
+def _build_location_filter(
+    *,
+    region_id: str | None,
+    market_id: str | None,
+    town: str | None,
+) -> dict[str, Any]:
+    """Build a location filter preferring region ids with a legacy fallback.
+
+    Args:
+        region_id: Resolved region document id, if any.
+        market_id: Resolved market document id for legacy articles.
+        town: Optional town/state locality code for legacy articles.
+
+    Returns:
+        A MongoDB filter matching region or legacy location fields, or empty.
+    """
+
+    legacy = _build_legacy_location_filter(market_id=market_id, town=town)
+    if region_id:
+        region_clause: dict[str, Any] = {"effective_region_ids": region_id}
+        if legacy:
+            return {"$or": [region_clause, legacy]}
+        return region_clause
+    return legacy
+
+
 def _build_search_filter(
     *,
     query: str | None,
     category_id: str | None,
     created_from: str | None,
     created_to: str | None,
+    region_id: str | None = None,
+    market_id: str | None = None,
+    town: str | None = None,
 ) -> dict[str, Any]:
-    """Combine the title/slug, category, and date filters with AND.
+    """Combine the title/slug, category, date, and location filters with AND.
 
     Args:
         query: Title/slug substring text.
         category_id: Category id to match against legacy or multi-category fields.
         created_from: Inclusive created-date lower bound.
         created_to: Inclusive created-date upper bound.
+        region_id: Optional region id for effective_region_ids matching.
+        market_id: Optional market id for legacy market_ids matching.
+        town: Optional town/state code for legacy town_id matching.
 
     Returns:
         A MongoDB filter document (empty when no filters are supplied).
@@ -98,12 +156,64 @@ def _build_search_filter(
     created_filter = _build_created_at_filter(created_from, created_to)
     if created_filter:
         clauses.append(created_filter)
+    location_filter = _build_location_filter(
+        region_id=region_id,
+        market_id=market_id,
+        town=town,
+    )
+    if location_filter:
+        clauses.append(location_filter)
 
     if not clauses:
         return {}
     if len(clauses) == 1:
         return clauses[0]
     return {"$and": clauses}
+
+
+async def _resolve_search_location(
+    db: AsyncIOMotorDatabase,
+    *,
+    market: str | None,
+    town: str | None,
+    region_code: str | None,
+) -> tuple[str | None, str | None]:
+    """Resolve market/town/region_code into region and market document ids.
+
+    Args:
+        db: Database connection.
+        market: Market code such as ``us``.
+        town: Optional town/state locality code.
+        region_code: Optional canonical region code.
+
+    Returns:
+        A ``(region_id, market_id)`` pair; either value may be None.
+    """
+
+    normalized_market = (market or "").strip().lower() or None
+    normalized_town = (town or "").strip().lower() or None
+    requested_region_code = (region_code or "").strip().lower() or None
+
+    market_id: str | None = None
+    if normalized_market:
+        market_doc = await get_market_by_code(db, normalized_market)
+        if market_doc is not None:
+            market_id = str(market_doc["_id"])
+
+    if not requested_region_code and normalized_market:
+        requested_region_code = await resolve_region_code_from_legacy(
+            db,
+            market_code=normalized_market,
+            town=normalized_town,
+        )
+
+    region_id: str | None = None
+    if requested_region_code:
+        region_doc = await get_region_by_code(db, requested_region_code)
+        if region_doc is not None:
+            region_id = str(region_doc["_id"])
+
+    return region_id, market_id
 
 
 async def _items_from_docs(
@@ -139,9 +249,12 @@ async def search_articles(
     created_from: str | None = None,
     created_to: str | None = None,
     article_id: str | None = None,
+    market: str | None = None,
+    town: str | None = None,
+    region_code: str | None = None,
     pagination: PaginationParams,
 ) -> tuple[list[ArticleOut], int]:
-    """Search articles by title/slug, category, and created-date range.
+    """Search articles by title/slug, category, created-date range, and location.
 
     A non-empty ``article_id`` short-circuits to an exact, all-status lookup and
     ignores every other filter. Otherwise filters combine with AND, sorted by
@@ -154,6 +267,9 @@ async def search_articles(
         created_from: Inclusive created-date lower bound.
         created_to: Inclusive created-date upper bound.
         article_id: Exact article id override.
+        market: Optional market code (country) filter.
+        town: Optional town/state locality filter.
+        region_code: Optional canonical region code filter.
         pagination: Page/size parameters.
 
     Returns:
@@ -163,11 +279,21 @@ async def search_articles(
     if article_id and article_id.strip():
         return await _search_by_article_id(db, article_id)
 
+    region_id, market_id = await _resolve_search_location(
+        db,
+        market=market,
+        town=town,
+        region_code=region_code,
+    )
+
     filter_doc = _build_search_filter(
         query=query,
         category_id=category_id,
         created_from=created_from,
         created_to=created_to,
+        region_id=region_id,
+        market_id=market_id,
+        town=town,
     )
     total = await db[ARTICLES_COLLECTION].count_documents(filter_doc)
     cursor = (

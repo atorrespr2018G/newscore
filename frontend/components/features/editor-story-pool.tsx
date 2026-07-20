@@ -21,6 +21,13 @@ import {
   isNewReporterArticle,
   type IEditorSearchFilters,
 } from '@/lib/helpers/editor-curation'
+import {
+  FLORIDA_COUNTY_OPTIONS,
+  FLORIDA_STATE_CODE,
+} from '@/lib/florida-counties'
+import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
+import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
+import { EDITOR_MARKET_OPTIONS } from '@/lib/editor/editor-scope'
 
 const EDITOR_SEARCH_DEBOUNCE_MS = 300
 
@@ -489,7 +496,7 @@ interface IPoolFilterBarProps {
 }
 
 /**
- * Multi-field filter bar for the story pool (title, category, date range, id).
+ * Multi-field filter bar for the story pool (title, category, date range, location, id).
  *
  * @param props Filter state, change handlers, and category options.
  * @returns The filter bar UI.
@@ -516,6 +523,7 @@ function PoolFilterBar(props: IPoolFilterBarProps): JSX.Element {
         disabled={overrideActive}
         onUpdate={update}
       />
+      <PoolLocationFilters filters={filters} disabled={overrideActive} onUpdate={update} />
       <PoolIdFilterRow
         filters={filters}
         overrideActive={overrideActive}
@@ -596,6 +604,110 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
           className={filterControlClass(disabled)}
         />
       </FilterField>
+    </div>
+  )
+}
+
+interface IPoolLocationFiltersProps {
+  filters: IEditorSearchFilters
+  disabled: boolean
+  onUpdate: (patch: Partial<IEditorSearchFilters>) => void
+}
+
+/**
+ * Country / state / town / county filters for the story pool.
+ *
+ * Mirrors the Placement scope switcher controls but stores values only in the
+ * pool's local search filters so Placement scope is never affected.
+ *
+ * @param props Filter state, disabled flag, and update handler.
+ * @returns The location filter controls row.
+ */
+function PoolLocationFilters(props: IPoolLocationFiltersProps): JSX.Element {
+  const { filters, disabled, onUpdate } = props
+  const t = useTranslations('admin')
+  const tNav = useTranslations('navigation')
+  const marketCode = filters.marketCode.trim().toLowerCase()
+  const showLocality = marketCode === US_MARKET_CODE || marketCode === PUERTO_RICO_MARKET_CODE
+  const showFloridaCounty = marketCode === US_MARKET_CODE && filters.townId === FLORIDA_STATE_CODE
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 md:items-end lg:grid-cols-4">
+      <FilterField label={t('editor.pool.filterBar.marketLabel')}>
+        <select
+          value={filters.marketCode}
+          disabled={disabled}
+          onChange={(event) =>
+            onUpdate({
+              marketCode: event.target.value,
+              townId: '',
+              countyId: '',
+            })
+          }
+          className={`${filterControlClass(disabled)} capitalize`}
+        >
+          <option value="">{t('editor.pool.filterBar.marketAll')}</option>
+          {EDITOR_MARKET_OPTIONS.map((market) => (
+            <option key={market} value={market}>
+              {market.toUpperCase()}
+            </option>
+          ))}
+        </select>
+      </FilterField>
+      {showLocality ? (
+        <FilterField
+          label={marketCode === US_MARKET_CODE ? tNav('state') : tNav('town')}
+        >
+          <select
+            value={filters.townId}
+            disabled={disabled}
+            onChange={(event) =>
+              onUpdate({
+                townId: event.target.value,
+                countyId:
+                  marketCode === US_MARKET_CODE && event.target.value === FLORIDA_STATE_CODE
+                    ? filters.countyId
+                    : '',
+              })
+            }
+            className={filterControlClass(disabled)}
+          >
+            <option value="">
+              {marketCode === US_MARKET_CODE
+                ? tNav('localityDefaultUs')
+                : tNav('localityDefaultPr')}
+            </option>
+            {marketCode === US_MARKET_CODE
+              ? US_STATE_OPTIONS.map((state) => (
+                  <option key={state.code} value={state.code}>
+                    {state.label}
+                  </option>
+                ))
+              : PUERTO_RICO_TOWN_OPTIONS.map((town) => (
+                  <option key={town.code} value={town.code}>
+                    {town.label}
+                  </option>
+                ))}
+          </select>
+        </FilterField>
+      ) : null}
+      {showFloridaCounty ? (
+        <FilterField label={tNav('county')}>
+          <select
+            value={filters.countyId}
+            disabled={disabled}
+            onChange={(event) => onUpdate({ countyId: event.target.value })}
+            className={filterControlClass(disabled)}
+          >
+            <option value="">{t('editor.pool.filterBar.countyAll')}</option>
+            {FLORIDA_COUNTY_OPTIONS.map((county) => (
+              <option key={county.code} value={county.code}>
+                {county.label}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      ) : null}
     </div>
   )
 }

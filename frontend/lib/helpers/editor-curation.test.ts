@@ -19,6 +19,15 @@ describe('hasActiveSearchFilters', () => {
       }),
     ).toBe(true)
   })
+
+  it('returns true when a location market is set', () => {
+    expect(
+      hasActiveSearchFilters({
+        ...EMPTY_EDITOR_SEARCH_FILTERS,
+        marketCode: 'us',
+      }),
+    ).toBe(true)
+  })
 })
 
 describe('mergeArticlePages', () => {
