@@ -135,6 +135,7 @@ export interface IHomepagePlacementEditor {
   hasUnpublishedPlacements: boolean
   loadHomepageSlots: () => Promise<void>
   loadArticlePlacements: () => Promise<void>
+  replaceHomepageSlots: (slots: ISlotOut[]) => void
   applyDropPlacement: (articleId: string, target: IPlacementTarget) => Promise<boolean>
   applyRemovePlacement: (target: IPlacementTarget) => Promise<void>
   applyMovePlacement: (target: IPlacementTarget, direction: PlacementMoveDirectionType) => Promise<void>
@@ -159,7 +160,11 @@ export interface IEditorNews
 export interface IEditorPlacementBoard
   extends Omit<
     IHomepagePlacementEditor,
-    'articlePlacements' | 'placementMap' | 'loadHomepageSlots' | 'loadArticlePlacements'
+    | 'articlePlacements'
+    | 'placementMap'
+    | 'loadHomepageSlots'
+    | 'loadArticlePlacements'
+    | 'replaceHomepageSlots'
   > {
   loading: boolean
   error: string | null

@@ -14,7 +14,13 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.pagination import PaginationParams
-from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
+from shared.core.regions import (
+    get_region_by_code,
+    legacy_market_scope_article_filter,
+    region_ids_under_same_country,
+    region_scope_article_filter,
+    resolve_region_code_from_legacy,
+)
 from shared.read.article_reads import article_out
 from shared.read.collections import ARTICLES_COLLECTION
 from shared.read.loaders import AuthorNameLoader
@@ -88,22 +94,19 @@ def _build_legacy_location_filter(
 
     if not market_id:
         return {}
-    clause: dict[str, Any] = {"market_ids": market_id}
-    if town and town.strip():
-        clause["town_id"] = town.strip().lower()
-    return clause
+    return legacy_market_scope_article_filter(market_id, town=town)
 
 
 def _build_location_filter(
     *,
-    region_id: str | None,
+    region_scope_ids: list[str] | None,
     market_id: str | None,
     town: str | None,
 ) -> dict[str, Any]:
     """Build a location filter preferring region ids with a legacy fallback.
 
     Args:
-        region_id: Resolved region document id, if any.
+        region_scope_ids: Country-wide placement scope ids for the active region.
         market_id: Resolved market document id for legacy articles.
         town: Optional town/state locality code for legacy articles.
 
@@ -112,10 +115,11 @@ def _build_location_filter(
     """
 
     legacy = _build_legacy_location_filter(market_id=market_id, town=town)
-    if region_id:
-        region_clause: dict[str, Any] = {"effective_region_ids": region_id}
+    if region_scope_ids:
+        region_clause = region_scope_article_filter(region_scope_ids, market_id=market_id)
         if legacy:
-            return {"$or": [region_clause, legacy]}
+            # region_clause already includes market_ids when market_id is set.
+            return region_clause
         return region_clause
     return legacy
 
@@ -126,7 +130,7 @@ def _build_search_filter(
     category_id: str | None,
     created_from: str | None,
     created_to: str | None,
-    region_id: str | None = None,
+    region_scope_ids: list[str] | None = None,
     market_id: str | None = None,
     town: str | None = None,
 ) -> dict[str, Any]:
@@ -137,7 +141,7 @@ def _build_search_filter(
         category_id: Category id to match against legacy or multi-category fields.
         created_from: Inclusive created-date lower bound.
         created_to: Inclusive created-date upper bound.
-        region_id: Optional region id for effective_region_ids matching.
+        region_scope_ids: Optional country-wide placement scope ids.
         market_id: Optional market id for legacy market_ids matching.
         town: Optional town/state code for legacy town_id matching.
 
@@ -157,7 +161,7 @@ def _build_search_filter(
     if created_filter:
         clauses.append(created_filter)
     location_filter = _build_location_filter(
-        region_id=region_id,
+        region_scope_ids=region_scope_ids,
         market_id=market_id,
         town=town,
     )
@@ -177,7 +181,7 @@ async def _resolve_search_location(
     market: str | None,
     town: str | None,
     region_code: str | None,
-) -> tuple[str | None, str | None]:
+) -> tuple[str | None, str | None, list[str]]:
     """Resolve market/town/region_code into region and market document ids.
 
     Args:
@@ -187,7 +191,7 @@ async def _resolve_search_location(
         region_code: Optional canonical region code.
 
     Returns:
-        A ``(region_id, market_id)`` pair; either value may be None.
+        A ``(region_id, market_id, region_scope_ids)`` tuple; values may be empty.
     """
 
     normalized_market = (market or "").strip().lower() or None
@@ -208,12 +212,14 @@ async def _resolve_search_location(
         )
 
     region_id: str | None = None
+    region_scope_ids: list[str] = []
     if requested_region_code:
         region_doc = await get_region_by_code(db, requested_region_code)
         if region_doc is not None:
             region_id = str(region_doc["_id"])
+            region_scope_ids = await region_ids_under_same_country(db, region_id)
 
-    return region_id, market_id
+    return region_id, market_id, region_scope_ids
 
 
 async def _items_from_docs(
@@ -279,7 +285,7 @@ async def search_articles(
     if article_id and article_id.strip():
         return await _search_by_article_id(db, article_id)
 
-    region_id, market_id = await _resolve_search_location(
+    region_id, market_id, region_scope_ids = await _resolve_search_location(
         db,
         market=market,
         town=town,
@@ -291,7 +297,7 @@ async def search_articles(
         category_id=category_id,
         created_from=created_from,
         created_to=created_to,
-        region_id=region_id,
+        region_scope_ids=region_scope_ids,
         market_id=market_id,
         town=town,
     )

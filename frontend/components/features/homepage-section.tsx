@@ -134,7 +134,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
 
                 return (
                   <div key={`${leadArticle.id}-${index}`} className="space-y-4">
-                    <HomepageStoryCard article={leadArticle} variant={variant} showAuthor />
+                    <HomepageStoryCard article={leadArticle} variant={variant} showAuthor editorDroppable />
                     <div className="space-y-4">
                       {secondaryArticles.map((article, secondaryIndex) => (
                         <HomepageStoryCard
@@ -142,6 +142,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
                           article={article}
                           variant="compact"
                           layout="side"
+                          editorDroppable
                         />
                       ))}
                     </div>
@@ -154,6 +155,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
                   article={article}
                   variant={variant}
                   showAuthor
+                  editorDroppable
                 />
               ))}
         </div>

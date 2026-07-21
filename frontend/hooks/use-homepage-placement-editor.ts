@@ -56,6 +56,7 @@ export function useHomepagePlacementEditor(
   const { setError, setMessage, setSaving } = status
   const [homepageSlots, setHomepageSlots] = useState<ISlotOut[]>([])
   const homepageSlotsRef = useRef(homepageSlots)
+  const slotLoadGenerationRef = useRef(0)
   const { articlePlacements, placementMap, loadArticlePlacements } = useArticlePlacements(scope)
 
   const categorySlugById = useMemo(() => {
@@ -70,17 +71,32 @@ export function useHomepagePlacementEditor(
     homepageSlotsRef.current = homepageSlots
   }, [homepageSlots])
 
+  // Drop targets are keyed by slot id. Clear immediately on scope change so the
+  // canvas cannot keep US slot ids while the PR preview feed is already showing.
+  useEffect(() => {
+    slotLoadGenerationRef.current += 1
+    setHomepageSlots([])
+  }, [scope.marketCode, scope.townId, scope.countyId, scope.pageName])
+
   const loadHomepageSlots = useCallback(async () => {
+    const loadGeneration = slotLoadGenerationRef.current
     const layout = await getHomepageLayout(
       scope.marketCode,
       scope.pageName,
       editorScopeRegionCode(scope),
     )
+    if (loadGeneration !== slotLoadGenerationRef.current) {
+      return
+    }
     if (!layout.id) {
       setHomepageSlots([])
       return
     }
-    setHomepageSlots(await getLayoutSlots(layout.id))
+    const slots = await getLayoutSlots(layout.id)
+    if (loadGeneration !== slotLoadGenerationRef.current) {
+      return
+    }
+    setHomepageSlots(slots)
   }, [scope])
 
   const placementTargets = useMemo(() => buildPlacementTargets(homepageSlots), [homepageSlots])
@@ -231,6 +247,17 @@ export function useHomepagePlacementEditor(
     [articleTitleById, runPlacementMutation, t],
   )
 
+  /**
+   * Replace local layout slots (e.g. seed from the scoped preview while the
+   * dedicated layout-slot fetch is still in flight).
+   *
+   * @param slots Slot documents for the active editor scope.
+   */
+  const replaceHomepageSlots = useCallback((slots: ISlotOut[]) => {
+    setHomepageSlots(slots)
+    homepageSlotsRef.current = slots
+  }, [])
+
   return {
     homepageSlots,
     articlePlacements,
@@ -239,6 +266,7 @@ export function useHomepagePlacementEditor(
     hasUnpublishedPlacements,
     loadHomepageSlots,
     loadArticlePlacements,
+    replaceHomepageSlots,
     applyDropPlacement,
     applyRemovePlacement,
     applyMovePlacement,

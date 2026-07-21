@@ -97,6 +97,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
                             variant="grid"
                             plainTitle
                             titleClassName="text-[13px]"
+                            editorDroppable
                           />
                         ))}
                     </div>
@@ -129,6 +130,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
                 variant="grid"
                 plainTitle
                 titleClassName="text-[13px]"
+                editorDroppable
               />
             ))}
           </div>

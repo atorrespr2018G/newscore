@@ -107,12 +107,22 @@ function PlacementBanner({ saving, onPublish }: IPlacementBannerProps): JSX.Elem
 }
 
 function PlacementWorkspace({ board }: { board: IEditorPlacementBoard }): JSX.Element {
+  const feed = board.previewFeed
+  const slots = board.homepageSlots
+  // Drop targets are keyed by layout slot ids. The preview feed can resolve a
+  // moment before scoped slots finish loading (especially after Market PR hydrate),
+  // which leaves Politics cards non-droppable. Wait until ids overlap.
+  const slotsAligned =
+    feed != null &&
+    slots.length > 0 &&
+    feed.slots.some((feedSlot) => slots.some((slot) => slot.id === feedSlot.id))
+
   return (
     <HomepagePlacementCanvas
-      feed={board.previewFeed}
-      loading={board.previewLoading}
+      feed={slotsAligned ? feed : null}
+      loading={board.previewLoading || board.loading || (feed != null && !slotsAligned)}
       error={board.previewError}
-      homepageSlots={board.homepageSlots}
+      homepageSlots={slots}
       placementTargets={board.placementTargets}
       selectedArticleId={null}
       saving={board.saving}

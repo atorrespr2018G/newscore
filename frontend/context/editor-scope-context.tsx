@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { type IEditorScope } from '@/lib/editor/editor-scope'
+import { DEFAULT_EDITOR_SCOPE, type IEditorScope } from '@/lib/editor/editor-scope'
 import {
   persistEditorScope,
   resolveEditorScopeFromToken,
@@ -40,6 +40,10 @@ interface IEditorScopeProviderProps {
  * across same-browser windows so the Placement page and preview stay aligned.
  * News uses `sync={false}` so Placement scope changes do not affect the editor.
  *
+ * Initial state is always the default scope so SSR and the first client render
+ * match (avoids State/Town hydration mismatches). Stored/token scope is applied
+ * after mount.
+ *
  * @param props Nested admin route UI and optional sync mode.
  * @returns Scope provider for editor routes.
  */
@@ -47,9 +51,12 @@ export function EditorScopeProvider({
   children,
   sync = true,
 }: IEditorScopeProviderProps): JSX.Element {
-  const [scope, setScopeState] = useState<IEditorScope>(() =>
-    sync ? resolveInitialEditorScope() : resolveEditorScopeFromToken(),
-  )
+  const [scope, setScopeState] = useState<IEditorScope>(DEFAULT_EDITOR_SCOPE)
+
+  // Apply persisted or token scope after mount so SSR HTML matches the client.
+  useEffect(() => {
+    setScopeState(sync ? resolveInitialEditorScope() : resolveEditorScopeFromToken())
+  }, [sync])
 
   // A local change persists and broadcasts so the other editor window follows.
   const setScope = useCallback(

@@ -73,29 +73,35 @@ def test_search_filter_empty_when_no_inputs() -> None:
 
 
 def test_location_filter_region_with_legacy_fallback() -> None:
-    """Region id and legacy market/town combine under $or."""
+    """Region scope includes same-market legacy articles for town stories."""
 
     result = _build_location_filter(
-        region_id="reg-us-fl",
+        region_scope_ids=["reg-us-fl", "reg-us"],
         market_id="mkt-us",
         town="fl",
     )
     assert result == {
         "$or": [
-            {"effective_region_ids": "reg-us-fl"},
-            {"market_ids": "mkt-us", "town_id": "fl"},
+            {"effective_region_ids": {"$in": ["reg-us-fl", "reg-us"]}},
+            {"direct_region_ids": {"$in": ["reg-us-fl", "reg-us"]}},
+            {"market_ids": "mkt-us"},
         ]
     }
 
 
 def test_location_filter_region_only() -> None:
-    """Region id alone yields an effective_region_ids clause."""
+    """Region scope alone yields a country-wide sibling-aware clause."""
 
     assert _build_location_filter(
-        region_id="reg-us",
+        region_scope_ids=["reg-us", "reg-world"],
         market_id=None,
         town=None,
-    ) == {"effective_region_ids": "reg-us"}
+    ) == {
+        "$or": [
+            {"effective_region_ids": {"$in": ["reg-us", "reg-world"]}},
+            {"direct_region_ids": {"$in": ["reg-us", "reg-world"]}},
+        ]
+    }
 
 
 def test_search_filter_includes_location() -> None:
@@ -106,13 +112,14 @@ def test_search_filter_includes_location() -> None:
         category_id=None,
         created_from=None,
         created_to=None,
-        region_id="reg-us",
+        region_scope_ids=["reg-us"],
         market_id="mkt-us",
         town=None,
     )
     assert result == {
         "$or": [
-            {"effective_region_ids": "reg-us"},
+            {"effective_region_ids": {"$in": ["reg-us"]}},
+            {"direct_region_ids": {"$in": ["reg-us"]}},
             {"market_ids": "mkt-us"},
         ]
     }

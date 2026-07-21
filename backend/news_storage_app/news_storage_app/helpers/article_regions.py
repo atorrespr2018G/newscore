@@ -7,7 +7,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.feature_flags import geo_dual_write_enabled
-from shared.core.regions import effective_region_ids, get_region_by_code
+from shared.core.regions import effective_region_ids, get_region_by_code, resolve_region_ref_ids
 
 MARKETS_COLLECTION = "markets"
 
@@ -43,7 +43,10 @@ async def compute_create_region_fields(
     if not geo_dual_write_enabled():
         return {}
 
-    direct_region_ids = list(payload.direct_region_ids or [])
+    direct_region_ids = await resolve_region_ref_ids(
+        db,
+        list(payload.direct_region_ids or []),
+    )
     if not direct_region_ids:
         direct_region_ids = await _region_ids_from_market_ids(db, market_ids)
 
@@ -77,11 +80,14 @@ async def apply_update_region_fields(
             list(update_doc.get("market_ids") or []),
         )
 
-    direct_region_ids = list(
+    raw_direct = list(
         update_doc.get("direct_region_ids")
         if "direct_region_ids" in update_doc
         else existing.get("direct_region_ids") or []
     )
+    direct_region_ids = await resolve_region_ref_ids(db, raw_direct)
+    if "direct_region_ids" in update_doc:
+        update_doc["direct_region_ids"] = direct_region_ids
     visibility_mode = str(
         update_doc.get("region_visibility_mode")
         if "region_visibility_mode" in update_doc

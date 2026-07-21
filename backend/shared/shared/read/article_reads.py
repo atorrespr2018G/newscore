@@ -24,6 +24,27 @@ SEARCH_RESULTS_LIMIT = 50
 PUBLISHED_IDS_LOOKUP_LIMIT = 50
 
 
+def _apply_pinned_scope_filters(
+    query: dict[str, Any],
+    *,
+    market_id: str | None,
+    require_market: bool,
+) -> None:
+    """Apply market scope filters for explicit pin resolution.
+
+    Editorial pins resolve across sibling localities within the same market so a
+    story tagged to one state can display when pinned on another state's feed.
+
+    Args:
+        query: Mongo query document to mutate in place.
+        market_id: Optional market scope.
+        require_market: When False, skip the market filter.
+    """
+
+    if market_id and require_market:
+        query["market_ids"] = market_id
+
+
 def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
     """Map a Mongo article document to ArticleOut."""
 
@@ -324,10 +345,7 @@ async def list_by_ids_for_preview(
         "_id": {"$in": article_ids},
         "status": {"$in": list(PREVIEWABLE_STATUSES)},
     }
-    if market_id and require_market:
-        q["market_ids"] = market_id
-    if town:
-        q["town_id"] = town.strip()
+    _apply_pinned_scope_filters(q, market_id=market_id, require_market=require_market)
     cursor = db[ARTICLES_COLLECTION].find(q).limit(PUBLISHED_IDS_LOOKUP_LIMIT)
     docs = {str(d["_id"]): d async for d in cursor}
     names = loader or AuthorNameLoader(db)
@@ -371,10 +389,7 @@ async def list_published_by_ids(
         return []
 
     q: dict[str, Any] = {"_id": {"$in": article_ids}, "status": "published"}
-    if market_id and require_market:
-        q["market_ids"] = market_id
-    if town:
-        q["town_id"] = town.strip()
+    _apply_pinned_scope_filters(q, market_id=market_id, require_market=require_market)
     cursor = db[ARTICLES_COLLECTION].find(q).limit(PUBLISHED_IDS_LOOKUP_LIMIT)
     docs = {str(d["_id"]): d async for d in cursor}
     names = loader or AuthorNameLoader(db)

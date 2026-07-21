@@ -7,7 +7,11 @@ import { apiFetch } from '@/lib/api/rest-client'
 import { useEditorScope } from '@/context/editor-scope-context'
 import { REPORTER_UPLOAD_STATUS } from '@/lib/helpers/editor-curation'
 import { notifyEditorialPreviewStale, subscribeToEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
-import type { IPlacementTarget } from '@/lib/helpers/editor-placement-targets'
+import {
+  buildPlacementTargets,
+  type IPlacementTarget,
+} from '@/lib/helpers/editor-placement-targets'
+import { layoutHasUnpublishedPlacementChanges } from '@/lib/helpers/slot-editor-pinned-ids'
 import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
 import { useEditorStatus } from '@/hooks/use-editor-status'
 import { useEditorCategories } from '@/hooks/use-editor-categories'
@@ -92,6 +96,34 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
   const placement = useHomepagePlacementEditor(status, scope, articleTitleByIdRef.current, categories)
   const preview = useEditorPreviewFeed(scope, true)
 
+  // Prefer preview slots (always fetched for the active scope) unless local
+  // placement state already has slots for this scope. Avoids US slot ids paired
+  // with a PR feed, which disables every Politics drop target.
+  const homepageSlots =
+    placement.homepageSlots.length > 0 &&
+    preview.homepageSlots.length > 0 &&
+    placement.homepageSlots.some((slot) =>
+      preview.homepageSlots.some((previewSlot) => previewSlot.id === slot.id),
+    )
+      ? placement.homepageSlots
+      : preview.homepageSlots.length > 0
+        ? preview.homepageSlots
+        : placement.homepageSlots
+  const placementTargets = buildPlacementTargets(homepageSlots)
+
+  // Keep mutation refs in sync with the slots the canvas is actually using.
+  // Otherwise a PR Politics drop target can appear while homepageSlotsRef still
+  // holds US (or empty) slots and the pin mutation no-ops / fails.
+  useEffect(() => {
+    const placementAligned =
+      placement.homepageSlots.length > 0 &&
+      homepageSlots.length > 0 &&
+      placement.homepageSlots.some((slot) => homepageSlots.some((next) => next.id === slot.id))
+    if (!placementAligned && homepageSlots.length > 0) {
+      placement.replaceHomepageSlots(homepageSlots)
+    }
+  }, [homepageSlots, placement.homepageSlots, placement.replaceHomepageSlots])
+
   // Pull a fresh feed whenever any window marks the homepage stale so the
   // WYSIWYG placement canvas stays current.
   const refreshRef = useRef(preview.refresh)
@@ -146,9 +178,9 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
     error: status.error,
     message: status.message,
     saving: status.saving,
-    homepageSlots: placement.homepageSlots,
-    placementTargets: placement.placementTargets,
-    hasUnpublishedPlacements: placement.hasUnpublishedPlacements,
+    homepageSlots,
+    placementTargets,
+    hasUnpublishedPlacements: layoutHasUnpublishedPlacementChanges(homepageSlots),
     applyDropPlacement,
     applyRemovePlacement: placement.applyRemovePlacement,
     applyMovePlacement: placement.applyMovePlacement,

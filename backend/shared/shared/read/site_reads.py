@@ -8,7 +8,14 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.feature_flags import geo_read_from_regions
 from shared.core.markets import DEFAULT_MARKET_CODE
-from shared.core.regions import get_ancestor_chain, get_region_by_code, resolve_region_code_from_legacy
+from shared.core.regions import (
+    get_ancestor_chain,
+    get_region_by_code,
+    legacy_market_scope_article_filter,
+    region_ids_under_same_country,
+    region_scope_article_filter,
+    resolve_region_code_from_legacy,
+)
 from shared.read.article_reads import article_out, list_by_ids_for_preview, list_published_by_ids
 from shared.read.collections import ARTICLES_COLLECTION, WIDGETS_COLLECTION
 from shared.read.layout_reads import get_active_layout
@@ -57,42 +64,50 @@ def _article_scope_query(
     market_id: str | None,
     *,
     town: str | None = None,
-    region_id: str | None = None,
+    region_scope_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """Mongo filter for either region-scoped or legacy market-scoped reads."""
 
-    if geo_read_from_regions() and region_id:
-        return {
-            "status": "published",
-            "effective_region_ids": region_id,
-        }
+    if geo_read_from_regions() and region_scope_ids:
+        scope_filter = region_scope_article_filter(region_scope_ids, market_id=market_id)
+        return {"status": "published", **scope_filter}
 
     if not market_id:
         return {"status": "published", "_id": {"$in": []}}
 
-    q: dict[str, Any] = {"status": "published", "market_ids": market_id}
-    if town:
-        q["town_id"] = town.strip()
-    else:
-        q["$or"] = [{"town_id": None}, {"town_id": {"$exists": False}}]
-    return q
+    return {
+        "status": "published",
+        **legacy_market_scope_article_filter(market_id, town=town),
+    }
 
 
 def _article_scope_queries(
     market_id: str | None,
     *,
     town: str | None = None,
-    region_id: str | None = None,
+    region_scope_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return ordered scope queries with a market fallback for empty regions."""
 
-    market_query = _article_scope_query(market_id, town=town, region_id=None)
-    if geo_read_from_regions() and region_id:
+    market_query = _article_scope_query(market_id, town=town, region_scope_ids=None)
+    if geo_read_from_regions() and region_scope_ids:
         return [
-            {"status": "published", "effective_region_ids": region_id},
-            _article_scope_query(market_id, town=None, region_id=None),
+            _article_scope_query(
+                market_id,
+                town=town,
+                region_scope_ids=region_scope_ids,
+            ),
+            _article_scope_query(market_id, town=None, region_scope_ids=None),
         ]
     return [market_query]
+
+
+async def _region_scope_ids(db: AsyncIOMotorDatabase, region_id: str | None) -> list[str]:
+    """Resolve country-wide placement scope ids for a region."""
+
+    if not region_id:
+        return []
+    return await region_ids_under_same_country(db, region_id)
 
 
 def _empty_feed(
@@ -333,7 +348,12 @@ async def get_home_feed(
         )
 
     loader = AuthorNameLoader(db)
-    base_queries = _article_scope_queries(market_id, town=town, region_id=region_id)
+    region_scope_ids = await _region_scope_ids(db, region_id)
+    base_queries = _article_scope_queries(
+        market_id,
+        town=town,
+        region_scope_ids=region_scope_ids,
+    )
 
     async def build_slots(
         active_layout: dict[str, Any],
@@ -371,7 +391,11 @@ async def get_home_feed(
                 continue
             ancestor_slots = await build_slots(
                 ancestor_layout,
-                active_base_queries=_article_scope_queries(market_id, town=None, region_id=ancestor_id),
+                active_base_queries=_article_scope_queries(
+                    market_id,
+                    town=None,
+                    region_scope_ids=await _region_scope_ids(db, ancestor_id),
+                ),
                 active_town=None,
             )
             if any(slot["articles"] for slot in ancestor_slots):
@@ -438,7 +462,12 @@ async def get_home_feed_preview(
         )
 
     loader = AuthorNameLoader(db)
-    base_queries = _article_scope_queries(market_id, town=town, region_id=region_id)
+    region_scope_ids = await _region_scope_ids(db, region_id)
+    base_queries = _article_scope_queries(
+        market_id,
+        town=town,
+        region_scope_ids=region_scope_ids,
+    )
 
     async def build_slots(
         active_layout: dict[str, Any],
@@ -476,7 +505,11 @@ async def get_home_feed_preview(
                 continue
             ancestor_slots = await build_slots(
                 ancestor_layout,
-                active_base_queries=_article_scope_queries(market_id, town=None, region_id=ancestor_id),
+                active_base_queries=_article_scope_queries(
+                    market_id,
+                    town=None,
+                    region_scope_ids=await _region_scope_ids(db, ancestor_id),
+                ),
                 active_town=None,
             )
             if any(slot["articles"] for slot in ancestor_slots):

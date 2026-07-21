@@ -8,7 +8,13 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.markets import DEFAULT_MARKET_CODE
-from shared.core.regions import get_ancestor_chain, get_region_by_code, resolve_region_code_from_legacy
+from shared.core.regions import (
+    get_ancestor_chain,
+    get_region_by_code,
+    region_ids_under_same_country,
+    region_scope_article_filter,
+    resolve_region_code_from_legacy,
+)
 from shared.read.collections import ARTICLES_COLLECTION
 from shared.read.layout_reads import get_active_layout
 from shared.read.market_reads import get_market_by_code
@@ -52,23 +58,27 @@ def _published_market_query(market_id: str) -> dict[str, Any]:
     return {"status": "published", "market_ids": market_id}
 
 
-def _published_scope_query(market_id: str, region_id: str | None) -> dict[str, Any]:
+def _published_scope_query(
+    market_id: str,
+    region_scope_ids: list[str] | None,
+) -> dict[str, Any]:
     """Mongo filter for region-aware (or market fallback) published articles."""
 
-    if region_id:
-        return {
-            "status": "published",
-            "effective_region_ids": region_id,
-        }
+    if region_scope_ids:
+        scope_filter = region_scope_article_filter(region_scope_ids, market_id=market_id)
+        return {"status": "published", **scope_filter}
     return _published_market_query(market_id)
 
 
-def _published_scope_queries(market_id: str, region_id: str | None) -> list[dict[str, Any]]:
+def _published_scope_queries(
+    market_id: str,
+    region_scope_ids: list[str] | None,
+) -> list[dict[str, Any]]:
     """Return ordered published-article queries with market fallback."""
 
-    if region_id:
+    if region_scope_ids:
         return [
-            {"status": "published", "effective_region_ids": region_id},
+            _published_scope_query(market_id, region_scope_ids),
             _published_market_query(market_id),
         ]
     return [_published_market_query(market_id)]
@@ -195,7 +205,10 @@ async def get_article_placements(
         if region is not None:
             region_id = str(region["_id"])
 
-    base_queries = _published_scope_queries(market_id, region_id)
+    region_scope_ids = (
+        await region_ids_under_same_country(db, region_id) if region_id else None
+    )
+    base_queries = _published_scope_queries(market_id, region_scope_ids)
     placements_by_article: dict[str, list[ArticlePlacementOut]] = defaultdict(list)
 
     async def collect_from_layout(
@@ -252,7 +265,10 @@ async def get_article_placements(
                     continue
                 await collect_from_layout(
                     ancestor_layout,
-                    active_base_queries=_published_scope_queries(market_id, ancestor_id),
+                    active_base_queries=_published_scope_queries(
+                        market_id,
+                        await region_ids_under_same_country(db, ancestor_id),
+                    ),
                     page_name=page_name,
                 )
                 if len(placements_by_article) > before_count:
