@@ -97,7 +97,8 @@
       "previewTab": "Vista previa"
     },
     "guard": {
-      "discard": "Tienes cambios sin guardar en esta noticia. ¿Descartarlos y cambiar?"
+      "discard": "Tienes cambios sin guardar en esta noticia. ¿Descartarlos y cambiar?",
+      "crossCountryPlacement": "Esta noticia está etiquetada para {articleCountry}, pero el tablero de ubicación es {boardCountry}. ¿Colocarla fuera de su país de todos modos?"
     },
     "canvas": {
       "title": "Lienzo de ubicación",

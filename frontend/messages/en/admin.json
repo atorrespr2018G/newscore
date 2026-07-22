@@ -97,7 +97,8 @@
       "previewTab": "Preview"
     },
     "guard": {
-      "discard": "You have unsaved changes to this story. Discard them and switch?"
+      "discard": "You have unsaved changes to this story. Discard them and switch?",
+      "crossCountryPlacement": "This story is tagged for {articleCountry}, but the placement board is {boardCountry}. Place it outside its country anyway?"
     },
     "canvas": {
       "title": "Placement canvas",

@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl'
 import { apiConfig } from '@/lib/api/config'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { getStoryGroups, type IStoryGroupOut } from '@/lib/api/story-group-client'
-import { getRegionById } from '@/lib/api/region-client'
 import { uploadImage, uploadVideo } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
 import { useEditorScopeContext } from '@/context/editor-scope-context'
@@ -15,8 +14,12 @@ import {
 } from '@/lib/helpers/article-media-gallery'
 import { uploadMediaInto, validateArticleEdits } from '@/lib/helpers/article-detail-editor'
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
+import {
+  articleRegionToken,
+  resolveRegionCode,
+  scopeFromRegionCode,
+} from '@/lib/helpers/editor-region-scope'
 import type { IEditorScope } from '@/lib/editor/editor-scope'
-import { normalizeFloridaCountyCode } from '@/lib/florida-counties'
 import type {
   IArticleDetail,
   IArticleDetailEditor,
@@ -25,75 +28,6 @@ import type {
   IEditorStoryRow,
   ILoadedMedia,
 } from '@/interfaces/editor-article'
-import { PUERTO_RICO_MARKET_CODE } from '@/lib/puerto-rico-towns'
-import { US_MARKET_CODE } from '@/lib/us-states'
-
-/**
- * Convert canonical region code into editor scope fields.
- *
- * Supports rollout scopes such as `us`, `us-fl`, `us-fl-miami-dade`,
- * `pr`, and `pr-san-juan`.
- */
-function scopeFromRegionCode(regionCode: string): Pick<IEditorScope, 'marketCode' | 'townId' | 'countyId'> | null {
-  const normalized = regionCode.trim().toLowerCase()
-  if (!normalized) {
-    return null
-  }
-
-  const parts = normalized.split('-')
-  const marketCode = parts[0]
-  if (!marketCode) {
-    return null
-  }
-
-  if (marketCode === US_MARKET_CODE) {
-    if (parts.length === 1) {
-      return { marketCode, townId: null, countyId: null }
-    }
-    const stateCode = parts[1] ?? null
-    if (!stateCode) {
-      return { marketCode, townId: null, countyId: null }
-    }
-    const countyCode = parts.length > 2 ? normalizeFloridaCountyCode(parts.slice(2).join('-')) : null
-    return {
-      marketCode,
-      townId: stateCode,
-      countyId: countyCode || null,
-    }
-  }
-
-  if (marketCode === PUERTO_RICO_MARKET_CODE) {
-    return {
-      marketCode,
-      townId: parts.length > 1 ? parts.slice(1).join('-') : null,
-      countyId: null,
-    }
-  }
-
-  return { marketCode, townId: null, countyId: null }
-}
-
-function looksLikeRegionCode(value: string): boolean {
-  return /^(us|pr|co)(-[a-z0-9]+)*$/i.test(value.trim())
-}
-
-async function resolveRegionCode(
-  token: string,
-): Promise<{ code: string | null; source: 'code' | 'region-id' | 'lookup-error' }> {
-  const normalized = token.trim().toLowerCase()
-  if (!normalized) {
-    return { code: null, source: 'lookup-error' }
-  }
-  if (looksLikeRegionCode(normalized)) {
-    return { code: normalized, source: 'code' }
-  }
-  try {
-    const region = await getRegionById(normalized)
-    return { code: region.code.trim().toLowerCase() || null, source: 'region-id' }
-  } catch {
-    return { code: null, source: 'lookup-error' }
-  }
-}
 
 function scopesEqual(a: IEditorScope, b: IEditorScope): boolean {
   return (
@@ -172,11 +106,7 @@ export function useArticleDetailEditor(
       try {
         const article = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${articleId}`)
 
-        const regionToken =
-          article.primary_region_id ??
-          article.direct_region_ids?.[0] ??
-          article.effective_region_ids?.[0] ??
-          null
+        const regionToken = articleRegionToken(article)
         if (regionToken) {
           const regionResolution = await resolveRegionCode(regionToken)
           const regionCode = regionResolution.code

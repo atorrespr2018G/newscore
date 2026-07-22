@@ -27,14 +27,26 @@ export function useEditorNews(): IEditorNews {
   const { placementMap, loadArticlePlacements } = useArticlePlacements(scope)
 
   const { setLoading, setError } = status
+
+  // Article pool is scope-agnostic; only show the skeleton on the initial fetch.
   useEffect(() => {
     setLoading(true)
-    void Promise.all([pool.loadArticles(), loadArticlePlacements()])
+    void pool
+      .loadArticles()
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : t('editor.errors.loadEditorData'))
       })
       .finally(() => setLoading(false))
-  }, [pool.loadArticles, loadArticlePlacements, setLoading, setError, t])
+  }, [pool.loadArticles, setLoading, setError, t])
+
+  // Placement labels are scoped. Refresh quietly when scope changes (e.g. opening
+  // a story whose region differs from the current scope) so the pool is not
+  // unmounted — that remount would wipe local modal open state.
+  useEffect(() => {
+    void loadArticlePlacements().catch((err: unknown) => {
+      setError(err instanceof Error ? err.message : t('editor.errors.loadEditorData'))
+    })
+  }, [loadArticlePlacements, setError, t])
 
   return {
     loading: status.loading,

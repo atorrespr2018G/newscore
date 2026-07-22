@@ -11,6 +11,10 @@ import {
   buildPlacementTargets,
   type IPlacementTarget,
 } from '@/lib/helpers/editor-placement-targets'
+import {
+  isCrossCountryPlacement,
+  resolveArticleMarketCode,
+} from '@/lib/helpers/editor-region-scope'
 import { layoutHasUnpublishedPlacementChanges } from '@/lib/helpers/slot-editor-pinned-ids'
 import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
 import { useEditorStatus } from '@/hooks/use-editor-status'
@@ -27,6 +31,7 @@ import type { IEditorScope } from '@/lib/editor/editor-scope'
 interface IDroppedArticleDetail {
   title: string
   status: string
+  marketCode: string | null
 }
 
 interface IPublishDroppedArticleOptions {
@@ -37,23 +42,51 @@ interface IPublishDroppedArticleOptions {
 }
 
 /**
- * Fetch a dropped story's title and status for the placement board.
+ * Fetch a dropped story's title, status, and country for the placement board.
  *
  * The News card carries only the article id, so the board resolves the title
- * (for staged-placement banners) and status (to auto-publish reporter drafts)
- * with a single detail fetch. A failed lookup is non-fatal: the placement still
- * proceeds and the banner falls back to the article id.
+ * (for staged-placement banners), status (to auto-publish reporter drafts), and
+ * market code (to warn on cross-country pins) with a single detail fetch. A
+ * failed lookup is fatal for the drop so we never pin an unknown payload.
  *
  * @param articleId Article dragged from the News page.
- * @returns Title/status, or null when the lookup fails.
+ * @returns Title/status/market, or null when the lookup fails.
  */
 async function fetchDroppedArticleDetail(articleId: string): Promise<IDroppedArticleDetail | null> {
   try {
     const detail = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${articleId}`)
-    return { title: detail.title, status: detail.status }
+    const marketCode = await resolveArticleMarketCode(detail)
+    return { title: detail.title, status: detail.status, marketCode }
   } catch {
     return null
   }
+}
+
+/**
+ * Return whether a cross-country drop should proceed after any warning.
+ *
+ * Same-country (or unknown article market) drops proceed without a prompt.
+ * Cross-country drops require an explicit `window.confirm` acceptance.
+ *
+ * @param articleMarketCode Story country/market code, or null when unknown.
+ * @param boardMarketCode Active placement board country/market code.
+ * @param t Admin translator for the confirm copy.
+ * @returns False only when the editor cancels a cross-country warning.
+ */
+function allowCrossCountryPlacement(
+  articleMarketCode: string | null,
+  boardMarketCode: string,
+  t: AdminTranslatorType,
+): boolean {
+  if (!isCrossCountryPlacement(articleMarketCode, boardMarketCode) || !articleMarketCode) {
+    return true
+  }
+  return window.confirm(
+    t('editor.guard.crossCountryPlacement', {
+      articleCountry: articleMarketCode.toUpperCase(),
+      boardCountry: boardMarketCode.toUpperCase(),
+    }),
+  )
 }
 
 /**
@@ -144,6 +177,9 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
       const dropped = await fetchDroppedArticleDetail(articleId)
       if (!dropped) {
         setError(t('editor.errors.invalidDropPayload'))
+        return false
+      }
+      if (!allowCrossCountryPlacement(dropped.marketCode, scope.marketCode, t)) {
         return false
       }
       articleTitleByIdRef.current.set(articleId, dropped.title)
