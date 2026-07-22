@@ -15,6 +15,7 @@ from shared.core.cache_invalidation import invalidate_homepage_for_layout, inval
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.feature_flags import geo_dual_write_enabled
 from shared.core.pagination import PaginationParams
+from shared.core.layout_ensure import ensure_exact_page_layout, find_exact_page_layout
 from shared.core.regions import get_region_by_code, resolve_region_code_from_legacy
 from shared.read.layout_reads import get_active_layout
 from shared.read.market_reads import get_market_by_code
@@ -166,8 +167,29 @@ async def get_by_page_name(
     market_id: str | None = None,
     region_id: str | None = None,
 ) -> LayoutOut:
+    """Return the active layout for a page, preferring an exact region board.
+
+    When ``region_id`` is set, ensures a region-owned layout exists so town and
+    county editors never write pins into a parent country layout.
+    """
+
+    normalized_page = page_name.strip().lower() or "homepage"
     if region_id:
-        resolved = await get_active_layout(db, market_id=market_id, region_id=region_id, page_name=page_name)
+        await ensure_exact_page_layout(db, region_id=region_id, page_name=normalized_page)
+        exact = await find_exact_page_layout(
+            db,
+            region_id=region_id,
+            page_name=normalized_page,
+        )
+        if exact is not None:
+            return _to_out(exact)
+
+        resolved = await get_active_layout(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            page_name=normalized_page,
+        )
         if resolved is not None:
             doc = await db[LAYOUTS_COLLECTION].find_one({"_id": resolved["layout_id"]})
             if doc is not None:
@@ -177,7 +199,7 @@ async def get_by_page_name(
         raise NotFoundError("Active layout not found for page")
 
     doc = await db[LAYOUTS_COLLECTION].find_one(
-        {"page_name": page_name, "market_id": market_id, "is_active": True},
+        {"page_name": normalized_page, "market_id": market_id, "is_active": True},
     )
     if doc is None:
         raise NotFoundError("Active layout not found for page")
@@ -228,22 +250,35 @@ async def publish_placements(
         if region is not None:
             region_id = str(region["_id"])
 
-    layout = await get_active_layout(
-        db,
-        market_id=market_id,
-        region_id=region_id,
-        page_name=normalized_page,
-    )
-    if layout is None:
-        raise NotFoundError("Active layout not found for page")
+    layout_id: str | None = None
+    if region_id:
+        await ensure_exact_page_layout(db, region_id=region_id, page_name=normalized_page)
+        exact = await find_exact_page_layout(
+            db,
+            region_id=region_id,
+            page_name=normalized_page,
+        )
+        if exact is not None:
+            layout_id = str(exact["_id"])
+
+    if layout_id is None:
+        layout = await get_active_layout(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            page_name=normalized_page,
+        )
+        if layout is None:
+            raise NotFoundError("Active layout not found for page")
+        layout_id = layout["layout_id"]
 
     published_slot_count = await publish_draft_pins_for_layout(
         db,
-        layout["layout_id"],
+        layout_id,
         actor_id=actor_id,
     )
     return PublishPlacementsOut(
-        layout_id=layout["layout_id"],
+        layout_id=layout_id,
         page_name=normalized_page,
         market_code=market_code,
         published_slot_count=published_slot_count,

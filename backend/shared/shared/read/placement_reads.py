@@ -8,6 +8,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.markets import DEFAULT_MARKET_CODE
+from shared.core.layout_ensure import ensure_exact_page_layout
 from shared.core.regions import (
     get_ancestor_chain,
     get_region_by_code,
@@ -208,6 +209,9 @@ async def get_article_placements(
     region_scope_ids = (
         await region_ids_under_same_country(db, region_id) if region_id else None
     )
+    if region_id:
+        for page_name in page_names:
+            await ensure_exact_page_layout(db, region_id=region_id, page_name=page_name)
     base_queries = _published_scope_queries(market_id, region_scope_ids)
     placements_by_article: dict[str, list[ArticlePlacementOut]] = defaultdict(list)
 
@@ -251,7 +255,8 @@ async def get_article_placements(
 
         before_count = len(placements_by_article)
         await collect_from_layout(layout, active_base_queries=base_queries, page_name=page_name)
-        if region_id and len(placements_by_article) == before_count:
+        uses_exact_region_layout = bool(region_id) and str(layout.get("region_id") or "") == region_id
+        if region_id and not uses_exact_region_layout and len(placements_by_article) == before_count:
             chain = await get_ancestor_chain(db, region_id)
             for ancestor in chain[1:]:
                 ancestor_id = str(ancestor["_id"])

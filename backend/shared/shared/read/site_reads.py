@@ -7,6 +7,7 @@ from typing import Any, Awaitable, Callable, List
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.feature_flags import geo_read_from_regions
+from shared.core.layout_ensure import ensure_exact_page_layout
 from shared.core.markets import DEFAULT_MARKET_CODE
 from shared.core.regions import (
     get_ancestor_chain,
@@ -334,6 +335,8 @@ async def get_home_feed(
         )
 
     market_id = str(market["_id"])
+    if region_id:
+        await ensure_exact_page_layout(db, region_id=region_id, page_name=normalized_page)
     layout = await get_active_layout(
         db,
         market_id=market_id,
@@ -377,7 +380,8 @@ async def get_home_feed(
         ]
 
     out_slots = await build_slots(layout, active_base_queries=base_queries, active_town=town)
-    if region_id and not any(slot["articles"] for slot in out_slots):
+    uses_exact_region_layout = bool(region_id) and str(layout.get("region_id") or "") == region_id
+    if region_id and not uses_exact_region_layout and not any(slot["articles"] for slot in out_slots):
         chain = await get_ancestor_chain(db, region_id)
         for ancestor in chain[1:]:
             ancestor_id = str(ancestor["_id"])
@@ -448,6 +452,8 @@ async def get_home_feed_preview(
         )
 
     market_id = str(market["_id"])
+    if region_id:
+        await ensure_exact_page_layout(db, region_id=region_id, page_name=normalized_page)
     layout = await get_active_layout(
         db,
         market_id=market_id,
@@ -491,7 +497,8 @@ async def get_home_feed_preview(
         ]
 
     out_slots = await build_slots(layout, active_base_queries=base_queries, active_town=town)
-    if region_id and not any(slot["articles"] for slot in out_slots):
+    uses_exact_region_layout = bool(region_id) and str(layout.get("region_id") or "") == region_id
+    if region_id and not uses_exact_region_layout and not any(slot["articles"] for slot in out_slots):
         chain = await get_ancestor_chain(db, region_id)
         for ancestor in chain[1:]:
             ancestor_id = str(ancestor["_id"])

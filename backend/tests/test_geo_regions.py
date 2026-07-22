@@ -79,6 +79,24 @@ def test_region_scope_matches_villalba_code_on_pr_country() -> None:
     assert {"market_ids": "mkt-pr"} in result["$or"]
 
 
+def test_geo_catalog_covers_us_pr_scopes() -> None:
+    """Catalog lists every US state, Florida county, and PR municipality."""
+
+    from shared.core.geo_catalog import (
+        FLORIDA_COUNTY_OPTIONS,
+        PUERTO_RICO_TOWN_OPTIONS,
+        US_STATE_OPTIONS,
+    )
+
+    assert len(US_STATE_OPTIONS) == 50
+    assert len(FLORIDA_COUNTY_OPTIONS) == 67
+    assert len(PUERTO_RICO_TOWN_OPTIONS) == 78
+    assert ("fl", "Florida") in US_STATE_OPTIONS
+    assert ("adjuntas", "Adjuntas") in PUERTO_RICO_TOWN_OPTIONS
+    assert ("aguada", "Aguada") in PUERTO_RICO_TOWN_OPTIONS
+    assert ("miami-dade", "Miami-Dade") in FLORIDA_COUNTY_OPTIONS
+
+
 def test_homepage_feed_cache_key_region_versioned() -> None:
     """Region-scoped cache key should include category and version token."""
 
