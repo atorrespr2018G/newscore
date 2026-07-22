@@ -385,16 +385,6 @@ function MastheadMobileToggle({
   )
 }
 
-function MastheadListenBadge(): JSX.Element {
-  const tNav = useTranslations('navigation')
-
-  return (
-    <span className="hidden rounded-sm border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs font-semibold text-neutral-700 md:inline-flex">
-      {tNav('listen')}
-    </span>
-  )
-}
-
 function MastheadLanguageSelector(): JSX.Element {
   const { locale, setLocale } = useLocale()
   const languages = useLanguageRegistry()
@@ -542,7 +532,6 @@ function MastheadAdministratorLink({ pathname }: { pathname: string }): JSX.Elem
 function MastheadActions({ pathname }: { pathname: string }): JSX.Element {
   return (
     <div className="ml-auto flex items-center gap-3">
-      <MastheadListenBadge />
       <MastheadLanguageSelector />
       <MastheadMarketSelector />
       <MastheadLocalitySelector />
