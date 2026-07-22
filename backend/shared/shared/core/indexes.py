@@ -84,11 +84,13 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         [("effective_region_ids", 1), ("status", 1), ("published_at", -1)],
         name="articles_effective_region_status_published",
     )
+    # category_ids and effective_region_ids are both arrays; MongoDB cannot
+    # compound-index two parallel multikey arrays on the same collection.
     await _create_index_compat(
         db,
         ARTICLES_COLLECTION,
-        [("effective_region_ids", 1), ("category_ids", 1), ("status", 1), ("published_at", -1)],
-        name="articles_effective_region_category_status_published",
+        [("category_ids", 1), ("status", 1), ("published_at", -1)],
+        name="articles_category_status_published",
     )
     await _create_index_compat(
         db,

@@ -290,7 +290,9 @@ async def _backfill_articles(
             direct_region_ids=deduped_direct,
             visibility_mode="upward_only",
         )
-        primary_region_id = deduped_direct[0] if deduped_direct else None
+        # Prefer the most specific region (town/county) so editor scope
+        # resolves to locality instead of the country/market ancestor.
+        primary_region_id = deduped_direct[-1] if deduped_direct else None
 
         update_doc = {
             "direct_region_ids": deduped_direct,
