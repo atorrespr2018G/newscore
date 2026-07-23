@@ -13,7 +13,6 @@ import {
 import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { LocalizedFileInput } from '@/components/ui/localized-file-input'
 import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/rich-text-editor'
-import { useEditorScope } from '@/context/editor-scope-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { submitArticleForReview } from '@/lib/api/article-workflow-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
@@ -21,7 +20,15 @@ import { apiConfig } from '@/lib/api/config'
 import { getHomepageLayout } from '@/lib/api/layout-client'
 import { IMediaOut, uploadImage, uploadVideo } from '@/lib/api/media-client'
 import { apiFetch } from '@/lib/api/rest-client'
+import {
+  DEFAULT_EDITOR_MARKET_CODE,
+  DEFAULT_EDITOR_PAGE_NAME,
+  EDITOR_MARKET_OPTIONS,
+} from '@/lib/editor/editor-scope'
+import { FLORIDA_COUNTY_OPTIONS, FLORIDA_STATE_CODE } from '@/lib/florida-counties'
+import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
 import { toRegionCode } from '@/lib/region-code'
+import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 import {
   INTERNATIONAL_POTENTIAL_OPTIONS,
   MAX_CATEGORY_COUNT,
@@ -31,6 +38,15 @@ import {
 
 const MAX_TITLE_LENGTH = 200
 const MIN_BODY_TEXT_LENGTH = 10
+const SELECT_CLASS =
+  'mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm capitalize'
+
+/** Locality tags for one news draft — independent of Placement / Editor scope. */
+interface IReporterLocation {
+  marketCode: string
+  townId: string | null
+  countyId: string | null
+}
 
 interface IUploadedMedia {
   id: string
@@ -77,7 +93,6 @@ function htmlTextLength(html: string): number {
 export default function ReporterUploadPage(): JSX.Element {
   const t = useTranslations('admin')
   const { categoryLabel } = useSectionLabels()
-  const scope = useEditorScope()
   const toolbarLabels = useMemo<IRichTextToolbarLabels>(
     () => ({
       bold: t('reporter.editor.bold'),
@@ -100,6 +115,11 @@ export default function ReporterUploadPage(): JSX.Element {
   const [images, setImages] = useState<IUploadedMedia[]>([])
   const [videos, setVideos] = useState<IUploadedMedia[]>([])
   const [marketId, setMarketId] = useState<string | null>(null)
+  const [location, setLocation] = useState<IReporterLocation>({
+    marketCode: DEFAULT_EDITOR_MARKET_CODE,
+    townId: null,
+    countyId: null,
+  })
   const [categories, setCategories] = useState<ICategoryOut[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
@@ -113,13 +133,13 @@ export default function ReporterUploadPage(): JSX.Element {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    const regionCode = toRegionCode(scope.marketCode, scope.townId ?? null, scope.countyId ?? null)
-    void getHomepageLayout(scope.marketCode, scope.pageName, regionCode)
+    const regionCode = toRegionCode(location.marketCode, location.townId, location.countyId)
+    void getHomepageLayout(location.marketCode, DEFAULT_EDITOR_PAGE_NAME, regionCode)
       .then((layout) => setMarketId(layout.market_id))
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : t('reporter.errors.resolveMarket'))
       })
-  }, [scope.countyId, scope.marketCode, scope.pageName, scope.townId, t])
+  }, [location.countyId, location.marketCode, location.townId, t])
 
   useEffect(() => {
     void getCategories()
@@ -217,7 +237,9 @@ export default function ReporterUploadPage(): JSX.Element {
       const article = await apiFetch<IArticleOut>(`${apiConfig.news}/articles`, {
         method: 'POST',
         body: JSON.stringify({
-          direct_region_ids: [toRegionCode(scope.marketCode, scope.townId ?? null, scope.countyId ?? null)],
+          direct_region_ids: [
+            toRegionCode(location.marketCode, location.townId, location.countyId),
+          ],
           region_visibility_mode: 'upward_only',
           title,
           body,
@@ -291,6 +313,8 @@ export default function ReporterUploadPage(): JSX.Element {
       ) : null}
 
       <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-5">
+        <ReporterLocationFields location={location} setLocation={setLocation} />
+
         <div>
           <span className="block text-sm font-medium text-neutral-700">
             {t('reporter.fields.headline')}
@@ -509,5 +533,120 @@ export default function ReporterUploadPage(): JSX.Element {
         </button>
       </form>
     </div>
+  )
+}
+
+interface IReporterLocationFieldsProps {
+  location: IReporterLocation
+  setLocation: Dispatch<SetStateAction<IReporterLocation>>
+}
+
+/**
+ * Country / state / town / county selectors for the news draft being written.
+ *
+ * Cascades like Placement, but only tags this reporter draft — it never writes
+ * Placement board scope or Editor filters.
+ *
+ * @param props Local location state and its setter.
+ * @returns Location selector fieldset.
+ */
+function ReporterLocationFields({
+  location,
+  setLocation,
+}: IReporterLocationFieldsProps): JSX.Element {
+  const t = useTranslations('admin')
+  const tNav = useTranslations('navigation')
+  const showLocality =
+    location.marketCode === US_MARKET_CODE || location.marketCode === PUERTO_RICO_MARKET_CODE
+  const showCounty =
+    location.marketCode === US_MARKET_CODE && location.townId === FLORIDA_STATE_CODE
+
+  function patchLocation(patch: Partial<IReporterLocation>): void {
+    setLocation((current) => ({ ...current, ...patch }))
+  }
+
+  return (
+    <fieldset className="rounded border border-neutral-200 bg-neutral-50 p-3">
+      <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+        {t('reporter.fields.locationHeading')}
+      </legend>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium text-neutral-700">
+          {t('reporter.fields.country')}
+          <select
+            value={location.marketCode}
+            onChange={(event) =>
+              patchLocation({
+                marketCode: event.target.value,
+                townId: null,
+                countyId: null,
+              })
+            }
+            className={SELECT_CLASS}
+          >
+            {EDITOR_MARKET_OPTIONS.map((market) => (
+              <option key={market} value={market}>
+                {market.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {showLocality ? (
+          <label className="text-xs font-medium text-neutral-700">
+            {location.marketCode === US_MARKET_CODE ? tNav('state') : tNav('town')}
+            <select
+              value={location.townId ?? ''}
+              onChange={(event) =>
+                patchLocation({
+                  townId: event.target.value || null,
+                  countyId:
+                    location.marketCode === US_MARKET_CODE &&
+                    event.target.value === FLORIDA_STATE_CODE
+                      ? location.countyId
+                      : null,
+                })
+              }
+              className={SELECT_CLASS}
+            >
+              <option value="">
+                {location.marketCode === US_MARKET_CODE
+                  ? tNav('localityDefaultUs')
+                  : tNav('localityDefaultPr')}
+              </option>
+              {location.marketCode === US_MARKET_CODE
+                ? US_STATE_OPTIONS.map((state) => (
+                    <option key={state.code} value={state.code}>
+                      {state.label}
+                    </option>
+                  ))
+                : PUERTO_RICO_TOWN_OPTIONS.map((town) => (
+                    <option key={town.code} value={town.code}>
+                      {town.label}
+                    </option>
+                  ))}
+            </select>
+          </label>
+        ) : null}
+
+        {showCounty ? (
+          <label className="text-xs font-medium text-neutral-700">
+            {tNav('county')}
+            <select
+              value={location.countyId ?? ''}
+              onChange={(event) => patchLocation({ countyId: event.target.value || null })}
+              className={SELECT_CLASS}
+            >
+              <option value="">{tNav('county')}</option>
+              {FLORIDA_COUNTY_OPTIONS.map((county) => (
+                <option key={county.code} value={county.code}>
+                  {county.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+    </fieldset>
   )
 }

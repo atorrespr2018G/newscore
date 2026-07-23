@@ -15,6 +15,8 @@
       "headlinePlaceholder": "Escribe un titular…",
       "titleCount": "{count}/{max}",
       "body": "Cuerpo",
+      "locationHeading": "Ubicación de la noticia",
+      "country": "País",
       "categories": "Categorías",
       "categoriesHint": "(elige 1 a 3)",
       "selectedCount": "Seleccionadas {count} de {max}.",
