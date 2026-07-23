@@ -5,8 +5,10 @@ import type { IFeedSlot } from '@/interfaces/feed'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { PlacementSlotScope } from '@/context/editor-placement-context'
 import { PlacementSectionDropZone } from '@/components/features/placement-overlay'
+import { useMarket } from '@/context/market-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { COMPACT_SIX_BAND_ARTICLE_LIMIT, sectionAnchorId } from '@/lib/helpers/section-labels'
+import { toRegionCode } from '@/lib/region-code'
 import { useTranslations } from 'next-intl'
 
 const MOBILE_ARTICLES_PER_PAGE = 2
@@ -36,6 +38,8 @@ interface IHomepageCompactSixBandProps {
  */
 export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBandProps): JSX.Element | null {
   const { homepageSectionTitle } = useSectionLabels(pageName)
+  const { marketCode, town, county } = useMarket()
+  const regionScopeKey = toRegionCode(marketCode, town, county)
   const t = useTranslations('common')
   const allArticles = slot.articles
   const [articlesPerPage, setArticlesPerPage] = useState(COMPACT_SIX_BAND_ARTICLE_LIMIT)
@@ -43,6 +47,10 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
   const isPaginated = totalPages > 1
 
   const [page, setPage] = useState(0)
+
+  useEffect(() => {
+    setPage(0)
+  }, [regionScopeKey])
 
   useEffect(() => {
     const syncArticlesPerPage = (): void => {

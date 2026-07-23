@@ -1,13 +1,15 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { ArticleLeadMedia } from '@/components/ui/article-lead-media'
 import { PlacementSlotScope } from '@/context/editor-placement-context'
 import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
+import { useMarket } from '@/context/market-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
+import { toRegionCode } from '@/lib/region-code'
 import { useTranslations } from 'next-intl'
 
 interface IHealthCarouselSectionProps {
@@ -51,11 +53,18 @@ function ChevronIcon({ direction }: { direction: 'left' | 'right' }): JSX.Elemen
  */
 export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JSX.Element | null {
   const { homepageSectionTitle } = useSectionLabels()
+  const { marketCode, town, county } = useMarket()
+  const regionScopeKey = toRegionCode(marketCode, town, county)
   const t = useTranslations('common')
   const tHome = useTranslations('home')
   const articles = slot.articles.slice(0, HEALTH_CAROUSEL_VIDEO_COUNT)
   const [activeIndex, setActiveIndex] = useState(0)
   const trackRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setActiveIndex(0)
+    trackRef.current?.scrollTo({ left: 0 })
+  }, [regionScopeKey])
 
   const scrollCarousel = useCallback((direction: -1 | 1) => {
     const track = trackRef.current

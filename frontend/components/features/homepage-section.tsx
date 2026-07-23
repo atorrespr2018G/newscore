@@ -8,7 +8,9 @@ import { HomepageUsBand } from '@/components/features/homepage-us-band'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { PlacementSlotScope } from '@/context/editor-placement-context'
 import { PlacementSectionDropZone } from '@/components/features/placement-overlay'
+import { useMarket } from '@/context/market-context'
 import { cardVariantForPresentation } from '@/lib/presentation-registry'
+import { toRegionCode } from '@/lib/region-code'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import {
   COMPACT_SIX_BAND_EXTENDED_LIMIT,
@@ -69,9 +71,14 @@ function buildFeaturedColumns(articles: IArticle[]): Array<{ leadArticle: IArtic
 
 /**
  * CNN-style horizontal module: section heading plus a row of story cards.
+ *
+ * Carousels remount when the market/town/county scope changes so arrows and
+ * slide position always start at the default (first page, left).
  */
 export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.Element | null {
   const { homepageSectionTitle, sectionLabel } = useSectionLabels(pageName)
+  const { marketCode, town, county } = useMarket()
+  const carouselScopeKey = toRegionCode(marketCode, town, county)
   const t = useTranslations('common')
   const articles = visibleArticlesForSection(slot)
   if (articles.length === 0) {
@@ -81,6 +88,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   if (slot.positionKey.trim().toLowerCase() === 'health') {
     return (
       <HealthCarouselSection
+        key={carouselScopeKey}
         slot={{ ...slot, articles: slot.articles.slice(0, HEALTH_CAROUSEL_ARTICLE_LIMIT) }}
       />
     )
@@ -89,6 +97,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   if (isCompactSixBandPositionKey(slot.positionKey)) {
     return (
       <HomepageCompactSixBand
+        key={carouselScopeKey}
         slot={{ ...slot, articles: slot.articles.slice(0, COMPACT_SIX_BAND_EXTENDED_LIMIT) }}
         pageName={pageName}
       />
