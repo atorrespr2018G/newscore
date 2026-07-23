@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { IArticle } from '@/interfaces/article'
 import {
   ARTICLE_TEASER_CLIP_SECONDS,
@@ -16,6 +16,10 @@ interface IArticleLeadMediaProps {
   mode?: ArticleLeadMediaMode
   /** Teaser only: keep thumbnail visible behind a smaller looping clip. */
   teaserOverlay?: boolean
+  /** Full only: start playback unmuted (e.g. Live carousel selection). */
+  autoPlayUnmuted?: boolean
+  /** Full only: bump to re-trigger unmuted play for the same clip. */
+  playbackNonce?: number
   className?: string
   imageSizes?: string
   priority?: boolean
@@ -47,6 +51,8 @@ export function ArticleLeadMedia({
   article,
   mode = 'teaser',
   teaserOverlay = false,
+  autoPlayUnmuted = false,
+  playbackNonce = 0,
   className,
   imageSizes,
   priority = false,
@@ -93,14 +99,11 @@ export function ArticleLeadMedia({
     }
   }, [article.id, mode, videoSrc])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const video = videoRef.current
     if (!video || !videoSrc || mode !== 'full') {
       return
     }
-
-    video.pause()
-    video.muted = true
 
     const unmuteOnPlay = (): void => {
       video.muted = false
@@ -108,12 +111,27 @@ export function ArticleLeadMedia({
 
     video.addEventListener('play', unmuteOnPlay)
 
+    if (autoPlayUnmuted) {
+      video.muted = false
+      const playPromise = video.play()
+      if (playPromise !== undefined) {
+        void playPromise.catch((error: unknown) => {
+          console.warn('Full video unmuted play blocked; falling back to muted playback', error)
+          video.muted = true
+          playVideoSafely(video, 'full-muted-fallback')
+        })
+      }
+    } else {
+      video.pause()
+      video.muted = true
+    }
+
     return () => {
       video.removeEventListener('play', unmuteOnPlay)
       video.pause()
       video.muted = true
     }
-  }, [article.id, mode, videoSrc])
+  }, [article.id, autoPlayUnmuted, mode, playbackNonce, videoSrc])
 
   if (useTeaserOverlay) {
     return (
@@ -190,7 +208,7 @@ export function ArticleLeadMedia({
         key={`${article.id}:${videoSrc}`}
         src={videoSrc}
         className={className ?? 'absolute inset-0 h-full w-full object-cover'}
-        muted
+        muted={!autoPlayUnmuted}
         controls
         playsInline
         preload="metadata"

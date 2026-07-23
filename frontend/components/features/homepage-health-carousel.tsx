@@ -59,12 +59,19 @@ export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JS
   const tHome = useTranslations('home')
   const articles = slot.articles.slice(0, HEALTH_CAROUSEL_VIDEO_COUNT)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [playbackNonce, setPlaybackNonce] = useState(0)
   const trackRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setActiveIndex(0)
+    setPlaybackNonce(0)
     trackRef.current?.scrollTo({ left: 0 })
   }, [regionScopeKey])
+
+  const selectArticle = useCallback((index: number) => {
+    setActiveIndex(index)
+    setPlaybackNonce((current) => current + 1)
+  }, [])
 
   const scrollCarousel = useCallback((direction: -1 | 1) => {
     const track = trackRef.current
@@ -73,7 +80,8 @@ export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JS
     }
     const card = track.querySelector<HTMLElement>('[data-carousel-card]')
     const gap = 12
-    const step = card ? card.offsetWidth + gap : track.clientWidth / HEALTH_CAROUSEL_VISIBLE_COUNT
+    const cardStep = card ? card.offsetWidth + gap : track.clientWidth / HEALTH_CAROUSEL_VISIBLE_COUNT
+    const step = cardStep * HEALTH_CAROUSEL_VISIBLE_COUNT
     const maxScrollLeft = track.scrollWidth - track.clientWidth
     const nextScrollLeft = Math.max(0, Math.min(track.scrollLeft + direction * step, maxScrollLeft))
     track.scrollTo({ left: nextScrollLeft, behavior: 'smooth' })
@@ -97,7 +105,11 @@ export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JS
 
       <div>
         <div className="mx-auto w-[68%] max-w-full">
-          <HealthCarouselHeroVideo article={activeArticle} />
+          <HealthCarouselHeroVideo
+            article={activeArticle}
+            autoPlayUnmuted={playbackNonce > 0}
+            playbackNonce={playbackNonce}
+          />
         </div>
 
         <div className="overflow-hidden rounded border border-neutral-200">
@@ -120,7 +132,7 @@ export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JS
                   key={article.id}
                   article={article}
                   isActive={index === activeIndex}
-                  onSelect={() => setActiveIndex(index)}
+                  onSelect={() => selectArticle(index)}
                 />
               ))}
             </div>
@@ -142,15 +154,23 @@ export function HealthCarouselSection({ slot }: IHealthCarouselSectionProps): JS
 
 interface IHealthCarouselHeroVideoProps {
   article: IArticle
+  autoPlayUnmuted: boolean
+  playbackNonce: number
 }
 
-function HealthCarouselHeroVideo({ article }: IHealthCarouselHeroVideoProps): JSX.Element {
+function HealthCarouselHeroVideo({
+  article,
+  autoPlayUnmuted,
+  playbackNonce,
+}: IHealthCarouselHeroVideoProps): JSX.Element {
   return (
     <PlacementOverlay article={article}>
       <div className="relative aspect-video w-full bg-black">
         <ArticleLeadMedia
           article={article}
           mode="full"
+          autoPlayUnmuted={autoPlayUnmuted}
+          playbackNonce={playbackNonce}
           priority
           imageSizes="(max-width: 1024px) 68vw, 697px"
         />
