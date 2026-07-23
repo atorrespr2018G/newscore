@@ -17,7 +17,7 @@ from shared.core.pagination import PaginationParams
 from shared.core.regions import (
     get_region_by_code,
     legacy_market_scope_article_filter,
-    region_ids_under_same_country,
+    region_ids_self_and_descendants,
     region_scope_article_filter,
     resolve_region_code_from_legacy,
 )
@@ -102,13 +102,17 @@ def _build_location_filter(
     region_scope_ids: list[str] | None,
     market_id: str | None,
     town: str | None,
+    include_legacy_market: bool = False,
 ) -> dict[str, Any]:
-    """Build a location filter preferring region ids with a legacy fallback.
+    """Build a location filter preferring region subtree ids with a legacy fallback.
 
     Args:
-        region_scope_ids: Country-wide placement scope ids for the active region.
+        region_scope_ids: Selected region plus descendant ids/codes.
         market_id: Resolved market document id for legacy articles.
         town: Optional town/state locality code for legacy articles.
+        include_legacy_market: When True (country-level selection only), also
+            match legacy ``market_ids``. Must stay False for state/county filters
+            or every USA story would match Bay.
 
     Returns:
         A MongoDB filter matching region or legacy location fields, or empty.
@@ -116,11 +120,8 @@ def _build_location_filter(
 
     legacy = _build_legacy_location_filter(market_id=market_id, town=town)
     if region_scope_ids:
-        region_clause = region_scope_article_filter(region_scope_ids, market_id=market_id)
-        if legacy:
-            # region_clause already includes market_ids when market_id is set.
-            return region_clause
-        return region_clause
+        market_for_scope = market_id if include_legacy_market else None
+        return region_scope_article_filter(region_scope_ids, market_id=market_for_scope)
     return legacy
 
 
@@ -133,6 +134,7 @@ def _build_search_filter(
     region_scope_ids: list[str] | None = None,
     market_id: str | None = None,
     town: str | None = None,
+    include_legacy_market: bool = False,
 ) -> dict[str, Any]:
     """Combine the title/slug, category, date, and location filters with AND.
 
@@ -141,9 +143,10 @@ def _build_search_filter(
         category_id: Category id to match against legacy or multi-category fields.
         created_from: Inclusive created-date lower bound.
         created_to: Inclusive created-date upper bound.
-        region_scope_ids: Optional country-wide placement scope ids.
+        region_scope_ids: Optional selected-region-plus-descendants scope ids.
         market_id: Optional market id for legacy market_ids matching.
         town: Optional town/state code for legacy town_id matching.
+        include_legacy_market: Whether country-level legacy market matching applies.
 
     Returns:
         A MongoDB filter document (empty when no filters are supplied).
@@ -164,6 +167,7 @@ def _build_search_filter(
         region_scope_ids=region_scope_ids,
         market_id=market_id,
         town=town,
+        include_legacy_market=include_legacy_market,
     )
     if location_filter:
         clauses.append(location_filter)
@@ -181,7 +185,7 @@ async def _resolve_search_location(
     market: str | None,
     town: str | None,
     region_code: str | None,
-) -> tuple[str | None, str | None, list[str]]:
+) -> tuple[str | None, str | None, list[str], bool]:
     """Resolve market/town/region_code into region and market document ids.
 
     Args:
@@ -191,7 +195,8 @@ async def _resolve_search_location(
         region_code: Optional canonical region code.
 
     Returns:
-        A ``(region_id, market_id, region_scope_ids)`` tuple; values may be empty.
+        A ``(region_id, market_id, region_scope_ids, include_legacy_market)`` tuple.
+        ``include_legacy_market`` is True only for country-level region filters.
     """
 
     normalized_market = (market or "").strip().lower() or None
@@ -213,13 +218,15 @@ async def _resolve_search_location(
 
     region_id: str | None = None
     region_scope_ids: list[str] = []
+    include_legacy_market = False
     if requested_region_code:
         region_doc = await get_region_by_code(db, requested_region_code)
         if region_doc is not None:
             region_id = str(region_doc["_id"])
-            region_scope_ids = await region_ids_under_same_country(db, region_id)
+            region_scope_ids = await region_ids_self_and_descendants(db, region_id)
+            include_legacy_market = region_doc.get("kind") == "country"
 
-    return region_id, market_id, region_scope_ids
+    return region_id, market_id, region_scope_ids, include_legacy_market
 
 
 async def _items_from_docs(
@@ -285,7 +292,7 @@ async def search_articles(
     if article_id and article_id.strip():
         return await _search_by_article_id(db, article_id)
 
-    region_id, market_id, region_scope_ids = await _resolve_search_location(
+    region_id, market_id, region_scope_ids, include_legacy_market = await _resolve_search_location(
         db,
         market=market,
         town=town,
@@ -300,6 +307,7 @@ async def search_articles(
         region_scope_ids=region_scope_ids,
         market_id=market_id,
         town=town,
+        include_legacy_market=include_legacy_market,
     )
     total = await db[ARTICLES_COLLECTION].count_documents(filter_doc)
     cursor = (

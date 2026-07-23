@@ -73,33 +73,51 @@ def test_search_filter_empty_when_no_inputs() -> None:
 
 
 def test_location_filter_region_with_legacy_fallback() -> None:
-    """Region scope includes same-market legacy articles for town stories."""
+    """Country-level search includes same-market legacy articles."""
 
     result = _build_location_filter(
-        region_scope_ids=["reg-us-fl", "reg-us"],
+        region_scope_ids=["reg-us", "us"],
         market_id="mkt-us",
-        town="fl",
+        town=None,
+        include_legacy_market=True,
     )
     assert result == {
         "$or": [
-            {"effective_region_ids": {"$in": ["reg-us-fl", "reg-us"]}},
-            {"direct_region_ids": {"$in": ["reg-us-fl", "reg-us"]}},
+            {"effective_region_ids": {"$in": ["reg-us", "us"]}},
+            {"direct_region_ids": {"$in": ["reg-us", "us"]}},
             {"market_ids": "mkt-us"},
         ]
     }
 
 
+def test_location_filter_county_excludes_legacy_market() -> None:
+    """County/state search must not OR in every USA market_ids story."""
+
+    result = _build_location_filter(
+        region_scope_ids=["reg-us-fl-bay", "us-fl-bay"],
+        market_id="mkt-us",
+        town="fl",
+        include_legacy_market=False,
+    )
+    assert result == {
+        "$or": [
+            {"effective_region_ids": {"$in": ["reg-us-fl-bay", "us-fl-bay"]}},
+            {"direct_region_ids": {"$in": ["reg-us-fl-bay", "us-fl-bay"]}},
+        ]
+    }
+
+
 def test_location_filter_region_only() -> None:
-    """Region scope alone yields a country-wide sibling-aware clause."""
+    """Region scope alone yields a self-and-descendants clause."""
 
     assert _build_location_filter(
-        region_scope_ids=["reg-us", "reg-world"],
+        region_scope_ids=["reg-us-fl-bay", "us-fl-bay"],
         market_id=None,
         town=None,
     ) == {
         "$or": [
-            {"effective_region_ids": {"$in": ["reg-us", "reg-world"]}},
-            {"direct_region_ids": {"$in": ["reg-us", "reg-world"]}},
+            {"effective_region_ids": {"$in": ["reg-us-fl-bay", "us-fl-bay"]}},
+            {"direct_region_ids": {"$in": ["reg-us-fl-bay", "us-fl-bay"]}},
         ]
     }
 
@@ -115,6 +133,7 @@ def test_search_filter_includes_location() -> None:
         region_scope_ids=["reg-us"],
         market_id="mkt-us",
         town=None,
+        include_legacy_market=True,
     )
     assert result == {
         "$or": [

@@ -162,6 +162,37 @@ async def resolve_region_ref_ids(
     return list(resolved_ids)
 
 
+async def _collect_region_scope_values(
+    db: AsyncIOMotorDatabase,
+    root_id: str,
+) -> list[str]:
+    """Collect active region ids and codes for ``root_id`` and its descendants.
+
+    Args:
+        db: Database connection.
+        root_id: Region document id that roots the subtree.
+
+    Returns:
+        Deduplicated region document ids and normalized codes.
+    """
+
+    cursor = db[REGIONS_COLLECTION].find(
+        {
+            "is_active": True,
+            "$or": [{"_id": root_id}, {"ancestor_ids": root_id}],
+        },
+        {"_id": 1, "code": 1},
+    )
+    scope_values: list[str] = []
+    seen: set[str] = set()
+    async for doc in cursor:
+        for value in (str(doc["_id"]), _norm_code(str(doc.get("code") or ""))):
+            if value and value not in seen:
+                seen.add(value)
+                scope_values.append(value)
+    return scope_values
+
+
 async def region_ids_under_same_country(
     db: AsyncIOMotorDatabase,
     region_id: str,
@@ -185,23 +216,33 @@ async def region_ids_under_same_country(
 
     country = next((doc for doc in chain if doc.get("kind") == "country"), None)
     root = country if country is not None else chain[0]
-    root_id = str(root["_id"])
+    return await _collect_region_scope_values(db, str(root["_id"]))
 
-    cursor = db[REGIONS_COLLECTION].find(
-        {
-            "is_active": True,
-            "$or": [{"_id": root_id}, {"ancestor_ids": root_id}],
-        },
-        {"_id": 1, "code": 1},
+
+async def region_ids_self_and_descendants(
+    db: AsyncIOMotorDatabase,
+    region_id: str,
+) -> list[str]:
+    """Return ``region_id`` and every active descendant id/code.
+
+    Used by editor search so USA / Florida / Bay narrows to that subtree only,
+    instead of expanding to every sibling under the country.
+
+    Args:
+        db: Database connection.
+        region_id: Active region document id.
+
+    Returns:
+        Region document ids and codes for the selected node and its descendants.
+    """
+
+    region = await db[REGIONS_COLLECTION].find_one(
+        {"_id": region_id, "is_active": True},
+        {"_id": 1},
     )
-    scope_values: list[str] = []
-    seen: set[str] = set()
-    async for doc in cursor:
-        for value in (str(doc["_id"]), _norm_code(str(doc.get("code") or ""))):
-            if value and value not in seen:
-                seen.add(value)
-                scope_values.append(value)
-    return scope_values
+    if region is None:
+        return [region_id]
+    return await _collect_region_scope_values(db, region_id)
 
 
 def region_scope_article_filter(
