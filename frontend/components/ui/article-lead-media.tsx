@@ -41,7 +41,7 @@ function seekVideoToPreviewFrame(video: HTMLVideoElement): void {
 
 /**
  * Lead image or video for story cards and article pages.
- * Teaser: muted looping clip for homepage hero. Full: controls on article detail.
+ * Teaser: muted looping clip for homepage hero. Full: paused muted player with controls.
  */
 export function ArticleLeadMedia({
   article,
@@ -99,18 +99,19 @@ export function ArticleLeadMedia({
       return
     }
 
-    video.muted = false
-    const playPromise = video.play()
-    if (playPromise !== undefined) {
-      void playPromise.catch((error: unknown) => {
-        console.warn('Full video autoplay blocked; falling back to muted playback', error)
-        video.muted = true
-        playVideoSafely(video, 'full-muted-fallback')
-      })
+    video.pause()
+    video.muted = true
+
+    const unmuteOnPlay = (): void => {
+      video.muted = false
     }
 
+    video.addEventListener('play', unmuteOnPlay)
+
     return () => {
+      video.removeEventListener('play', unmuteOnPlay)
       video.pause()
+      video.muted = true
     }
   }, [article.id, mode, videoSrc])
 
@@ -189,10 +190,10 @@ export function ArticleLeadMedia({
         key={`${article.id}:${videoSrc}`}
         src={videoSrc}
         className={className ?? 'absolute inset-0 h-full w-full object-cover'}
-        autoPlay
+        muted
         controls
         playsInline
-        preload="auto"
+        preload="metadata"
         aria-label={article.title}
       />
     )

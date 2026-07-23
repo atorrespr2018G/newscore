@@ -28,7 +28,7 @@ interface IHomepageSectionProps {
 
 const FEATURED_COLUMN_SECTION_KEYS = new Set<string>()
 const FEATURED_COLUMN_ARTICLE_LIMIT = 15
-const HEALTH_CAROUSEL_ARTICLE_LIMIT = 6
+const HEALTH_CAROUSEL_ARTICLE_LIMIT = 20
 const FEATURED_COLUMN_COUNT = 3
 const FEATURED_COLUMN_SECONDARY_COUNT = 4
 function usesFeaturedColumnLayout(positionKey: string): boolean {

@@ -761,7 +761,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "position_key": "health",
         "order_index": 8,
         "category_slug": "health",
-        "limit": 10,
+        "limit": 20,
         "presentation_type": "grid_4",
         "display_name_us": "Live",
         "display_name_co": "En Vivo",

@@ -16,7 +16,7 @@ interface IHealthCarouselSectionProps {
   slot: IFeedSlot
 }
 
-const HEALTH_CAROUSEL_VIDEO_COUNT = 6
+const HEALTH_CAROUSEL_VIDEO_COUNT = 20
 /** Thumbnail cards use ~25% track width on large screens, so four fit in the viewport at once. */
 const HEALTH_CAROUSEL_VISIBLE_COUNT = 4
 
