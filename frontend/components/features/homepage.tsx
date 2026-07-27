@@ -427,7 +427,6 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
         <AdRibbon />
         <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
         <LiveSection slot={liveSlot} />
-        <SportsSectionRows slots={sportSlots} />
         {worldSlot ? (
           <div className="space-y-2">
             <AdRibbon />
@@ -436,6 +435,7 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
             </Suspense>
           </div>
         ) : null}
+        <SportsSectionRows slots={sportSlots} />
       </div>
     )
   }

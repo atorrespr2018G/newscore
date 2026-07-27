@@ -34,7 +34,10 @@ SPORTS_LIVE_ARTICLE_LIMIT = 20
 SPORTS_WORLD_ARTICLE_LIMIT = 12
 PARENT_SPORTS_CATEGORY_SLUG = "sports"
 LIVE_CATEGORY_SLUG = "health"
-WORLD_CATEGORY_SLUG = "world"
+# Distinct from homepage/world-page `world` so Sports World is its own article pool.
+SPORTS_WORLD_CATEGORY_SLUG = "sports-page-world"
+SPORTS_WORLD_CATEGORY_NAME = "World"
+SPORTS_WORLD_CATEGORY_DESCRIPTION = "World news curated for the Sports page only."
 _SLUG_SAFE_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -81,6 +84,37 @@ async def _ensure_sport_category(db: AsyncIOMotorDatabase, *, slug: str, label: 
         },
     )
     logger.info("Created sport category %s", slug)
+    return category_id
+
+
+async def _ensure_sports_world_category(db: AsyncIOMotorDatabase) -> str:
+    """Ensure the Sports-page-only World category exists (not homepage `world`)."""
+
+    existing = await db[CATEGORIES_COLLECTION].find_one({"slug": SPORTS_WORLD_CATEGORY_SLUG})
+    if existing is not None:
+        await db[CATEGORIES_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {
+                "$set": {
+                    "name": SPORTS_WORLD_CATEGORY_NAME,
+                    "description": SPORTS_WORLD_CATEGORY_DESCRIPTION,
+                },
+            },
+        )
+        return str(existing["_id"])
+
+    category_id = str(uuid4())
+    await db[CATEGORIES_COLLECTION].insert_one(
+        {
+            "_id": category_id,
+            "name": SPORTS_WORLD_CATEGORY_NAME,
+            "slug": SPORTS_WORLD_CATEGORY_SLUG,
+            "parent_id": None,
+            "description": SPORTS_WORLD_CATEGORY_DESCRIPTION,
+            "created_at": utc_now().isoformat(),
+        },
+    )
+    logger.info("Created Sports page World category %s", SPORTS_WORLD_CATEGORY_SLUG)
     return category_id
 
 
@@ -187,7 +221,7 @@ async def sync_sports_layout_slots(
 ) -> None:
     """Rebuild sports page slots from an ordered sport list.
 
-    Keeps hero, Top Stories, Live, and World; replaces dynamic sport rows.
+    Keeps hero, Top Stories, Live, and World (Live then World); replaces dynamic sport rows.
 
     Args:
         db: Mongo database.
@@ -197,7 +231,7 @@ async def sync_sports_layout_slots(
 
     sports_category_id = await _category_id_by_slug(db, PARENT_SPORTS_CATEGORY_SLUG)
     live_category_id = await _category_id_by_slug(db, LIVE_CATEGORY_SLUG)
-    world_category_id = await _category_id_by_slug(db, WORLD_CATEGORY_SLUG)
+    world_category_id = await _ensure_sports_world_category(db)
     layout = await _ensure_sports_layout(db, market_id=market_id)
     layout_id = str(layout["_id"])
     now = utc_now().isoformat()
@@ -235,6 +269,17 @@ async def sync_sports_layout_slots(
             limit=SPORTS_LIVE_ARTICLE_LIMIT,
             now=now,
         ),
+        await _upsert_layout_slot(
+            db,
+            layout_id=layout_id,
+            position_key=WORLD_POSITION_KEY,
+            order_index=3,
+            display_name="World",
+            presentation_type="grid_4",
+            category_id=world_category_id,
+            limit=SPORTS_WORLD_ARTICLE_LIMIT,
+            now=now,
+        ),
     ]
 
     for index, item in enumerate(items):
@@ -244,7 +289,7 @@ async def sync_sports_layout_slots(
                 db,
                 layout_id=layout_id,
                 position_key=item["slug"],
-                order_index=index + 3,
+                order_index=index + 4,
                 display_name=item["label"],
                 presentation_type="grid_4",
                 category_id=category_id,
@@ -252,20 +297,6 @@ async def sync_sports_layout_slots(
                 now=now,
             ),
         )
-
-    slot_ids.append(
-        await _upsert_layout_slot(
-            db,
-            layout_id=layout_id,
-            position_key=WORLD_POSITION_KEY,
-            order_index=len(items) + 3,
-            display_name="World",
-            presentation_type="grid_4",
-            category_id=world_category_id,
-            limit=SPORTS_WORLD_ARTICLE_LIMIT,
-            now=now,
-        ),
-    )
 
     await _delete_obsolete_sports_slots(db, layout_id=layout_id, keep_slot_ids=set(slot_ids))
     await db[LAYOUTS_COLLECTION].update_one(
