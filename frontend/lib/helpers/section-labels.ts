@@ -118,7 +118,31 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
 
   'world-africa',
 
+  // Sports page rows (per-country list); same compact carousel as landing/world.
+  'baseball',
+
+  'basketball',
+
+  'boxing',
+
+  'volleyball',
+
+  'soccer',
+
+  'surfing',
+
+  'track-and-field',
+
+  'tennis',
+
+  'golf',
+
+  'horse-racing',
+
 ])
+
+/** Slots on the Sports page that are not compact sport rows. */
+const SPORTS_PAGE_NON_COMPACT_KEYS = new Set(['hero', 'us-featured', 'us', 'health', 'world'])
 
 
 
@@ -129,10 +153,23 @@ export const COMPACT_SIX_BAND_EXTENDED_LIMIT = 12
 
 
 
-export function isCompactSixBandPositionKey(positionKey: string): boolean {
-
-  return COMPACT_SIX_BAND_POSITION_KEYS.has(positionKey.trim().toLowerCase())
-
+/**
+ * Whether a slot uses the landing/world compact six-card carousel.
+ *
+ * @param positionKey Slot position key.
+ * @param pageName Optional layout page name (`sports` includes dynamic sport rows).
+ * @returns True when HomepageCompactSixBand should render.
+ */
+export function isCompactSixBandPositionKey(positionKey: string, pageName?: string): boolean {
+  const normalized = positionKey.trim().toLowerCase()
+  if (COMPACT_SIX_BAND_POSITION_KEYS.has(normalized)) {
+    return true
+  }
+  // Admin-added Sports page rows reuse the same carousel as landing/world.
+  if (pageName?.trim().toLowerCase() === 'sports' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
+    return true
+  }
+  return false
 }
 
 
@@ -329,6 +366,11 @@ export function homepageSectionTitle(
 
     }
 
+  }
+
+  // Sports page rows use CMS display names (per-country sport list).
+  if (pageName?.trim().toLowerCase() === 'sports' && displayName?.trim()) {
+    return displayName.trim()
   }
 
   if (POSITION_KEY_OVERRIDES_DISPLAY_NAME.has(normalized)) {

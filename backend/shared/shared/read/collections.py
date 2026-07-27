@@ -7,6 +7,7 @@ CATEGORIES_COLLECTION = "categories"
 MARKETS_COLLECTION = "markets"
 LAYOUTS_COLLECTION = "layouts"
 SLOTS_COLLECTION = "slots"
+SPORTS_PAGE_SECTIONS_COLLECTION = "sports_page_sections"
 WIDGETS_COLLECTION = "widgets"
 # Append-only log of when an article was pinned into a slot, used to badge
 # newly placed stories on the editorial workflow tabs.

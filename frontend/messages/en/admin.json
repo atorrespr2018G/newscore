@@ -5,6 +5,7 @@
     "editor": "Editor",
     "news": "News",
     "placement": "Placement",
+    "sports": "Sports",
     "preview": "Preview"
   },
   "reporter": {
@@ -322,5 +323,21 @@
       "approve": "Failed to approve story",
       "sendBack": "Failed to send story back"
     }
+  },
+  "sportsPage": {
+    "heading": "Sports sections",
+    "subtitle": "Manage the ordered list of sport rows for each country’s Sports page. Saving updates the live Sports page layout.",
+    "listHint": "Two sport rows are followed by an advertisement ribbon on the Sports page.",
+    "labelPlaceholder": "Sport name",
+    "addSport": "Add sport",
+    "remove": "Remove",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading sports list…",
+    "saveSuccess": "Sports list saved. The Sports page now uses these rows.",
+    "saveFailed": "Failed to save sports list.",
+    "loadFailed": "Failed to load sports list."
   }
 }

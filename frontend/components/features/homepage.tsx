@@ -14,8 +14,10 @@ import {
 } from '@/components/ui/article-lead-media'
 import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import {
+  findSlotByPositionKey,
   normalizedPositionKey,
   selectHomepageSections,
+  selectSportsPageSectionSlots,
   splitDefaultHeroArticles,
 } from '@/lib/helpers/feed-layout'
 import type { IEditorialBandSlots } from '@/lib/helpers/feed-layout'
@@ -354,8 +356,37 @@ function GridSections({
 interface IHomepageContentOptions {
   /** Hide Extra Stories / World Watch / Featured editorial band. */
   hideRemainingEditorialBands?: boolean
+  /** Hide More Top Stories / Government / Sports editorial band. */
+  hideTopStoriesBand?: boolean
   /** Sports page only: place Live under the ad ribbon below Top Stories. */
   promoteLiveBelowTopStories?: boolean
+  /** Sports page: render dynamic sport rows (two sections, then an ad ribbon). */
+  useSportsSectionRows?: boolean
+}
+
+const SPORTS_PAGE_NAME = 'sports'
+const SPORTS_SECTION_PAIR_SIZE = 2
+
+/**
+ * Sports page section rows: two compact bands, then a horizontal ad ribbon.
+ */
+function SportsSectionRows({ slots }: { slots: IFeedSlot[] }): JSX.Element | null {
+  if (slots.length === 0) {
+    return null
+  }
+
+  return (
+    <>
+      {slots.map((slot, index) => (
+        <div key={slot.id} className="space-y-2">
+          {index > 0 && index % SPORTS_SECTION_PAIR_SIZE === 0 ? <AdRibbon /> : null}
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomepageSection slot={slot} pageName={SPORTS_PAGE_NAME} />
+          </Suspense>
+        </div>
+      ))}
+    </>
+  )
 }
 
 interface IHomepageContentProps {
@@ -382,6 +413,33 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
   }
 
   const sections = selectHomepageSections(slots)
+  const useSportsSectionRows = options?.useSportsSectionRows === true
+
+  if (useSportsSectionRows) {
+    const sportSlots = selectSportsPageSectionSlots(slots)
+    const liveSlot = findSlotByPositionKey(slots, LIVE_POSITION_KEY)
+    const worldSlot = findSlotByPositionKey(slots, 'world')
+    return (
+      <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
+        <PlacementSlotScope slotId={sections.heroSlot.id}>
+          <HeroBlock articles={sections.heroSlot.articles} />
+        </PlacementSlotScope>
+        <AdRibbon />
+        <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
+        <LiveSection slot={liveSlot} />
+        <SportsSectionRows slots={sportSlots} />
+        {worldSlot ? (
+          <div className="space-y-2">
+            <AdRibbon />
+            <Suspense fallback={<SectionSkeleton />}>
+              <HomepageSection slot={worldSlot} pageName={SPORTS_PAGE_NAME} />
+            </Suspense>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   const promoteLiveBelowTopStories = options?.promoteLiveBelowTopStories === true
   const postPoliticsSlots = promoteLiveBelowTopStories
     ? sections.postPoliticsSlots.filter(
@@ -392,6 +450,7 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
   const remainingBands = options?.hideRemainingEditorialBands
     ? []
     : sections.remainingEditorialBands
+  const topStoriesBand = options?.hideTopStoriesBand ? undefined : sections.topStoriesBand
 
   return (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
@@ -401,7 +460,7 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
       <AdRibbon />
       <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
       {promoteLiveBelowTopStories ? <LiveSection slot={sections.liveSlot} /> : null}
-      <TopStoriesSection band={sections.topStoriesBand} />
+      <TopStoriesSection band={topStoriesBand} />
       <PoliticsSportsSection politicsSlot={sections.politicsSlot} sportsSlot={sections.sportsSlot} />
       <PostPoliticsSections slots={postPoliticsSlots} />
       <EditorialBandSections bands={remainingBands} />
@@ -460,7 +519,7 @@ export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.
 }
 
 /**
- * Sports page using the same module stack as the main landing page.
+ * Sports page using the landing-page hero/Top Stories plus dynamic sport rows.
  *
  * @param initialFeed Optional server-rendered fallback feed.
  * @returns Sports page component.
@@ -471,15 +530,7 @@ export function SportsPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JS
 
   return (
     <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
-      {(feed) => (
-        <HomepageContent
-          feed={feed}
-          options={{
-            hideRemainingEditorialBands: true,
-            promoteLiveBelowTopStories: true,
-          }}
-        />
-      )}
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
     </HomepageFeedShell>
   )
 }

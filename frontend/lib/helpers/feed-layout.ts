@@ -516,3 +516,22 @@ export function selectHomepageSections(slots: IFeedSlot[]): IHomepageSections {
     gridSlots: selectHomepageGridSlots(slots),
   }
 }
+
+/** Fixed Sports page slots excluded from the dynamic per-country sport rows. */
+const SPORTS_PAGE_RESERVED_KEYS = new Set(['hero', 'us-featured', 'us', 'health', 'world'])
+
+/**
+ * Ordered sport section slots for the Sports page (country sport list only).
+ *
+ * @param slots Sports page feed slots.
+ * @returns Section slots in layout order for pair + ad-ribbon rendering.
+ */
+export function selectSportsPageSectionSlots(slots: IFeedSlot[]): IFeedSlot[] {
+  return slots.filter((slot) => {
+    const key = normalizedPositionKey(slot)
+    if (SPORTS_PAGE_RESERVED_KEYS.has(key)) {
+      return false
+    }
+    return slot.presentationType === PRESENTATION_GRID_4
+  })
+}

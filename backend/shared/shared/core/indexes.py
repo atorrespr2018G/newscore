@@ -16,6 +16,7 @@ REGIONS_COLLECTION = "regions"
 ARTICLES_COLLECTION = "articles"
 LAYOUTS_COLLECTION = "layouts"
 SLOTS_COLLECTION = "slots"
+SPORTS_PAGE_SECTIONS_COLLECTION = "sports_page_sections"
 PLACEMENT_EVENTS_COLLECTION = "placement_events"
 USER_VIEW_STATE_COLLECTION = "user_view_state"
 
@@ -119,6 +120,13 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         SLOTS_COLLECTION,
         [("layout_id", 1), ("order_index", 1)],
         name="slots_layout_order",
+    )
+    await _create_index_compat(
+        db,
+        SPORTS_PAGE_SECTIONS_COLLECTION,
+        [("market_id", 1)],
+        unique=True,
+        name="sports_page_sections_market_uq",
     )
 
     # Badge query scans placement events by market scoped to a recency window.

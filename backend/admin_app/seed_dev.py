@@ -1038,126 +1038,163 @@ POLITICS_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
 ]
 
-# Homepage-format Sports page (same modules as main landing; Extra Stories band omitted).
-SPORTS_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
-    {
-        "position_key": "hero",
-        "order_index": 0,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "hero",
-        "display_name_us": "Sports",
-        "display_name_co": "Deportes",
-    },
-    {
-        "position_key": "more-top-stories",
-        "order_index": 1,
-        "category_slug": "sports",
-        "limit": 7,
-        "presentation_type": "editorial_lead",
-        "display_name_us": "More Top Stories",
-        "display_name_co": "Más titulares",
-    },
-    {
-        "position_key": "midterm-elections",
-        "order_index": 2,
-        "category_slug": "sports",
-        "limit": 4,
-        "presentation_type": "editorial_spotlight",
-        "display_name_us": "Government",
-        "display_name_co": "Elecciones",
-    },
-    {
-        "position_key": "editorial-rail",
-        "order_index": 3,
-        "category_slug": "sports",
-        "limit": 5,
-        "presentation_type": "rail_compact",
-        "display_name_us": "Sports",
-        "display_name_co": "Hoy",
-    },
-    {
-        "position_key": "us-featured",
-        "order_index": 4,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "Top Stories",
-        "display_name_co": "Colombia",
-    },
-    {
-        "position_key": "health",
-        "order_index": 5,
-        "category_slug": "sports",
-        "limit": 20,
-        "presentation_type": "grid_4",
-        "display_name_us": "Live",
-        "display_name_co": "En Vivo",
-    },
-    {
-        "position_key": "politics",
-        "order_index": 6,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "Politics",
-        "display_name_co": "Política",
-    },
-    {
-        "position_key": "sports",
-        "order_index": 7,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "Sports",
-        "display_name_co": "Deportes",
-    },
-    {
-        "position_key": "finance",
-        "order_index": 8,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "Health",
-        "display_name_co": "Salud",
-    },
-    {
-        "position_key": "entertainment",
-        "order_index": 9,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "Entertainment",
-        "display_name_co": "Entretenimiento",
-    },
-    {
-        "position_key": "world",
-        "order_index": 10,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "World",
-        "display_name_co": "Mundo",
-    },
-    {
-        "position_key": "technology",
-        "order_index": 11,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "Technology",
-        "display_name_co": "Tecnología",
-    },
-    {
-        "position_key": "business",
-        "order_index": 12,
-        "category_slug": "sports",
-        "limit": 12,
-        "presentation_type": "grid_4",
-        "display_name_us": "Business",
-        "display_name_co": "Negocios",
-    },
+# Default Puerto Rico Sports page section list (Horse Racing as one item).
+PR_SPORT_SECTION_LABELS: list[str] = [
+    "Baseball",
+    "Basketball",
+    "Boxing",
+    "Volleyball",
+    "Soccer",
+    "Surfing",
+    "Track and Field",
+    "Tennis",
+    "Golf",
+    "Horse Racing",
 ]
+
+# Twelve stories per sport so compact carousels get page 1 (6) + page 2 (6) with arrows.
+PR_SPORT_SECTION_STORIES: dict[str, list[str]] = {
+    "baseball": [
+        "Criollos clinch playoff berth with late rally in San Juan",
+        "Winter league baseball draws sold-out crowds in Carolina",
+        "Bayamón youth baseball tournament expands to 48 teams",
+        "Local MLB prospects train at winter camp in Gurabo",
+        "Santurce shortstop leads league in stolen bases",
+        "Caguas pitchers blank rivals in doubleheader sweep",
+        "Ponce outfield prospect signs with mainland affiliate",
+        "Arecibo catcher named winter league MVP finalist",
+        "Mayagüez bullpen locks down late-inning wins",
+        "Island coaches expand youth pitching clinics",
+        "Carolina stadium upgrades night-game lighting",
+        "San Juan series opener draws standing-room crowd",
+    ],
+    "basketball": [
+        "National basketball team opens Olympic qualifying camp",
+        "Ponce basketball academy signs three college prospects",
+        "College basketball tip-off brings rivalry back to Hato Rey",
+        "Wheelchair basketball exhibition packs Ponce coliseum",
+        "Guaynabo BSN club extends winning streak to eight",
+        "Arecibo juniors capture island basketball title",
+        "Bayamón center averages double-double in playoff run",
+        "Women's national squad announces Caribbean roster",
+        "Caguas high school finals set attendance record",
+        "Referee clinic certifies new island officials",
+        "San Juan summer league expands to sixteen teams",
+        "Mayagüez point guard earns conference honors",
+    ],
+    "boxing": [
+        "Boricua boxer returns home after world-title defense",
+        "Boxing undercard in Carolina fills outdoor arena",
+        "San Juan gym crowns three new amateur champions",
+        "Olympic hopefuls spar at Bayamón training center",
+        "Women's boxing card sells out Coliseo Roberto Clemente",
+        "Referee clinic updates safety rules for island bouts",
+        "Lightweight prospect books first televised main event",
+        "Ponce trainers open free youth boxing sessions",
+        "Former champion announces comeback camp in Guaynabo",
+        "Amateur tournament draws fighters from twelve towns",
+        "Medical board tightens pre-fight concussion checks",
+        "Arecibo venue hosts regional title eliminator",
+    ],
+    "volleyball": [
+        "High school volleyball rivalry sets attendance record",
+        "Guaynabo volleyball club wins regional title series",
+        "National women's volleyball team announces summer roster",
+        "Mayagüez hosts Caribbean volleyball invitational",
+        "Indoor volleyball league expands to twelve towns",
+        "Beach volleyball stop returns to Isla Verde shoreline",
+        "Bayamón setters lead island all-star selections",
+        "Caguas club clinches junior championship sweep",
+        "San Juan open adds mixed doubles division",
+        "Coaches clinic focuses on serve-receive drills",
+        "Ponce arena upgrades courts for national qualifiers",
+        "Arecibo Libero named tournament defensive MVP",
+    ],
+    "soccer": [
+        "Mayagüez soccer derby draws record midweek crowd",
+        "National soccer team announces friendlies in Bayamón",
+        "Youth soccer academy opens new pitch in Caguas",
+        "Island club advances in Caribbean club championship",
+        "Referee association certifies thirty new officials",
+        "Women's soccer league kicks off spring schedule",
+        "San Juan striker leads golden boot race",
+        "Ponce academy graduates sign first pro contracts",
+        "Guaynabo derby ends in late equalizer drama",
+        "Coastal clubs petition for lighted training fields",
+        "Arecibo goalkeeper posts island-best save rate",
+        "Carolina hosts youth futsal championship weekend",
+    ],
+    "surfing": [
+        "Surf championship brings international athletes to Isabela",
+        "Surfing circuit adds Rincón stop for winter season",
+        "Jobos Beach contest crowns junior longboard winners",
+        "Coastal cleanup pairs with surf festival in Aguadilla",
+        "Local surfers qualify for Caribbean open final",
+        "Wave forecast drives weekend crowds to northwest coast",
+        "Women's shortboard final sets Isabela attendance mark",
+        "Rincón schools add ocean safety surf clinics",
+        "Photographers capture rare winter swell at Domes",
+        "Junior team prepares for Central American qualifier",
+        "Beach patrol expands weekend rescue coverage",
+        "Aguadilla board makers debut sustainable designs",
+    ],
+    "track-and-field": [
+        "Arecibo track meet crowns new island sprint champions",
+        "National relay team breaks indoor record in San Juan",
+        "High school track finals set for Bayamón stadium",
+        "Javelin clinic draws athletes from across the island",
+        "Marathon organizers announce expanded safety protocols",
+        "Triathlon organizers confirm Condado waterfront course",
+        "Caguas mid-distance runners sweep regional medals",
+        "Ponce pole vault clinic fills weekend slots",
+        "Women's 100 hurdles mark falls at island invite",
+        "Mayagüez hosts multi-event youth championships",
+        "Guaynabo throws circle opens after resurfacing",
+        "Carolina road mile returns with elite field",
+    ],
+    "tennis": [
+        "Puerto Rico tennis open advances local juniors to semis",
+        "New public courts open in Carolina community park",
+        "College tennis dual match returns to Mayagüez campus",
+        "Island doubles pair qualifies for regional championship",
+        "Wheelchair tennis exhibition held in Guaynabo",
+        "Junior tennis camp expands scholarships for rural towns",
+        "San Juan invitational crowns open singles champions",
+        "Bayamón club installs six lighted hard courts",
+        "Women's college team posts undefeated home stand",
+        "Ponce juniors sweep Caribbean age-group titles",
+        "Arecibo hosts weekend coaching certification course",
+        "Caguas mixed doubles league opens spring season",
+    ],
+    "golf": [
+        "Golfers tee off in Río Grande charity open",
+        "Amateur golf championship moves to Dorado course",
+        "Junior golf tour adds stop in Humacao",
+        "Club pros host clinics for public-school athletes",
+        "Women's golf invitational raises funds for youth sports",
+        "Island golf association updates handicap rules",
+        "Bayamón public course completes green renovation",
+        "Mayagüez junior qualifier fills weekend tee sheet",
+        "San Juan pro-am draws corporate field of forty",
+        "Caguas high school golfers win regional title",
+        "Ponce range expands junior after-school program",
+        "Guaynabo senior open returns with record entries",
+    ],
+    "horse-racing": [
+        "Horse racing card at Camarero features stakes weekend",
+        "Local trainers prepare derby prospects at Camarero",
+        "Jockey championship race draws record handle",
+        "Stewards announce new equine welfare protocols",
+        "Claiming races highlight midweek Camarero card",
+        "Breeders showcase yearlings at island auction",
+        "Fillies division stakes produce photo-finish drama",
+        "Camarero expands barn safety inspections",
+        "Apprentice jockeys earn first weekend winners",
+        "Owners group funds track surface improvements",
+        "Simulcast handle rises on Caribbean stakes day",
+        "Veterinarians expand race-day fitness checks",
+    ],
+}
 
 MARKET_DEFS: list[dict[str, Any]] = [
     {
@@ -1804,26 +1841,81 @@ async def _ensure_market_politics_page(
     )
 
 
-async def _ensure_market_sports_page(
+async def _ensure_market_sports_sections(
     db: AsyncIOMotorDatabase,
     *,
     market_id: str,
     market_code: str,
-    display_name_key: str,
-    slug_to_category_id: dict[str, str],
-    pinned_article_ids: list[str],
 ) -> None:
-    """Seed the sports page using the main landing-page slot format."""
-    await _ensure_market_page(
-        db,
-        page_name="sports",
-        slot_specs=SPORTS_PAGE_SLOT_SPECS,
-        market_id=market_id,
-        market_code=market_code,
-        display_name_key=display_name_key,
-        slug_to_category_id=slug_to_category_id,
-        pinned_article_ids=pinned_article_ids,
+    """Seed per-market sports section config and sync the sports layout."""
+
+    from shared.core.sports_page_sections_sync import slugify_sport_label, sync_sports_layout_slots
+    from shared.read.collections import SPORTS_PAGE_SECTIONS_COLLECTION
+
+    labels = PR_SPORT_SECTION_LABELS if market_code == "pr" else []
+    items = [{"slug": slugify_sport_label(label), "label": label} for label in labels]
+    now = _utc_now_iso()
+    await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
+        {"market_id": market_id},
+        {
+            "$set": {"items": items, "updated_at": now},
+            "$setOnInsert": {"_id": str(uuid4()), "market_id": market_id},
+        },
+        upsert=True,
     )
+    await sync_sports_layout_slots(db, market_id=market_id, items=items)
+    logger.info("Seeded sports sections for market %s (%d items)", market_code, len(items))
+
+
+async def _ensure_pr_sport_section_articles(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    market_id: str,
+) -> None:
+    """Seed Puerto Rico articles for each configured sport section category."""
+
+    for slug, stories in PR_SPORT_SECTION_STORIES.items():
+        category = await db[CATEGORIES_COLLECTION].find_one({"slug": slug})
+        if category is None:
+            raise RuntimeError(f"Missing sport category after sync: {slug}")
+        category_id = str(category["_id"])
+        for story in stories:
+            existing = await db[ARTICLES_COLLECTION].find_one(
+                {
+                    "category_id": category_id,
+                    "market_ids": market_id,
+                    "title": story,
+                },
+            )
+            now = _utc_now_iso()
+            fields = _market_article_fields(
+                story,
+                title=story,
+                market_code="pr",
+                category_slug=slug,
+                video_url=None,
+                now=now,
+            )
+            if existing is not None:
+                await db[ARTICLES_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
+                continue
+            article_id = str(uuid4())
+            await db[ARTICLES_COLLECTION].insert_one(
+                _new_market_article_doc(
+                    article_id=article_id,
+                    author_id=author_id,
+                    market_id=market_id,
+                    category_id=category_id,
+                    market_code="pr",
+                    category_slug=slug,
+                    story=story,
+                    title=story,
+                    video_url=None,
+                    now=now,
+                ),
+            )
+    logger.info("Ensured Puerto Rico sport-section articles for market pr")
 
 
 async def _ensure_breaking_widgets(db: AsyncIOMotorDatabase) -> None:
@@ -1925,14 +2017,17 @@ async def seed_dev() -> None:
                 slug_to_category_id=slug_to_category_id,
                 pinned_article_ids=article_ids,
             )
-            await _ensure_market_sports_page(
+            await _ensure_market_sports_sections(
                 db,
                 market_id=market_id,
                 market_code=code,
-                display_name_key=str(market["display_name_key"]),
-                slug_to_category_id=slug_to_category_id,
-                pinned_article_ids=article_ids,
             )
+            if code == "pr":
+                await _ensure_pr_sport_section_articles(
+                    db,
+                    author_id=str(admin["_id"]),
+                    market_id=market_id,
+                )
 
         await _ensure_breaking_widgets(db)
         await _ensure_geo_regions_and_backfill()

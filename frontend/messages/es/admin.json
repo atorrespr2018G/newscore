@@ -5,6 +5,7 @@
     "editor": "Editor",
     "news": "Noticias",
     "placement": "Ubicación",
+    "sports": "Deportes",
     "preview": "Vista previa"
   },
   "reporter": {
@@ -322,5 +323,21 @@
       "approve": "No se pudo aprobar la noticia",
       "sendBack": "No se pudo devolver la noticia"
     }
+  },
+  "sportsPage": {
+    "heading": "Secciones de deportes",
+    "subtitle": "Administra la lista ordenada de filas deportivas de la página Deportes por país. Al guardar se actualiza el diseño en vivo.",
+    "listHint": "En la página Deportes, dos filas de deporte van seguidas de una cinta publicitaria.",
+    "labelPlaceholder": "Nombre del deporte",
+    "addSport": "Agregar deporte",
+    "remove": "Quitar",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "save": "Guardar lista",
+    "saving": "Guardando…",
+    "loading": "Cargando lista de deportes…",
+    "saveSuccess": "Lista de deportes guardada. La página Deportes usa estas filas.",
+    "saveFailed": "No se pudo guardar la lista de deportes.",
+    "loadFailed": "No se pudo cargar la lista de deportes."
   }
 }

@@ -38,6 +38,7 @@ export const ADMIN_WORKFLOW_ROUTES = [
   '/admin/reporter',
   '/admin/editor/news',
   '/admin/editor/placement',
+  '/admin/editor/sports',
   '/admin/preview',
 ] as const
 
@@ -62,6 +63,7 @@ export const ADMIN_WORKFLOW_TABS: ReadonlyArray<{
   { href: '/admin/reporter', labelKey: 'reporter', activePrefix: '/admin/reporter' },
   { href: '/admin/editor/news', labelKey: 'editor', activePrefix: '/admin/editor/news' },
   { href: '/admin/editor/placement', labelKey: 'placement', activePrefix: '/admin/editor/placement', badgeView: 'placement' },
+  { href: '/admin/editor/sports', labelKey: 'sports', activePrefix: '/admin/editor/sports' },
   { href: '/admin/preview', labelKey: 'preview', activePrefix: '/admin/preview', badgeView: 'review' },
 ]
 

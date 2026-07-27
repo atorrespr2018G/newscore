@@ -269,3 +269,51 @@ export function patchSlotPinnedIds(slotId: string, pinnedIds: string[]): Promise
     body: JSON.stringify({ pinned_ids: pinnedIds }),
   })
 }
+
+/** One ordered sport row on a market sports page. */
+export interface ISportsPageSectionItem {
+  slug: string
+  label: string
+}
+
+/** Per-market sports page section list. */
+export interface ISportsPageSectionsOut {
+  market_id: string
+  market_code: string
+  items: ISportsPageSectionItem[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered sports section list for a market.
+ *
+ * @param marketCode Market code such as `pr`.
+ * @returns Sports section list payload.
+ */
+export function getSportsPageSections(marketCode: string): Promise<ISportsPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  return apiFetch<ISportsPageSectionsOut>(
+    `${apiConfig.layout}/sports-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered sports section list for a market and sync layout slots.
+ *
+ * @param marketCode Market code such as `pr`.
+ * @param items Ordered sport rows (label required; slug optional).
+ * @returns Updated sports section list payload.
+ */
+export function putSportsPageSections(
+  marketCode: string,
+  items: Array<{ label: string; slug?: string }>,
+): Promise<ISportsPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  return apiFetch<ISportsPageSectionsOut>(
+    `${apiConfig.layout}/sports-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    },
+  )
+}

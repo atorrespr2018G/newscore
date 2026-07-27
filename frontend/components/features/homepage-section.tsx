@@ -85,7 +85,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
     return null
   }
 
-  if (slot.positionKey.trim().toLowerCase() === 'health') {
+  if (slot.positionKey.trim().toLowerCase() === 'health' && !isCompactSixBandPositionKey(slot.positionKey, pageName)) {
     return (
       <HealthCarouselSection
         key={carouselScopeKey}
@@ -94,7 +94,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
     )
   }
 
-  if (isCompactSixBandPositionKey(slot.positionKey)) {
+  if (isCompactSixBandPositionKey(slot.positionKey, pageName)) {
     return (
       <HomepageCompactSixBand
         key={carouselScopeKey}
