@@ -672,6 +672,36 @@ PR_ARTICLE_STORIES: dict[str, list[str]] = {
         "Surf championship brings international athletes to Isabela",
         "High school volleyball rivalry sets attendance record",
         "Marathon organizers announce expanded safety protocols",
+        "Criollos clinch playoff berth with late rally in San Juan",
+        "Mayagüez soccer derby draws record midweek crowd",
+        "Puerto Rico tennis open advances local juniors to semis",
+        "Arecibo track meet crowns new island sprint champions",
+        "Ponce basketball academy signs three college prospects",
+        "Bayamón youth baseball tournament expands to 48 teams",
+        "Caguas cycling classic returns with coastal stage route",
+        "Island swimmers break records at Caribbean invite",
+        "Guaynabo volleyball club wins regional title series",
+        "Horse racing card at Camarero features stakes weekend",
+        "Golfers tee off in Río Grande charity open",
+        "Women's softball league launches island-wide draft",
+        "Boxing undercard in Carolina fills outdoor arena",
+        "College basketball tip-off brings rivalry back to Hato Rey",
+        "Surfing circuit adds Rincón stop for winter season",
+        "Triathlon organizers confirm Condado waterfront course",
+        "High school football championship set for Mayagüez",
+        "National soccer team announces friendlies in Bayamón",
+        "Weightlifting federation hosts junior nationals in Caguas",
+        "Esports tournament crowdfunds arena at San Juan campus",
+        "Sailing regatta circles San Juan Bay under clear skies",
+        "Cockfighting ban debate resurfaces ahead of sports bill",
+        "Local MLB prospects train at winter camp in Gurabo",
+        "Wheelchair basketball exhibition packs Ponce coliseum",
+        "Cheerleading nationals open tryouts across the island",
+        "Pickleball clubs petition for public courts in Carolina",
+        "Mountain bike trails reopen in Utuado after storm repairs",
+        "Fencing squad qualifies for Caribbean championships",
+        "Handball federation schedules island cup in Arecibo",
+        "Sports medicine clinic expands concussion protocols",
     ],
     "entertainment": [
         "Reggaeton festival lineup celebrates island artists",
@@ -1005,6 +1035,127 @@ POLITICS_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "presentation_type": "grid_4",
         "display_name_us": "Opinion",
         "display_name_co": "Opinión",
+    },
+]
+
+# Homepage-format Sports page (same modules as main landing; Extra Stories band omitted).
+SPORTS_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
+    {
+        "position_key": "hero",
+        "order_index": 0,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "hero",
+        "display_name_us": "Sports",
+        "display_name_co": "Deportes",
+    },
+    {
+        "position_key": "more-top-stories",
+        "order_index": 1,
+        "category_slug": "sports",
+        "limit": 7,
+        "presentation_type": "editorial_lead",
+        "display_name_us": "More Top Stories",
+        "display_name_co": "Más titulares",
+    },
+    {
+        "position_key": "midterm-elections",
+        "order_index": 2,
+        "category_slug": "sports",
+        "limit": 4,
+        "presentation_type": "editorial_spotlight",
+        "display_name_us": "Government",
+        "display_name_co": "Elecciones",
+    },
+    {
+        "position_key": "editorial-rail",
+        "order_index": 3,
+        "category_slug": "sports",
+        "limit": 5,
+        "presentation_type": "rail_compact",
+        "display_name_us": "Sports",
+        "display_name_co": "Hoy",
+    },
+    {
+        "position_key": "us-featured",
+        "order_index": 4,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Top Stories",
+        "display_name_co": "Colombia",
+    },
+    {
+        "position_key": "health",
+        "order_index": 5,
+        "category_slug": "sports",
+        "limit": 20,
+        "presentation_type": "grid_4",
+        "display_name_us": "Live",
+        "display_name_co": "En Vivo",
+    },
+    {
+        "position_key": "politics",
+        "order_index": 6,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Politics",
+        "display_name_co": "Política",
+    },
+    {
+        "position_key": "sports",
+        "order_index": 7,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Sports",
+        "display_name_co": "Deportes",
+    },
+    {
+        "position_key": "finance",
+        "order_index": 8,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Health",
+        "display_name_co": "Salud",
+    },
+    {
+        "position_key": "entertainment",
+        "order_index": 9,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Entertainment",
+        "display_name_co": "Entretenimiento",
+    },
+    {
+        "position_key": "world",
+        "order_index": 10,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "World",
+        "display_name_co": "Mundo",
+    },
+    {
+        "position_key": "technology",
+        "order_index": 11,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Technology",
+        "display_name_co": "Tecnología",
+    },
+    {
+        "position_key": "business",
+        "order_index": 12,
+        "category_slug": "sports",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Business",
+        "display_name_co": "Negocios",
     },
 ]
 
@@ -1653,6 +1804,28 @@ async def _ensure_market_politics_page(
     )
 
 
+async def _ensure_market_sports_page(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+    display_name_key: str,
+    slug_to_category_id: dict[str, str],
+    pinned_article_ids: list[str],
+) -> None:
+    """Seed the sports page using the main landing-page slot format."""
+    await _ensure_market_page(
+        db,
+        page_name="sports",
+        slot_specs=SPORTS_PAGE_SLOT_SPECS,
+        market_id=market_id,
+        market_code=market_code,
+        display_name_key=display_name_key,
+        slug_to_category_id=slug_to_category_id,
+        pinned_article_ids=pinned_article_ids,
+    )
+
+
 async def _ensure_breaking_widgets(db: AsyncIOMotorDatabase) -> None:
     for market in MARKET_DEFS:
         code = str(market["code"])
@@ -1745,6 +1918,14 @@ async def seed_dev() -> None:
                 pinned_article_ids=article_ids,
             )
             await _ensure_market_politics_page(
+                db,
+                market_id=market_id,
+                market_code=code,
+                display_name_key=str(market["display_name_key"]),
+                slug_to_category_id=slug_to_category_id,
+                pinned_article_ids=article_ids,
+            )
+            await _ensure_market_sports_page(
                 db,
                 market_id=market_id,
                 market_code=code,

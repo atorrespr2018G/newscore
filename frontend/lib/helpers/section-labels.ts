@@ -351,6 +351,8 @@ const SECTION_PAGE_ROUTES: Record<string, string> = {
 
   world: '/world',
 
+  sports: '/sports',
+
 }
 
 
@@ -362,6 +364,8 @@ const SECTION_PAGE_NAMES: Record<string, string> = {
   politics: 'politics',
 
   world: 'world',
+
+  sports: 'sports',
 
 }
 

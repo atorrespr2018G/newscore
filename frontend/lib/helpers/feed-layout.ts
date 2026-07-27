@@ -463,6 +463,8 @@ const NON_GRID_SECTION_KEYS = ['politics', 'health'] as const
 export interface IHomepageSections {
   heroSlot: IFeedSlot
   earlyUsSlot: IFeedSlot | undefined
+  /** Live (`health`) slot, when present in the feed. */
+  liveSlot: IFeedSlot | undefined
   topStoriesBand: IEditorialBandSlots | undefined
   remainingEditorialBands: IEditorialBandSlots[]
   politicsSlot: IFeedSlot | undefined
@@ -505,6 +507,7 @@ export function selectHomepageSections(slots: IFeedSlot[]): IHomepageSections {
   return {
     heroSlot: findSlot(slots, PRESENTATION_HERO) ?? slots[0],
     earlyUsSlot: findSlotByPositionKey(slots, 'us-featured') ?? findSlotByPositionKey(slots, 'us'),
+    liveSlot: allPostPoliticsSlots.find((slot) => normalizedPositionKey(slot) === 'health'),
     topStoriesBand,
     remainingEditorialBands: editorialBands.filter((band) => band !== topStoriesBand),
     politicsSlot: findSlotByPositionKey(slots, 'politics'),

@@ -55,6 +55,7 @@
     "homeTitle": "NewsCore — Home",
     "homeDescription": "Top stories and latest updates.",
     "worldDescription": "World news and latest updates.",
-    "politicsDescription": "Politics news, policy, elections, and government updates."
+    "politicsDescription": "Politics news, policy, elections, and government updates.",
+    "sportsDescription": "Sports news, scores, and latest updates."
   }
 }

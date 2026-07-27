@@ -8,6 +8,7 @@ import type { IArticle } from '@/interfaces/article'
 import { PlacementSlotScope } from '@/context/editor-placement-context'
 import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useFeed } from '@/hooks/use-feed'
+import { usePageFeed } from '@/hooks/use-page-feed'
 import {
   ArticleLeadMedia,
 } from '@/components/ui/article-lead-media'
@@ -216,6 +217,8 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
 /** Post-politics section keys preceded by an ad ribbon on the homepage. */
 const POST_POLITICS_AD_SECTION_KEYS = ['health', 'finance', 'technology', 'world'] as const
 
+const LIVE_POSITION_KEY = 'health'
+
 function EarlyUsSection({ slot, title }: { slot: IFeedSlot | undefined; title: string }): JSX.Element | null {
   if (!slot) {
     return null
@@ -224,6 +227,23 @@ function EarlyUsSection({ slot, title }: { slot: IFeedSlot | undefined; title: s
     <Suspense fallback={<SectionSkeleton />}>
       <HomepageUsBand slot={slot} title={title} />
     </Suspense>
+  )
+}
+
+/**
+ * Sports-only Live band under the advertisement ribbon below Top Stories.
+ */
+function LiveSection({ slot }: { slot: IFeedSlot | undefined }): JSX.Element | null {
+  if (!slot) {
+    return null
+  }
+  return (
+    <div className="space-y-2">
+      <AdRibbon />
+      <Suspense fallback={<SectionSkeleton />}>
+        <HomepageSection slot={slot} />
+      </Suspense>
+    </div>
   )
 }
 
@@ -331,13 +351,26 @@ function GridSections({
   )
 }
 
+interface IHomepageContentOptions {
+  /** Hide Extra Stories / World Watch / Featured editorial band. */
+  hideRemainingEditorialBands?: boolean
+  /** Sports page only: place Live under the ad ribbon below Top Stories. */
+  promoteLiveBelowTopStories?: boolean
+}
+
+interface IHomepageContentProps {
+  feed: IHomepageFeed
+  options?: IHomepageContentOptions
+}
+
 /**
  * Render the homepage module stack from a resolved feed.
  *
  * @param feed Homepage feed with slots and articles.
+ * @param options Optional render flags for page variants.
  * @returns Homepage content without data fetching.
  */
-export function HomepageContent({ feed }: { feed: IHomepageFeed }): JSX.Element {
+export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.Element {
   const { sectionLabel } = useSectionLabels()
   const slots = feed.slots ?? []
   if (slots.length === 0) {
@@ -349,7 +382,16 @@ export function HomepageContent({ feed }: { feed: IHomepageFeed }): JSX.Element 
   }
 
   const sections = selectHomepageSections(slots)
-  const gridPreviousSlot = sections.postPoliticsSlots.at(-1) ?? sections.politicsSlot
+  const promoteLiveBelowTopStories = options?.promoteLiveBelowTopStories === true
+  const postPoliticsSlots = promoteLiveBelowTopStories
+    ? sections.postPoliticsSlots.filter(
+        (slot) => normalizedPositionKey(slot) !== LIVE_POSITION_KEY,
+      )
+    : sections.postPoliticsSlots
+  const gridPreviousSlot = postPoliticsSlots.at(-1) ?? sections.politicsSlot
+  const remainingBands = options?.hideRemainingEditorialBands
+    ? []
+    : sections.remainingEditorialBands
 
   return (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
@@ -358,25 +400,31 @@ export function HomepageContent({ feed }: { feed: IHomepageFeed }): JSX.Element 
       </PlacementSlotScope>
       <AdRibbon />
       <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
+      {promoteLiveBelowTopStories ? <LiveSection slot={sections.liveSlot} /> : null}
       <TopStoriesSection band={sections.topStoriesBand} />
       <PoliticsSportsSection politicsSlot={sections.politicsSlot} sportsSlot={sections.sportsSlot} />
-      <PostPoliticsSections slots={sections.postPoliticsSlots} />
-      <EditorialBandSections bands={sections.remainingEditorialBands} />
+      <PostPoliticsSections slots={postPoliticsSlots} />
+      <EditorialBandSections bands={remainingBands} />
       <GridSections slots={sections.gridSlots} previousSlot={gridPreviousSlot} />
     </div>
   )
 }
 
 /**
- * Render the homepage module stack from the active feed.
- *
- * @param initialFeed Optional server-rendered fallback feed.
- * @returns Homepage component.
+ * Shared loading / error / empty handling for homepage-format pages.
  */
-export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+function HomepageFeedShell({
+  feedData,
+  loading,
+  error,
+  children,
+}: {
+  feedData: IHomepageFeed | undefined
+  loading: boolean
+  error: Error | undefined
+  children: (feed: IHomepageFeed) => JSX.Element
+}): JSX.Element {
   const t = useTranslations('common')
-  const { data, loading, error } = useFeed()
-  const feedData = data ?? initialFeed
 
   if (loading && !feedData) return <LoadingState message={t('loading')} />
   if (error && !feedData) return <ErrorState message={t('failedToLoad', { message: error.message })} />
@@ -391,5 +439,47 @@ export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.
     )
   }
 
-  return <HomepageContent feed={feedData} />
+  return children(feedData)
+}
+
+/**
+ * Render the homepage module stack from the active feed.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Homepage component.
+ */
+export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = useFeed()
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
+ * Sports page using the same module stack as the main landing page.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Sports page component.
+ */
+export function SportsPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = usePageFeed('sports')
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => (
+        <HomepageContent
+          feed={feed}
+          options={{
+            hideRemainingEditorialBands: true,
+            promoteLiveBelowTopStories: true,
+          }}
+        />
+      )}
+    </HomepageFeedShell>
+  )
 }
