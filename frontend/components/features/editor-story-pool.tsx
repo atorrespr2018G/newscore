@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
@@ -21,6 +22,15 @@ import {
   isNewReporterArticle,
   type IEditorSearchFilters,
 } from '@/lib/helpers/editor-curation'
+import {
+  SPORTS_CATEGORY_SLUG,
+  findCategoryBySlug,
+} from '@/lib/helpers/category-selection'
+import {
+  loadSportSlugs,
+  resolveSportSubcategories,
+  rootSectionCategories,
+} from '@/lib/helpers/sports-category-options'
 import {
   FLORIDA_COUNTY_OPTIONS,
   FLORIDA_STATE_CODE,
@@ -550,7 +560,7 @@ interface IPoolPrimaryFiltersProps {
 }
 
 /**
- * Title, category, and created-date-range controls of the filter bar.
+ * Title, category, sport subcategory, and created-date-range controls.
  *
  * @param props Filter state, categories, disabled flag, and update handler.
  * @returns The primary filter controls grid.
@@ -558,6 +568,15 @@ interface IPoolPrimaryFiltersProps {
 function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
   const { filters, categories, disabled, onUpdate } = props
   const t = useTranslations('admin')
+  const sportsSectionsQuery = useQuery({
+    queryKey: ['editor', 'sports-page-section-slugs', 'all'],
+    queryFn: () => loadSportSlugs(),
+  })
+  const sportSlugs = sportsSectionsQuery.data ?? []
+  const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
+  const sportsSelected = sportsParent != null && filters.categoryId === sportsParent.id
+  const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
+  const sectionCategories = rootSectionCategories(categories, sportSlugs)
 
   return (
     <div className="grid gap-3 md:grid-cols-2 md:items-end lg:grid-cols-4">
@@ -575,17 +594,39 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
         <select
           value={filters.categoryId}
           disabled={disabled}
-          onChange={(event) => onUpdate({ categoryId: event.target.value })}
+          onChange={(event) =>
+            onUpdate({
+              categoryId: event.target.value,
+              sportCategoryId: '',
+            })
+          }
           className={filterControlClass(disabled)}
         >
           <option value="">{t('editor.pool.filterBar.categoryAll')}</option>
-          {categories.map((category) => (
+          {sectionCategories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
             </option>
           ))}
         </select>
       </FilterField>
+      {sportsSelected ? (
+        <FilterField label={t('editor.pool.filterBar.sportLabel')}>
+          <select
+            value={filters.sportCategoryId}
+            disabled={disabled || sportsSectionsQuery.isLoading}
+            onChange={(event) => onUpdate({ sportCategoryId: event.target.value })}
+            className={filterControlClass(disabled)}
+          >
+            <option value="">{t('editor.pool.filterBar.sportAll')}</option>
+            {sportsChildren.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      ) : null}
       <FilterField label={t('editor.pool.filterBar.dateFromLabel')}>
         <input
           type="date"

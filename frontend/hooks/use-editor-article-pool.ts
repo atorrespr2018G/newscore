@@ -11,6 +11,7 @@ import {
   type IEditorSearchFilters,
   type IPaginatedArticles,
 } from '@/lib/helpers/editor-curation'
+import { effectiveSearchCategoryId } from '@/lib/helpers/sports-category-options'
 import { toRegionCode } from '@/lib/region-code'
 import type { IEditorArticlePool, IEditorStoryRow } from '@/interfaces/editor-article'
 
@@ -64,7 +65,7 @@ export function appendSearchFilterParams(
   filters: IEditorSearchFilters,
 ): void {
   const title = filters.title.trim()
-  const categoryId = filters.categoryId.trim()
+  const categoryId = effectiveSearchCategoryId(filters)
   const createdFrom = filters.createdFrom.trim()
   const createdTo = filters.createdTo.trim()
   const marketCode = filters.marketCode.trim().toLowerCase()

@@ -61,24 +61,31 @@ def slugify_sport_label(label: str) -> str:
 
 
 async def _ensure_sport_category(db: AsyncIOMotorDatabase, *, slug: str, label: str) -> str:
-    """Ensure a global category exists for a sport slug."""
+    """Ensure a global category exists for a sport slug under parent Sports."""
 
+    parent = await db[CATEGORIES_COLLECTION].find_one({"slug": PARENT_SPORTS_CATEGORY_SLUG})
+    parent_id = str(parent["_id"]) if parent else None
     existing = await db[CATEGORIES_COLLECTION].find_one({"slug": slug})
     if existing is not None:
         await db[CATEGORIES_COLLECTION].update_one(
             {"_id": existing["_id"]},
-            {"$set": {"name": label, "description": f"{label} sports news."}},
+            {
+                "$set": {
+                    "name": label,
+                    "description": f"{label} sports news.",
+                    "parent_id": parent_id,
+                },
+            },
         )
         return str(existing["_id"])
 
-    parent = await db[CATEGORIES_COLLECTION].find_one({"slug": PARENT_SPORTS_CATEGORY_SLUG})
     category_id = str(uuid4())
     await db[CATEGORIES_COLLECTION].insert_one(
         {
             "_id": category_id,
             "name": label,
             "slug": slug,
-            "parent_id": str(parent["_id"]) if parent else None,
+            "parent_id": parent_id,
             "description": f"{label} sports news.",
             "created_at": utc_now().isoformat(),
         },

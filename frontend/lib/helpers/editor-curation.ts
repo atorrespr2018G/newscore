@@ -17,6 +17,8 @@ export const EDITOR_FETCH_PAGE_SIZE = 200
 export interface IEditorSearchFilters {
   title: string
   categoryId: string
+  /** When category is Sports, optional sport subcategory for search. */
+  sportCategoryId: string
   createdFrom: string
   createdTo: string
   newsId: string
@@ -29,6 +31,7 @@ export interface IEditorSearchFilters {
 export const EMPTY_EDITOR_SEARCH_FILTERS: IEditorSearchFilters = {
   title: '',
   categoryId: '',
+  sportCategoryId: '',
   createdFrom: '',
   createdTo: '',
   newsId: '',
@@ -47,6 +50,7 @@ export function hasActiveSearchFilters(filters: IEditorSearchFilters): boolean {
   return (
     filters.title.trim() !== '' ||
     filters.categoryId.trim() !== '' ||
+    filters.sportCategoryId.trim() !== '' ||
     filters.createdFrom.trim() !== '' ||
     filters.createdTo.trim() !== '' ||
     filters.newsId.trim() !== '' ||

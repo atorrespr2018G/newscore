@@ -13,7 +13,7 @@ import {
 import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { LocalizedFileInput } from '@/components/ui/localized-file-input'
 import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/rich-text-editor'
-import { useSectionLabels } from '@/hooks/use-section-labels'
+import { CategoryChipGroup } from '@/components/features/category-chip-group'
 import { submitArticleForReview } from '@/lib/api/article-workflow-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { apiConfig } from '@/lib/api/config'
@@ -31,9 +31,7 @@ import { toRegionCode } from '@/lib/region-code'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 import {
   INTERNATIONAL_POTENTIAL_OPTIONS,
-  MAX_CATEGORY_COUNT,
   MIN_CATEGORY_COUNT,
-  toggleCategory,
 } from '@/lib/helpers/category-selection'
 
 const MAX_TITLE_LENGTH = 200
@@ -92,7 +90,6 @@ function htmlTextLength(html: string): number {
 
 export default function ReporterUploadPage(): JSX.Element {
   const t = useTranslations('admin')
-  const { categoryLabel } = useSectionLabels()
   const toolbarLabels = useMemo<IRichTextToolbarLabels>(
     () => ({
       bold: t('reporter.editor.bold'),
@@ -341,54 +338,13 @@ export default function ReporterUploadPage(): JSX.Element {
           />
         </div>
 
-        <fieldset>
-          <legend className="text-sm font-medium text-neutral-700">
-            {t('reporter.fields.categories')}{' '}
-            <span className="font-normal text-neutral-500">
-              {t('reporter.fields.categoriesHint')}
-            </span>
-          </legend>
-          <p className="mt-1 text-xs text-neutral-500">
-            {t('reporter.fields.selectedCount', {
-              count: selectedCategoryIds.length,
-              max: MAX_CATEGORY_COUNT,
-            })}
-            {selectedCategoryIds.length >= MAX_CATEGORY_COUNT ? (
-              <span className="ml-1 text-neutral-400">{t('reporter.fields.uncheckHint')}</span>
-            ) : null}
-          </p>
-          {categories.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {categories.map((category) => {
-                const checked = selectedCategoryIds.includes(category.id)
-                const disabled =
-                  !checked && selectedCategoryIds.length >= MAX_CATEGORY_COUNT
-                return (
-                  <label
-                    key={category.id}
-                    className={`flex items-center gap-1.5 rounded border border-neutral-200 px-2 py-1 text-xs ${
-                      disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={disabled}
-                      onChange={() =>
-                        setSelectedCategoryIds((current) => toggleCategory(current, category.id))
-                      }
-                    />
-                    <span>{categoryLabel(category.slug, category.name)}</span>
-                  </label>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-neutral-500">
-              {t('reporter.fields.loadingCategories')}
-            </p>
-          )}
-        </fieldset>
+        <CategoryChipGroup
+          categories={categories}
+          selectedCategoryIds={selectedCategoryIds}
+          setSelectedCategoryIds={setSelectedCategoryIds}
+          messagePrefix="reporter.fields"
+          marketCode={location.marketCode}
+        />
 
         <label className="block text-sm font-medium text-neutral-700">
           {t('reporter.fields.internationalPotential')}

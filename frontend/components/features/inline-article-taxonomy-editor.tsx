@@ -3,12 +3,8 @@
 import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import type { ICategoryOut } from '@/lib/api/category-client'
-import { useSectionLabels } from '@/hooks/use-section-labels'
-import {
-  INTERNATIONAL_POTENTIAL_OPTIONS,
-  MAX_CATEGORY_COUNT,
-  toggleCategory,
-} from '@/lib/helpers/category-selection'
+import { CategoryChipGroup } from '@/components/features/category-chip-group'
+import { INTERNATIONAL_POTENTIAL_OPTIONS } from '@/lib/helpers/category-selection'
 
 interface IInlineArticleTaxonomyEditorProps {
   categories: ICategoryOut[]
@@ -36,83 +32,17 @@ export function InlineArticleTaxonomyEditor({
 }: IInlineArticleTaxonomyEditorProps): JSX.Element {
   return (
     <div className="space-y-4">
-      <EditorCategorySelector
+      <CategoryChipGroup
         categories={categories}
         selectedCategoryIds={selectedCategoryIds}
         setSelectedCategoryIds={setSelectedCategoryIds}
+        messagePrefix="editor.taxonomy"
       />
       <EditorInternationalPotentialSelect
         internationalPotential={internationalPotential}
         setInternationalPotential={setInternationalPotential}
       />
     </div>
-  )
-}
-
-interface IEditorCategorySelectorProps {
-  categories: ICategoryOut[]
-  selectedCategoryIds: string[]
-  setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
-}
-
-/**
- * Reselectable category chips enforcing the 1–3 section editorial rule.
- *
- * @param props Available categories and the current selection state.
- * @returns The category selection fieldset.
- */
-function EditorCategorySelector({
-  categories,
-  selectedCategoryIds,
-  setSelectedCategoryIds,
-}: IEditorCategorySelectorProps): JSX.Element {
-  const t = useTranslations('admin')
-  const { categoryLabel } = useSectionLabels()
-  const atLimit = selectedCategoryIds.length >= MAX_CATEGORY_COUNT
-  return (
-    <fieldset>
-      <legend className="text-sm font-medium text-neutral-700">
-        {t('editor.taxonomy.categories')}{' '}
-        <span className="font-normal text-neutral-500">{t('editor.taxonomy.categoriesHint')}</span>
-      </legend>
-      <p className="mt-1 text-xs text-neutral-500">
-        {t('editor.taxonomy.selectedCount', {
-          count: selectedCategoryIds.length,
-          max: MAX_CATEGORY_COUNT,
-        })}
-        {atLimit ? (
-          <span className="ml-1 text-neutral-400">{t('editor.taxonomy.uncheckHint')}</span>
-        ) : null}
-      </p>
-      {categories.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {categories.map((category) => {
-            const checked = selectedCategoryIds.includes(category.id)
-            const disabled = !checked && atLimit
-            return (
-              <label
-                key={category.id}
-                className={`flex items-center gap-1.5 rounded border border-neutral-200 px-2 py-1 text-xs ${
-                  disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={disabled}
-                  onChange={() =>
-                    setSelectedCategoryIds((current) => toggleCategory(current, category.id))
-                  }
-                />
-                <span>{categoryLabel(category.slug, category.name)}</span>
-              </label>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="mt-2 text-sm text-neutral-500">{t('editor.taxonomy.loadingCategories')}</p>
-      )}
-    </fieldset>
   )
 }
 
