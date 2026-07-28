@@ -326,8 +326,8 @@
   },
   "sportsPage": {
     "heading": "Sports sections",
-    "subtitle": "Manage the ordered list of sport rows for each country’s Sports page. Saving updates the live Sports page layout.",
-    "listHint": "Two sport rows are followed by an advertisement ribbon on the Sports page.",
+    "subtitle": "Manage the ordered list of sport rows for each country’s Sports page. Saving creates categories and layout slots. Place stories under Placement → Page → sports, or tag articles with the sport category.",
+    "listHint": "Two sport rows are followed by an advertisement ribbon on the Sports page. After saving, open Placement and choose Page → sports to pin stories into each row.",
     "labelPlaceholder": "Sport name",
     "addSport": "Add sport",
     "remove": "Remove",
@@ -336,7 +336,7 @@
     "save": "Save list",
     "saving": "Saving…",
     "loading": "Loading sports list…",
-    "saveSuccess": "Sports list saved. The Sports page now uses these rows.",
+    "saveSuccess": "Sports list saved. Use Placement → sports to pin stories, or tag articles with the new sport category.",
     "saveFailed": "Failed to save sports list.",
     "loadFailed": "Failed to load sports list."
   }

@@ -6,7 +6,7 @@ import { HomepageCompactSixBand } from '@/components/features/homepage-compact-s
 import { HealthCarouselSection } from '@/components/features/homepage-health-carousel'
 import { HomepageUsBand } from '@/components/features/homepage-us-band'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
-import { PlacementSlotScope } from '@/context/editor-placement-context'
+import { PlacementSlotScope, useEditorPlacement } from '@/context/editor-placement-context'
 import { PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useMarket } from '@/context/market-context'
 import { cardVariantForPresentation } from '@/lib/presentation-registry'
@@ -80,8 +80,10 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   const { marketCode, town, county } = useMarket()
   const carouselScopeKey = toRegionCode(marketCode, town, county)
   const t = useTranslations('common')
+  const editor = useEditorPlacement()
   const articles = visibleArticlesForSection(slot)
-  if (articles.length === 0) {
+  const showEmptyPlacementShell = articles.length === 0 && editor != null
+  if (articles.length === 0 && !showEmptyPlacementShell) {
     return null
   }
 
@@ -104,12 +106,12 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
     )
   }
 
-  if (isUsBandPositionKey(slot.positionKey)) {
-    return <HomepageUsBand slot={slot} />
-  }
-
   if (slot.positionKey.trim().toLowerCase() === 'world') {
     return <HomepageUsBand slot={slot} title={sectionLabel('world')} />
+  }
+
+  if (isUsBandPositionKey(slot.positionKey)) {
+    return <HomepageUsBand slot={slot} />
   }
 
   const usesFeaturedColumns = usesFeaturedColumnLayout(slot.positionKey)
@@ -133,41 +135,43 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
           </h2>
           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
         </div>
-        <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 ${desktopGridColumnsClass}`}>
-          {usesFeaturedColumns
-            ? featuredColumns.map((column, index) => {
-                const { leadArticle, secondaryArticles } = column
-                if (!leadArticle) {
-                  return null
-                }
+        {articles.length > 0 ? (
+          <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 ${desktopGridColumnsClass}`}>
+            {usesFeaturedColumns
+              ? featuredColumns.map((column, index) => {
+                  const { leadArticle, secondaryArticles } = column
+                  if (!leadArticle) {
+                    return null
+                  }
 
-                return (
-                  <div key={`${leadArticle.id}-${index}`} className="space-y-4">
-                    <HomepageStoryCard article={leadArticle} variant={variant} showAuthor editorDroppable />
-                    <div className="space-y-4">
-                      {secondaryArticles.map((article, secondaryIndex) => (
-                        <HomepageStoryCard
-                          key={`${article.id}-${index}-${secondaryIndex}`}
-                          article={article}
-                          variant="compact"
-                          layout="side"
-                          editorDroppable
-                        />
-                      ))}
+                  return (
+                    <div key={`${leadArticle.id}-${index}`} className="space-y-4">
+                      <HomepageStoryCard article={leadArticle} variant={variant} showAuthor editorDroppable />
+                      <div className="space-y-4">
+                        {secondaryArticles.map((article, secondaryIndex) => (
+                          <HomepageStoryCard
+                            key={`${article.id}-${index}-${secondaryIndex}`}
+                            article={article}
+                            variant="compact"
+                            layout="side"
+                            editorDroppable
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )
-              })
-            : articles.map((article) => (
-                <HomepageStoryCard
-                  key={article.id}
-                  article={article}
-                  variant={variant}
-                  showAuthor
-                  editorDroppable
-                />
-              ))}
-        </div>
+                  )
+                })
+              : articles.map((article) => (
+                  <HomepageStoryCard
+                    key={article.id}
+                    article={article}
+                    variant={variant}
+                    showAuthor
+                    editorDroppable
+                  />
+                ))}
+          </div>
+        ) : null}
         <PlacementSectionDropZone />
       </section>
     </PlacementSlotScope>

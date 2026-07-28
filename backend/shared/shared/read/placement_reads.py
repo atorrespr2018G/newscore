@@ -22,7 +22,7 @@ from shared.read.market_reads import get_market_by_code
 from shared.read.slot_pinned_ids import effective_pinned_ids_for_preview
 from shared.schemas.layout_schemas import ArticlePlacementOut
 
-DEFAULT_EDITOR_PAGE_NAMES = ("homepage", "world")
+DEFAULT_EDITOR_PAGE_NAMES = ("homepage", "world", "sports")
 DEFAULT_QUERY_RULE_LIMIT = 10
 
 
@@ -176,7 +176,7 @@ async def get_article_placements(
     region_code: str | None = None,
     page_names: tuple[str, ...] = DEFAULT_EDITOR_PAGE_NAMES,
 ) -> dict[str, list[ArticlePlacementOut]]:
-    """Resolve homepage/world slot placements for editor staging and review.
+    """Resolve homepage/world/sports slot placements for editor staging and review.
 
     Args:
         db: Database connection.

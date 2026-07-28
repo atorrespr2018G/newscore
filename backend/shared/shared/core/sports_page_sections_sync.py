@@ -119,10 +119,14 @@ async def _ensure_sports_world_category(db: AsyncIOMotorDatabase) -> str:
 
 
 async def _ensure_sports_layout(db: AsyncIOMotorDatabase, *, market_id: str) -> dict[str, Any]:
-    """Ensure an active sports layout exists for a market."""
+    """Ensure an active market-level sports layout exists (not a region clone)."""
 
     layout = await db[LAYOUTS_COLLECTION].find_one(
-        {"page_name": SPORTS_PAGE_NAME, "market_id": market_id},
+        {
+            "page_name": SPORTS_PAGE_NAME,
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        },
     )
     now = utc_now().isoformat()
     if layout is not None:
@@ -158,13 +162,12 @@ async def _upsert_layout_slot(
     limit: int,
     now: str,
 ) -> str:
-    """Create or update one sports layout slot."""
+    """Create or update one sports layout slot without wiping existing pins."""
 
     query_rule: dict[str, Any] = {"limit": limit}
     if category_id:
         query_rule["category_id"] = category_id
     fields = {
-        "pinned_ids": [],
         "query_rule": query_rule,
         "order_index": order_index,
         "display_name": display_name,
@@ -185,6 +188,7 @@ async def _upsert_layout_slot(
             "layout_id": layout_id,
             "position_key": position_key,
             "content_type": "articles",
+            "pinned_ids": [],
             **fields,
         },
     )
@@ -213,6 +217,70 @@ async def _category_id_by_slug(db: AsyncIOMotorDatabase, slug: str) -> str | Non
     return str(category["_id"]) if category else None
 
 
+async def _apply_sports_slots_to_layout(
+    db: AsyncIOMotorDatabase,
+    *,
+    layout_id: str,
+    slot_specs: list[dict[str, Any]],
+    now: str,
+) -> list[str]:
+    """Upsert sports slots onto one layout and delete obsolete rows.
+
+    Args:
+        db: Mongo database.
+        layout_id: Layout document id to update.
+        slot_specs: Ordered slot field dicts for `_upsert_layout_slot`.
+        now: ISO timestamp for updated_at.
+
+    Returns:
+        Ordered slot ids kept on the layout.
+    """
+
+    slot_ids: list[str] = []
+    for spec in slot_specs:
+        slot_ids.append(
+            await _upsert_layout_slot(
+                db,
+                layout_id=layout_id,
+                now=now,
+                **spec,
+            ),
+        )
+    await _delete_obsolete_sports_slots(db, layout_id=layout_id, keep_slot_ids=set(slot_ids))
+    await db[LAYOUTS_COLLECTION].update_one(
+        {"_id": layout_id},
+        {"$set": {"slot_ids": slot_ids, "is_active": True, "updated_at": now}},
+    )
+    return slot_ids
+
+
+async def _sync_region_sports_layouts(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_layout_id: str,
+    slot_specs: list[dict[str, Any]],
+    now: str,
+) -> None:
+    """Mirror sports slot structure onto region-owned sports boards for a market."""
+
+    cursor = db[LAYOUTS_COLLECTION].find(
+        {
+            "page_name": SPORTS_PAGE_NAME,
+            "market_id": market_id,
+            "region_id": {"$exists": True, "$nin": [None, ""]},
+            "_id": {"$ne": market_layout_id},
+        },
+    )
+    async for layout in cursor:
+        await _apply_sports_slots_to_layout(
+            db,
+            layout_id=str(layout["_id"]),
+            slot_specs=slot_specs,
+            now=now,
+        )
+
+
 async def sync_sports_layout_slots(
     db: AsyncIOMotorDatabase,
     *,
@@ -222,6 +290,7 @@ async def sync_sports_layout_slots(
     """Rebuild sports page slots from an ordered sport list.
 
     Keeps hero, Top Stories, Live, and World (Live then World); replaces dynamic sport rows.
+    Also mirrors structure onto any region-owned sports layouts for the market.
 
     Args:
         db: Mongo database.
@@ -235,71 +304,64 @@ async def sync_sports_layout_slots(
     layout = await _ensure_sports_layout(db, market_id=market_id)
     layout_id = str(layout["_id"])
     now = utc_now().isoformat()
-    slot_ids: list[str] = [
-        await _upsert_layout_slot(
-            db,
-            layout_id=layout_id,
-            position_key=HERO_POSITION_KEY,
-            order_index=0,
-            display_name="Sports",
-            presentation_type="hero",
-            category_id=sports_category_id,
-            limit=SPORTS_HERO_ARTICLE_LIMIT,
-            now=now,
-        ),
-        await _upsert_layout_slot(
-            db,
-            layout_id=layout_id,
-            position_key=US_FEATURED_POSITION_KEY,
-            order_index=1,
-            display_name="Top Stories",
-            presentation_type="grid_4",
-            category_id=sports_category_id,
-            limit=SPORTS_TOP_STORIES_ARTICLE_LIMIT,
-            now=now,
-        ),
-        await _upsert_layout_slot(
-            db,
-            layout_id=layout_id,
-            position_key=LIVE_POSITION_KEY,
-            order_index=2,
-            display_name="Live",
-            presentation_type="grid_4",
-            category_id=live_category_id,
-            limit=SPORTS_LIVE_ARTICLE_LIMIT,
-            now=now,
-        ),
-        await _upsert_layout_slot(
-            db,
-            layout_id=layout_id,
-            position_key=WORLD_POSITION_KEY,
-            order_index=3,
-            display_name="World",
-            presentation_type="grid_4",
-            category_id=world_category_id,
-            limit=SPORTS_WORLD_ARTICLE_LIMIT,
-            now=now,
-        ),
+    slot_specs: list[dict[str, Any]] = [
+        {
+            "position_key": HERO_POSITION_KEY,
+            "order_index": 0,
+            "display_name": "Sports",
+            "presentation_type": "hero",
+            "category_id": sports_category_id,
+            "limit": SPORTS_HERO_ARTICLE_LIMIT,
+        },
+        {
+            "position_key": US_FEATURED_POSITION_KEY,
+            "order_index": 1,
+            "display_name": "Top Stories",
+            "presentation_type": "grid_4",
+            "category_id": sports_category_id,
+            "limit": SPORTS_TOP_STORIES_ARTICLE_LIMIT,
+        },
+        {
+            "position_key": LIVE_POSITION_KEY,
+            "order_index": 2,
+            "display_name": "Live",
+            "presentation_type": "grid_4",
+            "category_id": live_category_id,
+            "limit": SPORTS_LIVE_ARTICLE_LIMIT,
+        },
+        {
+            "position_key": WORLD_POSITION_KEY,
+            "order_index": 3,
+            "display_name": "World",
+            "presentation_type": "grid_4",
+            "category_id": world_category_id,
+            "limit": SPORTS_WORLD_ARTICLE_LIMIT,
+        },
     ]
 
     for index, item in enumerate(items):
         category_id = await _ensure_sport_category(db, slug=item["slug"], label=item["label"])
-        slot_ids.append(
-            await _upsert_layout_slot(
-                db,
-                layout_id=layout_id,
-                position_key=item["slug"],
-                order_index=index + 4,
-                display_name=item["label"],
-                presentation_type="grid_4",
-                category_id=category_id,
-                limit=SPORTS_SECTION_ARTICLE_LIMIT,
-                now=now,
-            ),
+        slot_specs.append(
+            {
+                "position_key": item["slug"],
+                "order_index": index + 4,
+                "display_name": item["label"],
+                "presentation_type": "grid_4",
+                "category_id": category_id,
+                "limit": SPORTS_SECTION_ARTICLE_LIMIT,
+            },
         )
 
-    await _delete_obsolete_sports_slots(db, layout_id=layout_id, keep_slot_ids=set(slot_ids))
-    await db[LAYOUTS_COLLECTION].update_one(
-        {"_id": layout_id},
-        {"$set": {"slot_ids": slot_ids, "is_active": True, "updated_at": now}},
+    await _apply_sports_slots_to_layout(
+        db,
+        layout_id=layout_id,
+        slot_specs=slot_specs,
+        now=now,
+    )
+    await _sync_region_sports_layouts(
+        db,
+        market_id=market_id,
+        market_layout_id=layout_id,
+        slot_specs=slot_specs,
+        now=now,
     )

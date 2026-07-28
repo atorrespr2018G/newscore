@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
-import { PlacementSlotScope } from '@/context/editor-placement-context'
+import { PlacementSlotScope, useEditorPlacement } from '@/context/editor-placement-context'
 import { PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useMarket } from '@/context/market-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
@@ -41,9 +41,10 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
   const { marketCode, town, county } = useMarket()
   const regionScopeKey = toRegionCode(marketCode, town, county)
   const t = useTranslations('common')
+  const editor = useEditorPlacement()
   const allArticles = slot.articles
   const [articlesPerPage, setArticlesPerPage] = useState(COMPACT_SIX_BAND_ARTICLE_LIMIT)
-  const totalPages = Math.ceil(allArticles.length / articlesPerPage)
+  const totalPages = Math.ceil(allArticles.length / articlesPerPage) || 1
   const isPaginated = totalPages > 1
 
   const [page, setPage] = useState(0)
@@ -68,7 +69,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
     }
   }, [page, totalPages])
 
-  if (allArticles.length === 0) {
+  if (allArticles.length === 0 && editor == null) {
     return null
   }
 
@@ -83,7 +84,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
         </div>
 
-        {isPaginated ? (
+        {allArticles.length === 0 ? null : isPaginated ? (
           <div className="group/row relative">
             <div className="overflow-hidden">
               <div

@@ -413,7 +413,8 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
   }
 
   const sections = selectHomepageSections(slots)
-  const useSportsSectionRows = options?.useSportsSectionRows === true
+  const useSportsSectionRows =
+    options?.useSportsSectionRows === true || feed.pageName.trim().toLowerCase() === SPORTS_PAGE_NAME
 
   if (useSportsSectionRows) {
     const sportSlots = selectSportsPageSectionSlots(slots)

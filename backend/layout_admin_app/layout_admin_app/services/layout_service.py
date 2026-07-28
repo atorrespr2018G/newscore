@@ -199,7 +199,12 @@ async def get_by_page_name(
         raise NotFoundError("Active layout not found for page")
 
     doc = await db[LAYOUTS_COLLECTION].find_one(
-        {"page_name": normalized_page, "market_id": market_id, "is_active": True},
+        {
+            "page_name": normalized_page,
+            "market_id": market_id,
+            "is_active": True,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        },
     )
     if doc is None:
         raise NotFoundError("Active layout not found for page")

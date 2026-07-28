@@ -326,8 +326,8 @@
   },
   "sportsPage": {
     "heading": "Secciones de deportes",
-    "subtitle": "Administra la lista ordenada de filas deportivas de la página Deportes por país. Al guardar se actualiza el diseño en vivo.",
-    "listHint": "En la página Deportes, dos filas de deporte van seguidas de una cinta publicitaria.",
+    "subtitle": "Administra la lista ordenada de filas deportivas de la página Deportes por país. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → sports, o etiqueta artículos con la categoría del deporte.",
+    "listHint": "En la página Deportes, dos filas de deporte van seguidas de una cinta publicitaria. Después de guardar, abre Placement y elige Página → sports para fijar historias en cada fila.",
     "labelPlaceholder": "Nombre del deporte",
     "addSport": "Agregar deporte",
     "remove": "Quitar",
@@ -336,7 +336,7 @@
     "save": "Guardar lista",
     "saving": "Guardando…",
     "loading": "Cargando lista de deportes…",
-    "saveSuccess": "Lista de deportes guardada. La página Deportes usa estas filas.",
+    "saveSuccess": "Lista de deportes guardada. Usa Placement → sports para fijar historias, o etiqueta artículos con la nueva categoría.",
     "saveFailed": "No se pudo guardar la lista de deportes.",
     "loadFailed": "No se pudo cargar la lista de deportes."
   }

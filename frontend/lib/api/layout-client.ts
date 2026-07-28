@@ -98,7 +98,7 @@ export function getLayoutSlots(layoutId: string): Promise<ISlotOut[]> {
 }
 
 /**
- * Resolve article placements across homepage and world layouts.
+ * Resolve article placements across homepage, world, and sports layouts.
  *
  * @param marketCode Market code such as `us`.
  * @returns Article id to placement list lookup.

@@ -20,7 +20,7 @@ export const DEFAULT_EDITOR_SCOPE: IEditorScope = {
 }
 
 /** Curatable layout pages an editor can switch between. */
-export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = ['homepage', 'world']
+export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = ['homepage', 'world', 'sports']
 
 /** Market codes an editor can curate from the scope switcher. */
 export const EDITOR_MARKET_OPTIONS: ReadonlyArray<string> = ['us', 'pr', 'co']
