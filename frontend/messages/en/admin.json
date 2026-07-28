@@ -95,7 +95,8 @@
     "emptyPool": "No uploaded stories yet.",
     "scope": {
       "market": "Market",
-      "page": "Page"
+      "page": "Page",
+      "state": "State"
     },
     "workspace": {
       "placementTab": "Placement",
@@ -332,8 +333,8 @@
   },
   "sportsPage": {
     "heading": "Sports sections",
-    "subtitle": "Manage the ordered list of sport rows for each country’s Sports page. Saving creates categories and layout slots. Place stories under Placement → Page → sports, or tag articles with the sport category.",
-    "listHint": "Two sport rows are followed by an advertisement ribbon on the Sports page. After saving, open Placement and choose Page → sports to pin stories into each row.",
+    "subtitle": "Manage the ordered list of sport rows for each Sports page. US markets use one list per state; PR and other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → sports.",
+    "listHint": "Two sport rows are followed by an advertisement ribbon on the Sports page. After saving, open Placement and choose Page → sports (and the matching state) to pin stories into each row.",
     "labelPlaceholder": "Sport name",
     "addSport": "Add sport",
     "remove": "Remove",

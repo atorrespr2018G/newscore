@@ -13,6 +13,7 @@ from shared.core.regions import (
     get_ancestor_chain,
     get_region_by_code,
     legacy_market_scope_article_filter,
+    region_ids_self_and_descendants,
     region_ids_under_same_country,
     region_scope_article_filter,
     resolve_region_code_from_legacy,
@@ -103,11 +104,22 @@ def _article_scope_queries(
     return [market_query]
 
 
-async def _region_scope_ids(db: AsyncIOMotorDatabase, region_id: str | None) -> list[str]:
-    """Resolve country-wide placement scope ids for a region."""
+async def _region_scope_ids(
+    db: AsyncIOMotorDatabase,
+    region_id: str | None,
+    *,
+    page_name: str = "homepage",
+) -> list[str]:
+    """Resolve placement scope ids for a region and page.
+
+    Sports pages use the selected region and its descendants so each state
+    board fills with that state's news. Other pages keep country-wide scope.
+    """
 
     if not region_id:
         return []
+    if page_name.strip().lower() == "sports":
+        return await region_ids_self_and_descendants(db, region_id)
     return await region_ids_under_same_country(db, region_id)
 
 
@@ -351,7 +363,7 @@ async def get_home_feed(
         )
 
     loader = AuthorNameLoader(db)
-    region_scope_ids = await _region_scope_ids(db, region_id)
+    region_scope_ids = await _region_scope_ids(db, region_id, page_name=normalized_page)
     base_queries = _article_scope_queries(
         market_id,
         town=town,
@@ -398,7 +410,11 @@ async def get_home_feed(
                 active_base_queries=_article_scope_queries(
                     market_id,
                     town=None,
-                    region_scope_ids=await _region_scope_ids(db, ancestor_id),
+                    region_scope_ids=await _region_scope_ids(
+                        db,
+                        ancestor_id,
+                        page_name=normalized_page,
+                    ),
                 ),
                 active_town=None,
             )
@@ -468,7 +484,7 @@ async def get_home_feed_preview(
         )
 
     loader = AuthorNameLoader(db)
-    region_scope_ids = await _region_scope_ids(db, region_id)
+    region_scope_ids = await _region_scope_ids(db, region_id, page_name=normalized_page)
     base_queries = _article_scope_queries(
         market_id,
         town=town,
@@ -515,7 +531,11 @@ async def get_home_feed_preview(
                 active_base_queries=_article_scope_queries(
                     market_id,
                     town=None,
-                    region_scope_ids=await _region_scope_ids(db, ancestor_id),
+                    region_scope_ids=await _region_scope_ids(
+                        db,
+                        ancestor_id,
+                        page_name=normalized_page,
+                    ),
                 ),
                 active_town=None,
             )

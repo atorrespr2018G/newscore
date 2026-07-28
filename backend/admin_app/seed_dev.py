@@ -1888,16 +1888,39 @@ async def _ensure_market_sports_sections(
     labels = PR_SPORT_SECTION_LABELS if market_code == "pr" else []
     items = [{"slug": slugify_sport_label(label), "label": label} for label in labels]
     now = _utc_now_iso()
-    await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
-        {"market_id": market_id},
+    existing = await db[SPORTS_PAGE_SECTIONS_COLLECTION].find_one(
         {
-            "$set": {"items": items, "updated_at": now},
-            "$setOnInsert": {"_id": str(uuid4()), "market_id": market_id},
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
         },
-        upsert=True,
+        {"_id": 1},
     )
-    await sync_sports_layout_slots(db, market_id=market_id, items=items)
+    if existing is not None:
+        await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"items": items, "updated_at": now, "region_id": None}},
+        )
+    else:
+        await db[SPORTS_PAGE_SECTIONS_COLLECTION].insert_one(
+            {
+                "_id": str(uuid4()),
+                "market_id": market_id,
+                "region_id": None,
+                "items": items,
+                "updated_at": now,
+            },
+        )
+    await sync_sports_layout_slots(db, market_id=market_id, items=items, region_id=None)
     logger.info("Seeded sports sections for market %s (%d items)", market_code, len(items))
+
+
+async def _ensure_us_state_sports_sections(db: AsyncIOMotorDatabase) -> None:
+    """Seed each US state sports list from the PR sport labels and sync layouts."""
+
+    from shared.core.sports_page_sections_sync import ensure_us_state_sports_sections
+
+    result = await ensure_us_state_sports_sections(db, labels=PR_SPORT_SECTION_LABELS)
+    logger.info("Seeded US state sports sections: %s", result)
 
 
 async def _ensure_pr_sport_section_articles(
@@ -2064,6 +2087,7 @@ async def seed_dev() -> None:
 
         await _ensure_breaking_widgets(db)
         await _ensure_geo_regions_and_backfill()
+        await _ensure_us_state_sports_sections(db)
         await _invalidate_homepage_feed_cache()
     finally:
         client.close()

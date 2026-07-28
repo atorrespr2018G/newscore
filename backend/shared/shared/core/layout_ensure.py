@@ -12,7 +12,9 @@ from shared.core.geo_catalog import (
     CURATED_LAYOUT_PAGE_NAMES,
     FLORIDA_COUNTY_OPTIONS,
     PUERTO_RICO_TOWN_OPTIONS,
+    STATE_SPORTS_LAYOUT_PAGE_NAME,
     US_STATE_OPTIONS,
+    us_state_region_codes,
 )
 
 REGIONS_COLLECTION = "regions"
@@ -372,6 +374,9 @@ async def _ensure_pr_town_regions(db: AsyncIOMotorDatabase) -> list[str]:
 async def ensure_us_pr_geo_layouts(db: AsyncIOMotorDatabase) -> dict[str, Any]:
     """Ensure regions and exact layouts for US/PR countries, states, counties, towns.
 
+    Homepage and world boards are created for every curated geo code. Sports boards
+    are created only for US states (counties fall back to the parent state board).
+
     Args:
         db: Database connection.
 
@@ -396,6 +401,15 @@ async def ensure_us_pr_geo_layouts(db: AsyncIOMotorDatabase) -> dict[str, Any]:
                 page_name=page_name,
             )
         layouts_by_page[page_name] = page_layouts
+
+    sports_layouts: dict[str, str | None] = {}
+    for code in us_state_region_codes():
+        sports_layouts[code] = await ensure_exact_page_layout_by_code(
+            db,
+            region_code=code,
+            page_name=STATE_SPORTS_LAYOUT_PAGE_NAME,
+        )
+    layouts_by_page[STATE_SPORTS_LAYOUT_PAGE_NAME] = sports_layouts
 
     return {
         "status": "ok",

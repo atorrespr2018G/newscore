@@ -211,3 +211,12 @@ PUERTO_RICO_TOWN_OPTIONS: tuple[tuple[str, str], ...] = (
 
 CURATED_LAYOUT_PAGE_NAMES: tuple[str, ...] = ("homepage", "world")
 """Layout pages that receive one exact board per geo region."""
+
+STATE_SPORTS_LAYOUT_PAGE_NAME = "sports"
+"""Sports page boards are curated per US state (not counties/towns)."""
+
+
+def us_state_region_codes() -> tuple[str, ...]:
+    """Return region codes for every US state (e.g. ``us-fl``)."""
+
+    return tuple(f"us-{state_code}" for state_code, _ in US_STATE_OPTIONS)

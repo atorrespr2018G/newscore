@@ -9,11 +9,13 @@ import {
   type ISportsPageSectionItem,
 } from '@/lib/api/layout-client'
 import { EDITOR_MARKET_OPTIONS } from '@/lib/editor/editor-scope'
+import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 
 const SELECT_CLASS =
   'mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm capitalize'
 const INPUT_CLASS =
   'w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm'
+const DEFAULT_US_STATE_CODE = 'fl'
 
 interface IEditableSportRow {
   key: string
@@ -36,7 +38,21 @@ function toEditableRows(items: ISportsPageSectionItem[]): IEditableSportRow[] {
 }
 
 /**
- * Admin editor for the ordered sports section list of one market.
+ * Region code for sports section scope when the market has states.
+ *
+ * @param marketCode Selected market code.
+ * @param stateCode Selected US state short code.
+ * @returns Region code such as `us-fl`, or null for market-level lists.
+ */
+function sportsSectionsRegionCode(marketCode: string, stateCode: string): string | null {
+  if (marketCode !== US_MARKET_CODE) {
+    return null
+  }
+  return `us-${stateCode}`
+}
+
+/**
+ * Admin editor for the ordered sports section list of one market or US state.
  *
  * @returns Sports sections administration UI.
  */
@@ -44,9 +60,11 @@ export function SportsSectionsEditor(): JSX.Element {
   const t = useTranslations('admin')
   const { pushToast } = useToast()
   const [marketCode, setMarketCode] = useState('pr')
+  const [stateCode, setStateCode] = useState(DEFAULT_US_STATE_CODE)
   const [rows, setRows] = useState<IEditableSportRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const regionCode = sportsSectionsRegionCode(marketCode, stateCode)
 
   useEffect(() => {
     let cancelled = false
@@ -54,7 +72,7 @@ export function SportsSectionsEditor(): JSX.Element {
     async function loadSections(): Promise<void> {
       setLoading(true)
       try {
-        const data = await getSportsPageSections(marketCode)
+        const data = await getSportsPageSections(marketCode, regionCode)
         if (!cancelled) {
           setRows(toEditableRows(data.items))
         }
@@ -75,10 +93,10 @@ export function SportsSectionsEditor(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [marketCode, pushToast, t])
+  }, [marketCode, regionCode, pushToast, t])
 
   /**
-   * Persist the current ordered list for the selected market.
+   * Persist the current ordered list for the selected market or state.
    */
   async function handleSave(): Promise<void> {
     const items = rows
@@ -86,7 +104,7 @@ export function SportsSectionsEditor(): JSX.Element {
       .filter((item) => item.label.length > 0)
     setSaving(true)
     try {
-      const data = await putSportsPageSections(marketCode, items)
+      const data = await putSportsPageSections(marketCode, items, regionCode)
       setRows(toEditableRows(data.items))
       pushToast(t('sportsPage.saveSuccess'), 'success')
     } catch (error) {
@@ -99,20 +117,39 @@ export function SportsSectionsEditor(): JSX.Element {
 
   return (
     <div className="mt-4 space-y-4">
-      <label className="block max-w-xs text-xs font-medium text-neutral-700">
-        {t('editor.scope.market')}
-        <select
-          value={marketCode}
-          onChange={(event) => setMarketCode(event.target.value)}
-          className={SELECT_CLASS}
-        >
-          {EDITOR_MARKET_OPTIONS.map((market) => (
-            <option key={market} value={market}>
-              {market.toUpperCase()}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="flex flex-wrap gap-4">
+        <label className="block max-w-xs text-xs font-medium text-neutral-700">
+          {t('editor.scope.market')}
+          <select
+            value={marketCode}
+            onChange={(event) => setMarketCode(event.target.value)}
+            className={SELECT_CLASS}
+          >
+            {EDITOR_MARKET_OPTIONS.map((market) => (
+              <option key={market} value={market}>
+                {market.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {marketCode === US_MARKET_CODE ? (
+          <label className="block max-w-xs text-xs font-medium text-neutral-700">
+            {t('editor.scope.state')}
+            <select
+              value={stateCode}
+              onChange={(event) => setStateCode(event.target.value)}
+              className={SELECT_CLASS}
+            >
+              {US_STATE_OPTIONS.map((state) => (
+                <option key={state.code} value={state.code}>
+                  {state.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
 
       {loading ? (
         <p className="text-sm text-neutral-600">{t('sportsPage.loading')}</p>

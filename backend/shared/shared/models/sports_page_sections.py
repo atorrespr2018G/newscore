@@ -8,7 +8,7 @@ from shared.models.common import utc_now
 
 
 class SportsPageSectionItem(BaseModel):
-    """One ordered sport row on a market sports page."""
+    """One ordered sport row on a sports page."""
 
     slug: str
     label: str
@@ -19,10 +19,15 @@ class SportsPageSectionItem(BaseModel):
 
 
 class SportsPageSections(BaseModel):
-    """Per-market ordered list of sports page section rows."""
+    """Ordered sports section rows for a market or a state region.
+
+    Market-level docs use ``region_id=None`` (countries without states, e.g. PR).
+    State-level docs set ``region_id`` to the state region document id.
+    """
 
     id: str = Field(..., alias="_id")
     market_id: str
+    region_id: str | None = None
     items: list[SportsPageSectionItem] = []
     updated_at: str = Field(default_factory=lambda: utc_now().isoformat())
 

@@ -270,45 +270,59 @@ export function patchSlotPinnedIds(slotId: string, pinnedIds: string[]): Promise
   })
 }
 
-/** One ordered sport row on a market sports page. */
+/** One ordered sport row on a sports page. */
 export interface ISportsPageSectionItem {
   slug: string
   label: string
 }
 
-/** Per-market sports page section list. */
+/** Sports page section list for a market or state region. */
 export interface ISportsPageSectionsOut {
   market_id: string
   market_code: string
+  region_id: string | null
+  region_code: string | null
   items: ISportsPageSectionItem[]
   updated_at: string
 }
 
 /**
- * Load the ordered sports section list for a market.
+ * Load the ordered sports section list for a market or region.
  *
- * @param marketCode Market code such as `pr`.
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
  * @returns Sports section list payload.
  */
-export function getSportsPageSections(marketCode: string): Promise<ISportsPageSectionsOut> {
+export function getSportsPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<ISportsPageSectionsOut> {
   const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
   return apiFetch<ISportsPageSectionsOut>(
     `${apiConfig.layout}/sports-page-sections?${params.toString()}`,
   )
 }
 
 /**
- * Replace the ordered sports section list for a market and sync layout slots.
+ * Replace the ordered sports section list and sync layout slots.
  *
- * @param marketCode Market code such as `pr`.
+ * @param marketCode Market code such as `pr` or `us`.
  * @param items Ordered sport rows (label required; slug optional).
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
  * @returns Updated sports section list payload.
  */
 export function putSportsPageSections(
   marketCode: string,
   items: Array<{ label: string; slug?: string }>,
+  regionCode?: string | null,
 ): Promise<ISportsPageSectionsOut> {
   const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
   return apiFetch<ISportsPageSectionsOut>(
     `${apiConfig.layout}/sports-page-sections?${params.toString()}`,
     {

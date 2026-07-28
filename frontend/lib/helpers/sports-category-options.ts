@@ -6,16 +6,33 @@ import {
   findCategoryBySlug,
   rootCategories,
 } from '@/lib/helpers/category-selection'
+import { US_MARKET_CODE } from '@/lib/us-states'
+
+/** Default US state region used when discovering sport slugs for the US market. */
+const DEFAULT_US_SPORTS_REGION_CODE = 'us-fl'
 
 /**
  * Load ordered sport slugs for one market or every editor market.
  *
+ * US market lists are region-scoped; when no region is passed, Florida's list is
+ * used as the catalog source (all states start from the same PR-shaped list).
+ *
  * @param marketCode Optional single market; otherwise all editor markets.
+ * @param regionCode Optional region code such as `us-fl`.
  * @returns Deduplicated sport slugs in first-seen order.
  */
-export async function loadSportSlugs(marketCode?: string): Promise<string[]> {
+export async function loadSportSlugs(
+  marketCode?: string,
+  regionCode?: string | null,
+): Promise<string[]> {
   const markets = marketCode ? [marketCode] : [...EDITOR_MARKET_OPTIONS]
-  const lists = await Promise.all(markets.map((code) => getSportsPageSections(code)))
+  const lists = await Promise.all(
+    markets.map((code) => {
+      const resolvedRegion =
+        regionCode ?? (code === US_MARKET_CODE ? DEFAULT_US_SPORTS_REGION_CODE : null)
+      return getSportsPageSections(code, resolvedRegion)
+    }),
+  )
   const seen = new Set<string>()
   const slugs: string[] = []
   for (const list of lists) {

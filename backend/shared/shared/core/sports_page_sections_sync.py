@@ -9,12 +9,16 @@ from uuid import uuid4
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.exceptions import ValidationError
+from shared.core.geo_catalog import us_state_region_codes
 from shared.core.logger import get_logger
+from shared.core.regions import get_region_by_code
 from shared.models.common import utc_now
 from shared.read.collections import (
     CATEGORIES_COLLECTION,
     LAYOUTS_COLLECTION,
+    MARKETS_COLLECTION,
     SLOTS_COLLECTION,
+    SPORTS_PAGE_SECTIONS_COLLECTION,
 )
 
 logger = get_logger(__name__)
@@ -157,6 +161,44 @@ async def _ensure_sports_layout(db: AsyncIOMotorDatabase, *, market_id: str) -> 
     return layout
 
 
+async def _ensure_region_sports_layout(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    region_id: str,
+) -> dict[str, Any]:
+    """Ensure a region-owned sports layout exists, cloning from market when needed.
+
+    Args:
+        db: Mongo database.
+        market_id: Market document id.
+        region_id: Region document id that must own the sports board.
+
+    Returns:
+        Layout document for the region sports page.
+
+    Raises:
+        ValidationError: When no market sports layout exists to clone from.
+    """
+
+    from shared.core.layout_ensure import ensure_exact_page_layout
+
+    # Market board must exist first so ensure_exact_page_layout can clone slots.
+    await _ensure_sports_layout(db, market_id=market_id)
+    layout_id = await ensure_exact_page_layout(
+        db,
+        region_id=region_id,
+        page_name=SPORTS_PAGE_NAME,
+    )
+    if layout_id is None:
+        raise ValidationError(f"Unable to ensure sports layout for region {region_id}")
+
+    layout = await db[LAYOUTS_COLLECTION].find_one({"_id": layout_id})
+    if layout is None:
+        raise ValidationError(f"Sports layout missing after ensure: {layout_id}")
+    return layout
+
+
 async def _upsert_layout_slot(
     db: AsyncIOMotorDatabase,
     *,
@@ -261,54 +303,37 @@ async def _apply_sports_slots_to_layout(
     return slot_ids
 
 
-async def _sync_region_sports_layouts(
-    db: AsyncIOMotorDatabase,
-    *,
-    market_id: str,
-    market_layout_id: str,
-    slot_specs: list[dict[str, Any]],
-    now: str,
-) -> None:
-    """Mirror sports slot structure onto region-owned sports boards for a market."""
-
-    cursor = db[LAYOUTS_COLLECTION].find(
-        {
-            "page_name": SPORTS_PAGE_NAME,
-            "market_id": market_id,
-            "region_id": {"$exists": True, "$nin": [None, ""]},
-            "_id": {"$ne": market_layout_id},
-        },
-    )
-    async for layout in cursor:
-        await _apply_sports_slots_to_layout(
-            db,
-            layout_id=str(layout["_id"]),
-            slot_specs=slot_specs,
-            now=now,
-        )
-
-
 async def sync_sports_layout_slots(
     db: AsyncIOMotorDatabase,
     *,
     market_id: str,
     items: list[dict[str, str]],
+    region_id: str | None = None,
 ) -> None:
     """Rebuild sports page slots from an ordered sport list.
 
     Keeps hero, Top Stories, Live, and World (Live then World); replaces dynamic sport rows.
-    Also mirrors structure onto any region-owned sports layouts for the market.
+    When ``region_id`` is set, updates only that region's sports layout. Otherwise updates
+    the market-level sports layout only (does not mirror onto region boards).
 
     Args:
         db: Mongo database.
         market_id: Market document id.
         items: Ordered `{slug, label}` sport rows.
+        region_id: Optional region document id for a state sports board.
     """
 
     sports_category_id = await _category_id_by_slug(db, PARENT_SPORTS_CATEGORY_SLUG)
     live_category_id = await _category_id_by_slug(db, LIVE_CATEGORY_SLUG)
     world_category_id = await _ensure_sports_world_category(db)
-    layout = await _ensure_sports_layout(db, market_id=market_id)
+    if region_id:
+        layout = await _ensure_region_sports_layout(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+        )
+    else:
+        layout = await _ensure_sports_layout(db, market_id=market_id)
     layout_id = str(layout["_id"])
     now = utc_now().isoformat()
     slot_specs: list[dict[str, Any]] = [
@@ -365,10 +390,86 @@ async def sync_sports_layout_slots(
         slot_specs=slot_specs,
         now=now,
     )
-    await _sync_region_sports_layouts(
-        db,
-        market_id=market_id,
-        market_layout_id=layout_id,
-        slot_specs=slot_specs,
-        now=now,
+
+
+async def ensure_us_state_sports_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    labels: list[str],
+) -> dict[str, Any]:
+    """Upsert PR-shaped sports section lists and sync layouts for every US state.
+
+    Creates missing state docs with ``labels``. Existing non-empty lists are kept;
+    empty lists are filled from ``labels``. Layouts are always synced to the
+    stored item list so boards stay aligned.
+
+    Args:
+        db: Mongo database.
+        labels: Ordered sport display labels (typically PR sport labels).
+
+    Returns:
+        Summary with market id and per-state region codes that were ensured.
+    """
+
+    market = await db[MARKETS_COLLECTION].find_one({"code": "us"}, {"_id": 1})
+    if market is None:
+        raise ValidationError("US market not found; cannot seed state sports sections")
+
+    market_id = str(market["_id"])
+    default_items = [{"slug": slugify_sport_label(label), "label": label} for label in labels]
+    now = utc_now().isoformat()
+    ensured_codes: list[str] = []
+    created_count = 0
+
+    for region_code in us_state_region_codes():
+        region = await get_region_by_code(db, region_code)
+        if region is None:
+            logger.warning("Skipping sports sections; region missing: %s", region_code)
+            continue
+        region_id = str(region["_id"])
+        existing = await db[SPORTS_PAGE_SECTIONS_COLLECTION].find_one(
+            {"market_id": market_id, "region_id": region_id},
+        )
+        if existing is None:
+            await db[SPORTS_PAGE_SECTIONS_COLLECTION].insert_one(
+                {
+                    "_id": str(uuid4()),
+                    "market_id": market_id,
+                    "region_id": region_id,
+                    "items": default_items,
+                    "updated_at": now,
+                },
+            )
+            items = default_items
+            created_count += 1
+        else:
+            stored = list(existing.get("items") or [])
+            if not stored:
+                await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
+                    {"_id": existing["_id"]},
+                    {"$set": {"items": default_items, "updated_at": now}},
+                )
+                items = default_items
+            else:
+                items = stored
+
+        await sync_sports_layout_slots(
+            db,
+            market_id=market_id,
+            items=items,
+            region_id=region_id,
+        )
+        ensured_codes.append(region_code)
+
+    logger.info(
+        "Ensured US state sports sections for %d states (%d created, %d sports)",
+        len(ensured_codes),
+        created_count,
+        len(default_items),
     )
+    return {
+        "market_id": market_id,
+        "region_codes": ensured_codes,
+        "created_count": created_count,
+        "item_count": len(default_items),
+    }

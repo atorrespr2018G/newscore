@@ -121,12 +121,20 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         [("layout_id", 1), ("order_index", 1)],
         name="slots_layout_order",
     )
+    # Drop legacy market-only unique index before installing (market_id, region_id).
+    try:
+        await db[SPORTS_PAGE_SECTIONS_COLLECTION].drop_index("sports_page_sections_market_uq")
+    except OperationFailure as exc:
+        # 27 = IndexNotFound — already migrated or fresh DB.
+        if exc.code != 27:
+            raise
+
     await _create_index_compat(
         db,
         SPORTS_PAGE_SECTIONS_COLLECTION,
-        [("market_id", 1)],
+        [("market_id", 1), ("region_id", 1)],
         unique=True,
-        name="sports_page_sections_market_uq",
+        name="sports_page_sections_market_region_uq",
     )
 
     # Badge query scans placement events by market scoped to a recency window.

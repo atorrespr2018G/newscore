@@ -20,21 +20,32 @@ router = APIRouter(prefix="/sports-page-sections")
 @router.get("", response_model=SportsPageSectionsOut)
 async def get_sports_page_sections(
     market: str = Query(DEFAULT_MARKET_CODE),
+    region: str | None = Query(None, description="Region code such as us-fl"),
     db: AsyncIOMotorDatabase = Depends(get_db),
     _: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> SportsPageSectionsOut:
-    """Return the ordered sports section list for a market."""
+    """Return the ordered sports section list for a market or state region."""
 
-    return await sports_page_sections_service.get_for_market(db, market)
+    return await sports_page_sections_service.get_for_market(
+        db,
+        market,
+        region_code=region,
+    )
 
 
 @router.put("", response_model=SportsPageSectionsOut)
 async def put_sports_page_sections(
     body: SportsPageSectionsUpdate,
     market: str = Query(DEFAULT_MARKET_CODE),
+    region: str | None = Query(None, description="Region code such as us-fl"),
     db: AsyncIOMotorDatabase = Depends(get_db),
     _: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> SportsPageSectionsOut:
     """Replace the ordered sports section list and sync the sports page layout."""
 
-    return await sports_page_sections_service.replace_for_market(db, market, body)
+    return await sports_page_sections_service.replace_for_market(
+        db,
+        market,
+        body,
+        region_code=region,
+    )
