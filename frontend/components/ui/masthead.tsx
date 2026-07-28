@@ -16,6 +16,7 @@ import { ADMINISTRATOR_ROUTE } from '@/lib/api/admin-routes'
 import {
   isHomepageSectionVisible,
   sectionAnchorId,
+  sectionKeyFromPathname,
   sectionNavHref,
   sectionPagePath,
 } from '@/lib/helpers/section-labels'
@@ -354,12 +355,24 @@ function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }):
 }
 
 function MastheadBrandLink(): JSX.Element {
+  const pathname = usePathname()
+  const { sectionLabel } = useSectionLabels()
+  const pageKey = sectionKeyFromPathname(pathname)
+  const pageTitle = pageKey ? sectionLabel(pageKey) : null
+
   return (
-    <Link href="/" className="flex items-center gap-2">
-      <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
-        NEWSCORE
-      </span>
-    </Link>
+    <div className="flex items-center gap-2">
+      <Link href="/" className="flex items-center">
+        <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
+          NEWSCORE
+        </span>
+      </Link>
+      {pageTitle ? (
+        <span className="text-[1.05rem] font-semibold leading-none tracking-tight text-neutral-800">
+          {pageTitle}
+        </span>
+      ) : null}
+    </div>
   )
 }
 

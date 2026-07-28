@@ -430,6 +430,24 @@ export function sectionPagePath(positionKey: string): string | null {
 
 
 /**
+ * Section key for a dedicated page route pathname, if one matches.
+ *
+ * @param pathname Current app pathname (locale prefix already stripped).
+ * @returns Position key such as `sports`, or null on homepage and other routes.
+ */
+export function sectionKeyFromPathname(pathname: string): string | null {
+  const normalized = pathname.replace(/\/+$/, '') || '/'
+  for (const [key, path] of Object.entries(SECTION_PAGE_ROUTES)) {
+    if (normalized === path) {
+      return key
+    }
+  }
+  return null
+}
+
+
+
+/**
 
  * CMS layout page_name for a section page route.
 
