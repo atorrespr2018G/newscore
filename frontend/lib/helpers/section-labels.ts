@@ -38,6 +38,26 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
   'sports',
 
+  'baseball',
+
+  'basketball',
+
+  'boxing',
+
+  'volleyball',
+
+  'soccer',
+
+  'surfing',
+
+  'track-and-field',
+
+  'tennis',
+
+  'golf',
+
+  'horse-racing',
+
   'world-us-canada',
 
   'world-spotlight',
@@ -368,9 +388,14 @@ export function homepageSectionTitle(
 
   }
 
-  // Sports page rows use CMS display names (per-country sport list).
-  if (pageName?.trim().toLowerCase() === 'sports' && displayName?.trim()) {
-    return displayName.trim()
+  // Sports page: prefer i18n labels when available; CMS names for custom sports only.
+  if (pageName?.trim().toLowerCase() === 'sports') {
+    if (SECTION_TRANSLATION_KEYS.has(normalized) && translate) {
+      return translate(`sectionLabels.${normalized}` as `sectionLabels.${string}`)
+    }
+    if (displayName?.trim()) {
+      return displayName.trim()
+    }
   }
 
   if (POSITION_KEY_OVERRIDES_DISPLAY_NAME.has(normalized)) {
