@@ -46,6 +46,27 @@ export type AdminWorkflowRouteType = (typeof ADMIN_WORKFLOW_ROUTES)[number]
 
 export type AdminWorkflowBadgeViewType = 'placement' | 'review'
 
+/** Leaf workflow tab that navigates to a route. */
+export interface IAdminWorkflowLeafTab {
+  href: AdminWorkflowRouteType
+  labelKey: string
+  activePrefix: string
+  badgeView?: AdminWorkflowBadgeViewType
+}
+
+/**
+ * Top-level workflow entry: either a direct link or a parent with nested children.
+ *
+ * Parent groups (e.g. Configuration) expand in the side nav; children are the
+ * navigable destinations. Add future page-config routes under `children`.
+ */
+export type AdminWorkflowTabType =
+  | IAdminWorkflowLeafTab
+  | {
+      labelKey: string
+      children: ReadonlyArray<IAdminWorkflowLeafTab>
+    }
+
 /**
  * Tab paths and their `admin.workflow.*` message keys for the editorial side panel.
  *
@@ -54,18 +75,30 @@ export type AdminWorkflowBadgeViewType = 'placement' | 'review'
  * tab active for its own sub-routes only, so Editor and Placement never both
  * highlight at once even though they share the `/admin/editor` segment.
  */
-export const ADMIN_WORKFLOW_TABS: ReadonlyArray<{
-  href: AdminWorkflowRouteType
-  labelKey: string
-  activePrefix: string
-  badgeView?: AdminWorkflowBadgeViewType
-}> = [
+export const ADMIN_WORKFLOW_TABS: ReadonlyArray<AdminWorkflowTabType> = [
   { href: '/admin/reporter', labelKey: 'reporter', activePrefix: '/admin/reporter' },
   { href: '/admin/editor/news', labelKey: 'editor', activePrefix: '/admin/editor/news' },
   { href: '/admin/editor/placement', labelKey: 'placement', activePrefix: '/admin/editor/placement', badgeView: 'placement' },
-  { href: '/admin/editor/sports', labelKey: 'sports', activePrefix: '/admin/editor/sports' },
+  {
+    labelKey: 'configuration',
+    children: [
+      { href: '/admin/editor/sports', labelKey: 'sports', activePrefix: '/admin/editor/sports' },
+    ],
+  },
   { href: '/admin/preview', labelKey: 'preview', activePrefix: '/admin/preview', badgeView: 'review' },
 ]
+
+/**
+ * Whether a workflow tab is a parent group with nested children.
+ *
+ * @param tab Workflow tab entry.
+ * @returns True when the tab exposes a children array.
+ */
+export function isAdminWorkflowGroupTab(
+  tab: AdminWorkflowTabType,
+): tab is Extract<AdminWorkflowTabType, { children: ReadonlyArray<IAdminWorkflowLeafTab> }> {
+  return 'children' in tab
+}
 
 /**
  * Determine whether a role may access an admin pathname.
