@@ -7,6 +7,7 @@
     "placement": "Placement",
     "configuration": "Configuration",
     "sports": "Sports",
+    "mainPage": "Main Page",
     "preview": "Preview"
   },
   "reporter": {
@@ -364,5 +365,38 @@
     "saveSuccess": "Sports list saved. Use Placement → sports to pin stories, or tag articles with the new sport category.",
     "saveFailed": "Failed to save sports list.",
     "loadFailed": "Failed to load sports list."
+  },
+  "mainPage": {
+    "heading": "Main Page sections",
+    "subtitle": "Manage the ordered list of Main Page sections (hero, Top Stories, Live, Extra Stories, Politics, Sports, Entertainment, and more) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → homepage.",
+    "listHint": "Add, remove, rename, or reorder any section. Saving updates Placement → homepage for the same market, state, county, or town. The public landing page follows this order.",
+    "labelPlaceholder": "Section name",
+    "addType": {
+      "hero": "Add hero",
+      "top_stories": "Add Top Stories",
+      "live": "Add Live",
+      "more_top_stories": "Add Extra Stories",
+      "spotlight": "Add spotlight",
+      "rail": "Add rail",
+      "category": "Add category"
+    },
+    "types": {
+      "hero": "Hero",
+      "top_stories": "Top Stories",
+      "live": "Live",
+      "more_top_stories": "Extra Stories",
+      "spotlight": "Spotlight",
+      "rail": "Rail",
+      "category": "Category"
+    },
+    "remove": "Remove",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading Main Page list…",
+    "saveSuccess": "Main Page list saved. Use Placement → homepage to pin stories, or tag articles with the new category.",
+    "saveFailed": "Failed to save Main Page list.",
+    "loadFailed": "Failed to load Main Page list."
   }
 }

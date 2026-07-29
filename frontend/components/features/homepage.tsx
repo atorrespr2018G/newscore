@@ -14,13 +14,12 @@ import {
 } from '@/components/ui/article-lead-media'
 import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import {
-  findSlotByPositionKey,
   normalizedPositionKey,
+  resolveHomepagePageSlotKind,
   resolveSportsPageSlotKind,
-  selectHomepageSections,
   splitDefaultHeroArticles,
 } from '@/lib/helpers/feed-layout'
-import type { IEditorialBandSlots } from '@/lib/helpers/feed-layout'
+import type { IEditorialBandSlots, HomepagePageSlotKind } from '@/lib/helpers/feed-layout'
 import { shouldRenderHomepageGridAd } from '@/lib/helpers/homepage-ad-placement'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
@@ -225,7 +224,11 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
 /** Post-politics section keys preceded by an ad ribbon on the homepage. */
 const POST_POLITICS_AD_SECTION_KEYS = ['health', 'finance', 'technology', 'world'] as const
 
-const LIVE_POSITION_KEY = 'health'
+const POLITICS_POSITION_KEY = 'politics'
+const SPORTS_POSITION_KEY = 'sports'
+const SPORTS_PAGE_NAME = 'sports'
+const SPORTS_SECTION_PAIR_SIZE = 2
+const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
 function EarlyUsSection({ slot, title }: { slot: IFeedSlot | undefined; title: string }): JSX.Element | null {
   if (!slot) {
@@ -239,38 +242,84 @@ function EarlyUsSection({ slot, title }: { slot: IFeedSlot | undefined; title: s
 }
 
 /**
- * Sports-only Live band under the advertisement ribbon below Top Stories.
+ * Whether an ad ribbon should precede a main-page slot in the ordered walk.
+ *
+ * @param slot Current slot.
+ * @param kind Resolved main-page slot kind.
+ * @param previousSlot Previously rendered slot, if any.
+ * @param previousKind Previous slot kind, if any.
+ * @returns True when an AdRibbon should render before this slot.
  */
-function LiveSection({ slot }: { slot: IFeedSlot | undefined }): JSX.Element | null {
-  if (!slot) {
-    return null
+function shouldInsertHomepageAdBefore(
+  slot: IFeedSlot,
+  kind: HomepagePageSlotKind,
+  previousSlot: IFeedSlot | null,
+  previousKind: HomepagePageSlotKind | null,
+): boolean {
+  if (previousKind === null) {
+    return false
   }
-  return (
-    <div className="space-y-2">
-      <AdRibbon />
-      <Suspense fallback={<SectionSkeleton />}>
-        <HomepageSection slot={slot} />
-      </Suspense>
-    </div>
-  )
+  if (kind === 'live_carousel' || kind === 'editorial_lead') {
+    return true
+  }
+  if (kind === 'compact_six') {
+    if ((POST_POLITICS_AD_SECTION_KEYS as readonly string[]).includes(normalizedPositionKey(slot))) {
+      return true
+    }
+    if (normalizedPositionKey(slot) === POLITICS_POSITION_KEY) {
+      return true
+    }
+    return shouldRenderHomepageGridAd(previousSlot ?? undefined, slot)
+  }
+  return false
 }
 
-function TopStoriesSection({ band }: { band: IEditorialBandSlots | undefined }): JSX.Element | null {
-  if (!band) {
+/**
+ * Consume consecutive editorial lead + spotlight (+ optional rail) as one band.
+ *
+ * @param slots Remaining feed slots starting at the lead.
+ * @returns Band and number of slots consumed, or null when not a band.
+ */
+function takeEditorialBand(slots: IFeedSlot[]): { band: IEditorialBandSlots; consumed: number } | null {
+  const lead = slots[0]
+  const spotlight = slots[1]
+  if (!lead || !spotlight) {
     return null
   }
-  return (
-    <div className="space-y-2">
-      <AdRibbon />
-      <Suspense fallback={<SectionSkeleton />}>
-        <HomepageEditorialBand
-          moreTopStoriesSlot={band.lead}
-          spotlightSlot={band.spotlight}
-          rightRailSlot={band.rail}
-        />
-      </Suspense>
-    </div>
-  )
+  if (resolveHomepagePageSlotKind(lead) !== 'editorial_lead') {
+    return null
+  }
+  if (resolveHomepagePageSlotKind(spotlight) !== 'editorial_spotlight') {
+    return null
+  }
+  const rail = slots[2]
+  if (rail && resolveHomepagePageSlotKind(rail) === 'rail_compact') {
+    return { band: { lead, spotlight, rail }, consumed: 3 }
+  }
+  return { band: { lead, spotlight }, consumed: 2 }
+}
+
+/**
+ * Consume consecutive Politics + Sports category rows as the paired module.
+ *
+ * @param slots Remaining feed slots.
+ * @returns Paired slots and count consumed, or null.
+ */
+function takePoliticsSportsPair(
+  slots: IFeedSlot[],
+): { politics: IFeedSlot; sports: IFeedSlot | undefined; consumed: number } | null {
+  const first = slots[0]
+  if (!first || normalizedPositionKey(first) !== POLITICS_POSITION_KEY) {
+    return null
+  }
+  if (resolveHomepagePageSlotKind(first) !== 'compact_six') {
+    return null
+  }
+  const second = slots[1]
+  if (second && normalizedPositionKey(second) === SPORTS_POSITION_KEY) {
+    return { politics: first, sports: second, consumed: 2 }
+  }
+  return { politics: first, sports: undefined, consumed: 1 }
 }
 
 function PoliticsSportsSection({
@@ -302,77 +351,119 @@ function PoliticsSportsSection({
   )
 }
 
-function PostPoliticsSections({ slots }: { slots: IFeedSlot[] }): JSX.Element {
+/**
+ * Render one main-page slot by presentation kind.
+ */
+function HomepagePageSlotBlock({
+  slot,
+  kind,
+  title,
+}: {
+  slot: IFeedSlot
+  kind: HomepagePageSlotKind
+  title: string
+}): JSX.Element | null {
+  if (kind === 'hero') {
+    return (
+      <PlacementSlotScope slotId={slot.id}>
+        <HeroBlock articles={slot.articles} />
+      </PlacementSlotScope>
+    )
+  }
+  if (kind === 'featured_band') {
+    return <EarlyUsSection slot={slot} title={title} />
+  }
+  if (kind === 'live_carousel') {
+    return (
+      <Suspense fallback={<SectionSkeleton />}>
+        <HealthCarouselSection
+          slot={{ ...slot, articles: slot.articles.slice(0, LIVE_CAROUSEL_ARTICLE_LIMIT) }}
+        />
+      </Suspense>
+    )
+  }
   return (
-    <>
-      {slots.map((slot) => (
-        <div key={slot.id} className="space-y-2">
-          {(POST_POLITICS_AD_SECTION_KEYS as readonly string[]).includes(normalizedPositionKey(slot)) ? (
-            <AdRibbon />
-          ) : null}
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageSection slot={slot} />
-          </Suspense>
-        </div>
-      ))}
-    </>
+    <Suspense fallback={<SectionSkeleton />}>
+      <HomepageSection slot={slot} />
+    </Suspense>
   )
 }
 
-function EditorialBandSections({ bands }: { bands: IEditorialBandSlots[] }): JSX.Element {
-  return (
-    <>
-      {bands.map((band) => (
-        <div key={`${band.lead.id}-${band.spotlight.id}-${band.rail?.id ?? 'no-rail'}`} className="space-y-2">
-          <AdRibbon />
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageEditorialBand
-              moreTopStoriesSlot={band.lead}
-              spotlightSlot={band.spotlight}
-              rightRailSlot={band.rail}
-            />
-          </Suspense>
-        </div>
-      ))}
-    </>
-  )
-}
-
-function GridSections({
+/**
+ * Main Page stack: render layout slots in configured order with ad-ribbon heuristics.
+ */
+function MainPageOrderedSections({
   slots,
-  previousSlot,
+  sectionLabel,
 }: {
   slots: IFeedSlot[]
-  previousSlot: IFeedSlot | undefined
+  sectionLabel: (positionKey: string) => string
 }): JSX.Element {
-  return (
-    <>
-      {slots.map((slot, index) => (
-        <div key={slot.id} className="space-y-2">
-          {shouldRenderHomepageGridAd(index === 0 ? previousSlot : slots[index - 1], slot) ? <AdRibbon /> : null}
+  const blocks: JSX.Element[] = []
+  let index = 0
+  let previousSlot: IFeedSlot | null = null
+  let previousKind: HomepagePageSlotKind | null = null
+
+  while (index < slots.length) {
+    const remaining = slots.slice(index)
+    const bandTaken = takeEditorialBand(remaining)
+    if (bandTaken) {
+      blocks.push(
+        <div key={`${bandTaken.band.lead.id}-band`} className="space-y-2">
+          {previousKind !== null ? <AdRibbon /> : null}
           <Suspense fallback={<SectionSkeleton />}>
-            <HomepageSection slot={slot} />
+            <HomepageEditorialBand
+              moreTopStoriesSlot={bandTaken.band.lead}
+              spotlightSlot={bandTaken.band.spotlight}
+              rightRailSlot={bandTaken.band.rail}
+            />
           </Suspense>
-        </div>
-      ))}
-    </>
-  )
+        </div>,
+      )
+      previousSlot = bandTaken.band.rail ?? bandTaken.band.spotlight
+      previousKind = 'editorial_lead'
+      index += bandTaken.consumed
+      continue
+    }
+
+    const pairTaken = takePoliticsSportsPair(remaining)
+    if (pairTaken) {
+      blocks.push(
+        <PoliticsSportsSection
+          key={`${pairTaken.politics.id}-politics-sports`}
+          politicsSlot={pairTaken.politics}
+          sportsSlot={pairTaken.sports}
+        />,
+      )
+      previousSlot = pairTaken.sports ?? pairTaken.politics
+      previousKind = 'compact_six'
+      index += pairTaken.consumed
+      continue
+    }
+
+    const slot = slots[index]
+    const kind = resolveHomepagePageSlotKind(slot)
+    const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
+    const showAdBefore = shouldInsertHomepageAdBefore(slot, kind, previousSlot, previousKind)
+    blocks.push(
+      <div key={slot.id} className="space-y-2">
+        {showAdBefore ? <AdRibbon /> : null}
+        <HomepagePageSlotBlock slot={slot} kind={kind} title={title} />
+        {kind === 'hero' ? <AdRibbon /> : null}
+      </div>,
+    )
+    previousSlot = slot
+    previousKind = kind
+    index += 1
+  }
+
+  return <>{blocks}</>
 }
 
 interface IHomepageContentOptions {
-  /** Hide Extra Stories / World Watch / Featured editorial band. */
-  hideRemainingEditorialBands?: boolean
-  /** Hide More Top Stories / Government / Sports editorial band. */
-  hideTopStoriesBand?: boolean
-  /** Sports page only: place Live under the ad ribbon below Top Stories. */
-  promoteLiveBelowTopStories?: boolean
   /** Sports page: render dynamic sport rows (two sections, then an ad ribbon). */
   useSportsSectionRows?: boolean
 }
-
-const SPORTS_PAGE_NAME = 'sports'
-const SPORTS_SECTION_PAIR_SIZE = 2
-const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
 /**
  * Whether an ad ribbon should precede a sports page slot.
@@ -498,7 +589,6 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     )
   }
 
-  const sections = selectHomepageSections(slots)
   const useSportsSectionRows =
     options?.useSportsSectionRows === true || feed.pageName.trim().toLowerCase() === SPORTS_PAGE_NAME
 
@@ -510,31 +600,9 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     )
   }
 
-  const promoteLiveBelowTopStories = options?.promoteLiveBelowTopStories === true
-  const postPoliticsSlots = promoteLiveBelowTopStories
-    ? sections.postPoliticsSlots.filter(
-        (slot) => normalizedPositionKey(slot) !== LIVE_POSITION_KEY,
-      )
-    : sections.postPoliticsSlots
-  const gridPreviousSlot = postPoliticsSlots.at(-1) ?? sections.politicsSlot
-  const remainingBands = options?.hideRemainingEditorialBands
-    ? []
-    : sections.remainingEditorialBands
-  const topStoriesBand = options?.hideTopStoriesBand ? undefined : sections.topStoriesBand
-
   return (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
-      <PlacementSlotScope slotId={sections.heroSlot.id}>
-        <HeroBlock articles={sections.heroSlot.articles} />
-      </PlacementSlotScope>
-      <AdRibbon />
-      <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
-      {promoteLiveBelowTopStories ? <LiveSection slot={sections.liveSlot} /> : null}
-      <TopStoriesSection band={topStoriesBand} />
-      <PoliticsSportsSection politicsSlot={sections.politicsSlot} sportsSlot={sections.sportsSlot} />
-      <PostPoliticsSections slots={postPoliticsSlots} />
-      <EditorialBandSections bands={remainingBands} />
-      <GridSections slots={sections.gridSlots} previousSlot={gridPreviousSlot} />
+      <MainPageOrderedSections slots={slots} sectionLabel={sectionLabel} />
     </div>
   )
 }

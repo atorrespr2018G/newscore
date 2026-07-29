@@ -553,6 +553,65 @@ export function resolveSportsPageSlotKind(slot: IFeedSlot): SportsPageSlotKind {
   return 'compact_six'
 }
 
+/** How a main landing page slot should render on the ordered stack. */
+export type HomepagePageSlotKind =
+  | 'hero'
+  | 'featured_band'
+  | 'live_carousel'
+  | 'editorial_lead'
+  | 'editorial_spotlight'
+  | 'rail_compact'
+  | 'compact_six'
+
+/**
+ * Resolve the Main Page renderer for a slot (presentation first, then position key).
+ *
+ * @param slot Feed slot from the homepage layout.
+ * @returns Presentation kind used by the ordered main-page stack.
+ */
+export function resolveHomepagePageSlotKind(slot: IFeedSlot): HomepagePageSlotKind {
+  const presentation = slot.presentationType.trim().toLowerCase()
+  if (presentation === PRESENTATION_HERO) {
+    return 'hero'
+  }
+  if (presentation === PRESENTATION_FEATURED_BAND) {
+    return 'featured_band'
+  }
+  if (presentation === PRESENTATION_LIVE_CAROUSEL) {
+    return 'live_carousel'
+  }
+  if (presentation === PRESENTATION_EDITORIAL_LEAD) {
+    return 'editorial_lead'
+  }
+  if (presentation === PRESENTATION_EDITORIAL_SPOTLIGHT) {
+    return 'editorial_spotlight'
+  }
+  if (presentation === PRESENTATION_RAIL_COMPACT) {
+    return 'rail_compact'
+  }
+
+  const key = normalizedPositionKey(slot)
+  if (key === 'hero') {
+    return 'hero'
+  }
+  if (key === 'us-featured') {
+    return 'featured_band'
+  }
+  if (key === 'health') {
+    return 'live_carousel'
+  }
+  if (isMoreTopStoriesPositionKey(key)) {
+    return 'editorial_lead'
+  }
+  if (key === 'midterm-elections' || key.startsWith('midterm-elections-')) {
+    return 'editorial_spotlight'
+  }
+  if (key === 'editorial-rail' || key.startsWith('editorial-rail-')) {
+    return 'rail_compact'
+  }
+  return 'compact_six'
+}
+
 /**
  * Ordered sport section slots for the Sports page (country sport list only).
  *

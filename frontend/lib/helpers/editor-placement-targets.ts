@@ -13,7 +13,7 @@ import { moduleKindForPresentation } from '@/lib/presentation-registry'
 const DEFAULT_PRESENTATION_TYPE = 'grid_4'
 const DEFAULT_TARGET_COUNT = 1
 
-/** Homepage slot order in the editor canvas (matches public homepage layout). */
+/** Homepage slot order in the editor canvas (legacy fallback when order_index ties). */
 const HOMEPAGE_EDITOR_SLOT_ORDER: readonly string[] = [
   'hero',
   'us-featured',
@@ -128,13 +128,19 @@ export function resolveSlotLabel(slot: ISlotOut): string {
 }
 
 /**
- * Sort homepage slots for the editor canvas in public-site layout order.
+ * Sort homepage slots for the editor canvas by configured layout order.
+ *
+ * Prefers ``order_index`` (set by Main Page / Sports section config). Falls back
+ * to the legacy hardcoded key list only when order indices are equal.
  *
  * @param slots Homepage slots from layout admin API.
  * @returns Slots ordered for editor placement UI.
  */
 export function sortSlotsForEditorCanvas(slots: ISlotOut[]): ISlotOut[] {
   return [...slots].sort((left, right) => {
+    if (left.order_index !== right.order_index) {
+      return left.order_index - right.order_index
+    }
     const leftKey = left.position_key.trim().toLowerCase()
     const rightKey = right.position_key.trim().toLowerCase()
     const leftIndex = HOMEPAGE_EDITOR_SLOT_ORDER_INDEX.get(leftKey)
@@ -150,7 +156,7 @@ export function sortSlotsForEditorCanvas(slots: ISlotOut[]): ISlotOut[] {
       return 1
     }
 
-    return left.order_index - right.order_index
+    return leftKey.localeCompare(rightKey)
   })
 }
 
@@ -163,7 +169,7 @@ export function sortSlotsForEditorCanvas(slots: ISlotOut[]): ISlotOut[] {
 export function buildPlacementTargets(slots: ISlotOut[]): IPlacementTarget[] {
   const targets: IPlacementTarget[] = []
 
-  for (const slot of slots) {
+  for (const slot of sortSlotsForEditorCanvas(slots)) {
     const editorSlot = slotForEditorPlacement(slot)
     const slotLabel = resolveSlotLabel(slot)
     const presentationType = slot.presentation_type || DEFAULT_PRESENTATION_TYPE

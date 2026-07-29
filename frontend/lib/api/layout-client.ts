@@ -340,3 +340,76 @@ export function putSportsPageSections(
     },
   )
 }
+
+/** Main landing page section template used for layout and Placement slots. */
+export type MainPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'more_top_stories'
+  | 'spotlight'
+  | 'rail'
+  | 'category'
+
+/** One ordered section on the main landing page. */
+export interface IMainPageSectionItem {
+  section_type: MainPageSectionType
+  slug: string
+  label: string
+}
+
+/** Main-page section list for a market or geo region. */
+export interface IMainPageSectionsOut {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: IMainPageSectionItem[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered main-page section list for a market or region.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-geo lists.
+ * @returns Main-page section list payload.
+ */
+export function getMainPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<IMainPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IMainPageSectionsOut>(
+    `${apiConfig.layout}/main-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered main-page section list and sync homepage layout slots.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered typed sections (label required; slug optional).
+ * @param regionCode Optional region code such as `us-fl` for per-geo lists.
+ * @returns Updated main-page section list payload.
+ */
+export function putMainPageSections(
+  marketCode: string,
+  items: Array<{ section_type: MainPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+): Promise<IMainPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IMainPageSectionsOut>(
+    `${apiConfig.layout}/main-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    },
+  )
+}
