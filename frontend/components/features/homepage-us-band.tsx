@@ -5,7 +5,7 @@ import type { IArticle } from '@/interfaces/article'
 import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
-import { PlacementSlotScope } from '@/context/editor-placement-context'
+import { PlacementSlotScope, useEditorPlacement } from '@/context/editor-placement-context'
 import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
@@ -25,14 +25,33 @@ interface IHomepageUsBandProps {
 export function HomepageUsBand({ slot, title: titleOverride }: IHomepageUsBandProps): JSX.Element | null {
   const { homepageSectionTitle } = useSectionLabels()
   const t = useTranslations('common')
+  const editor = useEditorPlacement()
   const { center, centerTop, left, leftLinks, right, rightLinks } = splitUsFeaturedArticles(slot.articles)
+  const title = titleOverride ?? homepageSectionTitle(slot.positionKey, slot.displayName)
+  const anchorId = sectionAnchorId(slot.positionKey)
+  const showEmptyPlacementShell = !center && editor != null
 
-  if (!center) {
+  if (!center && !showEmptyPlacementShell) {
     return null
   }
 
-  const title = titleOverride ?? homepageSectionTitle(slot.positionKey, slot.displayName)
-  const anchorId = sectionAnchorId(slot.positionKey)
+  if (!center) {
+    return (
+      <PlacementSlotScope slotId={slot.id}>
+        <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
+          <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
+            <h2 className="text-2xl font-normal tracking-tight text-neutral-950">{title}</h2>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+              {t('latest')}
+            </span>
+          </div>
+          <div className="rounded border border-dashed border-neutral-300 bg-neutral-50 p-4">
+            <PlacementSectionDropZone />
+          </div>
+        </section>
+      </PlacementSlotScope>
+    )
+  }
 
   return (
     <PlacementSlotScope slotId={slot.id}>
@@ -83,7 +102,7 @@ function UsPictureNewsScreen({ article }: { article: IArticle }): JSX.Element {
   const imgSrc = articleImageSrc(article)
 
   return (
-    <PlacementOverlay article={article}>
+    <PlacementOverlay article={article} editorDroppable>
       <article className="group">
         <EditorialArticleLink article={article} className="block">
           <div className="overflow-hidden rounded border border-neutral-200 bg-neutral-100">
@@ -133,7 +152,7 @@ function UsSideTextLinks({ articles }: { articles: IArticle[] }): JSX.Element {
     <ul className="space-y-6 border-t border-neutral-200 pt-8">
       {articles.map((article) => (
           <li key={article.id}>
-            <PlacementOverlay article={article}>
+            <PlacementOverlay article={article} editorDroppable>
               <EditorialArticleLink
                 article={article}
                 className="group block font-sans text-[17px] font-normal leading-snug text-neutral-950 hover:text-neutral-950 hover:underline"
@@ -151,7 +170,7 @@ function UsSideStory({ article }: { article: IArticle }): JSX.Element {
   const imgSrc = articleImageSrc(article)
 
   return (
-    <PlacementOverlay article={article}>
+    <PlacementOverlay article={article} editorDroppable>
       <article className="group">
         <EditorialArticleLink article={article} className="block">
           <div className="overflow-hidden bg-neutral-100">
@@ -179,7 +198,7 @@ function UsSpotlightHero({ article }: { article: IArticle }): JSX.Element {
   const imgSrc = articleImageSrc(article)
 
   return (
-    <PlacementOverlay article={article}>
+    <PlacementOverlay article={article} editorDroppable>
       <article className="group">
         <EditorialArticleLink article={article} className="block">
           <div className="overflow-hidden bg-neutral-100">

@@ -10,6 +10,7 @@ import {
   swapPinnedIdsAtIndices,
 } from '@/lib/helpers/pinned-ids'
 import { slotForEditorPlacement } from '@/lib/helpers/slot-editor-pinned-ids'
+import { PRESENTATION_FEATURED_BAND } from '@/lib/presentation-types'
 
 /** Direction an editor can nudge a placed story within its slot. */
 export type PlacementMoveDirectionType = 'up' | 'down'
@@ -176,7 +177,9 @@ export function buildPlacementMutation(
 
   const targetBase = updates.find((update) => update.slotId === targetSlotId)?.draftPinnedIds ?? targetSlot.pinned_ids
   const pinnedLimit = resolveSlotPinnedLimit(targetSlot)
-  const usesShiftDownPlacement = isShiftDownPlacementPositionKey(targetSlot.position_key)
+  const usesShiftDownPlacement =
+    isShiftDownPlacementPositionKey(targetSlot.position_key) ||
+    targetSlot.presentation_type.trim().toLowerCase() === PRESENTATION_FEATURED_BAND
   const nextTargetIds = usesShiftDownPlacement
     ? insertPinnedIdAtIndex(targetBase, articleId, targetIndex, pinnedLimit)
     : assignPinnedIdAtIndex(targetBase, articleId, targetIndex, targetOccupantId, pinnedLimit)
