@@ -150,7 +150,7 @@ function MastheadDesktopSectionNav({
   sectionsLabel: string
 }): JSX.Element {
   return (
-    <nav className="hidden flex-1 items-center gap-4 md:flex" aria-label={sectionsLabel}>
+    <nav className="hidden flex-1 items-center gap-4 md:ml-4 md:flex" aria-label={sectionsLabel}>
       {navLinks.map((link) => (
         <Link
           key={link.key}

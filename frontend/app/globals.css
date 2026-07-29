@@ -45,7 +45,9 @@ h3 {
 
 @layer components {
   .site-container {
-    @apply mx-auto w-full max-w-7xl px-6;
+    /* Halve side gutters vs max-w-7xl (80rem): width = (100vw + 80rem) / 2 on wide viewports. */
+    @apply mx-auto w-full px-3;
+    max-width: min(100%, calc(40rem + 50vw));
   }
 }
 
