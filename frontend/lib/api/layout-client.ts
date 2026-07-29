@@ -270,8 +270,17 @@ export function patchSlotPinnedIds(slotId: string, pinnedIds: string[]): Promise
   })
 }
 
-/** One ordered sport row on a sports page. */
+/** Sports page section template used for layout and Placement slots. */
+export type SportsPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'world'
+  | 'sport'
+
+/** One ordered section on a sports page. */
 export interface ISportsPageSectionItem {
+  section_type: SportsPageSectionType
   slug: string
   label: string
 }
@@ -310,13 +319,13 @@ export function getSportsPageSections(
  * Replace the ordered sports section list and sync layout slots.
  *
  * @param marketCode Market code such as `pr` or `us`.
- * @param items Ordered sport rows (label required; slug optional).
+ * @param items Ordered typed sections (label required; slug optional).
  * @param regionCode Optional region code such as `us-fl` for per-state lists.
  * @returns Updated sports section list payload.
  */
 export function putSportsPageSections(
   marketCode: string,
-  items: Array<{ label: string; slug?: string }>,
+  items: Array<{ section_type: SportsPageSectionType; label: string; slug?: string }>,
   regionCode?: string | null,
 ): Promise<ISportsPageSectionsOut> {
   const params = new URLSearchParams({ market: marketCode })

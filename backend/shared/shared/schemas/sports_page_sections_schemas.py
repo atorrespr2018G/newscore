@@ -2,19 +2,25 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+SportsPageSectionType = Literal["hero", "top_stories", "live", "world", "sport"]
 
 
 class SportsPageSectionItemIn(BaseModel):
-    """Incoming sport row (label required; slug optional and derived when omitted)."""
+    """Incoming sports page section (label required; slug optional and derived when omitted)."""
 
+    section_type: SportsPageSectionType = "sport"
     label: str = Field(..., min_length=1, max_length=80)
     slug: str | None = Field(default=None, min_length=1, max_length=80)
 
 
 class SportsPageSectionItemOut(BaseModel):
-    """Resolved sport row returned to clients."""
+    """Resolved sports page section returned to clients."""
 
+    section_type: SportsPageSectionType
     slug: str
     label: str
 
@@ -31,6 +37,6 @@ class SportsPageSectionsOut(BaseModel):
 
 
 class SportsPageSectionsUpdate(BaseModel):
-    """Replace the ordered sports section list for a market or region."""
+    """Replace the ordered sports page section list for a market or region."""
 
     items: list[SportsPageSectionItemIn]

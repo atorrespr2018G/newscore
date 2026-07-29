@@ -337,10 +337,24 @@
   },
   "sportsPage": {
     "heading": "Secciones de deportes",
-    "subtitle": "Administra la lista ordenada de filas deportivas de cada página Deportes. En EE. UU. hay una lista por estado; en PR y otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → sports.",
-    "listHint": "En la página Deportes, dos filas de deporte van seguidas de una cinta publicitaria. Después de guardar, abre Placement y elige Página → sports (y el estado correspondiente) para fijar historias en cada fila.",
-    "labelPlaceholder": "Nombre del deporte",
+    "subtitle": "Administra la lista ordenada de secciones de la página Deportes (héroe, Principales, En vivo, Mundo y filas deportivas) de cada mercado. En EE. UU. hay una lista por estado; en PR y otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → sports.",
+    "listHint": "Agrega, quita, renombra o reordena cualquier sección. Al guardar se actualiza Placement → sports para el mismo mercado/estado. Las filas deportivas compactas muestran una cinta publicitaria cada dos filas.",
+    "labelPlaceholder": "Nombre de la sección",
     "addSport": "Agregar deporte",
+    "addType": {
+      "hero": "Agregar héroe",
+      "top_stories": "Agregar Principales",
+      "live": "Agregar En vivo",
+      "world": "Agregar Mundo",
+      "sport": "Agregar deporte"
+    },
+    "types": {
+      "hero": "Héroe",
+      "top_stories": "Principales",
+      "live": "En vivo",
+      "world": "Mundo",
+      "sport": "Deporte"
+    },
     "remove": "Quitar",
     "moveUp": "Subir",
     "moveDown": "Bajar",

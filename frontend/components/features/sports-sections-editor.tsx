@@ -7,6 +7,7 @@ import {
   getSportsPageSections,
   putSportsPageSections,
   type ISportsPageSectionItem,
+  type SportsPageSectionType,
 } from '@/lib/api/layout-client'
 import { EDITOR_MARKET_OPTIONS } from '@/lib/editor/editor-scope'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
@@ -17,8 +18,32 @@ const INPUT_CLASS =
   'w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm'
 const DEFAULT_US_STATE_CODE = 'fl'
 
-interface IEditableSportRow {
+const SECTION_TYPES: SportsPageSectionType[] = [
+  'hero',
+  'top_stories',
+  'live',
+  'world',
+  'sport',
+]
+
+const DEFAULT_LABEL_BY_TYPE: Record<SportsPageSectionType, string> = {
+  hero: 'Sports',
+  top_stories: 'Top Stories',
+  live: 'Live',
+  world: 'World',
+  sport: '',
+}
+
+const CANONICAL_SLUG_BY_TYPE: Partial<Record<SportsPageSectionType, string>> = {
+  hero: 'hero',
+  top_stories: 'us-featured',
+  live: 'health',
+  world: 'world',
+}
+
+interface IEditableSectionRow {
   key: string
+  sectionType: SportsPageSectionType
   label: string
   slug: string
 }
@@ -29,9 +54,10 @@ interface IEditableSportRow {
  * @param items Saved sports section items.
  * @returns Editable row models with stable keys.
  */
-function toEditableRows(items: ISportsPageSectionItem[]): IEditableSportRow[] {
+function toEditableRows(items: ISportsPageSectionItem[]): IEditableSectionRow[] {
   return items.map((item, index) => ({
     key: `${item.slug}-${index}`,
+    sectionType: item.section_type,
     label: item.label,
     slug: item.slug,
   }))
@@ -52,7 +78,7 @@ function sportsSectionsRegionCode(marketCode: string, stateCode: string): string
 }
 
 /**
- * Admin editor for the ordered sports section list of one market or US state.
+ * Admin editor for the ordered sports page section list of one market or US state.
  *
  * @returns Sports sections administration UI.
  */
@@ -61,7 +87,7 @@ export function SportsSectionsEditor(): JSX.Element {
   const { pushToast } = useToast()
   const [marketCode, setMarketCode] = useState('pr')
   const [stateCode, setStateCode] = useState(DEFAULT_US_STATE_CODE)
-  const [rows, setRows] = useState<IEditableSportRow[]>([])
+  const [rows, setRows] = useState<IEditableSectionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const regionCode = sportsSectionsRegionCode(marketCode, stateCode)
@@ -100,7 +126,11 @@ export function SportsSectionsEditor(): JSX.Element {
    */
   async function handleSave(): Promise<void> {
     const items = rows
-      .map((row) => ({ label: row.label.trim(), slug: row.slug.trim() || undefined }))
+      .map((row) => ({
+        section_type: row.sectionType,
+        label: row.label.trim(),
+        slug: row.slug.trim() || undefined,
+      }))
       .filter((item) => item.label.length > 0)
     setSaving(true)
     try {
@@ -172,18 +202,19 @@ export function SportsSectionsEditor(): JSX.Element {
 }
 
 /**
- * Editable ordered list of sport labels.
+ * Editable ordered list of sports page sections (hero, bands, sports).
  */
 function SportsRowsEditor({
   rows,
   onChange,
 }: {
-  rows: IEditableSportRow[]
-  onChange: (rows: IEditableSportRow[]) => void
+  rows: IEditableSectionRow[]
+  onChange: (rows: IEditableSectionRow[]) => void
 }): JSX.Element {
   const t = useTranslations('admin')
+  const hasHero = rows.some((row) => row.sectionType === 'hero')
 
-  function updateRow(index: number, patch: Partial<IEditableSportRow>): void {
+  function updateRow(index: number, patch: Partial<IEditableSectionRow>): void {
     onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)))
   }
 
@@ -202,13 +233,25 @@ function SportsRowsEditor({
     onChange(rows.filter((_, rowIndex) => rowIndex !== index))
   }
 
-  function addRow(): void {
+  function addSection(sectionType: SportsPageSectionType): void {
+    if (sectionType === 'hero' && hasHero) {
+      return
+    }
+    const usedSlugs = new Set(rows.map((row) => row.slug))
+    const canonical = CANONICAL_SLUG_BY_TYPE[sectionType]
+    const slug =
+      canonical && !usedSlugs.has(canonical)
+        ? canonical
+        : sectionType === 'sport'
+          ? ''
+          : ''
     onChange([
       ...rows,
       {
-        key: `new-${Date.now()}`,
-        label: '',
-        slug: '',
+        key: `new-${sectionType}-${Date.now()}`,
+        sectionType,
+        label: DEFAULT_LABEL_BY_TYPE[sectionType],
+        slug,
       },
     ])
   }
@@ -223,9 +266,17 @@ function SportsRowsEditor({
             className="flex flex-wrap items-center gap-2 rounded border border-neutral-200 bg-white p-3"
           >
             <span className="w-8 text-xs font-semibold text-neutral-500">{index + 1}</span>
+            <span className="rounded bg-neutral-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700">
+              {t(`sportsPage.types.${row.sectionType}`)}
+            </span>
             <input
               value={row.label}
-              onChange={(event) => updateRow(index, { label: event.target.value, slug: '' })}
+              onChange={(event) =>
+                updateRow(index, {
+                  label: event.target.value,
+                  slug: row.slug ? row.slug : '',
+                })
+              }
               placeholder={t('sportsPage.labelPlaceholder')}
               className={`${INPUT_CLASS} min-w-[12rem] flex-1`}
               aria-label={t('sportsPage.labelPlaceholder')}
@@ -258,13 +309,22 @@ function SportsRowsEditor({
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        onClick={addRow}
-        className="rounded border border-dashed border-neutral-400 px-3 py-2 text-sm font-medium text-neutral-800"
-      >
-        {t('sportsPage.addSport')}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        {SECTION_TYPES.map((sectionType) => {
+          const disabled = sectionType === 'hero' && hasHero
+          return (
+            <button
+              key={sectionType}
+              type="button"
+              disabled={disabled}
+              onClick={() => addSection(sectionType)}
+              className="rounded border border-dashed border-neutral-400 px-3 py-2 text-sm font-medium text-neutral-800 disabled:opacity-40"
+            >
+              {t(`sportsPage.addType.${sectionType}`)}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -12,7 +12,12 @@ from shared.core.exceptions import NotFoundError, ValidationError
 from shared.core.logger import get_logger
 from shared.core.regions import get_region_by_code
 from shared.core.sports_page_sections_sync import (
+    CANONICAL_SLUG_BY_TYPE,
+    DEFAULT_FIXED_SECTION_ITEMS,
     PRESERVED_SPORTS_PAGE_KEYS,
+    SECTION_TYPE_HERO,
+    SECTION_TYPE_SPORT,
+    expand_legacy_section_items,
     slugify_sport_label,
     sync_sports_layout_slots,
 )
@@ -32,30 +37,84 @@ _SLUG_SAFE_RE = re.compile(r"[^a-z0-9]+")
 
 
 def _normalize_slug(value: str) -> str:
-    """Normalize an explicit slug, preserving hyphenated sport keys."""
+    """Normalize an explicit slug, preserving hyphenated section keys."""
 
     normalized = _SLUG_SAFE_RE.sub("-", value.strip().lower()).strip("-")
     if not normalized:
-        raise ValidationError("Sport slug must contain letters or numbers")
+        raise ValidationError("Section slug must contain letters or numbers")
     return normalized
 
 
+def _resolve_item_slug(
+    *,
+    section_type: str,
+    label: str,
+    slug: str | None,
+    seen_slugs: set[str],
+) -> str:
+    """Pick a unique position_key for one section row."""
+
+    if section_type == SECTION_TYPE_HERO:
+        return CANONICAL_SLUG_BY_TYPE[SECTION_TYPE_HERO]
+
+    if slug:
+        return _normalize_slug(slug)
+
+    canonical = CANONICAL_SLUG_BY_TYPE.get(section_type)
+    if canonical and canonical not in seen_slugs:
+        return canonical
+
+    return slugify_sport_label(label)
+
+
 def _normalize_items(items: list[SportsPageSectionItemIn]) -> list[dict[str, str]]:
-    """Normalize incoming items to unique slug/label pairs in order."""
+    """Normalize incoming items to unique typed slug/label rows in order."""
 
     resolved: list[dict[str, str]] = []
     seen_slugs: set[str] = set()
+    hero_count = 0
+
     for item in items:
         label = item.label.strip()
         if not label:
-            raise ValidationError("Sport label cannot be empty")
-        slug = _normalize_slug(item.slug) if item.slug else slugify_sport_label(label)
-        if slug in PRESERVED_SPORTS_PAGE_KEYS:
+            raise ValidationError("Section label cannot be empty")
+
+        section_type = item.section_type
+        if section_type == SECTION_TYPE_HERO:
+            hero_count += 1
+            if hero_count > 1:
+                raise ValidationError("Only one hero section is allowed")
+
+        slug = _resolve_item_slug(
+            section_type=section_type,
+            label=label,
+            slug=item.slug,
+            seen_slugs=seen_slugs,
+        )
+
+        if section_type == SECTION_TYPE_SPORT and slug in PRESERVED_SPORTS_PAGE_KEYS:
             raise ValidationError(f"Sport slug '{slug}' is reserved")
+
+        if section_type != SECTION_TYPE_SPORT:
+            expected = CANONICAL_SLUG_BY_TYPE.get(section_type)
+            if expected and slug == expected:
+                pass
+            elif slug in PRESERVED_SPORTS_PAGE_KEYS and slug != expected:
+                raise ValidationError(
+                    f"Slug '{slug}' is reserved for another section type",
+                )
+
         if slug in seen_slugs:
-            raise ValidationError(f"Duplicate sport slug: {slug}")
+            raise ValidationError(f"Duplicate section slug: {slug}")
+
         seen_slugs.add(slug)
-        resolved.append({"slug": slug, "label": label})
+        resolved.append(
+            {
+                "section_type": section_type,
+                "slug": slug,
+                "label": label,
+            },
+        )
     return resolved
 
 
@@ -163,7 +222,14 @@ def _to_out(
         market_code=market_code,
         region_id=region_id,
         region_code=region_code,
-        items=[SportsPageSectionItemOut(slug=i["slug"], label=i["label"]) for i in items],
+        items=[
+            SportsPageSectionItemOut(
+                section_type=i["section_type"],  # type: ignore[arg-type]
+                slug=i["slug"],
+                label=i["label"],
+            )
+            for i in items
+        ],
         updated_at=updated_at,
     )
 
@@ -187,20 +253,22 @@ async def get_for_market(
         _sections_query(market_id=market_id, region_id=region_id),
     )
     if doc is None:
+        items = [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS]
         return _to_out(
             market_id=market_id,
             market_code=str(market["code"]),
             region_id=region_id,
             region_code=normalized_region,
-            items=[],
+            items=items,
             updated_at=utc_now().isoformat(),
         )
+    items = expand_legacy_section_items(list(doc.get("items") or []))
     return _to_out(
         market_id=market_id,
         market_code=str(market["code"]),
         region_id=region_id,
         region_code=normalized_region,
-        items=list(doc.get("items") or []),
+        items=items,
         updated_at=str(doc.get("updated_at") or utc_now().isoformat()),
     )
 

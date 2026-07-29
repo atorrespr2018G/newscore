@@ -3,8 +3,10 @@ import type { IFeedSlot } from '@/interfaces/feed'
 import {
   PRESENTATION_EDITORIAL_LEAD,
   PRESENTATION_EDITORIAL_SPOTLIGHT,
+  PRESENTATION_FEATURED_BAND,
   PRESENTATION_GRID_4,
   PRESENTATION_HERO,
+  PRESENTATION_LIVE_CAROUSEL,
   PRESENTATION_RAIL_COMPACT,
 } from '@/lib/presentation-registry'
 import {
@@ -517,8 +519,39 @@ export function selectHomepageSections(slots: IFeedSlot[]): IHomepageSections {
   }
 }
 
-/** Fixed Sports page slots excluded from the dynamic per-country sport rows. */
-const SPORTS_PAGE_RESERVED_KEYS = new Set(['hero', 'us-featured', 'us', 'health', 'world'])
+/** How a sports page slot should render on the public stack. */
+export type SportsPageSlotKind = 'hero' | 'featured_band' | 'live_carousel' | 'compact_six'
+
+/**
+ * Resolve the Sports page renderer for a slot (supports legacy position keys).
+ *
+ * @param slot Feed slot from the sports layout.
+ * @returns Presentation kind used by the sports page stack.
+ */
+export function resolveSportsPageSlotKind(slot: IFeedSlot): SportsPageSlotKind {
+  const presentation = slot.presentationType.trim().toLowerCase()
+  if (presentation === PRESENTATION_HERO) {
+    return 'hero'
+  }
+  if (presentation === PRESENTATION_FEATURED_BAND) {
+    return 'featured_band'
+  }
+  if (presentation === PRESENTATION_LIVE_CAROUSEL) {
+    return 'live_carousel'
+  }
+
+  const key = normalizedPositionKey(slot)
+  if (key === 'hero') {
+    return 'hero'
+  }
+  if (key === 'us-featured' || key === 'us' || key === 'world') {
+    return 'featured_band'
+  }
+  if (key === 'health') {
+    return 'live_carousel'
+  }
+  return 'compact_six'
+}
 
 /**
  * Ordered sport section slots for the Sports page (country sport list only).
@@ -527,11 +560,5 @@ const SPORTS_PAGE_RESERVED_KEYS = new Set(['hero', 'us-featured', 'us', 'health'
  * @returns Section slots in layout order for pair + ad-ribbon rendering.
  */
 export function selectSportsPageSectionSlots(slots: IFeedSlot[]): IFeedSlot[] {
-  return slots.filter((slot) => {
-    const key = normalizedPositionKey(slot)
-    if (SPORTS_PAGE_RESERVED_KEYS.has(key)) {
-      return false
-    }
-    return slot.presentationType === PRESENTATION_GRID_4
-  })
+  return slots.filter((slot) => resolveSportsPageSlotKind(slot) === 'compact_six')
 }

@@ -11,6 +11,12 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from shared.core.exceptions import ValidationError
 from shared.core.geo_catalog import us_state_region_codes
 from shared.core.logger import get_logger
+from shared.core.markets import (
+    PRESENTATION_FEATURED_BAND,
+    PRESENTATION_GRID_4,
+    PRESENTATION_HERO,
+    PRESENTATION_LIVE_CAROUSEL,
+)
 from shared.core.regions import get_region_by_code
 from shared.models.common import utc_now
 from shared.read.collections import (
@@ -31,6 +37,56 @@ WORLD_POSITION_KEY = "world"
 PRESERVED_SPORTS_PAGE_KEYS = frozenset(
     {HERO_POSITION_KEY, US_FEATURED_POSITION_KEY, LIVE_POSITION_KEY, WORLD_POSITION_KEY},
 )
+
+SECTION_TYPE_HERO = "hero"
+SECTION_TYPE_TOP_STORIES = "top_stories"
+SECTION_TYPE_LIVE = "live"
+SECTION_TYPE_WORLD = "world"
+SECTION_TYPE_SPORT = "sport"
+SPORTS_PAGE_SECTION_TYPES = frozenset(
+    {
+        SECTION_TYPE_HERO,
+        SECTION_TYPE_TOP_STORIES,
+        SECTION_TYPE_LIVE,
+        SECTION_TYPE_WORLD,
+        SECTION_TYPE_SPORT,
+    },
+)
+CANONICAL_SLUG_BY_TYPE = {
+    SECTION_TYPE_HERO: HERO_POSITION_KEY,
+    SECTION_TYPE_TOP_STORIES: US_FEATURED_POSITION_KEY,
+    SECTION_TYPE_LIVE: LIVE_POSITION_KEY,
+    SECTION_TYPE_WORLD: WORLD_POSITION_KEY,
+}
+DEFAULT_LABEL_BY_TYPE = {
+    SECTION_TYPE_HERO: "Sports",
+    SECTION_TYPE_TOP_STORIES: "Top Stories",
+    SECTION_TYPE_LIVE: "Live",
+    SECTION_TYPE_WORLD: "World",
+}
+DEFAULT_FIXED_SECTION_ITEMS: list[dict[str, str]] = [
+    {
+        "section_type": SECTION_TYPE_HERO,
+        "slug": HERO_POSITION_KEY,
+        "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_HERO],
+    },
+    {
+        "section_type": SECTION_TYPE_TOP_STORIES,
+        "slug": US_FEATURED_POSITION_KEY,
+        "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_TOP_STORIES],
+    },
+    {
+        "section_type": SECTION_TYPE_LIVE,
+        "slug": LIVE_POSITION_KEY,
+        "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_LIVE],
+    },
+    {
+        "section_type": SECTION_TYPE_WORLD,
+        "slug": WORLD_POSITION_KEY,
+        "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_WORLD],
+    },
+]
+
 SPORTS_SECTION_ARTICLE_LIMIT = 12
 SPORTS_HERO_ARTICLE_LIMIT = 12
 SPORTS_TOP_STORIES_ARTICLE_LIMIT = 12
@@ -62,6 +118,80 @@ def slugify_sport_label(label: str) -> str:
     if not normalized:
         raise ValidationError("Sport label must contain letters or numbers")
     return normalized
+
+
+def expand_legacy_section_items(items: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Normalize stored items and prepend fixed sections for legacy sport-only lists.
+
+    Args:
+        items: Raw sports_page_sections items (may omit ``section_type``).
+
+    Returns:
+        Ordered ``{section_type, slug, label}`` rows ready for sync or API output.
+    """
+
+    if not items:
+        return [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS]
+
+    has_typed = any(str(item.get("section_type") or "").strip() for item in items)
+    if has_typed:
+        resolved: list[dict[str, str]] = []
+        for item in items:
+            section_type = str(item.get("section_type") or SECTION_TYPE_SPORT).strip().lower()
+            if section_type not in SPORTS_PAGE_SECTION_TYPES:
+                section_type = SECTION_TYPE_SPORT
+            resolved.append(
+                {
+                    "section_type": section_type,
+                    "slug": str(item["slug"]).strip().lower(),
+                    "label": str(item["label"]).strip(),
+                },
+            )
+        return resolved
+
+    sports = [
+        {
+            "section_type": SECTION_TYPE_SPORT,
+            "slug": str(item["slug"]).strip().lower(),
+            "label": str(item["label"]).strip(),
+        }
+        for item in items
+        if str(item.get("slug") or "").strip() and str(item.get("label") or "").strip()
+    ]
+    return [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS] + sports
+
+
+def sport_rows_from_labels(labels: list[str]) -> list[dict[str, str]]:
+    """Build typed sport rows from display labels.
+
+    Args:
+        labels: Ordered sport display names.
+
+    Returns:
+        Sport-typed section items with derived slugs.
+    """
+
+    return [
+        {
+            "section_type": SECTION_TYPE_SPORT,
+            "slug": slugify_sport_label(label),
+            "label": label,
+        }
+        for label in labels
+    ]
+
+
+def default_sports_page_section_items(labels: list[str]) -> list[dict[str, str]]:
+    """Full default sports page list: fixed bands plus sport rows.
+
+    Args:
+        labels: Ordered sport display names.
+
+    Returns:
+        Fixed sections followed by sport rows.
+    """
+
+    return [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS] + sport_rows_from_labels(labels)
 
 
 async def _ensure_sport_category(db: AsyncIOMotorDatabase, *, slug: str, label: str) -> str:
@@ -303,26 +433,92 @@ async def _apply_sports_slots_to_layout(
     return slot_ids
 
 
+async def _slot_spec_for_section(
+    db: AsyncIOMotorDatabase,
+    *,
+    item: dict[str, str],
+    order_index: int,
+    sports_category_id: str | None,
+    live_category_id: str | None,
+    world_category_id: str,
+) -> dict[str, Any]:
+    """Build one layout slot spec from a typed sports page section item."""
+
+    section_type = item["section_type"]
+    slug = item["slug"]
+    label = item["label"]
+
+    if section_type == SECTION_TYPE_HERO:
+        return {
+            "position_key": slug,
+            "order_index": order_index,
+            "display_name": label,
+            "presentation_type": PRESENTATION_HERO,
+            "category_id": sports_category_id,
+            "limit": SPORTS_HERO_ARTICLE_LIMIT,
+        }
+    if section_type == SECTION_TYPE_TOP_STORIES:
+        return {
+            "position_key": slug,
+            "order_index": order_index,
+            "display_name": label,
+            "presentation_type": PRESENTATION_FEATURED_BAND,
+            "category_id": sports_category_id,
+            "limit": SPORTS_TOP_STORIES_ARTICLE_LIMIT,
+        }
+    if section_type == SECTION_TYPE_LIVE:
+        return {
+            "position_key": slug,
+            "order_index": order_index,
+            "display_name": label,
+            "presentation_type": PRESENTATION_LIVE_CAROUSEL,
+            "category_id": live_category_id,
+            "limit": SPORTS_LIVE_ARTICLE_LIMIT,
+        }
+    if section_type == SECTION_TYPE_WORLD:
+        return {
+            "position_key": slug,
+            "order_index": order_index,
+            "display_name": label,
+            "presentation_type": PRESENTATION_FEATURED_BAND,
+            "category_id": world_category_id,
+            "limit": SPORTS_WORLD_ARTICLE_LIMIT,
+        }
+
+    category_id = await _ensure_sport_category(db, slug=slug, label=label)
+    return {
+        "position_key": slug,
+        "order_index": order_index,
+        "display_name": label,
+        "presentation_type": PRESENTATION_GRID_4,
+        "category_id": category_id,
+        "limit": SPORTS_SECTION_ARTICLE_LIMIT,
+    }
+
+
 async def sync_sports_layout_slots(
     db: AsyncIOMotorDatabase,
     *,
     market_id: str,
-    items: list[dict[str, str]],
+    items: list[dict[str, Any]],
     region_id: str | None = None,
 ) -> None:
-    """Rebuild sports page slots from an ordered sport list.
+    """Rebuild sports page slots from an ordered typed section list.
 
-    Keeps hero, Top Stories, Live, and World (Live then World); replaces dynamic sport rows.
-    When ``region_id`` is set, updates only that region's sports layout. Otherwise updates
-    the market-level sports layout only (does not mirror onto region boards).
+    Expands legacy sport-only lists, then upserts slots in list order and deletes
+    obsolete slots. Existing pins are preserved per ``position_key``.
+
+    When ``region_id`` is set, updates only that region's sports layout. Otherwise
+    updates the market-level sports layout only (does not mirror onto region boards).
 
     Args:
         db: Mongo database.
         market_id: Market document id.
-        items: Ordered `{slug, label}` sport rows.
+        items: Ordered section rows (``section_type`` optional for legacy docs).
         region_id: Optional region document id for a state sports board.
     """
 
+    resolved_items = expand_legacy_section_items(items)
     sports_category_id = await _category_id_by_slug(db, PARENT_SPORTS_CATEGORY_SLUG)
     live_category_id = await _category_id_by_slug(db, LIVE_CATEGORY_SLUG)
     world_category_id = await _ensure_sports_world_category(db)
@@ -336,52 +532,17 @@ async def sync_sports_layout_slots(
         layout = await _ensure_sports_layout(db, market_id=market_id)
     layout_id = str(layout["_id"])
     now = utc_now().isoformat()
-    slot_specs: list[dict[str, Any]] = [
-        {
-            "position_key": HERO_POSITION_KEY,
-            "order_index": 0,
-            "display_name": "Sports",
-            "presentation_type": "hero",
-            "category_id": sports_category_id,
-            "limit": SPORTS_HERO_ARTICLE_LIMIT,
-        },
-        {
-            "position_key": US_FEATURED_POSITION_KEY,
-            "order_index": 1,
-            "display_name": "Top Stories",
-            "presentation_type": "grid_4",
-            "category_id": sports_category_id,
-            "limit": SPORTS_TOP_STORIES_ARTICLE_LIMIT,
-        },
-        {
-            "position_key": LIVE_POSITION_KEY,
-            "order_index": 2,
-            "display_name": "Live",
-            "presentation_type": "grid_4",
-            "category_id": live_category_id,
-            "limit": SPORTS_LIVE_ARTICLE_LIMIT,
-        },
-        {
-            "position_key": WORLD_POSITION_KEY,
-            "order_index": 3,
-            "display_name": "World",
-            "presentation_type": "grid_4",
-            "category_id": world_category_id,
-            "limit": SPORTS_WORLD_ARTICLE_LIMIT,
-        },
-    ]
-
-    for index, item in enumerate(items):
-        category_id = await _ensure_sport_category(db, slug=item["slug"], label=item["label"])
+    slot_specs: list[dict[str, Any]] = []
+    for index, item in enumerate(resolved_items):
         slot_specs.append(
-            {
-                "position_key": item["slug"],
-                "order_index": index + 4,
-                "display_name": item["label"],
-                "presentation_type": "grid_4",
-                "category_id": category_id,
-                "limit": SPORTS_SECTION_ARTICLE_LIMIT,
-            },
+            await _slot_spec_for_section(
+                db,
+                item=item,
+                order_index=index,
+                sports_category_id=sports_category_id,
+                live_category_id=live_category_id,
+                world_category_id=world_category_id,
+            ),
         )
 
     await _apply_sports_slots_to_layout(
@@ -399,9 +560,9 @@ async def ensure_us_state_sports_sections(
 ) -> dict[str, Any]:
     """Upsert PR-shaped sports section lists and sync layouts for every US state.
 
-    Creates missing state docs with ``labels``. Existing non-empty lists are kept;
-    empty lists are filled from ``labels``. Layouts are always synced to the
-    stored item list so boards stay aligned.
+    Creates missing state docs with fixed bands plus ``labels``. Existing non-empty
+    lists are kept (legacy sport-only lists expand on sync); empty lists are filled
+    from the default full list. Layouts are always synced so boards stay aligned.
 
     Args:
         db: Mongo database.
@@ -416,7 +577,7 @@ async def ensure_us_state_sports_sections(
         raise ValidationError("US market not found; cannot seed state sports sections")
 
     market_id = str(market["_id"])
-    default_items = [{"slug": slugify_sport_label(label), "label": label} for label in labels]
+    default_items = default_sports_page_section_items(labels)
     now = utc_now().isoformat()
     ensured_codes: list[str] = []
     created_count = 0
@@ -465,7 +626,7 @@ async def ensure_us_state_sports_sections(
         "Ensured US state sports sections for %d states (%d created, %d sports)",
         len(ensured_codes),
         created_count,
-        len(default_items),
+        len(labels),
     )
     return {
         "market_id": market_id,

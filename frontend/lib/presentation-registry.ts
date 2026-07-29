@@ -3,8 +3,10 @@ import {
   EDITORIAL_PRESENTATION_TYPES,
   PRESENTATION_EDITORIAL_LEAD,
   PRESENTATION_EDITORIAL_SPOTLIGHT,
+  PRESENTATION_FEATURED_BAND,
   PRESENTATION_GRID_4,
   PRESENTATION_HERO,
+  PRESENTATION_LIVE_CAROUSEL,
   PRESENTATION_RAIL_COMPACT,
 } from '@/lib/presentation-types'
 
@@ -15,6 +17,8 @@ export const CARD_VARIANT_BY_PRESENTATION: Record<string, StoryCardVariant> = {
   [PRESENTATION_EDITORIAL_SPOTLIGHT]: 'rail',
   [PRESENTATION_RAIL_COMPACT]: 'compact',
   [PRESENTATION_GRID_4]: 'grid',
+  [PRESENTATION_FEATURED_BAND]: 'grid',
+  [PRESENTATION_LIVE_CAROUSEL]: 'grid',
 }
 
 export type SlotModuleKind = 'hero' | 'editorial-band' | 'grid-section'
@@ -26,6 +30,8 @@ export const MODULE_KIND_BY_PRESENTATION: Record<string, SlotModuleKind> = {
   [PRESENTATION_EDITORIAL_SPOTLIGHT]: 'editorial-band',
   [PRESENTATION_RAIL_COMPACT]: 'editorial-band',
   [PRESENTATION_GRID_4]: 'grid-section',
+  [PRESENTATION_FEATURED_BAND]: 'grid-section',
+  [PRESENTATION_LIVE_CAROUSEL]: 'grid-section',
 }
 
 /**
@@ -61,7 +67,9 @@ export function isEditorialPresentation(presentationType: string): boolean {
 export {
   PRESENTATION_EDITORIAL_LEAD,
   PRESENTATION_EDITORIAL_SPOTLIGHT,
+  PRESENTATION_FEATURED_BAND,
   PRESENTATION_GRID_4,
   PRESENTATION_HERO,
+  PRESENTATION_LIVE_CAROUSEL,
   PRESENTATION_RAIL_COMPACT,
 }

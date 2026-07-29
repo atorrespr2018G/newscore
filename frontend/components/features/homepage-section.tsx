@@ -87,11 +87,29 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
     return null
   }
 
+  if (slot.presentationType.trim().toLowerCase() === 'live_carousel') {
+    return (
+      <HealthCarouselSection
+        key={carouselScopeKey}
+        slot={{ ...slot, articles: slot.articles.slice(0, HEALTH_CAROUSEL_ARTICLE_LIMIT) }}
+      />
+    )
+  }
+
   if (slot.positionKey.trim().toLowerCase() === 'health' && !isCompactSixBandPositionKey(slot.positionKey, pageName)) {
     return (
       <HealthCarouselSection
         key={carouselScopeKey}
         slot={{ ...slot, articles: slot.articles.slice(0, HEALTH_CAROUSEL_ARTICLE_LIMIT) }}
+      />
+    )
+  }
+
+  if (slot.presentationType.trim().toLowerCase() === 'featured_band') {
+    return (
+      <HomepageUsBand
+        slot={slot}
+        title={slot.displayName?.trim() || sectionLabel(slot.positionKey)}
       />
     )
   }

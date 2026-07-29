@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import { SportsSectionsEditor } from '@/components/features/sports-sections-editor'
 
 /**
- * Admin tab for managing sports section rows on Sports pages (per state for US).
+ * Admin tab for managing ordered Sports page sections (hero, bands, sports).
  *
  * @returns Sports sections administration page.
  */

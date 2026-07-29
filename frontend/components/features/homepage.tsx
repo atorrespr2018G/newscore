@@ -16,8 +16,8 @@ import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import {
   findSlotByPositionKey,
   normalizedPositionKey,
+  resolveSportsPageSlotKind,
   selectHomepageSections,
-  selectSportsPageSectionSlots,
   splitDefaultHeroArticles,
 } from '@/lib/helpers/feed-layout'
 import type { IEditorialBandSlots } from '@/lib/helpers/feed-layout'
@@ -39,6 +39,12 @@ const HomepageUsBand = dynamic(
 
 const HomepageSection = dynamic(
   () => import('@/components/features/homepage-section').then((m) => m.HomepageSection),
+  { loading: () => <SectionSkeleton /> },
+)
+
+const HealthCarouselSection = dynamic(
+  () =>
+    import('@/components/features/homepage-health-carousel').then((m) => m.HealthCarouselSection),
   { loading: () => <SectionSkeleton /> },
 )
 
@@ -366,27 +372,107 @@ interface IHomepageContentOptions {
 
 const SPORTS_PAGE_NAME = 'sports'
 const SPORTS_SECTION_PAIR_SIZE = 2
+const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
 /**
- * Sports page section rows: two compact bands, then a horizontal ad ribbon.
+ * Whether an ad ribbon should precede a sports page slot.
+ *
+ * @param kind Resolved sports slot kind.
+ * @param previousKind Kind of the previous slot, if any.
+ * @param compactIndex Zero-based index among compact sport rows so far.
+ * @returns True when an AdRibbon should render before this slot.
  */
-function SportsSectionRows({ slots }: { slots: IFeedSlot[] }): JSX.Element | null {
-  if (slots.length === 0) {
-    return null
+function shouldInsertSportsAdBefore(
+  kind: ReturnType<typeof resolveSportsPageSlotKind>,
+  previousKind: ReturnType<typeof resolveSportsPageSlotKind> | null,
+  compactIndex: number,
+): boolean {
+  if (kind === 'live_carousel') {
+    return true
+  }
+  if (kind === 'featured_band' && previousKind !== null && previousKind !== 'hero') {
+    return true
+  }
+  if (kind === 'compact_six' && compactIndex > 0 && compactIndex % SPORTS_SECTION_PAIR_SIZE === 0) {
+    return true
+  }
+  return false
+}
+
+/**
+ * Render one sports page slot by presentation kind.
+ */
+function SportsPageSlotBlock({
+  slot,
+  kind,
+  title,
+}: {
+  slot: IFeedSlot
+  kind: ReturnType<typeof resolveSportsPageSlotKind>
+  title: string
+}): JSX.Element | null {
+  if (kind === 'hero') {
+    return (
+      <PlacementSlotScope slotId={slot.id}>
+        <HeroBlock articles={slot.articles} />
+      </PlacementSlotScope>
+    )
+  }
+  if (kind === 'featured_band') {
+    return (
+      <Suspense fallback={<SectionSkeleton />}>
+        <HomepageUsBand slot={slot} title={title} />
+      </Suspense>
+    )
+  }
+  if (kind === 'live_carousel') {
+    return (
+      <Suspense fallback={<SectionSkeleton />}>
+        <HealthCarouselSection
+          slot={{ ...slot, articles: slot.articles.slice(0, LIVE_CAROUSEL_ARTICLE_LIMIT) }}
+        />
+      </Suspense>
+    )
+  }
+  return (
+    <Suspense fallback={<SectionSkeleton />}>
+      <HomepageSection slot={slot} pageName={SPORTS_PAGE_NAME} />
+    </Suspense>
+  )
+}
+
+/**
+ * Sports page stack: render layout slots in order with light ad-ribbon heuristics.
+ */
+function SportsPageSections({
+  slots,
+  sectionLabel,
+}: {
+  slots: IFeedSlot[]
+  sectionLabel: (positionKey: string) => string
+}): JSX.Element {
+  const blocks: JSX.Element[] = []
+  let compactIndex = 0
+  let previousKind: ReturnType<typeof resolveSportsPageSlotKind> | null = null
+
+  for (const slot of slots) {
+    const kind = resolveSportsPageSlotKind(slot)
+    const showAdBefore = shouldInsertSportsAdBefore(kind, previousKind, compactIndex)
+    const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
+    blocks.push(
+      <div key={slot.id} className="space-y-2">
+        {showAdBefore ? <AdRibbon /> : null}
+        <SportsPageSlotBlock slot={slot} kind={kind} title={title} />
+        {kind === 'hero' ? <AdRibbon /> : null}
+      </div>,
+    )
+    if (kind === 'compact_six') {
+      compactIndex += 1
+    }
+    previousKind = kind
   }
 
-  return (
-    <>
-      {slots.map((slot, index) => (
-        <div key={slot.id} className="space-y-2">
-          {index > 0 && index % SPORTS_SECTION_PAIR_SIZE === 0 ? <AdRibbon /> : null}
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageSection slot={slot} pageName={SPORTS_PAGE_NAME} />
-          </Suspense>
-        </div>
-      ))}
-    </>
-  )
+  return <>{blocks}</>
 }
 
 interface IHomepageContentProps {
@@ -417,26 +503,9 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     options?.useSportsSectionRows === true || feed.pageName.trim().toLowerCase() === SPORTS_PAGE_NAME
 
   if (useSportsSectionRows) {
-    const sportSlots = selectSportsPageSectionSlots(slots)
-    const liveSlot = findSlotByPositionKey(slots, LIVE_POSITION_KEY)
-    const worldSlot = findSlotByPositionKey(slots, 'world')
     return (
       <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
-        <PlacementSlotScope slotId={sections.heroSlot.id}>
-          <HeroBlock articles={sections.heroSlot.articles} />
-        </PlacementSlotScope>
-        <AdRibbon />
-        <EarlyUsSection slot={sections.earlyUsSlot} title={sectionLabel('us-featured')} />
-        <LiveSection slot={liveSlot} />
-        {worldSlot ? (
-          <div className="space-y-2">
-            <AdRibbon />
-            <Suspense fallback={<SectionSkeleton />}>
-              <HomepageSection slot={worldSlot} pageName={SPORTS_PAGE_NAME} />
-            </Suspense>
-          </div>
-        ) : null}
-        <SportsSectionRows slots={sportSlots} />
+        <SportsPageSections slots={slots} sectionLabel={sectionLabel} />
       </div>
     )
   }

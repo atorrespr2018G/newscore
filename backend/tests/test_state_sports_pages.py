@@ -13,8 +13,15 @@ if str(_ROOT / "shared") not in sys.path:
     sys.path.insert(0, str(_ROOT / "shared"))
 
 from shared.core.geo_catalog import STATE_SPORTS_LAYOUT_PAGE_NAME, us_state_region_codes
+from shared.core.markets import (
+    PRESENTATION_FEATURED_BAND,
+    PRESENTATION_GRID_4,
+    PRESENTATION_HERO,
+    PRESENTATION_LIVE_CAROUSEL,
+)
 from shared.core.sports_page_sections_sync import (
     PRESERVED_SPORTS_PAGE_KEYS,
+    expand_legacy_section_items,
     slugify_sport_label,
 )
 
@@ -36,6 +43,37 @@ def test_slugify_sport_label_matches_pr_labels() -> None:
     assert slugify_sport_label("Track and Field") == "track-and-field"
     assert slugify_sport_label("Horse Racing") == "horse-racing"
     assert "hero" in PRESERVED_SPORTS_PAGE_KEYS
+
+
+def test_expand_legacy_section_items_prepends_fixed_bands() -> None:
+    """Sport-only lists gain hero / Top Stories / Live / World before sync."""
+
+    expanded = expand_legacy_section_items(
+        [{"slug": "baseball", "label": "Baseball"}],
+    )
+    assert [row["section_type"] for row in expanded] == [
+        "hero",
+        "top_stories",
+        "live",
+        "world",
+        "sport",
+    ]
+    assert expanded[-1]["slug"] == "baseball"
+
+
+def test_expand_legacy_section_items_keeps_typed_order() -> None:
+    """Typed lists are not rewritten with the default fixed prefix."""
+
+    items = [
+        {"section_type": "live", "slug": "health", "label": "Live"},
+        {"section_type": "hero", "slug": "hero", "label": "Sports"},
+        {
+            "section_type": "top_stories",
+            "slug": "more-top",
+            "label": "More Top Stories",
+        },
+    ]
+    assert expand_legacy_section_items(items) == items
 
 
 @pytest.mark.asyncio
@@ -136,7 +174,81 @@ async def test_sync_sports_layout_slots_targets_one_region_only() -> None:
     ensure_market.assert_not_awaited()
     apply_mock.assert_awaited_once()
     assert apply_mock.await_args.kwargs["layout_id"] == "layout-fl"
+    specs = apply_mock.await_args.kwargs["slot_specs"]
+    assert [spec["position_key"] for spec in specs] == [
+        "hero",
+        "us-featured",
+        "health",
+        "world",
+        "baseball",
+    ]
+    assert specs[0]["presentation_type"] == PRESENTATION_HERO
+    assert specs[1]["presentation_type"] == PRESENTATION_FEATURED_BAND
+    assert specs[2]["presentation_type"] == PRESENTATION_LIVE_CAROUSEL
+    assert specs[3]["presentation_type"] == PRESENTATION_FEATURED_BAND
+    assert specs[4]["presentation_type"] == PRESENTATION_GRID_4
+    assert [spec["order_index"] for spec in specs] == list(range(5))
     assert not hasattr(sync_mod, "_sync_region_sports_layouts")
+
+
+@pytest.mark.asyncio
+async def test_sync_sports_layout_slots_respects_custom_order_and_extras() -> None:
+    """Typed lists control order; duplicate top_stories rows get distinct keys."""
+
+    from shared.core import sports_page_sections_sync as sync_mod
+
+    apply_mock = AsyncMock(return_value=["a", "b", "c"])
+
+    with patch.object(
+        sync_mod,
+        "_category_id_by_slug",
+        new=AsyncMock(return_value="cat-sports"),
+    ), patch.object(
+        sync_mod,
+        "_ensure_sports_world_category",
+        new=AsyncMock(return_value="cat-world"),
+    ), patch.object(
+        sync_mod,
+        "_ensure_sport_category",
+        new=AsyncMock(return_value="cat-sport"),
+    ), patch.object(
+        sync_mod,
+        "_ensure_sports_layout",
+        new=AsyncMock(return_value={"_id": "layout-pr"}),
+    ), patch.object(
+        sync_mod,
+        "_apply_sports_slots_to_layout",
+        new=apply_mock,
+    ):
+        await sync_mod.sync_sports_layout_slots(
+            MagicMock(),
+            market_id="mkt-pr",
+            items=[
+                {"section_type": "live", "slug": "health", "label": "Live"},
+                {
+                    "section_type": "top_stories",
+                    "slug": "us-featured",
+                    "label": "Top Stories",
+                },
+                {
+                    "section_type": "top_stories",
+                    "slug": "more-top",
+                    "label": "More Top Stories",
+                },
+                {"section_type": "sport", "slug": "soccer", "label": "Soccer"},
+            ],
+        )
+
+    specs = apply_mock.await_args.kwargs["slot_specs"]
+    assert [spec["position_key"] for spec in specs] == [
+        "health",
+        "us-featured",
+        "more-top",
+        "soccer",
+    ]
+    assert specs[0]["order_index"] == 0
+    assert specs[2]["presentation_type"] == PRESENTATION_FEATURED_BAND
+    assert specs[2]["display_name"] == "More Top Stories"
 
 
 @pytest.mark.asyncio
