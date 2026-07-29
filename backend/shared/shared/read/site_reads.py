@@ -112,8 +112,9 @@ async def _region_scope_ids(
 ) -> list[str]:
     """Resolve placement scope ids for a region and page.
 
-    Sports pages use the selected region and its descendants so each state
-    board fills with that state's news. Other pages keep country-wide scope.
+    Sports pages use the selected region and its descendants so each
+    state/county/town board fills with that locality's news. Other pages keep
+    country-wide scope.
     """
 
     if not region_id:

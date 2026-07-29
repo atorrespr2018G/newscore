@@ -10,6 +10,12 @@ import {
   type SportsPageSectionType,
 } from '@/lib/api/layout-client'
 import { EDITOR_MARKET_OPTIONS } from '@/lib/editor/editor-scope'
+import {
+  FLORIDA_COUNTY_OPTIONS,
+  FLORIDA_STATE_CODE,
+} from '@/lib/florida-counties'
+import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
+import { toRegionCode } from '@/lib/region-code'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 
 const SELECT_CLASS =
@@ -64,33 +70,49 @@ function toEditableRows(items: ISportsPageSectionItem[]): IEditableSectionRow[] 
 }
 
 /**
- * Region code for sports section scope when the market has states.
+ * Region code for sports section scope (state, county, town, or market-level).
  *
  * @param marketCode Selected market code.
- * @param stateCode Selected US state short code.
- * @returns Region code such as `us-fl`, or null for market-level lists.
+ * @param localityId US state or PR town short code.
+ * @param countyId Optional Florida county slug.
+ * @returns Region code such as `us-fl` or `pr-san-juan`, or null for market lists.
  */
-function sportsSectionsRegionCode(marketCode: string, stateCode: string): string | null {
-  if (marketCode !== US_MARKET_CODE) {
-    return null
+function sportsSectionsRegionCode(
+  marketCode: string,
+  localityId: string | null,
+  countyId: string | null,
+): string | null {
+  if (marketCode === US_MARKET_CODE) {
+    if (!localityId) {
+      return null
+    }
+    return toRegionCode(marketCode, localityId, countyId)
   }
-  return `us-${stateCode}`
+  if (marketCode === PUERTO_RICO_MARKET_CODE && localityId) {
+    return toRegionCode(marketCode, localityId, null)
+  }
+  return null
 }
 
 /**
- * Admin editor for the ordered sports page section list of one market or US state.
+ * Admin editor for the ordered sports page section list of one geo scope.
  *
  * @returns Sports sections administration UI.
  */
 export function SportsSectionsEditor(): JSX.Element {
   const t = useTranslations('admin')
+  const tNav = useTranslations('navigation')
   const { pushToast } = useToast()
   const [marketCode, setMarketCode] = useState('pr')
-  const [stateCode, setStateCode] = useState(DEFAULT_US_STATE_CODE)
+  const [localityId, setLocalityId] = useState<string | null>(null)
+  const [countyId, setCountyId] = useState<string | null>(null)
   const [rows, setRows] = useState<IEditableSectionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const regionCode = sportsSectionsRegionCode(marketCode, stateCode)
+
+  const showLocality = marketCode === US_MARKET_CODE || marketCode === PUERTO_RICO_MARKET_CODE
+  const showFloridaCounty = marketCode === US_MARKET_CODE && localityId === FLORIDA_STATE_CODE
+  const regionCode = sportsSectionsRegionCode(marketCode, localityId, countyId)
 
   useEffect(() => {
     let cancelled = false
@@ -122,7 +144,7 @@ export function SportsSectionsEditor(): JSX.Element {
   }, [marketCode, regionCode, pushToast, t])
 
   /**
-   * Persist the current ordered list for the selected market or state.
+   * Persist the current ordered list for the selected market or locality.
    */
   async function handleSave(): Promise<void> {
     const items = rows
@@ -145,6 +167,35 @@ export function SportsSectionsEditor(): JSX.Element {
     }
   }
 
+  /**
+   * Switch market and reset locality/county to market defaults.
+   *
+   * @param nextMarket Newly selected market code.
+   */
+  function handleMarketChange(nextMarket: string): void {
+    setMarketCode(nextMarket)
+    if (nextMarket === US_MARKET_CODE) {
+      setLocalityId(DEFAULT_US_STATE_CODE)
+      setCountyId(null)
+      return
+    }
+    setLocalityId(null)
+    setCountyId(null)
+  }
+
+  /**
+   * Switch state/town and clear county unless Florida remains selected.
+   *
+   * @param nextLocality Newly selected state or town code, or empty for default.
+   */
+  function handleLocalityChange(nextLocality: string): void {
+    const normalized = nextLocality || null
+    setLocalityId(normalized)
+    setCountyId(
+      marketCode === US_MARKET_CODE && normalized === FLORIDA_STATE_CODE ? countyId : null,
+    )
+  }
+
   return (
     <div className="mt-4 space-y-4">
       <div className="flex flex-wrap gap-4">
@@ -152,7 +203,7 @@ export function SportsSectionsEditor(): JSX.Element {
           {t('editor.scope.market')}
           <select
             value={marketCode}
-            onChange={(event) => setMarketCode(event.target.value)}
+            onChange={(event) => handleMarketChange(event.target.value)}
             className={SELECT_CLASS}
           >
             {EDITOR_MARKET_OPTIONS.map((market) => (
@@ -163,17 +214,46 @@ export function SportsSectionsEditor(): JSX.Element {
           </select>
         </label>
 
-        {marketCode === US_MARKET_CODE ? (
+        {showLocality ? (
           <label className="block max-w-xs text-xs font-medium text-neutral-700">
-            {t('editor.scope.state')}
+            {marketCode === US_MARKET_CODE ? tNav('state') : tNav('town')}
             <select
-              value={stateCode}
-              onChange={(event) => setStateCode(event.target.value)}
+              value={localityId ?? ''}
+              onChange={(event) => handleLocalityChange(event.target.value)}
               className={SELECT_CLASS}
             >
-              {US_STATE_OPTIONS.map((state) => (
-                <option key={state.code} value={state.code}>
-                  {state.label}
+              <option value="">
+                {marketCode === US_MARKET_CODE
+                  ? tNav('localityDefaultUs')
+                  : tNav('localityDefaultPr')}
+              </option>
+              {marketCode === US_MARKET_CODE
+                ? US_STATE_OPTIONS.map((state) => (
+                    <option key={state.code} value={state.code}>
+                      {state.label}
+                    </option>
+                  ))
+                : PUERTO_RICO_TOWN_OPTIONS.map((town) => (
+                    <option key={town.code} value={town.code}>
+                      {town.label}
+                    </option>
+                  ))}
+            </select>
+          </label>
+        ) : null}
+
+        {showFloridaCounty ? (
+          <label className="block max-w-xs text-xs font-medium text-neutral-700">
+            {tNav('county')}
+            <select
+              value={countyId ?? ''}
+              onChange={(event) => setCountyId(event.target.value || null)}
+              className={SELECT_CLASS}
+            >
+              <option value="">{tNav('county')}</option>
+              {FLORIDA_COUNTY_OPTIONS.map((county) => (
+                <option key={county.code} value={county.code}>
+                  {county.label}
                 </option>
               ))}
             </select>

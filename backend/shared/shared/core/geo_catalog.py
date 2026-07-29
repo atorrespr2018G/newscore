@@ -213,10 +213,36 @@ CURATED_LAYOUT_PAGE_NAMES: tuple[str, ...] = ("homepage", "world")
 """Layout pages that receive one exact board per geo region."""
 
 STATE_SPORTS_LAYOUT_PAGE_NAME = "sports"
-"""Sports page boards are curated per US state (not counties/towns)."""
+"""Sports page boards are curated per US state, Florida county, and PR town."""
 
 
 def us_state_region_codes() -> tuple[str, ...]:
     """Return region codes for every US state (e.g. ``us-fl``)."""
 
     return tuple(f"us-{state_code}" for state_code, _ in US_STATE_OPTIONS)
+
+
+def florida_county_region_codes() -> tuple[str, ...]:
+    """Return region codes for every Florida county (e.g. ``us-fl-miami-dade``)."""
+
+    return tuple(f"us-fl-{county_slug}" for county_slug, _ in FLORIDA_COUNTY_OPTIONS)
+
+
+def puerto_rico_town_region_codes() -> tuple[str, ...]:
+    """Return region codes for every Puerto Rico municipality (e.g. ``pr-san-juan``)."""
+
+    return tuple(f"pr-{town_slug}" for town_slug, _ in PUERTO_RICO_TOWN_OPTIONS)
+
+
+def sports_curated_region_codes() -> tuple[str, ...]:
+    """Return every region code that owns an independent sports board.
+
+    Returns:
+        US states, Florida counties, and Puerto Rico towns in that order.
+    """
+
+    return (
+        us_state_region_codes()
+        + florida_county_region_codes()
+        + puerto_rico_town_region_codes()
+    )

@@ -9,7 +9,11 @@ from uuid import uuid4
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.exceptions import ValidationError
-from shared.core.geo_catalog import us_state_region_codes
+from shared.core.geo_catalog import (
+    florida_county_region_codes,
+    puerto_rico_town_region_codes,
+    us_state_region_codes,
+)
 from shared.core.logger import get_logger
 from shared.core.markets import (
     PRESENTATION_FEATURED_BAND,
@@ -515,7 +519,7 @@ async def sync_sports_layout_slots(
         db: Mongo database.
         market_id: Market document id.
         items: Ordered section rows (``section_type`` optional for legacy docs).
-        region_id: Optional region document id for a state sports board.
+        region_id: Optional region document id for a state, county, or town sports board.
     """
 
     resolved_items = expand_legacy_section_items(items)
@@ -553,28 +557,83 @@ async def sync_sports_layout_slots(
     )
 
 
-async def ensure_us_state_sports_sections(
+async def _resolve_region_sports_items(
     db: AsyncIOMotorDatabase,
     *,
-    labels: list[str],
-) -> dict[str, Any]:
-    """Upsert PR-shaped sports section lists and sync layouts for every US state.
-
-    Creates missing state docs with fixed bands plus ``labels``. Existing non-empty
-    lists are kept (legacy sport-only lists expand on sync); empty lists are filled
-    from the default full list. Layouts are always synced so boards stay aligned.
+    market_id: str,
+    region_id: str,
+    default_items: list[dict[str, str]],
+    now: str,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Load or create sports section items for one region.
 
     Args:
         db: Mongo database.
+        market_id: Market document id.
+        region_id: Region document id.
+        default_items: Default typed section list when creating or filling empty.
+        now: ISO timestamp for updated_at.
+
+    Returns:
+        Tuple of (items to sync, whether a new document was created).
+    """
+
+    existing = await db[SPORTS_PAGE_SECTIONS_COLLECTION].find_one(
+        {"market_id": market_id, "region_id": region_id},
+    )
+    if existing is None:
+        await db[SPORTS_PAGE_SECTIONS_COLLECTION].insert_one(
+            {
+                "_id": str(uuid4()),
+                "market_id": market_id,
+                "region_id": region_id,
+                "items": default_items,
+                "updated_at": now,
+            },
+        )
+        return default_items, True
+
+    stored = list(existing.get("items") or [])
+    if not stored:
+        await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"items": default_items, "updated_at": now}},
+        )
+        return default_items, False
+    return stored, False
+
+
+async def ensure_region_sports_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_code: str,
+    region_codes: tuple[str, ...] | list[str],
+    labels: list[str],
+) -> dict[str, Any]:
+    """Upsert sports section lists and sync layouts for the given region codes.
+
+    Creates missing docs with fixed bands plus ``labels``. Existing non-empty
+    lists are kept; empty lists are filled from the default full list. Layouts
+    are always synced so boards stay aligned.
+
+    Args:
+        db: Mongo database.
+        market_code: Market short code that owns the regions (e.g. ``us``, ``pr``).
+        region_codes: Ordered region codes to ensure.
         labels: Ordered sport display labels (typically PR sport labels).
 
     Returns:
-        Summary with market id and per-state region codes that were ensured.
+        Summary with market id and per-region codes that were ensured.
+
+    Raises:
+        ValidationError: When the market document is missing.
     """
 
-    market = await db[MARKETS_COLLECTION].find_one({"code": "us"}, {"_id": 1})
+    market = await db[MARKETS_COLLECTION].find_one({"code": market_code}, {"_id": 1})
     if market is None:
-        raise ValidationError("US market not found; cannot seed state sports sections")
+        raise ValidationError(
+            f"{market_code.upper()} market not found; cannot seed sports sections",
+        )
 
     market_id = str(market["_id"])
     default_items = default_sports_page_section_items(labels)
@@ -582,38 +641,21 @@ async def ensure_us_state_sports_sections(
     ensured_codes: list[str] = []
     created_count = 0
 
-    for region_code in us_state_region_codes():
+    for region_code in region_codes:
         region = await get_region_by_code(db, region_code)
         if region is None:
             logger.warning("Skipping sports sections; region missing: %s", region_code)
             continue
         region_id = str(region["_id"])
-        existing = await db[SPORTS_PAGE_SECTIONS_COLLECTION].find_one(
-            {"market_id": market_id, "region_id": region_id},
+        items, created = await _resolve_region_sports_items(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            default_items=default_items,
+            now=now,
         )
-        if existing is None:
-            await db[SPORTS_PAGE_SECTIONS_COLLECTION].insert_one(
-                {
-                    "_id": str(uuid4()),
-                    "market_id": market_id,
-                    "region_id": region_id,
-                    "items": default_items,
-                    "updated_at": now,
-                },
-            )
-            items = default_items
+        if created:
             created_count += 1
-        else:
-            stored = list(existing.get("items") or [])
-            if not stored:
-                await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
-                    {"_id": existing["_id"]},
-                    {"$set": {"items": default_items, "updated_at": now}},
-                )
-                items = default_items
-            else:
-                items = stored
-
         await sync_sports_layout_slots(
             db,
             market_id=market_id,
@@ -623,7 +665,8 @@ async def ensure_us_state_sports_sections(
         ensured_codes.append(region_code)
 
     logger.info(
-        "Ensured US state sports sections for %d states (%d created, %d sports)",
+        "Ensured %s sports sections for %d regions (%d created, %d sports)",
+        market_code,
         len(ensured_codes),
         created_count,
         len(labels),
@@ -633,4 +676,98 @@ async def ensure_us_state_sports_sections(
         "region_codes": ensured_codes,
         "created_count": created_count,
         "item_count": len(default_items),
+    }
+
+
+async def ensure_us_state_sports_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    labels: list[str],
+) -> dict[str, Any]:
+    """Upsert PR-shaped sports section lists and sync layouts for every US state.
+
+    Args:
+        db: Mongo database.
+        labels: Ordered sport display labels (typically PR sport labels).
+
+    Returns:
+        Summary with market id and per-state region codes that were ensured.
+    """
+
+    return await ensure_region_sports_sections(
+        db,
+        market_code="us",
+        region_codes=us_state_region_codes(),
+        labels=labels,
+    )
+
+
+async def ensure_florida_county_sports_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    labels: list[str],
+) -> dict[str, Any]:
+    """Upsert sports section lists and sync layouts for every Florida county.
+
+    Args:
+        db: Mongo database.
+        labels: Ordered sport display labels (typically PR sport labels).
+
+    Returns:
+        Summary with market id and per-county region codes that were ensured.
+    """
+
+    return await ensure_region_sports_sections(
+        db,
+        market_code="us",
+        region_codes=florida_county_region_codes(),
+        labels=labels,
+    )
+
+
+async def ensure_pr_town_sports_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    labels: list[str],
+) -> dict[str, Any]:
+    """Upsert sports section lists and sync layouts for every Puerto Rico town.
+
+    Args:
+        db: Mongo database.
+        labels: Ordered sport display labels (typically PR sport labels).
+
+    Returns:
+        Summary with market id and per-town region codes that were ensured.
+    """
+
+    return await ensure_region_sports_sections(
+        db,
+        market_code="pr",
+        region_codes=puerto_rico_town_region_codes(),
+        labels=labels,
+    )
+
+
+async def ensure_geo_sports_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    labels: list[str],
+) -> dict[str, Any]:
+    """Ensure independent sports lists for US states, FL counties, and PR towns.
+
+    Args:
+        db: Mongo database.
+        labels: Ordered sport display labels (typically PR sport labels).
+
+    Returns:
+        Combined summary keyed by geo group.
+    """
+
+    states = await ensure_us_state_sports_sections(db, labels=labels)
+    counties = await ensure_florida_county_sports_sections(db, labels=labels)
+    towns = await ensure_pr_town_sports_sections(db, labels=labels)
+    return {
+        "us_states": states,
+        "florida_counties": counties,
+        "pr_towns": towns,
     }

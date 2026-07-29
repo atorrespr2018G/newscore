@@ -337,8 +337,8 @@
   },
   "sportsPage": {
     "heading": "Sports sections",
-    "subtitle": "Manage the ordered list of Sports page sections (hero, Top Stories, Live, World, and sport rows) for each market. US markets use one list per state; PR and other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → sports.",
-    "listHint": "Add, remove, rename, or reorder any section. Saving updates Placement → sports for the same market/state. Compact sport rows show an ad ribbon every two rows.",
+    "subtitle": "Manage the ordered list of Sports page sections (hero, Top Stories, Live, World, and sport rows) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → sports.",
+    "listHint": "Add, remove, rename, or reorder any section. Saving updates Placement → sports for the same market, state, county, or town. Compact sport rows show an ad ribbon every two rows.",
     "labelPlaceholder": "Section name",
     "addSport": "Add sport",
     "addType": {

@@ -1,4 +1,4 @@
-"""Unit tests for per-state sports page sections and fill scope."""
+"""Unit tests for per-geo sports page sections and fill scope."""
 
 from __future__ import annotations
 
@@ -12,7 +12,13 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT / "shared") not in sys.path:
     sys.path.insert(0, str(_ROOT / "shared"))
 
-from shared.core.geo_catalog import STATE_SPORTS_LAYOUT_PAGE_NAME, us_state_region_codes
+from shared.core.geo_catalog import (
+    STATE_SPORTS_LAYOUT_PAGE_NAME,
+    florida_county_region_codes,
+    puerto_rico_town_region_codes,
+    sports_curated_region_codes,
+    us_state_region_codes,
+)
 from shared.core.markets import (
     PRESENTATION_FEATURED_BAND,
     PRESENTATION_GRID_4,
@@ -35,6 +41,22 @@ def test_us_state_region_codes_cover_fifty_states() -> None:
     assert "us-tx" in codes
     assert "us" not in codes
     assert STATE_SPORTS_LAYOUT_PAGE_NAME == "sports"
+
+
+def test_sports_curated_region_codes_include_counties_and_towns() -> None:
+    """Independent sports boards cover states, Florida counties, and PR towns."""
+
+    codes = sports_curated_region_codes()
+    county_codes = florida_county_region_codes()
+    town_codes = puerto_rico_town_region_codes()
+    assert len(county_codes) == 67
+    assert len(town_codes) == 78
+    assert "us-fl-miami-dade" in county_codes
+    assert "pr-san-juan" in town_codes
+    assert set(us_state_region_codes()).issubset(codes)
+    assert set(county_codes).issubset(codes)
+    assert set(town_codes).issubset(codes)
+    assert len(codes) == 50 + 67 + 78
 
 
 def test_slugify_sport_label_matches_pr_labels() -> None:
@@ -303,3 +325,90 @@ async def test_ensure_us_state_sports_sections_skips_nonempty_lists() -> None:
     )
     assert result["created_count"] == 0
     assert result["region_codes"] == ["us-fl"]
+
+
+@pytest.mark.asyncio
+async def test_ensure_florida_county_sports_sections_creates_missing() -> None:
+    """County ensure seeds missing sports lists and syncs that county board."""
+
+    from shared.core import sports_page_sections_sync as sync_mod
+
+    sections = MagicMock()
+    sections.find_one = AsyncMock(return_value=None)
+    sections.insert_one = AsyncMock()
+    sections.update_one = AsyncMock()
+
+    markets = MagicMock()
+    markets.find_one = AsyncMock(return_value={"_id": "mkt-us"})
+
+    db = MagicMock()
+    db.__getitem__ = MagicMock(
+        side_effect=lambda name: markets if name == "markets" else sections,
+    )
+
+    with patch.object(
+        sync_mod,
+        "florida_county_region_codes",
+        return_value=("us-fl-miami-dade",),
+    ), patch.object(
+        sync_mod,
+        "get_region_by_code",
+        new=AsyncMock(return_value={"_id": "reg-dade"}),
+    ), patch.object(
+        sync_mod,
+        "sync_sports_layout_slots",
+        new=AsyncMock(),
+    ) as sync_slots:
+        result = await sync_mod.ensure_florida_county_sports_sections(
+            db,
+            labels=["Baseball"],
+        )
+
+    sections.insert_one.assert_awaited_once()
+    sync_slots.assert_awaited_once()
+    assert sync_slots.await_args.kwargs["region_id"] == "reg-dade"
+    assert result["created_count"] == 1
+    assert result["region_codes"] == ["us-fl-miami-dade"]
+
+
+@pytest.mark.asyncio
+async def test_ensure_pr_town_sports_sections_creates_missing() -> None:
+    """PR town ensure seeds missing sports lists under the PR market."""
+
+    from shared.core import sports_page_sections_sync as sync_mod
+
+    sections = MagicMock()
+    sections.find_one = AsyncMock(return_value=None)
+    sections.insert_one = AsyncMock()
+
+    markets = MagicMock()
+    markets.find_one = AsyncMock(return_value={"_id": "mkt-pr"})
+
+    db = MagicMock()
+    db.__getitem__ = MagicMock(
+        side_effect=lambda name: markets if name == "markets" else sections,
+    )
+
+    with patch.object(
+        sync_mod,
+        "puerto_rico_town_region_codes",
+        return_value=("pr-san-juan",),
+    ), patch.object(
+        sync_mod,
+        "get_region_by_code",
+        new=AsyncMock(return_value={"_id": "reg-sj"}),
+    ), patch.object(
+        sync_mod,
+        "sync_sports_layout_slots",
+        new=AsyncMock(),
+    ) as sync_slots:
+        result = await sync_mod.ensure_pr_town_sports_sections(
+            db,
+            labels=["Boxing"],
+        )
+
+    markets.find_one.assert_awaited_once_with({"code": "pr"}, {"_id": 1})
+    sections.insert_one.assert_awaited_once()
+    assert sync_slots.await_args.kwargs["market_id"] == "mkt-pr"
+    assert sync_slots.await_args.kwargs["region_id"] == "reg-sj"
+    assert result["region_codes"] == ["pr-san-juan"]

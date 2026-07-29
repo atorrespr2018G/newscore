@@ -337,8 +337,8 @@
   },
   "sportsPage": {
     "heading": "Secciones de deportes",
-    "subtitle": "Administra la lista ordenada de secciones de la página Deportes (héroe, Principales, En vivo, Mundo y filas deportivas) de cada mercado. En EE. UU. hay una lista por estado; en PR y otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → sports.",
-    "listHint": "Agrega, quita, renombra o reordena cualquier sección. Al guardar se actualiza Placement → sports para el mismo mercado/estado. Las filas deportivas compactas muestran una cinta publicitaria cada dos filas.",
+    "subtitle": "Administra la lista ordenada de secciones de la página Deportes (héroe, Principales, En vivo, Mundo y filas deportivas) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → sports.",
+    "listHint": "Agrega, quita, renombra o reordena cualquier sección. Al guardar se actualiza Placement → sports para el mismo mercado, estado, condado o pueblo. Las filas deportivas compactas muestran una cinta publicitaria cada dos filas.",
     "labelPlaceholder": "Nombre de la sección",
     "addSport": "Agregar deporte",
     "addType": {

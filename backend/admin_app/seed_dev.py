@@ -1915,12 +1915,12 @@ async def _ensure_market_sports_sections(
 
 
 async def _ensure_us_state_sports_sections(db: AsyncIOMotorDatabase) -> None:
-    """Seed each US state sports list from the PR sport labels and sync layouts."""
+    """Seed sports lists for US states, Florida counties, and PR towns."""
 
-    from shared.core.sports_page_sections_sync import ensure_us_state_sports_sections
+    from shared.core.sports_page_sections_sync import ensure_geo_sports_sections
 
-    result = await ensure_us_state_sports_sections(db, labels=PR_SPORT_SECTION_LABELS)
-    logger.info("Seeded US state sports sections: %s", result)
+    result = await ensure_geo_sports_sections(db, labels=PR_SPORT_SECTION_LABELS)
+    logger.info("Seeded geo sports sections: %s", result)
 
 
 async def _ensure_pr_sport_section_articles(

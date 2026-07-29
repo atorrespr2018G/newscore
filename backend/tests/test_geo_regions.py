@@ -86,6 +86,7 @@ def test_geo_catalog_covers_us_pr_scopes() -> None:
         FLORIDA_COUNTY_OPTIONS,
         PUERTO_RICO_TOWN_OPTIONS,
         US_STATE_OPTIONS,
+        sports_curated_region_codes,
     )
 
     assert len(US_STATE_OPTIONS) == 50
@@ -95,6 +96,8 @@ def test_geo_catalog_covers_us_pr_scopes() -> None:
     assert ("adjuntas", "Adjuntas") in PUERTO_RICO_TOWN_OPTIONS
     assert ("aguada", "Aguada") in PUERTO_RICO_TOWN_OPTIONS
     assert ("miami-dade", "Miami-Dade") in FLORIDA_COUNTY_OPTIONS
+    assert "us-fl-miami-dade" in sports_curated_region_codes()
+    assert "pr-san-juan" in sports_curated_region_codes()
 
 
 def test_homepage_feed_cache_key_region_versioned() -> None:
