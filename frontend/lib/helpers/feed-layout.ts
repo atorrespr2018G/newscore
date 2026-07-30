@@ -564,6 +564,34 @@ export type HomepagePageSlotKind =
   | 'compact_six'
 
 /**
+ * Restore Top Stories (`us-featured`) after Hero when legacy layouts place it
+ * after More Top Stories. Pre-config homepage rendering always showed that band
+ * between Hero and More Top Stories regardless of seed `order_index`.
+ *
+ * @param slots Homepage feed slots in layout order.
+ * @returns Slots with `us-featured` moved after hero when it was misplaced.
+ */
+export function repairLegacyHomepageSlotOrder(slots: IFeedSlot[]): IFeedSlot[] {
+  const usIndex = slots.findIndex((slot) => normalizedPositionKey(slot) === 'us-featured')
+  if (usIndex < 0) {
+    return slots
+  }
+
+  const moreIndex = slots.findIndex((slot) => isMoreTopStoriesPositionKey(normalizedPositionKey(slot)))
+  if (moreIndex < 0 || usIndex < moreIndex) {
+    return slots
+  }
+
+  const heroIndex = slots.findIndex((slot) => resolveHomepagePageSlotKind(slot) === 'hero')
+  const insertAt = heroIndex >= 0 ? heroIndex + 1 : 0
+  const next = slots.slice()
+  const [usSlot] = next.splice(usIndex, 1)
+  const adjustedInsert = usIndex < insertAt ? insertAt - 1 : insertAt
+  next.splice(adjustedInsert, 0, usSlot)
+  return next
+}
+
+/**
  * Resolve the Main Page renderer for a slot (presentation first, then position key).
  *
  * @param slot Feed slot from the homepage layout.

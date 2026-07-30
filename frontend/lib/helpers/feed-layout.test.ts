@@ -3,6 +3,7 @@ import type { IFeedSlot } from '@/interfaces/feed'
 import {
   findSlotByPositionKey,
   isShiftDownPlacementPositionKey,
+  repairLegacyHomepageSlotOrder,
   splitDefaultHeroArticles,
 } from '@/lib/helpers/feed-layout'
 
@@ -46,5 +47,51 @@ describe('splitDefaultHeroArticles', () => {
 
     expect(slices.left.map((item) => item.id)).toEqual(['a-1', 'a-2', 'a-3'])
     expect(slices.rightCards.map((item) => item.id)).toEqual(['a-10', 'a-11'])
+  })
+})
+
+describe('repairLegacyHomepageSlotOrder', () => {
+  it('moves us-featured after hero when it follows more-top-stories', () => {
+    const slots: IFeedSlot[] = [
+      { id: 'hero', positionKey: 'hero', presentationType: 'hero', articles: [] },
+      {
+        id: 'more',
+        positionKey: 'more-top-stories',
+        presentationType: 'editorial_lead',
+        articles: [],
+      },
+      {
+        id: 'top',
+        positionKey: 'us-featured',
+        presentationType: 'grid_4',
+        articles: [],
+      },
+    ]
+
+    expect(repairLegacyHomepageSlotOrder(slots).map((slot) => slot.id)).toEqual([
+      'hero',
+      'top',
+      'more',
+    ])
+  })
+
+  it('leaves already-correct order unchanged', () => {
+    const slots: IFeedSlot[] = [
+      { id: 'hero', positionKey: 'hero', presentationType: 'hero', articles: [] },
+      {
+        id: 'top',
+        positionKey: 'us-featured',
+        presentationType: 'featured_band',
+        articles: [],
+      },
+      {
+        id: 'more',
+        positionKey: 'more-top-stories',
+        presentationType: 'editorial_lead',
+        articles: [],
+      },
+    ]
+
+    expect(repairLegacyHomepageSlotOrder(slots)).toBe(slots)
   })
 })

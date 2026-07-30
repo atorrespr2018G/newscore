@@ -15,6 +15,7 @@ import {
 import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import {
   normalizedPositionKey,
+  repairLegacyHomepageSlotOrder,
   resolveHomepagePageSlotKind,
   resolveSportsPageSlotKind,
   splitDefaultHeroArticles,
@@ -399,13 +400,14 @@ function MainPageOrderedSections({
   slots: IFeedSlot[]
   sectionLabel: (positionKey: string) => string
 }): JSX.Element {
+  const orderedSlots = repairLegacyHomepageSlotOrder(slots)
   const blocks: JSX.Element[] = []
   let index = 0
   let previousSlot: IFeedSlot | null = null
   let previousKind: HomepagePageSlotKind | null = null
 
-  while (index < slots.length) {
-    const remaining = slots.slice(index)
+  while (index < orderedSlots.length) {
+    const remaining = orderedSlots.slice(index)
     const bandTaken = takeEditorialBand(remaining)
     if (bandTaken) {
       blocks.push(
@@ -441,7 +443,7 @@ function MainPageOrderedSections({
       continue
     }
 
-    const slot = slots[index]
+    const slot = orderedSlots[index]
     const kind = resolveHomepagePageSlotKind(slot)
     const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
     const showAdBefore = shouldInsertHomepageAdBefore(slot, kind, previousSlot, previousKind)
