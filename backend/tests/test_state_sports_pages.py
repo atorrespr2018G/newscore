@@ -275,7 +275,7 @@ async def test_sync_sports_layout_slots_respects_custom_order_and_extras() -> No
 
 @pytest.mark.asyncio
 async def test_ensure_us_state_sports_sections_skips_nonempty_lists() -> None:
-    """Re-running ensure keeps editorial state lists and still syncs layouts."""
+    """Re-running ensure keeps editorial state lists and skips layout sync."""
 
     from shared.core import sports_page_sections_sync as sync_mod
 
@@ -317,12 +317,7 @@ async def test_ensure_us_state_sports_sections_skips_nonempty_lists() -> None:
 
     sections.insert_one.assert_not_awaited()
     sections.update_one.assert_not_awaited()
-    sync_slots.assert_awaited_once_with(
-        db,
-        market_id="mkt-us",
-        items=existing_items,
-        region_id="reg-us-fl",
-    )
+    sync_slots.assert_not_awaited()
     assert result["created_count"] == 0
     assert result["region_codes"] == ["us-fl"]
 

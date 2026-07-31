@@ -60,7 +60,7 @@ async def test_site_slot_resolution_keeps_query_fill_after_pin() -> None:
     slot = {
         "content_type": "articles",
         "pinned_ids": ["pin-1"],
-        "query_rule": {"limit": 4},
+        "query_rule": {"limit": 4, "category_id": "cat-1"},
     }
     pinned_result = [_make_article("pin-1")]
     query_result = [_make_article("query-1"), _make_article("query-2")]
@@ -78,7 +78,7 @@ async def test_site_slot_resolution_keeps_query_fill_after_pin() -> None:
                 slot=slot,
                 market_id="market-1",
                 town=None,
-                base_query={},
+                base_queries=[{}],
                 loader=MagicMock(),
             )
 
@@ -93,7 +93,7 @@ async def test_placement_slot_resolution_merges_pin_and_query_ids() -> None:
     slot = {
         "content_type": "articles",
         "pinned_ids": ["pin-1"],
-        "query_rule": {"limit": 2},
+        "query_rule": {"limit": 2, "category_id": "cat-1"},
     }
 
     with patch(
@@ -103,7 +103,7 @@ async def test_placement_slot_resolution_merges_pin_and_query_ids() -> None:
         article_ids = await _article_ids_for_slot(
             MagicMock(),
             slot=slot,
-            base_query={},
+            base_queries=[{}],
         )
 
     assert article_ids == ["pin-1", "query-1"]
@@ -133,7 +133,7 @@ async def test_site_slot_resolution_ignores_market_for_pinned_ids() -> None:
                 slot=slot,
                 market_id="market-1",
                 town=None,
-                base_query={},
+                base_queries=[{}],
                 loader=MagicMock(),
             )
 
@@ -148,7 +148,7 @@ async def test_placement_slot_resolution_ignores_empty_pin_placeholders() -> Non
     slot = {
         "content_type": "articles",
         "pinned_ids": ["", "pin-2", "  "],
-        "query_rule": {"limit": 3},
+        "query_rule": {"limit": 3, "category_id": "cat-1"},
     }
 
     with patch(
@@ -158,7 +158,7 @@ async def test_placement_slot_resolution_ignores_empty_pin_placeholders() -> Non
         article_ids = await _article_ids_for_slot(
             MagicMock(),
             slot=slot,
-            base_query={},
+            base_queries=[{}],
         )
 
     assert article_ids == ["pin-2", "query-1"]
@@ -204,7 +204,7 @@ async def test_preview_slot_resolution_includes_pinned_draft() -> None:
                 slot=slot,
                 market_id="market-1",
                 town=None,
-                base_query={},
+                base_queries=[{}],
                 loader=MagicMock(),
             )
 
@@ -219,7 +219,7 @@ async def test_published_slot_resolution_excludes_pinned_draft() -> None:
     slot = {
         "content_type": "articles",
         "pinned_ids": ["draft-1"],
-        "query_rule": {"limit": 4},
+        "query_rule": {"limit": 4, "category_id": "cat-1"},
     }
 
     with patch(
@@ -235,7 +235,7 @@ async def test_published_slot_resolution_excludes_pinned_draft() -> None:
                 slot=slot,
                 market_id="market-1",
                 town=None,
-                base_query={},
+                base_queries=[{}],
                 loader=MagicMock(),
             )
 
@@ -249,7 +249,7 @@ async def test_preview_slot_resolution_query_fill_uses_published_only() -> None:
     slot = {
         "content_type": "articles",
         "pinned_ids": ["draft-1"],
-        "query_rule": {"limit": 3},
+        "query_rule": {"limit": 3, "category_id": "cat-1"},
     }
     preview_result = [_make_draft_article("draft-1")]
     query_result = [_make_article("pub-1"), _make_article("pub-2")]
@@ -267,7 +267,7 @@ async def test_preview_slot_resolution_query_fill_uses_published_only() -> None:
                 slot=slot,
                 market_id="market-1",
                 town=None,
-                base_query={},
+                base_queries=[{}],
                 loader=MagicMock(),
             )
 
@@ -324,11 +324,66 @@ async def test_article_ids_for_slot_uses_draft_pins_for_editor() -> None:
     article_ids = await _article_ids_for_slot(
         MagicMock(),
         slot=slot,
-        base_query={},
+        base_queries=[{}],
         use_draft_pins=True,
     )
 
     assert article_ids == ["draft-1"]
+
+
+@pytest.mark.asyncio
+async def test_site_slot_resolution_pin_only_skips_uncategorized_fill() -> None:
+    """Slots without category_id stay pin-only and do not auto-fill market news."""
+
+    slot = {
+        "content_type": "articles",
+        "pinned_ids": [],
+        "query_rule": {"limit": 12},
+    }
+
+    with patch(
+        "shared.read.site_reads.list_published_by_ids",
+        AsyncMock(return_value=[]),
+    ):
+        with patch(
+            "shared.read.site_reads._query_rule_articles",
+            AsyncMock(return_value=[_make_article("leak-1")]),
+        ) as query_mock:
+            resolved = await _resolve_slot_articles(
+                MagicMock(),
+                slot=slot,
+                market_id="market-1",
+                town=None,
+                base_queries=[{}],
+                loader=MagicMock(),
+            )
+
+    assert resolved == []
+    assert query_mock.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_placement_slot_resolution_pin_only_skips_uncategorized_fill() -> None:
+    """Placement pin-only slots do not pull unrelated market article ids."""
+
+    slot = {
+        "content_type": "articles",
+        "pinned_ids": [],
+        "query_rule": {"limit": 12},
+    }
+
+    with patch(
+        "shared.read.placement_reads._article_ids_for_query_rule",
+        AsyncMock(return_value=["leak-1"]),
+    ) as query_mock:
+        article_ids = await _article_ids_for_slot(
+            MagicMock(),
+            slot=slot,
+            base_queries=[{}],
+        )
+
+    assert article_ids == []
+    assert query_mock.await_count == 0
 
 
 @pytest.mark.asyncio
@@ -355,7 +410,7 @@ async def test_published_slot_resolution_ignores_draft_pins() -> None:
                 slot=slot,
                 market_id="market-1",
                 town=None,
-                base_query={},
+                base_queries=[{}],
                 loader=MagicMock(),
             )
 

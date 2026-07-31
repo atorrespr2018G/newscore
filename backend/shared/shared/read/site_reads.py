@@ -18,6 +18,7 @@ from shared.core.regions import (
     region_scope_article_filter,
     resolve_region_code_from_legacy,
 )
+from shared.read.article_query import article_query_with_category
 from shared.read.article_reads import article_out, list_by_ids_for_preview, list_published_by_ids
 from shared.read.collections import ARTICLES_COLLECTION, WIDGETS_COLLECTION
 from shared.read.layout_reads import get_active_layout
@@ -201,6 +202,11 @@ async def _resolve_slot_articles_with_pinned_loader(
     if len(pinned_articles) >= limit:
         return pinned_articles[:limit]
 
+    # Pin-only slots (limit without category_id) must stay empty until editors place.
+    # Without this guard, query-fill returns any recent market/region article.
+    if not query_rule.get("category_id"):
+        return pinned_articles[:limit]
+
     query_articles = await _query_rule_articles(
         db,
         query_rule=query_rule,
@@ -269,15 +275,15 @@ async def _query_rule_articles(
 
     query_limit = limit if limit is not None else _query_rule_limit(query_rule)
     category_id = query_rule.get("category_id")
+    if category_id is not None:
+        category_id = str(category_id)
 
     for base_query in base_queries:
-        query: dict[str, Any] = dict(base_query)
-        if excluded_ids:
-            query["_id"] = {"$nin": list(excluded_ids)}
-        if category_id:
-            # Match legacy single-category articles plus multi-category articles
-            # that include this category in their category_ids list.
-            query["$or"] = [{"category_id": category_id}, {"category_ids": category_id}]
+        query = article_query_with_category(
+            base_query,
+            category_id=category_id,
+            excluded_ids=excluded_ids,
+        )
         cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
         docs = [doc async for doc in cursor]
         if not docs:

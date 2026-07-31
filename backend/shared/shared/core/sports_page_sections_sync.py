@@ -333,6 +333,25 @@ async def _ensure_region_sports_layout(
     return layout
 
 
+def _sports_slot_query_rule(
+    *,
+    position_key: str,
+    limit: int,
+    existing: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build query_rule for a sports layout slot.
+
+    Sport grids are always pin-only so configuration-added sports start empty.
+    Fixed bands may keep prior category fill when the slot already existed.
+    """
+
+    from shared.core.slot_query_rule import query_rule_for_config_slot
+
+    if position_key not in PRESERVED_SPORTS_PAGE_KEYS:
+        return {"limit": limit}
+    return query_rule_for_config_slot(limit=limit, existing=existing)
+
+
 async def _upsert_layout_slot(
     db: AsyncIOMotorDatabase,
     *,
@@ -347,19 +366,21 @@ async def _upsert_layout_slot(
 ) -> str:
     """Create or update one sports layout slot without wiping existing pins."""
 
-    query_rule: dict[str, Any] = {"limit": limit}
-    if category_id:
-        query_rule["category_id"] = category_id
+    _ = category_id
+    existing = await db[SLOTS_COLLECTION].find_one(
+        {"layout_id": layout_id, "position_key": position_key},
+    )
     fields = {
-        "query_rule": query_rule,
+        "query_rule": _sports_slot_query_rule(
+            position_key=position_key,
+            limit=limit,
+            existing=existing,
+        ),
         "order_index": order_index,
         "display_name": display_name,
         "presentation_type": presentation_type,
         "updated_at": now,
     }
-    existing = await db[SLOTS_COLLECTION].find_one(
-        {"layout_id": layout_id, "position_key": position_key},
-    )
     if existing is not None:
         await db[SLOTS_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
         return str(existing["_id"])
@@ -564,7 +585,7 @@ async def _resolve_region_sports_items(
     region_id: str,
     default_items: list[dict[str, str]],
     now: str,
-) -> tuple[list[dict[str, Any]], bool]:
+) -> tuple[list[dict[str, Any]], bool, bool]:
     """Load or create sports section items for one region.
 
     Args:
@@ -575,7 +596,9 @@ async def _resolve_region_sports_items(
         now: ISO timestamp for updated_at.
 
     Returns:
-        Tuple of (items to sync, whether a new document was created).
+        Tuple of ``(items, created, should_sync)``. ``should_sync`` is true when
+        the section list was created or filled from empty; non-empty editorial
+        lists skip layout sync so existing category fill is left intact.
     """
 
     existing = await db[SPORTS_PAGE_SECTIONS_COLLECTION].find_one(
@@ -591,7 +614,7 @@ async def _resolve_region_sports_items(
                 "updated_at": now,
             },
         )
-        return default_items, True
+        return default_items, True, True
 
     stored = list(existing.get("items") or [])
     if not stored:
@@ -599,8 +622,8 @@ async def _resolve_region_sports_items(
             {"_id": existing["_id"]},
             {"$set": {"items": default_items, "updated_at": now}},
         )
-        return default_items, False
-    return stored, False
+        return default_items, False, True
+    return stored, False, False
 
 
 async def ensure_region_sports_sections(
@@ -613,8 +636,9 @@ async def ensure_region_sports_sections(
     """Upsert sports section lists and sync layouts for the given region codes.
 
     Creates missing docs with fixed bands plus ``labels``. Existing non-empty
-    lists are kept; empty lists are filled from the default full list. Layouts
-    are always synced so boards stay aligned.
+    lists are kept; empty lists are filled from the default full list. Layout
+    sync runs only when the list was created or filled so editorial boards that
+    already auto-fill are not rewritten to pin-only sport slots.
 
     Args:
         db: Mongo database.
@@ -647,7 +671,7 @@ async def ensure_region_sports_sections(
             logger.warning("Skipping sports sections; region missing: %s", region_code)
             continue
         region_id = str(region["_id"])
-        items, created = await _resolve_region_sports_items(
+        items, created, should_sync = await _resolve_region_sports_items(
             db,
             market_id=market_id,
             region_id=region_id,
@@ -656,12 +680,13 @@ async def ensure_region_sports_sections(
         )
         if created:
             created_count += 1
-        await sync_sports_layout_slots(
-            db,
-            market_id=market_id,
-            items=items,
-            region_id=region_id,
-        )
+        if should_sync:
+            await sync_sports_layout_slots(
+                db,
+                market_id=market_id,
+                items=items,
+                region_id=region_id,
+            )
         ensured_codes.append(region_code)
 
     logger.info(

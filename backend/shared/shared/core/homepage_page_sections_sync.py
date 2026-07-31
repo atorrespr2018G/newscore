@@ -340,21 +340,26 @@ async def _upsert_layout_slot(
     limit: int,
     now: str,
 ) -> str:
-    """Create or update one homepage layout slot without wiping existing pins."""
+    """Create or update one homepage layout slot without wiping existing pins.
 
-    query_rule: dict[str, Any] = {"limit": limit}
-    if category_id:
-        query_rule["category_id"] = category_id
+    New slots are pin-only so a section added in configuration starts empty in
+    Placement. ``category_id`` remains on the spec for taxonomy ensure callers;
+    auto-fill is only preserved when an existing slot already had it.
+    """
+
+    from shared.core.slot_query_rule import query_rule_for_config_slot
+
+    _ = category_id
+    existing = await db[SLOTS_COLLECTION].find_one(
+        {"layout_id": layout_id, "position_key": position_key},
+    )
     fields = {
-        "query_rule": query_rule,
+        "query_rule": query_rule_for_config_slot(limit=limit, existing=existing),
         "order_index": order_index,
         "display_name": display_name,
         "presentation_type": presentation_type,
         "updated_at": now,
     }
-    existing = await db[SLOTS_COLLECTION].find_one(
-        {"layout_id": layout_id, "position_key": position_key},
-    )
     if existing is not None:
         await db[SLOTS_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
         return str(existing["_id"])
