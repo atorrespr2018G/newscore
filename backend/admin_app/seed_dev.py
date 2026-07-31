@@ -353,6 +353,8 @@ US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "National parks set new visitor capacity rules",
         "Cruise industry unveils carbon-reduction targets",
     ],
+    # Sports hero + Top Stories each need 12 articles for the full 3-column layout
+    # (right rail uses pinned indices 10–11 / 8–11).
     "sports": [
         "Championship race goes to final lap thriller",
         "Star player signs record-breaking extension",
@@ -360,6 +362,12 @@ US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Underdog club advances after penalty shootout classic",
         "League expands replay review after controversial finish",
         "National team coach names roster for summer tournament",
+        "College basketball tip-off brings rivalry series back to primetime",
+        "Soccer federation opens new national development academy",
+        "Track and field trials set wind-aid standards for outdoor meets",
+        "Golf majors trial slower-play penalties across early rounds",
+        "Boxing sanctioning bodies align title-fight purse rules",
+        "Pro volleyball league expands to coastal market franchises",
     ],
 }
 
@@ -523,6 +531,7 @@ CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Parques nacionales ajustan cupos de visitantes",
         "Industria de cruceros fija metas de reducción de carbono",
     ],
+    # Sports hero + Top Stories each need 12 articles for the full 3-column layout.
     "sports": [
         "Final de campeonato se define en última vuelta",
         "Estrella del deporte firma extensión récord",
@@ -530,6 +539,12 @@ CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Club sorpresa avanza tras tanda de penales histórica",
         "Liga amplía revisión por video tras polémico final",
         "Selección nacional anuncia convocatoria para torneo de verano",
+        "Baloncesto universitario revive rivalidad en horario estelar",
+        "Federación de fútbol abre academia nacional de desarrollo",
+        "Atletismo fija estándares de viento para pruebas al aire libre",
+        "Grandes de golf prueban sanciones por juego lento",
+        "Organismos de boxeo alinean reglas de bolsa en peleas de título",
+        "Liga de voleibol profesional se expande a franquicias costeras",
     ],
 }
 

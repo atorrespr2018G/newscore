@@ -332,6 +332,30 @@ async def test_article_ids_for_slot_uses_draft_pins_for_editor() -> None:
 
 
 @pytest.mark.asyncio
+async def test_query_rule_articles_merges_sparse_region_then_market_fallback() -> None:
+    """Region hits below the limit continue into the market fallback query."""
+
+    from shared.read.site_reads import _query_rule_articles
+
+    region_batch = [_make_article("r1")]
+    market_batch = [_make_article("m1"), _make_article("m2")]
+
+    with patch(
+        "shared.read.site_reads._load_articles_for_scope_query",
+        AsyncMock(side_effect=[region_batch, market_batch]),
+    ) as load_mock:
+        resolved = await _query_rule_articles(
+            MagicMock(),
+            query_rule={"limit": 3, "category_id": "sports"},
+            base_queries=[{"scope": "region"}, {"scope": "market"}],
+            loader=MagicMock(),
+        )
+
+    assert [article.id for article in resolved] == ["r1", "m1", "m2"]
+    assert load_mock.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_site_slot_resolution_pin_only_skips_uncategorized_fill() -> None:
     """Slots without category_id stay pin-only and do not auto-fill market news."""
 

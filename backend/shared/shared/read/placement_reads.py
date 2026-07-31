@@ -110,18 +110,30 @@ async def _article_ids_for_query_rule(
     if category_id is not None:
         category_id = str(category_id)
 
+    # Region scope first, then market fallback — keep merging until the limit.
+    merged: list[str] = []
+    seen_ids = set(excluded_ids or set())
     for base_query in base_queries:
+        remaining = query_limit - len(merged)
+        if remaining <= 0:
+            break
         query = article_query_with_category(
             base_query,
             category_id=category_id,
-            excluded_ids=excluded_ids,
+            excluded_ids=seen_ids,
         )
-        cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
+        cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(remaining)
         docs = [doc async for doc in cursor]
-        if docs:
-            return [str(doc["_id"]) for doc in docs]
+        for doc in docs:
+            article_id = str(doc["_id"])
+            if article_id in seen_ids:
+                continue
+            seen_ids.add(article_id)
+            merged.append(article_id)
+            if len(merged) >= query_limit:
+                break
 
-    return []
+    return merged[:query_limit]
 
 
 async def _article_ids_for_slot(

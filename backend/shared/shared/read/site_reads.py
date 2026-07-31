@@ -90,7 +90,7 @@ def _article_scope_queries(
     town: str | None = None,
     region_scope_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return ordered scope queries with a market fallback for empty regions."""
+    """Return ordered scope queries with a market fallback for sparse/empty regions."""
 
     market_query = _article_scope_query(market_id, town=town, region_scope_ids=None)
     if geo_read_from_regions() and region_scope_ids:
@@ -262,6 +262,35 @@ async def _resolve_slot_articles_preview(
     )
 
 
+async def _load_articles_for_scope_query(
+    db: AsyncIOMotorDatabase,
+    *,
+    base_query: dict[str, Any],
+    category_id: str | None,
+    excluded_ids: set[str],
+    limit: int,
+    loader: AuthorNameLoader,
+) -> list[ArticleOut]:
+    """Load up to ``limit`` published articles for one scope filter."""
+
+    if limit <= 0:
+        return []
+    query = article_query_with_category(
+        base_query,
+        category_id=category_id,
+        excluded_ids=excluded_ids,
+    )
+    cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(limit)
+    docs = [doc async for doc in cursor]
+    if not docs:
+        return []
+    await loader.load_many([str(doc["author_id"]) for doc in docs])
+    return [
+        article_out(doc, author_name=await loader.load(str(doc["author_id"])))
+        for doc in docs
+    ]
+
+
 async def _query_rule_articles(
     db: AsyncIOMotorDatabase,
     *,
@@ -271,27 +300,37 @@ async def _query_rule_articles(
     limit: int | None = None,
     excluded_ids: set[str] | None = None,
 ) -> list[ArticleOut]:
-    """Resolve slot articles from a query-rule specification."""
+    """Resolve slot articles from a query-rule specification.
+
+    Walks ``base_queries`` in order (region scope, then market fallback) and
+    merges results until ``limit`` is reached so sparse regions still fill.
+    """
 
     query_limit = limit if limit is not None else _query_rule_limit(query_rule)
     category_id = query_rule.get("category_id")
     if category_id is not None:
         category_id = str(category_id)
 
+    merged: list[ArticleOut] = []
+    seen_ids = set(excluded_ids or set())
     for base_query in base_queries:
-        query = article_query_with_category(
-            base_query,
+        remaining = query_limit - len(merged)
+        batch = await _load_articles_for_scope_query(
+            db,
+            base_query=base_query,
             category_id=category_id,
-            excluded_ids=excluded_ids,
+            excluded_ids=seen_ids,
+            limit=remaining,
+            loader=loader,
         )
-        cursor = db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(query_limit)
-        docs = [doc async for doc in cursor]
-        if not docs:
-            continue
-        await loader.load_many([str(doc["author_id"]) for doc in docs])
-        return [article_out(doc, author_name=await loader.load(str(doc["author_id"]))) for doc in docs]
-
-    return []
+        for article in batch:
+            if article.id in seen_ids:
+                continue
+            seen_ids.add(article.id)
+            merged.append(article)
+            if len(merged) >= query_limit:
+                break
+    return merged[:query_limit]
 
 
 def _slot_to_feed_slot(slot: dict[str, Any], articles: list[ArticleOut]) -> dict[str, Any]:
