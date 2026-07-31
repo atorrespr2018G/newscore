@@ -9,14 +9,18 @@ import {
   type ISportsPageSectionItem,
   type SportsPageSectionType,
 } from '@/lib/api/layout-client'
-import { EDITOR_MARKET_OPTIONS } from '@/lib/editor/editor-scope'
+import { EDITOR_MARKET_OPTIONS, type IEditorScope } from '@/lib/editor/editor-scope'
 import {
   FLORIDA_COUNTY_OPTIONS,
   FLORIDA_STATE_CODE,
 } from '@/lib/florida-counties'
+import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
 import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
 import { toRegionCode } from '@/lib/region-code'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
+
+/** Placement / sports boards share this page name when syncing slots. */
+const SPORTS_EDITOR_PAGE_NAME = 'sports'
 
 const SELECT_CLASS =
   'mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm capitalize'
@@ -70,28 +74,43 @@ function toEditableRows(items: ISportsPageSectionItem[]): IEditableSectionRow[] 
 }
 
 /**
- * Region code for sports section scope (state, county, town, or market-level).
+ * Region code for sports section scope (country, state, county, or town).
+ *
+ * Must match Placement's `editorScopeRegionCode`: USA with no state is `us`,
+ * not a market-level null board that Placement never reads.
  *
  * @param marketCode Selected market code.
  * @param localityId US state or PR town short code.
  * @param countyId Optional Florida county slug.
- * @returns Region code such as `us-fl` or `pr-san-juan`, or null for market lists.
+ * @returns Region code such as `us`, `us-fl`, or `pr-san-juan`.
  */
 function sportsSectionsRegionCode(
   marketCode: string,
   localityId: string | null,
   countyId: string | null,
-): string | null {
-  if (marketCode === US_MARKET_CODE) {
-    if (!localityId) {
-      return null
-    }
-    return toRegionCode(marketCode, localityId, countyId)
+): string {
+  return toRegionCode(marketCode, localityId, countyId)
+}
+
+/**
+ * Build the editor scope used to invalidate Placement after a sports save.
+ *
+ * @param marketCode Active market code.
+ * @param localityId US state or PR town short code.
+ * @param countyId Optional Florida county slug.
+ * @returns Scope matching the sports board that was just written.
+ */
+function sportsEditorScope(
+  marketCode: string,
+  localityId: string | null,
+  countyId: string | null,
+): IEditorScope {
+  return {
+    marketCode,
+    townId: localityId,
+    countyId,
+    pageName: SPORTS_EDITOR_PAGE_NAME,
   }
-  if (marketCode === PUERTO_RICO_MARKET_CODE && localityId) {
-    return toRegionCode(marketCode, localityId, null)
-  }
-  return null
 }
 
 /**
@@ -158,6 +177,7 @@ export function SportsSectionsEditor(): JSX.Element {
     try {
       const data = await putSportsPageSections(marketCode, items, regionCode)
       setRows(toEditableRows(data.items))
+      notifyEditorialPreviewStale(sportsEditorScope(marketCode, localityId, countyId))
       pushToast(t('sportsPage.saveSuccess'), 'success')
     } catch (error) {
       const message = error instanceof Error ? error.message : t('sportsPage.saveFailed')

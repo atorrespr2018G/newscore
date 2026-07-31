@@ -73,28 +73,22 @@ function toEditableRows(items: IMainPageSectionItem[]): IEditableSectionRow[] {
 }
 
 /**
- * Region code for main-page section scope (state, county, town, or market-level).
+ * Region code for main-page section scope (country, state, county, or town).
+ *
+ * Must match Placement's `editorScopeRegionCode`: USA with no state is `us`,
+ * not a market-level null board that Placement never reads.
  *
  * @param marketCode Selected market code.
  * @param localityId US state or PR town short code.
  * @param countyId Optional Florida county slug.
- * @returns Region code such as `us-fl` or `pr-san-juan`, or null for market lists.
+ * @returns Region code such as `us`, `us-fl`, or `pr-san-juan`.
  */
 function mainPageSectionsRegionCode(
   marketCode: string,
   localityId: string | null,
   countyId: string | null,
-): string | null {
-  if (marketCode === US_MARKET_CODE) {
-    if (!localityId) {
-      return null
-    }
-    return toRegionCode(marketCode, localityId, countyId)
-  }
-  if (marketCode === PUERTO_RICO_MARKET_CODE && localityId) {
-    return toRegionCode(marketCode, localityId, null)
-  }
-  return null
+): string {
+  return toRegionCode(marketCode, localityId, countyId)
 }
 
 /**
