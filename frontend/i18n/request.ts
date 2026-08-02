@@ -3,7 +3,7 @@ import { getRequestConfig } from 'next-intl/server'
 import { resolveLocale } from '@/lib/i18n/locale-resolution'
 import { EDITORIAL_TIME_ZONE } from '@/lib/i18n/time-zone'
 
-const NAMESPACES = ['common', 'navigation', 'home', 'auth', 'admin'] as const
+const NAMESPACES = ['common', 'navigation', 'home', 'auth', 'admin', 'ads'] as const
 
 export default getRequestConfig(async ({ requestLocale }) => {
   const locale = await resolveLocale(await requestLocale)

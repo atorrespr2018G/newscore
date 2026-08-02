@@ -1,0 +1,29 @@
+{
+  "loading": "Cargando publicidad",
+  "creatives": {
+    "sponsoredBriefing": {
+      "title": "Informe patrocinado",
+      "subtitle": "Espacio premium para marcas que quieren estar junto a las noticias más importantes del día."
+    },
+    "brandSpotlight": {
+      "title": "Marca destacada",
+      "subtitle": "Un espacio alto y visible diseñado para campañas visuales y patrocinios editoriales."
+    },
+    "newswirePartner": {
+      "title": "Socio de agencia",
+      "subtitle": "Llegue a los lectores mientras avanzan por coberturas extensas y reportajes especiales."
+    },
+    "fullWidthCampaign": {
+      "title": "Campaña a ancho completo",
+      "subtitle": "Visibilidad en toda la página para lanzamientos, eventos e historias de marca de temporada."
+    },
+    "crossScreen": {
+      "title": "Unidad multiplataforma",
+      "subtitle": "Mantenga su mensaje visible mientras los lectores pasan de la portada a las coberturas extensas."
+    },
+    "editorialPartner": {
+      "title": "Socio editorial",
+      "subtitle": "Un mensaje patrocinado pensado para colaboraciones de redacción y tomas de sección."
+    }
+  }
+}

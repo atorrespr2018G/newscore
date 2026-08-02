@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import dynamic from 'next/dynamic'
+import { AdProvider } from '@/context/ad-provider'
 import { Footer } from '@/components/ui/footer'
 
 const Masthead = dynamic(() => import('@/components/ui/masthead').then((mod) => mod.Masthead), {
@@ -20,11 +21,11 @@ interface ISiteLayoutProps {
  */
 export default function SiteLayout({ children }: ISiteLayoutProps): JSX.Element {
   return (
-    <>
+    <AdProvider>
       <Masthead />
       <BreakingTicker />
       {children}
       <Footer />
-    </>
+    </AdProvider>
   )
 }

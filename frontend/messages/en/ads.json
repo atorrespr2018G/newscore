@@ -1,0 +1,29 @@
+{
+  "loading": "Loading advertisement",
+  "creatives": {
+    "sponsoredBriefing": {
+      "title": "Sponsored briefing",
+      "subtitle": "Premium placement for brands that want to sit beside the day's biggest stories."
+    },
+    "brandSpotlight": {
+      "title": "Brand spotlight",
+      "subtitle": "A tall, high-visibility slot designed for image-led campaigns and newsroom sponsorships."
+    },
+    "newswirePartner": {
+      "title": "Newswire partner",
+      "subtitle": "Reach readers while they move deeper through long-form coverage and feature reporting."
+    },
+    "fullWidthCampaign": {
+      "title": "Full-width campaign",
+      "subtitle": "Cross-page awareness for launches, events, and seasonal brand storytelling."
+    },
+    "crossScreen": {
+      "title": "Cross-screen unit",
+      "subtitle": "Keep your message visible as readers move from homepage rails into long-form coverage."
+    },
+    "editorialPartner": {
+      "title": "Editorial partner",
+      "subtitle": "A sponsored message built for newsroom collaborations and category takeovers."
+    }
+  }
+}
