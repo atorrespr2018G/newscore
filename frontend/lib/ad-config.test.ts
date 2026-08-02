@@ -1,5 +1,7 @@
 import {
+  ADS_MODE_ENV_KEY,
   AD_SLOT_REGISTRY,
+  getAdsMode,
   getSlotVariant,
   parseAdsMode,
   shouldServeMockAds,
@@ -16,6 +18,23 @@ describe('parseAdsMode', () => {
     expect(parseAdsMode('mock')).toBe('mock')
     expect(parseAdsMode('OFF')).toBe('off')
     expect(parseAdsMode(' Gam ')).toBe('gam')
+  })
+})
+
+describe('getAdsMode', () => {
+  const original = process.env[ADS_MODE_ENV_KEY]
+
+  afterEach(() => {
+    if (original === undefined) {
+      delete process.env[ADS_MODE_ENV_KEY]
+      return
+    }
+    process.env[ADS_MODE_ENV_KEY] = original
+  })
+
+  it('reads NEXT_PUBLIC_ADS_MODE from the environment', () => {
+    process.env[ADS_MODE_ENV_KEY] = 'off'
+    expect(getAdsMode()).toBe('off')
   })
 })
 

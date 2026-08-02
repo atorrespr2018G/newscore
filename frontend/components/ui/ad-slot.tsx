@@ -11,14 +11,13 @@ import {
   type AdSlotKey,
   type AdSlotVariant,
 } from '@/lib/ad-config'
+import { resolveMockDeliveryState, type AdSlotRenderState } from '@/lib/ad-slot-state'
 import {
   MOCK_AD_LATENCY_MS,
   selectMockCreative,
   type IMockCreativeDefinition,
   type MockCreativeId,
 } from '@/lib/mock-ads'
-
-type AdSlotRenderState = 'loading' | 'filled' | 'empty'
 
 interface IAdSlotProps {
   slotKey: AdSlotKey
@@ -57,16 +56,18 @@ export function AdSlot({ slotKey, index = 0, variant, className }: IAdSlotProps)
  * @returns Current render state for the slot.
  */
 function useMockAdState(serveMock: boolean): AdSlotRenderState {
-  const [renderState, setRenderState] = useState<AdSlotRenderState>(serveMock ? 'loading' : 'empty')
+  const mode = serveMock ? 'mock' : 'off'
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const renderState = resolveMockDeliveryState({ mode, elapsedMs })
 
   useEffect(() => {
     if (!serveMock) {
-      setRenderState('empty')
+      setElapsedMs(0)
       return
     }
 
-    setRenderState('loading')
-    const timer = window.setTimeout(() => setRenderState('filled'), MOCK_AD_LATENCY_MS)
+    setElapsedMs(0)
+    const timer = window.setTimeout(() => setElapsedMs(MOCK_AD_LATENCY_MS), MOCK_AD_LATENCY_MS)
     return () => window.clearTimeout(timer)
   }, [serveMock])
 

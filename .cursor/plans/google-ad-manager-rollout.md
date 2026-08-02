@@ -102,11 +102,22 @@ Keep helpers such as [`frontend/lib/helpers/homepage-ad-placement.ts`](frontend/
 
 ## Phase 3 — Validate mock delivery
 
-- Confirm every public placeholder fills with a mock creative after the simulated delay.
-- Confirm mode `off` restores empty labeled placeholders.
-- Confirm `/admin/*` never mounts `AdProvider` or shows mock creatives in the masthead.
-- Confirm layout stability (reserved heights) on homepage, section, and article routes.
-- Unit-test mode parsing, creative selection, and slot registry helpers with Vitest.
+**Status: complete**
+
+Automated coverage added:
+- [`frontend/lib/ad-slot-state.ts`](frontend/lib/ad-slot-state.ts) + tests for loading → filled / empty by mode
+- Expanded [`frontend/lib/ad-config.test.ts`](frontend/lib/ad-config.test.ts) and [`frontend/lib/mock-ads.test.ts`](frontend/lib/mock-ads.test.ts)
+- [`frontend/lib/helpers/homepage-ad-placement.test.ts`](frontend/lib/helpers/homepage-ad-placement.test.ts)
+- [`frontend/lib/ad-inventory-coverage.test.ts`](frontend/lib/ad-inventory-coverage.test.ts) — every registry key is consumed; variants reserve `min-h`
+- [`frontend/lib/ad-admin-isolation.test.ts`](frontend/lib/ad-admin-isolation.test.ts) — site-only `AdProvider`, admin `showAdRibbon={false}`, no GPT deps
+
+Browser checks (local `localhost:3000`, mode `mock`):
+- Homepage: 18 filled mock creatives with reserved heights (140 / 120 / 180 / 192 / 280)
+- World: 8 filled creatives (140 / 250 / 192)
+- Article: masthead + rail + in-content filled (140 / 320 / 192)
+- `/admin`: 0 ad creatives; masthead ribbon absent
+
+Mode `off` empty-placeholder behavior is covered by unit tests (`resolveMockDeliveryState` / `shouldServeMockAds`).
 
 ## Phase 4 — Real GAM foundation (later; no account activation now)
 

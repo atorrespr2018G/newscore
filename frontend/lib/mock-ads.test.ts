@@ -1,4 +1,26 @@
-import { MOCK_CREATIVE_CATALOG, selectMockCreative } from '@/lib/mock-ads'
+import {
+  hashAdPlacement,
+  MOCK_AD_LATENCY_MS,
+  MOCK_CREATIVE_CATALOG,
+  selectMockCreative,
+} from '@/lib/mock-ads'
+
+describe('mock ad latency', () => {
+  it('uses a short simulated network delay', () => {
+    expect(MOCK_AD_LATENCY_MS).toBeGreaterThanOrEqual(250)
+    expect(MOCK_AD_LATENCY_MS).toBeLessThanOrEqual(400)
+  })
+})
+
+describe('hashAdPlacement', () => {
+  it('is stable for the same placement', () => {
+    expect(hashAdPlacement('article-rail', 1)).toBe(hashAdPlacement('article-rail', 1))
+  })
+
+  it('changes when the index changes', () => {
+    expect(hashAdPlacement('article-rail', 0)).not.toBe(hashAdPlacement('article-rail', 1))
+  })
+})
 
 describe('selectMockCreative', () => {
   it('returns a catalog entry for a slot placement', () => {
