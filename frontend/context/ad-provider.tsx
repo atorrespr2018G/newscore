@@ -27,15 +27,10 @@ export function AdProvider({ children, mode }: IAdProviderProps): JSX.Element {
 
 /**
  * Read the active ads mode from the nearest AdProvider.
+ * Outside a provider (e.g. admin preview), ads stay off.
  *
  * @returns Ads context value.
- * @throws Error when used outside AdProvider.
  */
 export function useAds(): IAdContextValue {
-  const context = useContext(AdContext)
-  if (!context) {
-    throw new Error('useAds must be used within AdProvider')
-  }
-
-  return context
+  return useContext(AdContext) ?? { mode: 'off' }
 }

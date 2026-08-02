@@ -12,6 +12,7 @@ import { sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
 import { splitUsFeaturedArticles } from '@/lib/helpers/feed-layout'
 import { belowMediaTextClass } from '@/lib/helpers/text-helpers'
+import { AdSlot } from '@/components/ui/ad-slot'
 
 interface IHomepageUsBandProps {
   slot: IFeedSlot
@@ -131,18 +132,11 @@ function UsPictureNewsScreen({ article }: { article: IArticle }): JSX.Element {
   )
 }
 
+/** US featured-band square ad unit. */
 function UsBandAdScreen(): JSX.Element {
-  const t = useTranslations('common')
-
   return (
-    <div
-      className="overflow-hidden border border-neutral-200 bg-neutral-100"
-      role="img"
-      aria-label={t('advertisement')}
-    >
-      <div className="relative flex aspect-[4/3] w-full items-center justify-center px-4">
-        <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">{t('advertisement').toUpperCase()}</span>
-      </div>
+    <div className="overflow-hidden border border-neutral-200">
+      <AdSlot slotKey="homepage-us-band" className="rounded-none border-0" />
     </div>
   )
 }

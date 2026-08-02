@@ -23,6 +23,7 @@ import {
 import type { IEditorialBandSlots, HomepagePageSlotKind } from '@/lib/helpers/feed-layout'
 import { shouldRenderHomepageGridAd } from '@/lib/helpers/homepage-ad-placement'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
+import { AdSlot } from '@/components/ui/ad-slot'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { EmptyState, ErrorState, LoadingState, SectionSkeleton } from '@/components/ui/feed-state'
 import type { IFeedSlot, IHomepageFeed } from '@/interfaces/feed'
@@ -66,18 +67,32 @@ function RightPromo(): JSX.Element {
   )
 }
 
-function AdRibbon(): JSX.Element {
+/**
+ * Homepage section ribbon backed by the shared AdSlot mock/GAM unit.
+ *
+ * @param props.index - Occurrence index for creative variety.
+ */
+function AdRibbon({ index = 0 }: { index?: number }): JSX.Element {
   const t = useTranslations('common')
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
-      <div
-        className="flex min-h-[192px] items-center justify-center rounded border border-dashed border-neutral-300 bg-neutral-100 px-4"
-        role="img"
-        aria-label={t('advertisement')}
-      >
-        <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">{t('advertisement').toUpperCase()}</span>
-      </div>
+      <AdSlot slotKey="homepage-section-ribbon" index={index} />
+    </section>
+  )
+}
+
+/**
+ * Post-hero homepage ribbon.
+ *
+ * @param props.index - Occurrence index for creative variety.
+ */
+function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element {
+  const t = useTranslations('common')
+
+  return (
+    <section aria-label={t('advertisement')} className="py-4">
+      <AdSlot slotKey="homepage-hero-after" index={index} />
     </section>
   )
 }
@@ -326,9 +341,11 @@ function takePoliticsSportsPair(
 function PoliticsSportsSection({
   politicsSlot,
   sportsSlot,
+  adIndex,
 }: {
   politicsSlot: IFeedSlot | undefined
   sportsSlot: IFeedSlot | undefined
+  adIndex: number
 }): JSX.Element | null {
   if (!politicsSlot && !sportsSlot) {
     return null
@@ -337,7 +354,7 @@ function PoliticsSportsSection({
     <div className="space-y-2">
       {politicsSlot ? (
         <>
-          <AdRibbon />
+          <AdRibbon index={adIndex} />
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageSection slot={politicsSlot} />
           </Suspense>
@@ -406,6 +423,7 @@ function MainPageOrderedSections({
   const orderedSlots = repairLegacyHomepageSlotOrder(slots)
   const blocks: JSX.Element[] = []
   let index = 0
+  let adIndex = 0
   let previousSlot: IFeedSlot | null = null
   let previousKind: HomepagePageSlotKind | null = null
 
@@ -413,9 +431,10 @@ function MainPageOrderedSections({
     const remaining = orderedSlots.slice(index)
     const bandTaken = takeEditorialBand(remaining)
     if (bandTaken) {
+      const bandAdIndex = previousKind !== null ? adIndex++ : null
       blocks.push(
         <div key={`${bandTaken.band.lead.id}-band`} className="space-y-2">
-          {previousKind !== null ? <AdRibbon /> : null}
+          {bandAdIndex !== null ? <AdRibbon index={bandAdIndex} /> : null}
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageEditorialBand
               moreTopStoriesSlot={bandTaken.band.lead}
@@ -434,11 +453,16 @@ function MainPageOrderedSections({
 
     const pairTaken = takePoliticsSportsPair(remaining)
     if (pairTaken) {
+      const pairAdIndex = adIndex
+      if (pairTaken.politics) {
+        adIndex += 1
+      }
       blocks.push(
         <PoliticsSportsSection
           key={`${pairTaken.politics.id}-politics-sports`}
           politicsSlot={pairTaken.politics}
           sportsSlot={pairTaken.sports}
+          adIndex={pairAdIndex}
         />,
       )
       previousSlot = pairTaken.sports ?? pairTaken.politics
@@ -451,11 +475,13 @@ function MainPageOrderedSections({
     const kind = resolveHomepagePageSlotKind(slot)
     const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
     const showAdBefore = shouldInsertHomepageAdBefore(slot, kind, previousSlot, previousKind)
+    const beforeAdIndex = showAdBefore ? adIndex++ : null
+    const heroAdIndex = kind === 'hero' ? adIndex++ : null
     blocks.push(
       <div key={slot.id} className="space-y-2">
-        {showAdBefore ? <AdRibbon /> : null}
+        {beforeAdIndex !== null ? <AdRibbon index={beforeAdIndex} /> : null}
         <HomepagePageSlotBlock slot={slot} kind={kind} title={title} />
-        {kind === 'hero' ? <AdRibbon /> : null}
+        {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} /> : null}
       </div>,
     )
     previousSlot = slot
@@ -550,17 +576,20 @@ function SportsPageSections({
 }): JSX.Element {
   const blocks: JSX.Element[] = []
   let compactIndex = 0
+  let adIndex = 0
   let previousKind: ReturnType<typeof resolveSportsPageSlotKind> | null = null
 
   for (const slot of slots) {
     const kind = resolveSportsPageSlotKind(slot)
     const showAdBefore = shouldInsertSportsAdBefore(kind, previousKind, compactIndex)
     const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
+    const beforeAdIndex = showAdBefore ? adIndex++ : null
+    const heroAdIndex = kind === 'hero' ? adIndex++ : null
     blocks.push(
       <div key={slot.id} className="space-y-2">
-        {showAdBefore ? <AdRibbon /> : null}
+        {beforeAdIndex !== null ? <AdRibbon index={beforeAdIndex} /> : null}
         <SportsPageSlotBlock slot={slot} kind={kind} title={title} />
-        {kind === 'hero' ? <AdRibbon /> : null}
+        {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} /> : null}
       </div>,
     )
     if (kind === 'compact_six') {

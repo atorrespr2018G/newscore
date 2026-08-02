@@ -3,10 +3,8 @@
 import { useFormatter, useTranslations } from 'next-intl'
 import type { IArticleDetail } from '@/interfaces/article'
 import { ArticleGallery } from '@/components/ui/article-gallery'
+import { AdSlot } from '@/components/ui/ad-slot'
 import { articleBodyHtmlChunks } from '@/lib/helpers/article-body-html'
-
-/** Number of distinct ad creatives cycled through the article rail/ribbon. */
-const AD_VARIANT_COUNT = 3
 
 /**
  * Resolve the article headline, falling back to a localized placeholder.
@@ -127,73 +125,16 @@ function ArticleTextColumn({ article, html, showLeadMedia = false }: IArticleTex
 }
 
 /**
- * Pick the rail ad creative for a given body-chunk index.
- *
- * @param index - Zero-based body-chunk index.
- * @returns The localized title and subtitle for the rail ad.
- */
-function useArticleAds(index: number): { title: string; subtitle: string } {
-  const t = useTranslations('home')
-  const ads = [
-    {
-      title: t('articleAds.sponsoredBriefing.title'),
-      subtitle: t('articleAds.sponsoredBriefing.subtitle'),
-    },
-    {
-      title: t('articleAds.brandSpotlight.title'),
-      subtitle: t('articleAds.brandSpotlight.subtitle'),
-    },
-    {
-      title: t('articleAds.newswirePartner.title'),
-      subtitle: t('articleAds.newswirePartner.subtitle'),
-    },
-  ]
-
-  return ads[index % AD_VARIANT_COUNT]
-}
-
-/**
- * Pick the ribbon ad message for a given body-chunk index.
- *
- * @param index - Zero-based body-chunk index.
- * @returns The localized ribbon message.
- */
-function useRibbonMessage(index: number): string {
-  const t = useTranslations('home')
-  const messages = [
-    t('articleAds.ribbonMessages.fullWidth'),
-    t('articleAds.ribbonMessages.crossScreen'),
-    t('articleAds.ribbonMessages.editorialPartner'),
-  ]
-
-  return messages[index % AD_VARIANT_COUNT]
-}
-
-/**
  * Render the sticky sidebar rail advertisement.
  *
  * @param props - The body-chunk index used to vary the creative.
  * @returns The rail ad aside.
  */
 function ArticleRailAd({ index }: { index: number }): JSX.Element {
-  const t = useTranslations('common')
-  const ad = useArticleAds(index)
-
   return (
     <aside className="lg:col-span-1">
-      <div className="space-y-4 lg:sticky lg:top-24">
-        <div className="rounded border border-neutral-200 bg-neutral-950 p-5 text-white">
-          <p className="text-[11px] font-black tracking-[0.28em] text-white/70">{t('advertisement').toUpperCase()}</p>
-          <h2 className="mt-3 text-2xl font-black leading-tight">{ad.title}</h2>
-          <p className="mt-2 text-sm leading-6 text-white/80">{ad.subtitle}</p>
-        </div>
-        <div
-          className="flex min-h-[320px] items-center justify-center rounded border border-dashed border-neutral-300 bg-neutral-100 px-4"
-          role="img"
-          aria-label={t('advertisement')}
-        >
-          <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">{t('advertisement').toUpperCase()}</span>
-        </div>
+      <div className="lg:sticky lg:top-24">
+        <AdSlot slotKey="article-rail" index={index} className="min-h-[320px]" />
       </div>
     </aside>
   )
@@ -202,25 +143,15 @@ function ArticleRailAd({ index }: { index: number }): JSX.Element {
 /**
  * Render the full-width ribbon advertisement between body chunks.
  *
- * @param props - The body-chunk index used to vary the message.
+ * @param props - The body-chunk index used to vary the creative.
  * @returns The ribbon ad section.
  */
 function ArticleAdRibbon({ index }: { index: number }): JSX.Element {
   const t = useTranslations('common')
-  const message = useRibbonMessage(index)
 
   return (
     <section aria-label={t('advertisement')} className="border-b border-neutral-200 py-4">
-      <div
-        className="flex min-h-[192px] items-center justify-center rounded border border-dashed border-neutral-300 bg-neutral-100 px-4"
-        role="img"
-        aria-label={t('advertisement')}
-      >
-        <div className="text-center">
-          <p className="text-[11px] font-black tracking-[0.28em] text-neutral-500">{t('advertisement').toUpperCase()}</p>
-          <p className="mt-3 text-sm font-semibold text-neutral-700">{message}</p>
-        </div>
-      </div>
+      <AdSlot slotKey="article-in-content" index={index} />
     </section>
   )
 }

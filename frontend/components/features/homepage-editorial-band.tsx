@@ -17,6 +17,7 @@ import {
 } from '@/lib/helpers/feed-layout'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
+import { AdSlot } from '@/components/ui/ad-slot'
 
 export const MORE_TOP_STORIES_KEY = 'more-top-stories'
 
@@ -303,8 +304,8 @@ function RightRailTop({
 
   return (
     <div className={hasTitle ? 'mt-4 space-y-4' : 'space-y-4'}>
-      <AdUnit />
-      <AdUnit tall />
+      <AdSlot slotKey="homepage-editorial-band" index={0} className="!min-h-[120px]" />
+      <AdSlot slotKey="homepage-editorial-band" index={1} variant="tall" />
     </div>
   )
 }
@@ -353,17 +354,3 @@ function TodayFeaturedNewsScreen({ article }: { article: IArticle }): JSX.Elemen
   )
 }
 
-function AdUnit({ tall = false }: { tall?: boolean }): JSX.Element {
-  const t = useTranslations('common')
-
-  return (
-    <div
-      className={[
-        'rounded border border-neutral-200 bg-neutral-100',
-        tall ? 'min-h-[280px]' : 'min-h-[120px]',
-      ].join(' ')}
-      role="img"
-      aria-label={t('advertisement')}
-    />
-  )
-}

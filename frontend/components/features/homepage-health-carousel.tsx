@@ -11,6 +11,7 @@ import { useSectionLabels } from '@/hooks/use-section-labels'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
 import { toRegionCode } from '@/lib/region-code'
 import { useTranslations } from 'next-intl'
+import { AdSlot } from '@/components/ui/ad-slot'
 
 interface IHealthCarouselSectionProps {
   slot: IFeedSlot
@@ -185,18 +186,14 @@ interface ICarouselNavButtonProps {
   onClick: () => void
 }
 
+/** Carousel-track ad card sized to match neighboring video thumbs. */
 function HealthCarouselAdScreen(): JSX.Element {
-  const t = useTranslations('common')
-
   return (
-    <div
-      className="my-4 ml-1 w-[min(72vw,220px)] shrink-0 border border-neutral-600 bg-neutral-800 sm:w-[200px] lg:my-4 lg:w-[calc(25%-12px)] lg:min-w-[180px]"
-      role="img"
-      aria-label={t('advertisement')}
-    >
-      <div className="relative flex aspect-video w-full items-center justify-center px-4">
-        <span className="text-[11px] font-black tracking-[0.28em] text-neutral-400">{t('advertisement').toUpperCase()}</span>
-      </div>
+    <div className="my-4 ml-1 w-[min(72vw,220px)] shrink-0 sm:w-[200px] lg:my-4 lg:w-[calc(25%-12px)] lg:min-w-[180px]">
+      <AdSlot
+        slotKey="homepage-health-carousel"
+        className="!aspect-video rounded-none border-neutral-600"
+      />
     </div>
   )
 }

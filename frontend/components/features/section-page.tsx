@@ -29,6 +29,7 @@ import {
   PRESENTATION_GRID_4,
   PRESENTATION_HERO,
 } from '@/lib/presentation-registry'
+import { AdSlot } from '@/components/ui/ad-slot'
 
 const HomepageEditorialBand = dynamic(
   () => import('@/components/features/homepage-editorial-band').then((m) => m.HomepageEditorialBand),
@@ -40,34 +41,28 @@ const HomepageSection = dynamic(
   { loading: () => <SectionSkeleton /> },
 )
 
-function AdRibbon(): JSX.Element {
+/**
+ * Section-page grid ribbon backed by AdSlot.
+ *
+ * @param props.index - Occurrence index for creative variety.
+ */
+function AdRibbon({ index = 0 }: { index?: number }): JSX.Element {
   const t = useTranslations('common')
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
-      <div
-        className="flex min-h-[192px] items-center justify-center rounded border border-dashed border-neutral-300 bg-neutral-100 px-4"
-        role="img"
-        aria-label={t('advertisement')}
-      >
-        <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">{t('advertisement').toUpperCase()}</span>
-      </div>
+      <AdSlot slotKey="section-grid-ribbon" index={index} />
     </section>
   )
 }
 
-function HeroRailAd(): JSX.Element {
-  const t = useTranslations('common')
-
-  return (
-    <div
-      className="flex min-h-[250px] items-center justify-center rounded border border-dashed border-neutral-300 bg-neutral-100 px-4"
-      role="img"
-      aria-label={t('advertisement')}
-    >
-      <span className="text-[11px] font-black tracking-[0.28em] text-neutral-500">{t('advertisement').toUpperCase()}</span>
-    </div>
-  )
+/**
+ * Hero right-rail ad unit for section pages.
+ *
+ * @param props.index - Occurrence index for creative variety.
+ */
+function HeroRailAd({ index = 0 }: { index?: number }): JSX.Element {
+  return <AdSlot slotKey="section-hero-rail" index={index} />
 }
 
 function HeroPictureNewsScreen({
@@ -330,9 +325,9 @@ function HeroRightColumn({
       <div className="space-y-4">
         {rightRailLeadAd ? (
           <>
-            <HeroRailAd />
-            <HeroRailAd />
-            <HeroRailAd />
+            <HeroRailAd index={0} />
+            <HeroRailAd index={1} />
+            <HeroRailAd index={2} />
           </>
         ) : null}
         {rightScreenNews.map((article) => (
@@ -507,6 +502,7 @@ export function SectionPage({
   const gridSlots = slots.filter(
     (slot) => slot.presentationType === PRESENTATION_GRID_4 && !usedSlotIds.has(slot.id),
   )
+  let adIndex = 0
 
   return (
     <div className="space-y-2">
@@ -534,11 +530,11 @@ export function SectionPage({
         layout={hero}
         plainStoryTitles={plainStoryTitles}
       />
-      <AdRibbon />
+      <AdRibbon index={adIndex++} />
 
       {editorialBands.map((band, bandIndex) => (
         <div key={`${band.lead.id}-${band.spotlight.id}-${band.rail?.id ?? 'no-rail'}`} className="space-y-2">
-          {bandIndex > 0 ? <AdRibbon /> : null}
+          {bandIndex > 0 ? <AdRibbon index={adIndex++} /> : null}
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageEditorialBand
               moreTopStoriesSlot={band.lead}
@@ -552,15 +548,19 @@ export function SectionPage({
         </div>
       ))}
 
-      {gridSlots.map((slot, index) => (
-        <div key={slot.id} className="space-y-2">
-          {shouldShowGridAdBefore(slot, gridSlots[index - 1]) ? <AdRibbon /> : null}
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageSection slot={slot} pageName={pageName} />
-          </Suspense>
-          {shouldShowGridAdAfter(slot) ? <AdRibbon /> : null}
-        </div>
-      ))}
+      {gridSlots.map((slot, index) => {
+        const beforeAdIndex = shouldShowGridAdBefore(slot, gridSlots[index - 1]) ? adIndex++ : null
+        const afterAdIndex = shouldShowGridAdAfter(slot) ? adIndex++ : null
+        return (
+          <div key={slot.id} className="space-y-2">
+            {beforeAdIndex !== null ? <AdRibbon index={beforeAdIndex} /> : null}
+            <Suspense fallback={<SectionSkeleton />}>
+              <HomepageSection slot={slot} pageName={pageName} />
+            </Suspense>
+            {afterAdIndex !== null ? <AdRibbon index={afterAdIndex} /> : null}
+          </div>
+        )
+      })}
     </div>
   )
 }

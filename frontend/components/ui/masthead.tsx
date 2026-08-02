@@ -22,6 +22,7 @@ import {
 } from '@/lib/helpers/section-labels'
 import { PRESENTATION_GRID_4 } from '@/lib/presentation-types'
 import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-band'
+import { AdSlot } from '@/components/ui/ad-slot'
 
 interface IMastheadProps {
   activeSection?: string
@@ -325,6 +326,9 @@ function MastheadMobileSectionNavigationFallback({
   )
 }
 
+/**
+ * Sticky masthead leaderboard slot; keeps a measured section for scroll locking.
+ */
 function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }): JSX.Element {
   const tCommon = useTranslations('common')
 
@@ -334,21 +338,8 @@ function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }):
       aria-label={tCommon('advertisement')}
       className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
     >
-      <div className="site-container flex items-center justify-between gap-12 py-8">
-        <div>
-          <p className="text-[2.5rem] font-black uppercase leading-none tracking-[0.28em] text-neutral-500">
-            {tCommon('advertisement')}
-          </p>
-          <p className="text-5xl font-semibold leading-tight text-neutral-700">
-            {tCommon('premiumPlacement')}
-          </p>
-        </div>
-        <Link
-          href="/"
-          className="shrink-0 rounded-sm border border-neutral-300 px-12 py-4 text-2xl font-bold uppercase tracking-[0.16em] text-neutral-900 hover:text-neutral-950"
-        >
-          {tCommon('learnMore')}
-        </Link>
+      <div className="site-container py-4">
+        <AdSlot slotKey="masthead-leaderboard" />
       </div>
     </section>
   )
