@@ -1,0 +1,50 @@
+"""API schemas for market and region World page section lists."""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+WorldPageSectionType = Literal[
+    "hero",
+    "top_stories",
+    "live",
+    "more_top_stories",
+    "spotlight",
+    "rail",
+    "category",
+]
+
+
+class WorldPageSectionItemIn(BaseModel):
+    """Incoming World-page section (label required; slug optional and derived when omitted)."""
+
+    section_type: WorldPageSectionType = "category"
+    label: str = Field(..., min_length=1, max_length=80)
+    slug: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+class WorldPageSectionItemOut(BaseModel):
+    """Resolved World-page section returned to clients."""
+
+    section_type: WorldPageSectionType
+    slug: str
+    label: str
+
+
+class WorldPageSectionsOut(BaseModel):
+    """World-page section list for one market or region scope."""
+
+    market_id: str
+    market_code: str
+    region_id: str | None = None
+    region_code: str | None = None
+    items: list[WorldPageSectionItemOut]
+    updated_at: str
+
+
+class WorldPageSectionsUpdate(BaseModel):
+    """Replace the ordered World-page section list for a market or region."""
+
+    items: list[WorldPageSectionItemIn]

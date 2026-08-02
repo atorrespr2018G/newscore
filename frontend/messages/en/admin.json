@@ -8,6 +8,7 @@
     "configuration": "Configuration",
     "sports": "Sports",
     "mainPage": "Main Page",
+    "world": "World",
     "preview": "Preview"
   },
   "reporter": {
@@ -398,5 +399,38 @@
     "saveSuccess": "Main Page list saved. Use Placement → homepage to pin stories, or tag articles with the new category.",
     "saveFailed": "Failed to save Main Page list.",
     "loadFailed": "Failed to load Main Page list."
+  },
+  "worldPage": {
+    "heading": "World sections",
+    "subtitle": "Manage the ordered list of World page sections (hero, USA/Canada, Europe, Latin America, Asia, and more) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → world.",
+    "listHint": "Add, remove, rename, or reorder any section. Saving updates Placement → world for the same market, state, county, or town. The public World page follows this order.",
+    "labelPlaceholder": "Section name",
+    "addType": {
+      "hero": "Add hero",
+      "top_stories": "Add Top Stories",
+      "live": "Add Live",
+      "more_top_stories": "Add Extra Stories",
+      "spotlight": "Add spotlight",
+      "rail": "Add rail",
+      "category": "Add category"
+    },
+    "types": {
+      "hero": "Hero",
+      "top_stories": "Top Stories",
+      "live": "Live",
+      "more_top_stories": "Extra Stories",
+      "spotlight": "Spotlight",
+      "rail": "Rail",
+      "category": "Category"
+    },
+    "remove": "Remove",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading World list…",
+    "saveSuccess": "World list saved. Use Placement → world to pin stories, or tag articles with the new category.",
+    "saveFailed": "Failed to save World list.",
+    "loadFailed": "Failed to load World list."
   }
 }

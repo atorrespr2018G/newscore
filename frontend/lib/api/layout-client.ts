@@ -413,3 +413,76 @@ export function putMainPageSections(
     },
   )
 }
+
+/** World page section template used for layout and Placement slots. */
+export type WorldPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'more_top_stories'
+  | 'spotlight'
+  | 'rail'
+  | 'category'
+
+/** One ordered section on the World page. */
+export interface IWorldPageSectionItem {
+  section_type: WorldPageSectionType
+  slug: string
+  label: string
+}
+
+/** World-page section list for a market or geo region. */
+export interface IWorldPageSectionsOut {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: IWorldPageSectionItem[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered World-page section list for a market or region.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-geo lists.
+ * @returns World-page section list payload.
+ */
+export function getWorldPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<IWorldPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IWorldPageSectionsOut>(
+    `${apiConfig.layout}/world-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered World-page section list and sync World layout slots.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered typed sections (label required; slug optional).
+ * @param regionCode Optional region code such as `us-fl` for per-geo lists.
+ * @returns Updated World-page section list payload.
+ */
+export function putWorldPageSections(
+  marketCode: string,
+  items: Array<{ section_type: WorldPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+): Promise<IWorldPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IWorldPageSectionsOut>(
+    `${apiConfig.layout}/world-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    },
+  )
+}

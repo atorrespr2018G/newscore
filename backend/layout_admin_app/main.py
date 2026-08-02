@@ -13,6 +13,7 @@ from layout_admin_app.routers.layouts import router as layouts_router
 from layout_admin_app.routers.homepage_page_sections import router as homepage_page_sections_router
 from layout_admin_app.routers.slots import router as slots_router
 from layout_admin_app.routers.sports_page_sections import router as sports_page_sections_router
+from layout_admin_app.routers.world_page_sections import router as world_page_sections_router
 from layout_admin_app.routers.utils import register_exception_handlers
 from layout_admin_app.routers.widgets import router as widgets_router
 from layout_admin_app.routers.workflow import router as workflow_router
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(slots_router)
     app.include_router(homepage_page_sections_router)
     app.include_router(sports_page_sections_router)
+    app.include_router(world_page_sections_router)
     app.include_router(widgets_router)
     app.include_router(workflow_router)
 
