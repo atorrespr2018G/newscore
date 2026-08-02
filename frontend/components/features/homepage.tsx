@@ -396,9 +396,12 @@ function HomepagePageSlotBlock({
 function MainPageOrderedSections({
   slots,
   sectionLabel,
+  pageName,
 }: {
   slots: IFeedSlot[]
   sectionLabel: (positionKey: string) => string
+  /** Layout page name for page-specific section labels (e.g. world). */
+  pageName?: string
 }): JSX.Element {
   const orderedSlots = repairLegacyHomepageSlotOrder(slots)
   const blocks: JSX.Element[] = []
@@ -418,6 +421,7 @@ function MainPageOrderedSections({
               moreTopStoriesSlot={bandTaken.band.lead}
               spotlightSlot={bandTaken.band.spotlight}
               rightRailSlot={bandTaken.band.rail}
+              pageName={pageName}
             />
           </Suspense>
         </div>,
@@ -581,7 +585,8 @@ interface IHomepageContentProps {
  * @returns Homepage content without data fetching.
  */
 export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.Element {
-  const { sectionLabel } = useSectionLabels()
+  const pageName = feed.pageName.trim().toLowerCase()
+  const { sectionLabel } = useSectionLabels(pageName)
   const slots = feed.slots ?? []
   if (slots.length === 0) {
     return (
@@ -592,7 +597,7 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
   }
 
   const useSportsSectionRows =
-    options?.useSportsSectionRows === true || feed.pageName.trim().toLowerCase() === SPORTS_PAGE_NAME
+    options?.useSportsSectionRows === true || pageName === SPORTS_PAGE_NAME
 
   if (useSportsSectionRows) {
     return (
@@ -604,7 +609,11 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
 
   return (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
-      <MainPageOrderedSections slots={slots} sectionLabel={sectionLabel} />
+      <MainPageOrderedSections
+        slots={slots}
+        sectionLabel={sectionLabel}
+        pageName={pageName}
+      />
     </div>
   )
 }

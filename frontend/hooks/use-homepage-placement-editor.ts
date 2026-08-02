@@ -99,7 +99,10 @@ export function useHomepagePlacementEditor(
     setHomepageSlots(slots)
   }, [scope])
 
-  const placementTargets = useMemo(() => buildPlacementTargets(homepageSlots), [homepageSlots])
+  const placementTargets = useMemo(
+    () => buildPlacementTargets(homepageSlots, scope.pageName),
+    [homepageSlots, scope.pageName],
+  )
   const hasUnpublishedPlacements = useMemo(
     () => layoutHasUnpublishedPlacementChanges(homepageSlots),
     [homepageSlots],
@@ -214,10 +217,11 @@ export function useHomepagePlacementEditor(
           articleTitleById,
           target,
           cascadeCount: cascadeSlotIds.length,
+          pageName: scope.pageName,
         }),
       )
     },
-    [articleTitleById, resolveDropCascadeSlotIds, runPlacementMutation, t],
+    [articleTitleById, resolveDropCascadeSlotIds, runPlacementMutation, scope.pageName, t],
   )
 
   const applyRemovePlacement = useCallback(

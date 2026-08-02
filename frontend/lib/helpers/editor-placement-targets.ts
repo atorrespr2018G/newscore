@@ -117,13 +117,15 @@ function resolveSlotTargetCount(slot: ISlotOut): number {
  * Resolve the editor-facing label for a homepage slot.
  *
  * @param slot Homepage slot metadata.
+ * @param pageName Layout page name for page-specific labels (e.g. world).
  * @returns Human-friendly slot label for placement UI.
  */
-export function resolveSlotLabel(slot: ISlotOut): string {
+export function resolveSlotLabel(slot: ISlotOut, pageName?: string): string {
   return homepageSectionTitle(
     slot.position_key,
     slot.display_name,
     staticSectionLabelTranslator,
+    pageName,
   )
 }
 
@@ -164,14 +166,15 @@ export function sortSlotsForEditorCanvas(slots: ISlotOut[]): ISlotOut[] {
  * Build editor-friendly target cells for each homepage slot.
  *
  * @param slots Homepage slots from layout admin API.
+ * @param pageName Layout page name for page-specific labels (e.g. world).
  * @returns Visual drop targets keyed by slot and card index.
  */
-export function buildPlacementTargets(slots: ISlotOut[]): IPlacementTarget[] {
+export function buildPlacementTargets(slots: ISlotOut[], pageName?: string): IPlacementTarget[] {
   const targets: IPlacementTarget[] = []
 
   for (const slot of sortSlotsForEditorCanvas(slots)) {
     const editorSlot = slotForEditorPlacement(slot)
-    const slotLabel = resolveSlotLabel(slot)
+    const slotLabel = resolveSlotLabel(slot, pageName)
     const presentationType = slot.presentation_type || DEFAULT_PRESENTATION_TYPE
     const targetCount = resolveSlotTargetCount(slot)
 

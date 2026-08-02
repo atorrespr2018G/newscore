@@ -142,7 +142,7 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
       : preview.homepageSlots.length > 0
         ? preview.homepageSlots
         : placement.homepageSlots
-  const placementTargets = buildPlacementTargets(homepageSlots)
+  const placementTargets = buildPlacementTargets(homepageSlots, scope.pageName)
 
   // Keep mutation refs in sync with the slots the canvas is actually using.
   // Otherwise a PR Politics drop target can appear while homepageSlotsRef still

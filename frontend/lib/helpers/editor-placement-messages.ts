@@ -22,6 +22,8 @@ interface IPlacementMessageOptions {
   articleTitleById: Map<string, string>
   target: IPlacementTarget
   cascadeCount: number
+  /** Layout page name for page-specific slot labels (e.g. world). */
+  pageName?: string
 }
 
 /**
@@ -128,7 +130,16 @@ export function formatCascadeSuffix(t: AdminTranslatorType, cascadeCount: number
  * @returns Localized banner text for the placement.
  */
 export function formatPlacementMessage(options: IPlacementMessageOptions): string {
-  const { t, mutation, previousSlots, articleId, articleTitleById, target, cascadeCount } = options
+  const {
+    t,
+    mutation,
+    previousSlots,
+    articleId,
+    articleTitleById,
+    target,
+    cascadeCount,
+    pageName,
+  } = options
   const title = articleTitleById.get(articleId) ?? articleId
   const destination = `${target.slotLabel} #${target.index + 1}`
   const cascade = formatCascadeSuffix(t, cascadeCount)
@@ -136,7 +147,9 @@ export function formatPlacementMessage(options: IPlacementMessageOptions): strin
     return t('editor.placement.staged', { title, destination, cascade })
   }
   const fromSlot = previousSlots.find((slot) => slot.id === mutation.fromSlotId)
-  const fromLabel = fromSlot ? resolveSlotLabel(fromSlot) : t('editor.placement.fallbackSlot')
+  const fromLabel = fromSlot
+    ? resolveSlotLabel(fromSlot, pageName)
+    : t('editor.placement.fallbackSlot')
   const fromIndex = (mutation.fromIndex ?? 0) + 1
   return t('editor.placement.stagedMove', {
     title,
