@@ -42,7 +42,7 @@ export const AD_SLOT_REGISTRY: Record<AdSlotKey, IAdSlotDefinition> = {
 
 /** Reserved shell classes that match current placeholder min-heights. */
 export const AD_VARIANT_SHELL_CLASS: Record<AdSlotVariant, string> = {
-  leaderboard: 'min-h-[140px] w-full',
+  leaderboard: 'min-h-[250px] w-full',
   ribbon: 'min-h-[192px] w-full',
   rail: 'min-h-[250px] w-full',
   tall: 'min-h-[280px] w-full',
