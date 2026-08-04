@@ -4,6 +4,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 import type { IArticleDetail } from '@/interfaces/article'
 import { ArticleGallery } from '@/components/ui/article-gallery'
 import { AdSlot } from '@/components/ui/ad-slot'
+import { ARTICLE_RIBBON_AD_SHELL_CLASS } from '@/lib/ad-config'
 import { articleBodyHtmlChunks } from '@/lib/helpers/article-body-html'
 
 /**
@@ -151,7 +152,11 @@ function ArticleAdRibbon({ index }: { index: number }): JSX.Element {
 
   return (
     <section aria-label={t('advertisement')} className="border-b border-neutral-200 py-4">
-      <AdSlot slotKey="article-in-content" index={index} />
+      <AdSlot
+        slotKey="article-in-content"
+        index={index}
+        className={ARTICLE_RIBBON_AD_SHELL_CLASS}
+      />
     </section>
   )
 }

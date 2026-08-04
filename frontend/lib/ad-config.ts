@@ -49,6 +49,15 @@ export const AD_VARIANT_SHELL_CLASS: Record<AdSlotVariant, string> = {
   square: 'aspect-[4/3] w-full min-h-[180px]',
 }
 
+/** Default ribbon min-height in px (matches AD_VARIANT_SHELL_CLASS.ribbon). */
+export const RIBBON_AD_MIN_HEIGHT_PX = 192
+
+/** Article in-content ribbon is 50% taller than the default ribbon (192 → 288). */
+export const ARTICLE_RIBBON_AD_MIN_HEIGHT_PX = 288
+
+/** Tailwind override for the taller article in-content ribbon (literal for JIT). */
+export const ARTICLE_RIBBON_AD_SHELL_CLASS = '!min-h-[288px] w-full'
+
 /**
  * Parse a raw ads mode string into a known mode.
  *
