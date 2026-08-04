@@ -10,6 +10,12 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.exceptions import NotFoundError, ValidationError
 from shared.core.logger import get_logger
+from shared.core.page_ad_placements import (
+    PAGE_NAME_SPORTS,
+    default_ads_for_page,
+    normalize_ads,
+    resolve_ads_list,
+)
 from shared.core.regions import get_region_by_code
 from shared.core.sports_page_sections_sync import (
     CANONICAL_SLUG_BY_TYPE,
@@ -24,6 +30,7 @@ from shared.core.sports_page_sections_sync import (
 from shared.models.common import utc_now
 from shared.read.collections import SPORTS_PAGE_SECTIONS_COLLECTION
 from shared.read.market_reads import get_market_by_code
+from shared.schemas.page_ad_placements_schemas import PageAdPlacementOut
 from shared.schemas.sports_page_sections_schemas import (
     SportsPageSectionItemIn,
     SportsPageSectionItemOut,
@@ -182,16 +189,23 @@ async def _upsert_sections_doc(
     market_id: str,
     region_id: str | None,
     items: list[dict[str, str]],
+    ads: list[dict[str, Any]],
     now: str,
 ) -> None:
     """Insert or replace the sports sections document for one scope."""
 
     query = _sections_query(market_id=market_id, region_id=region_id)
     existing = await db[SPORTS_PAGE_SECTIONS_COLLECTION].find_one(query, {"_id": 1})
+    payload = {
+        "items": items,
+        "ads": ads,
+        "updated_at": now,
+        "region_id": region_id,
+    }
     if existing is not None:
         await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
             {"_id": existing["_id"]},
-            {"$set": {"items": items, "updated_at": now, "region_id": region_id}},
+            {"$set": payload},
         )
         return
 
@@ -199,11 +213,15 @@ async def _upsert_sections_doc(
         {
             "_id": str(uuid4()),
             "market_id": market_id,
-            "region_id": region_id,
-            "items": items,
-            "updated_at": now,
+            **payload,
         },
     )
+
+
+def _ads_out(ads: list[dict[str, Any]]) -> list[PageAdPlacementOut]:
+    """Map stored ad rows to API models."""
+
+    return [PageAdPlacementOut(**row) for row in ads]
 
 
 def _to_out(
@@ -211,6 +229,7 @@ def _to_out(
     market_id: str,
     market_code: str,
     items: list[dict[str, str]],
+    ads: list[dict[str, Any]],
     updated_at: str,
     region_id: str | None = None,
     region_code: str | None = None,
@@ -230,6 +249,7 @@ def _to_out(
             )
             for i in items
         ],
+        ads=_ads_out(ads),
         updated_at=updated_at,
     )
 
@@ -254,21 +274,25 @@ async def get_for_market(
     )
     if doc is None:
         items = [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS]
+        ads = default_ads_for_page(PAGE_NAME_SPORTS)
         return _to_out(
             market_id=market_id,
             market_code=str(market["code"]),
             region_id=region_id,
             region_code=normalized_region,
             items=items,
+            ads=ads,
             updated_at=utc_now().isoformat(),
         )
     items = expand_legacy_section_items(list(doc.get("items") or []))
+    ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_SPORTS)
     return _to_out(
         market_id=market_id,
         market_code=str(market["code"]),
         region_id=region_id,
         region_code=normalized_region,
         items=items,
+        ads=ads,
         updated_at=str(doc.get("updated_at") or utc_now().isoformat()),
     )
 
@@ -290,12 +314,23 @@ async def replace_for_market(
         region_code=region_code,
     )
     items = _normalize_items(body.items)
+    if body.ads is None:
+        existing = await db[SPORTS_PAGE_SECTIONS_COLLECTION].find_one(
+            _sections_query(market_id=market_id, region_id=region_id),
+        )
+        ads = resolve_ads_list(
+            None if existing is None else existing.get("ads"),
+            page_name=PAGE_NAME_SPORTS,
+        )
+    else:
+        ads = normalize_ads(list(body.ads))
     now = utc_now().isoformat()
     await _upsert_sections_doc(
         db,
         market_id=market_id,
         region_id=region_id,
         items=items,
+        ads=ads,
         now=now,
     )
     await sync_sports_layout_slots(
@@ -316,5 +351,6 @@ async def replace_for_market(
         region_id=region_id,
         region_code=normalized_region,
         items=items,
+        ads=ads,
         updated_at=now,
     )

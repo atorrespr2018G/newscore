@@ -25,6 +25,8 @@ import { shouldRenderHomepageGridAd } from '@/lib/helpers/homepage-ad-placement'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
+import { usePageAds, useSyncPageAdPlacements } from '@/context/page-ads-context'
+import type { PageAdLocation } from '@/lib/helpers/page-ad-placements'
 import { EmptyState, ErrorState, LoadingState, SectionSkeleton } from '@/components/ui/feed-state'
 import type { IFeedSlot, IHomepageFeed } from '@/interfaces/feed'
 
@@ -69,30 +71,50 @@ function RightPromo(): JSX.Element {
 
 /**
  * Homepage section ribbon backed by the shared AdSlot mock/GAM unit.
- *
- * @param props.index - Occurrence index for creative variety.
  */
-function AdRibbon({ index = 0 }: { index?: number }): JSX.Element {
+function AdRibbon({
+  index = 0,
+  location = 'before_section',
+  anchorSlug,
+}: {
+  index?: number
+  location?: PageAdLocation
+  anchorSlug?: string | null
+}): JSX.Element | null {
   const t = useTranslations('common')
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender(location, anchorSlug)) {
+    return null
+  }
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
-      <AdSlot slotKey="homepage-section-ribbon" index={index} />
+      <AdSlot
+        slotKey="homepage-section-ribbon"
+        index={index}
+        variant={variantFor(location, 'ribbon', anchorSlug)}
+      />
     </section>
   )
 }
 
 /**
  * Post-hero homepage ribbon.
- *
- * @param props.index - Occurrence index for creative variety.
  */
-function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element {
+function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element | null {
   const t = useTranslations('common')
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender('after_hero')) {
+    return null
+  }
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
-      <AdSlot slotKey="homepage-hero-after" index={index} />
+      <AdSlot
+        slotKey="homepage-hero-after"
+        index={index}
+        variant={variantFor('after_hero', 'ribbon')}
+      />
     </section>
   )
 }
@@ -354,7 +376,7 @@ function PoliticsSportsSection({
     <div className="space-y-2">
       {politicsSlot ? (
         <>
-          <AdRibbon index={adIndex} />
+          <AdRibbon index={adIndex} location="before_section" anchorSlug="politics" />
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageSection slot={politicsSlot} />
           </Suspense>
@@ -434,7 +456,13 @@ function MainPageOrderedSections({
       const bandAdIndex = previousKind !== null ? adIndex++ : null
       blocks.push(
         <div key={`${bandTaken.band.lead.id}-band`} className="space-y-2">
-          {bandAdIndex !== null ? <AdRibbon index={bandAdIndex} /> : null}
+          {bandAdIndex !== null ? (
+            <AdRibbon
+              index={bandAdIndex}
+              location="before_section"
+              anchorSlug={normalizedPositionKey(bandTaken.band.lead)}
+            />
+          ) : null}
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageEditorialBand
               moreTopStoriesSlot={bandTaken.band.lead}
@@ -479,7 +507,13 @@ function MainPageOrderedSections({
     const heroAdIndex = kind === 'hero' ? adIndex++ : null
     blocks.push(
       <div key={slot.id} className="space-y-2">
-        {beforeAdIndex !== null ? <AdRibbon index={beforeAdIndex} /> : null}
+        {beforeAdIndex !== null ? (
+          <AdRibbon
+            index={beforeAdIndex}
+            location="before_section"
+            anchorSlug={normalizedPositionKey(slot)}
+          />
+        ) : null}
         <HomepagePageSlotBlock slot={slot} kind={kind} title={title} />
         {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} /> : null}
       </div>,
@@ -587,7 +621,13 @@ function SportsPageSections({
     const heroAdIndex = kind === 'hero' ? adIndex++ : null
     blocks.push(
       <div key={slot.id} className="space-y-2">
-        {beforeAdIndex !== null ? <AdRibbon index={beforeAdIndex} /> : null}
+        {beforeAdIndex !== null ? (
+          <AdRibbon
+            index={beforeAdIndex}
+            location="before_section"
+            anchorSlug={normalizedPositionKey(slot)}
+          />
+        ) : null}
         <SportsPageSlotBlock slot={slot} kind={kind} title={title} />
         {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} /> : null}
       </div>,
@@ -616,6 +656,7 @@ interface IHomepageContentProps {
 export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.Element {
   const pageName = feed.pageName.trim().toLowerCase()
   const { sectionLabel } = useSectionLabels(pageName)
+  useSyncPageAdPlacements(feed.adPlacements)
   const slots = feed.slots ?? []
   if (slots.length === 0) {
     return (

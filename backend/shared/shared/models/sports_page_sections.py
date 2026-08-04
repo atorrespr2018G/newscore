@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from shared.models.common import utc_now
+from shared.schemas.page_ad_placements_schemas import PageAdPlacementOut
 
 SportsPageSectionType = Literal["hero", "top_stories", "live", "world", "sport"]
 
@@ -34,6 +35,7 @@ class SportsPageSections(BaseModel):
     market_id: str
     region_id: str | None = None
     items: list[SportsPageSectionItem] = []
+    ads: list[PageAdPlacementOut] = Field(default_factory=list)
     updated_at: str = Field(default_factory=lambda: utc_now().isoformat())
 
     model_config = {

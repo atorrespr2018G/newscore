@@ -1,6 +1,7 @@
 import type { IArticle, IArticleDetail, IArticleMedia } from '@/interfaces/article'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import { htmlToPlainText } from '@/lib/helpers/article-body-html'
+import { mapPageAdPlacement } from '@/lib/helpers/page-ad-placements'
 
 interface IGraphqlMediaAsset {
   id?: string | null
@@ -141,6 +142,12 @@ export function mapHomepageFeed(data: {
   homepageFeed: {
     layoutId: string | null
     pageName: string
+    adPlacements?: Array<{
+      adType: string
+      location: string
+      enabled: boolean
+      anchorSlug?: string | null
+    }>
     slots: Array<{
       id: string
       positionKey: string
@@ -152,9 +159,13 @@ export function mapHomepageFeed(data: {
   }
 }): IHomepageFeed {
   const feed = data.homepageFeed
+  const adPlacements = (feed.adPlacements ?? [])
+    .map((row) => mapPageAdPlacement(row))
+    .filter((row): row is NonNullable<typeof row> => row !== null)
   return {
     layoutId: feed.layoutId ?? '',
     pageName: feed.pageName,
+    adPlacements,
     slots: feed.slots.map((slot) => ({
       id: slot.id,
       positionKey: slot.positionKey,

@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import {
+  PageAdsEditor,
+  toApiAdRows,
+  toEditableAdRows,
+  type IEditableAdRow,
+} from '@/components/features/page-ads-editor'
+import {
   getSportsPageSections,
   putSportsPageSections,
   type ISportsPageSectionItem,
@@ -126,6 +132,7 @@ export function SportsSectionsEditor(): JSX.Element {
   const [localityId, setLocalityId] = useState<string | null>(null)
   const [countyId, setCountyId] = useState<string | null>(null)
   const [rows, setRows] = useState<IEditableSectionRow[]>([])
+  const [adRows, setAdRows] = useState<IEditableAdRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -142,12 +149,14 @@ export function SportsSectionsEditor(): JSX.Element {
         const data = await getSportsPageSections(marketCode, regionCode)
         if (!cancelled) {
           setRows(toEditableRows(data.items))
+          setAdRows(toEditableAdRows(data.ads))
         }
       } catch (error) {
         if (!cancelled) {
           const message = error instanceof Error ? error.message : t('sportsPage.loadFailed')
           pushToast(message, 'error')
           setRows([])
+          setAdRows([])
         }
       } finally {
         if (!cancelled) {
@@ -175,8 +184,9 @@ export function SportsSectionsEditor(): JSX.Element {
       .filter((item) => item.label.length > 0)
     setSaving(true)
     try {
-      const data = await putSportsPageSections(marketCode, items, regionCode)
+      const data = await putSportsPageSections(marketCode, items, regionCode, toApiAdRows(adRows))
       setRows(toEditableRows(data.items))
+      setAdRows(toEditableAdRows(data.ads))
       notifyEditorialPreviewStale(sportsEditorScope(marketCode, localityId, countyId))
       pushToast(t('sportsPage.saveSuccess'), 'success')
     } catch (error) {
@@ -284,7 +294,14 @@ export function SportsSectionsEditor(): JSX.Element {
       {loading ? (
         <p className="text-sm text-neutral-600">{t('sportsPage.loading')}</p>
       ) : (
-        <SportsRowsEditor rows={rows} onChange={setRows} />
+        <>
+          <SportsRowsEditor rows={rows} onChange={setRows} />
+          <PageAdsEditor
+            rows={adRows}
+            sectionSlugs={rows.map((row) => row.slug).filter(Boolean)}
+            onChange={setAdRows}
+          />
+        </>
       )}
 
       <div className="flex flex-wrap gap-3">

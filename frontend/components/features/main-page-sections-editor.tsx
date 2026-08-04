@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import {
+  PageAdsEditor,
+  toApiAdRows,
+  toEditableAdRows,
+  type IEditableAdRow,
+} from '@/components/features/page-ads-editor'
+import {
   getMainPageSections,
   putMainPageSections,
   type IMainPageSectionItem,
@@ -104,6 +110,7 @@ export function MainPageSectionsEditor(): JSX.Element {
   const [localityId, setLocalityId] = useState<string | null>(null)
   const [countyId, setCountyId] = useState<string | null>(null)
   const [rows, setRows] = useState<IEditableSectionRow[]>([])
+  const [adRows, setAdRows] = useState<IEditableAdRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -120,12 +127,14 @@ export function MainPageSectionsEditor(): JSX.Element {
         const data = await getMainPageSections(marketCode, regionCode)
         if (!cancelled) {
           setRows(toEditableRows(data.items))
+          setAdRows(toEditableAdRows(data.ads))
         }
       } catch (error) {
         if (!cancelled) {
           const message = error instanceof Error ? error.message : t('mainPage.loadFailed')
           pushToast(message, 'error')
           setRows([])
+          setAdRows([])
         }
       } finally {
         if (!cancelled) {
@@ -153,8 +162,9 @@ export function MainPageSectionsEditor(): JSX.Element {
       .filter((item) => item.label.length > 0)
     setSaving(true)
     try {
-      const data = await putMainPageSections(marketCode, items, regionCode)
+      const data = await putMainPageSections(marketCode, items, regionCode, toApiAdRows(adRows))
       setRows(toEditableRows(data.items))
+      setAdRows(toEditableAdRows(data.ads))
       pushToast(t('mainPage.saveSuccess'), 'success')
     } catch (error) {
       const message = error instanceof Error ? error.message : t('mainPage.saveFailed')
@@ -261,7 +271,14 @@ export function MainPageSectionsEditor(): JSX.Element {
       {loading ? (
         <p className="text-sm text-neutral-600">{t('mainPage.loading')}</p>
       ) : (
-        <MainPageRowsEditor rows={rows} onChange={setRows} />
+        <>
+          <MainPageRowsEditor rows={rows} onChange={setRows} />
+          <PageAdsEditor
+            rows={adRows}
+            sectionSlugs={rows.map((row) => row.slug).filter(Boolean)}
+            onChange={setAdRows}
+          />
+        </>
       )}
 
       <div className="flex flex-wrap gap-3">

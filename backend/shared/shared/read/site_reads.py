@@ -20,7 +20,20 @@ from shared.core.regions import (
 )
 from shared.read.article_query import article_query_with_category
 from shared.read.article_reads import article_out, list_by_ids_for_preview, list_published_by_ids
-from shared.read.collections import ARTICLES_COLLECTION, WIDGETS_COLLECTION
+from shared.core.page_ad_placements import (
+    PAGE_NAME_HOMEPAGE,
+    PAGE_NAME_SPORTS,
+    PAGE_NAME_WORLD,
+    default_ads_for_page,
+    resolve_ads_list,
+)
+from shared.read.collections import (
+    ARTICLES_COLLECTION,
+    HOMEPAGE_PAGE_SECTIONS_COLLECTION,
+    SPORTS_PAGE_SECTIONS_COLLECTION,
+    WIDGETS_COLLECTION,
+    WORLD_PAGE_SECTIONS_COLLECTION,
+)
 from shared.read.layout_reads import get_active_layout
 from shared.read.loaders import AuthorNameLoader
 from shared.read.market_reads import get_market_by_code
@@ -139,7 +152,63 @@ def _empty_feed(
         "market_code": market_code,
         "region_code": region_code,
         "slots": [],
+        "ad_placements": default_ads_for_page(page_name),
     }
+
+
+def _page_sections_collection(page_name: str) -> str | None:
+    """Mongo collection for page-sections ads config, if the page is configured."""
+
+    if page_name == PAGE_NAME_WORLD:
+        return WORLD_PAGE_SECTIONS_COLLECTION
+    if page_name == PAGE_NAME_SPORTS:
+        return SPORTS_PAGE_SECTIONS_COLLECTION
+    if page_name == PAGE_NAME_HOMEPAGE:
+        return HOMEPAGE_PAGE_SECTIONS_COLLECTION
+    return None
+
+
+def _sections_scope_query(*, market_id: str, region_id: str | None) -> dict[str, Any]:
+    """Unique-scope filter for a page-sections document."""
+
+    if region_id is not None:
+        return {"market_id": market_id, "region_id": region_id}
+    return {
+        "market_id": market_id,
+        "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+    }
+
+
+async def load_page_ad_placements(
+    db: AsyncIOMotorDatabase,
+    *,
+    page_name: str,
+    market_id: str,
+    region_id: str | None,
+) -> list[dict[str, Any]]:
+    """Load configured ad placements for a public page feed.
+
+    Args:
+        db: Database connection.
+        page_name: Feed page name (homepage/world/sports/...).
+        market_id: Market document id.
+        region_id: Optional geo region document id.
+
+    Returns:
+        Normalized ad placement dicts (defaults when unset or unsupported page).
+    """
+
+    collection = _page_sections_collection(page_name)
+    if collection is None:
+        # Politics and other non-configured pages keep hard-coded frontend ads.
+        return []
+
+    doc = await db[collection].find_one(
+        _sections_scope_query(market_id=market_id, region_id=region_id),
+        {"ads": 1},
+    )
+    raw_ads = None if doc is None else doc.get("ads")
+    return resolve_ads_list(raw_ads, page_name=page_name)
 
 
 PinnedLoader = Callable[..., Awaitable[List[ArticleOut]]]
@@ -469,12 +538,19 @@ async def get_home_feed(
                 out_slots = ancestor_slots
                 break
 
+    ad_placements = await load_page_ad_placements(
+        db,
+        page_name=normalized_page,
+        market_id=market_id,
+        region_id=region_id,
+    )
     return {
         "layout_id": layout["layout_id"],
         "page_name": layout["page_name"],
         "market_code": market_code,
         "region_code": requested_region_code,
         "slots": out_slots,
+        "ad_placements": ad_placements,
     }
 
 
@@ -590,10 +666,17 @@ async def get_home_feed_preview(
                 out_slots = ancestor_slots
                 break
 
+    ad_placements = await load_page_ad_placements(
+        db,
+        page_name=normalized_page,
+        market_id=market_id,
+        region_id=region_id,
+    )
     return {
         "layout_id": layout["layout_id"],
         "page_name": layout["page_name"],
         "market_code": market_code,
         "region_code": requested_region_code,
         "slots": out_slots,
+        "ad_placements": ad_placements,
     }

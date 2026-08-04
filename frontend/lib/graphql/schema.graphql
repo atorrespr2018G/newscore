@@ -4,9 +4,17 @@ type Query {
   breakingNews(market: String!): JSON
 }
 
+type AdPlacement {
+  adType: String!
+  location: String!
+  enabled: Boolean!
+  anchorSlug: String
+}
+
 type HomepageFeed {
   layoutId: ID
   pageName: String!
+  adPlacements: [AdPlacement!]!
   slots: [HomepageSlot!]!
 }
 

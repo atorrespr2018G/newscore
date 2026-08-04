@@ -1,4 +1,5 @@
 import type { IArticle } from './article'
+import type { IPageAdPlacement } from '@/lib/helpers/page-ad-placements'
 
 export interface IFeedSlot {
   id: string
@@ -13,5 +14,6 @@ export interface IHomepageFeed {
   layoutId: string
   pageName: string
   slots: IFeedSlot[]
+  adPlacements: IPageAdPlacement[]
 }
 

@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from shared.schemas.page_ad_placements_schemas import PageAdPlacementIn, PageAdPlacementOut
+
 WorldPageSectionType = Literal[
     "hero",
     "top_stories",
@@ -41,6 +43,7 @@ class WorldPageSectionsOut(BaseModel):
     region_id: str | None = None
     region_code: str | None = None
     items: list[WorldPageSectionItemOut]
+    ads: list[PageAdPlacementOut] = Field(default_factory=list)
     updated_at: str
 
 
@@ -48,3 +51,4 @@ class WorldPageSectionsUpdate(BaseModel):
     """Replace the ordered World-page section list for a market or region."""
 
     items: list[WorldPageSectionItemIn]
+    ads: list[PageAdPlacementIn] | None = None

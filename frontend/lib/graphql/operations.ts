@@ -5,6 +5,12 @@ export const HOMEPAGE_FEED_QUERY = gql`
     homepageFeed(market: $market, town: $town, regionCode: $regionCode, pageName: $pageName) {
       layoutId
       pageName
+      adPlacements {
+        adType
+        location
+        enabled
+        anchorSlug
+      }
       slots {
         id
         positionKey

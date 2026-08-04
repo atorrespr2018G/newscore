@@ -12,6 +12,7 @@ import { sectionAnchorId } from '@/lib/helpers/section-labels'
 import { toRegionCode } from '@/lib/region-code'
 import { useTranslations } from 'next-intl'
 import { AdSlot } from '@/components/ui/ad-slot'
+import { usePageAds } from '@/context/page-ads-context'
 
 interface IHealthCarouselSectionProps {
   slot: IFeedSlot
@@ -187,11 +188,16 @@ interface ICarouselNavButtonProps {
 }
 
 /** Carousel-track ad card sized to match neighboring video thumbs. */
-function HealthCarouselAdScreen(): JSX.Element {
+function HealthCarouselAdScreen(): JSX.Element | null {
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender('health_carousel')) {
+    return null
+  }
   return (
     <div className="my-4 ml-1 w-[min(72vw,220px)] shrink-0 sm:w-[200px] lg:my-4 lg:w-[calc(25%-12px)] lg:min-w-[180px]">
       <AdSlot
         slotKey="homepage-health-carousel"
+        variant={variantFor('health_carousel', 'square')}
         className="!aspect-video rounded-none border-neutral-600"
       />
     </div>

@@ -30,6 +30,7 @@ import {
   PRESENTATION_HERO,
 } from '@/lib/presentation-registry'
 import { AdSlot } from '@/components/ui/ad-slot'
+import { usePageAds, useSyncPageAdPlacements } from '@/context/page-ads-context'
 
 const HomepageEditorialBand = dynamic(
   () => import('@/components/features/homepage-editorial-band').then((m) => m.HomepageEditorialBand),
@@ -43,26 +44,48 @@ const HomepageSection = dynamic(
 
 /**
  * Section-page grid ribbon backed by AdSlot.
- *
- * @param props.index - Occurrence index for creative variety.
  */
-function AdRibbon({ index = 0 }: { index?: number }): JSX.Element {
+function AdRibbon({
+  index = 0,
+  location = 'before_section',
+  anchorSlug,
+}: {
+  index?: number
+  location?: 'after_hero' | 'before_section' | 'after_section'
+  anchorSlug?: string | null
+}): JSX.Element | null {
   const t = useTranslations('common')
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender(location, anchorSlug)) {
+    return null
+  }
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
-      <AdSlot slotKey="section-grid-ribbon" index={index} />
+      <AdSlot
+        slotKey="section-grid-ribbon"
+        index={index}
+        variant={variantFor(location, 'ribbon', anchorSlug)}
+      />
     </section>
   )
 }
 
 /**
  * Hero right-rail ad unit for section pages.
- *
- * @param props.index - Occurrence index for creative variety.
  */
-function HeroRailAd({ index = 0 }: { index?: number }): JSX.Element {
-  return <AdSlot slotKey="section-hero-rail" index={index} />
+function HeroRailAd({ index = 0 }: { index?: number }): JSX.Element | null {
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender('hero_rail')) {
+    return null
+  }
+  return (
+    <AdSlot
+      slotKey="section-hero-rail"
+      index={index}
+      variant={variantFor('hero_rail', 'rail')}
+    />
+  )
 }
 
 function HeroPictureNewsScreen({
@@ -479,6 +502,7 @@ export function SectionPage({
   const t = useTranslations('common')
   const { data, loading, error } = usePageFeed(pageName)
   const feedData = data ?? initialFeed
+  useSyncPageAdPlacements(feedData?.adPlacements)
 
   if (loading && !feedData) return <LoadingState message={t('loading')} />
   if (error && !feedData) return <ErrorState message={t('failedToLoad', { message: error.message })} />
@@ -530,11 +554,17 @@ export function SectionPage({
         layout={hero}
         plainStoryTitles={plainStoryTitles}
       />
-      <AdRibbon index={adIndex++} />
+      <AdRibbon index={adIndex++} location="after_hero" />
 
       {editorialBands.map((band, bandIndex) => (
         <div key={`${band.lead.id}-${band.spotlight.id}-${band.rail?.id ?? 'no-rail'}`} className="space-y-2">
-          {bandIndex > 0 ? <AdRibbon index={adIndex++} /> : null}
+          {bandIndex > 0 ? (
+            <AdRibbon
+              index={adIndex++}
+              location="before_section"
+              anchorSlug={normalizedPositionKey(band.lead)}
+            />
+          ) : null}
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageEditorialBand
               moreTopStoriesSlot={band.lead}
@@ -551,13 +581,18 @@ export function SectionPage({
       {gridSlots.map((slot, index) => {
         const beforeAdIndex = shouldShowGridAdBefore(slot, gridSlots[index - 1]) ? adIndex++ : null
         const afterAdIndex = shouldShowGridAdAfter(slot) ? adIndex++ : null
+        const slotKey = normalizedPositionKey(slot)
         return (
           <div key={slot.id} className="space-y-2">
-            {beforeAdIndex !== null ? <AdRibbon index={beforeAdIndex} /> : null}
+            {beforeAdIndex !== null ? (
+              <AdRibbon index={beforeAdIndex} location="before_section" anchorSlug={slotKey} />
+            ) : null}
             <Suspense fallback={<SectionSkeleton />}>
               <HomepageSection slot={slot} pageName={pageName} />
             </Suspense>
-            {afterAdIndex !== null ? <AdRibbon index={afterAdIndex} /> : null}
+            {afterAdIndex !== null ? (
+              <AdRibbon index={afterAdIndex} location="after_section" anchorSlug={slotKey} />
+            ) : null}
           </div>
         )
       })}

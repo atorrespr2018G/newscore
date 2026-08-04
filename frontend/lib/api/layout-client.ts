@@ -6,7 +6,20 @@ import {
   DEFAULT_EDITOR_MARKET_CODE,
   DEFAULT_EDITOR_PAGE_NAME,
 } from '@/lib/editor/editor-scope'
+import {
+  mapPageAdPlacement,
+  type PageAdLocation,
+  type PageAdType,
+} from '@/lib/helpers/page-ad-placements'
 import { toRegionCode } from '@/lib/region-code'
+
+/** API shape for one configured page ad placement. */
+export interface IPageAdPlacementApi {
+  ad_type: PageAdType
+  location: PageAdLocation
+  enabled: boolean
+  anchor_slug?: string | null
+}
 
 /** Layout metadata returned by the layout admin API. */
 export interface ILayoutOut {
@@ -155,6 +168,12 @@ interface IPreviewFeedOut {
   market_code: string
   region_code?: string | null
   slots: IPreviewFeedSlotOut[]
+  ad_placements?: Array<{
+    ad_type: string
+    location: string
+    enabled: boolean
+    anchor_slug?: string | null
+  }>
 }
 
 /**
@@ -164,9 +183,13 @@ interface IPreviewFeedOut {
  * @returns Homepage feed for HomepageContent.
  */
 export function mapPreviewFeedToHomepageFeed(payload: IPreviewFeedOut): IHomepageFeed {
+  const adPlacements = (payload.ad_placements ?? [])
+    .map((row) => mapPageAdPlacement(row))
+    .filter((row): row is NonNullable<typeof row> => row !== null)
   return {
     layoutId: payload.layout_id ?? '',
     pageName: payload.page_name,
+    adPlacements,
     slots: payload.slots.map((slot) => ({
       id: slot.id,
       positionKey: slot.position_key,
@@ -292,6 +315,7 @@ export interface ISportsPageSectionsOut {
   region_id: string | null
   region_code: string | null
   items: ISportsPageSectionItem[]
+  ads: IPageAdPlacementApi[]
   updated_at: string
 }
 
@@ -327,6 +351,7 @@ export function putSportsPageSections(
   marketCode: string,
   items: Array<{ section_type: SportsPageSectionType; label: string; slug?: string }>,
   regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
 ): Promise<ISportsPageSectionsOut> {
   const params = new URLSearchParams({ market: marketCode })
   if (regionCode) {
@@ -336,7 +361,7 @@ export function putSportsPageSections(
     `${apiConfig.layout}/sports-page-sections?${params.toString()}`,
     {
       method: 'PUT',
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, ads }),
     },
   )
 }
@@ -365,6 +390,7 @@ export interface IMainPageSectionsOut {
   region_id: string | null
   region_code: string | null
   items: IMainPageSectionItem[]
+  ads: IPageAdPlacementApi[]
   updated_at: string
 }
 
@@ -400,6 +426,7 @@ export function putMainPageSections(
   marketCode: string,
   items: Array<{ section_type: MainPageSectionType; label: string; slug?: string }>,
   regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
 ): Promise<IMainPageSectionsOut> {
   const params = new URLSearchParams({ market: marketCode })
   if (regionCode) {
@@ -409,7 +436,7 @@ export function putMainPageSections(
     `${apiConfig.layout}/main-page-sections?${params.toString()}`,
     {
       method: 'PUT',
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, ads }),
     },
   )
 }
@@ -438,6 +465,7 @@ export interface IWorldPageSectionsOut {
   region_id: string | null
   region_code: string | null
   items: IWorldPageSectionItem[]
+  ads: IPageAdPlacementApi[]
   updated_at: string
 }
 
@@ -473,6 +501,7 @@ export function putWorldPageSections(
   marketCode: string,
   items: Array<{ section_type: WorldPageSectionType; label: string; slug?: string }>,
   regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
 ): Promise<IWorldPageSectionsOut> {
   const params = new URLSearchParams({ market: marketCode })
   if (regionCode) {
@@ -482,7 +511,7 @@ export function putWorldPageSections(
     `${apiConfig.layout}/world-page-sections?${params.toString()}`,
     {
       method: 'PUT',
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, ads }),
     },
   )
 }

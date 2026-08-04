@@ -367,6 +367,37 @@
     "saveFailed": "No se pudo guardar la lista de deportes.",
     "loadFailed": "No se pudo cargar la lista de deportes."
   },
+  "pageAds": {
+    "heading": "Publicidad",
+    "hint": "Configure el tipo y la ubicación de los anuncios de esta página. Las ubicaciones desactivadas no se muestran en el sitio público.",
+    "empty": "No hay anuncios configurados. Agregue uno o guarde para conservar los valores predeterminados del servidor.",
+    "type": "Tipo de anuncio",
+    "location": "Ubicación",
+    "anchor": "Ancla de sección",
+    "anchorPlaceholder": "Seleccione el slug de sección",
+    "enabled": "Activo",
+    "add": "Agregar anuncio",
+    "remove": "Quitar",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "types": {
+      "leaderboard": "Leaderboard",
+      "ribbon": "Cinta",
+      "rail": "Carril",
+      "tall": "Alto",
+      "square": "Cuadrado"
+    },
+    "locations": {
+      "masthead": "Mástil",
+      "after_hero": "Después del héroe",
+      "before_section": "Antes de la sección",
+      "after_section": "Después de la sección",
+      "hero_rail": "Carril del héroe",
+      "us_band": "Banda destacada EE. UU.",
+      "editorial_band": "Banda editorial",
+      "health_carousel": "Carrusel de salud"
+    }
+  },
   "mainPage": {
     "heading": "Secciones de la página principal",
     "subtitle": "Administra la lista ordenada de secciones de la página principal (héroe, Principales, En vivo, Historias extra, Política, Deportes, Entretenimiento y más) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → homepage.",

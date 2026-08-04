@@ -18,6 +18,7 @@ import {
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
 import { AdSlot } from '@/components/ui/ad-slot'
+import { usePageAds } from '@/context/page-ads-context'
 
 export const MORE_TOP_STORIES_KEY = 'more-top-stories'
 
@@ -302,9 +303,26 @@ function RightRailTop({
     )
   }
 
+  return <EditorialBandAds hasTitle={hasTitle} />
+}
+
+/**
+ * Config-gated editorial-band ad units.
+ */
+function EditorialBandAds({ hasTitle }: { hasTitle: boolean }): JSX.Element | null {
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender('editorial_band')) {
+    return null
+  }
+  const variant = variantFor('editorial_band', 'ribbon')
   return (
     <div className={hasTitle ? 'mt-4 space-y-4' : 'space-y-4'}>
-      <AdSlot slotKey="homepage-editorial-band" index={0} className="!min-h-[120px]" />
+      <AdSlot
+        slotKey="homepage-editorial-band"
+        index={0}
+        variant={variant}
+        className="!min-h-[120px]"
+      />
       <AdSlot slotKey="homepage-editorial-band" index={1} variant="tall" />
     </div>
   )

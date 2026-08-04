@@ -38,12 +38,39 @@ class HomepageSlot:
 
 
 @strawberry.type
+class AdPlacement:
+    """Configured page ad placement for the public site."""
+
+    ad_type: str
+    location: str
+    enabled: bool
+    anchor_slug: str | None = None
+
+
+@strawberry.type
 class HomepageFeed:
     """Homepage feed for the public site."""
 
     layout_id: strawberry.ID | None
     page_name: str
     slots: list[HomepageSlot]
+    ad_placements: list[AdPlacement]
+
+
+def _ad_placements_from_raw(raw: dict[str, Any]) -> list[AdPlacement]:
+    """Map cached/API ad placement rows to GraphQL types."""
+
+    placements: list[AdPlacement] = []
+    for row in raw.get("ad_placements") or []:
+        placements.append(
+            AdPlacement(
+                ad_type=str(row.get("ad_type") or "ribbon"),
+                location=str(row.get("location") or ""),
+                enabled=bool(row.get("enabled", True)),
+                anchor_slug=row.get("anchor_slug"),
+            )
+        )
+    return placements
 
 
 def _feed_from_cache(raw: dict[str, Any]) -> HomepageFeed:
@@ -67,6 +94,7 @@ def _feed_from_cache(raw: dict[str, Any]) -> HomepageFeed:
         layout_id=strawberry.ID(layout_id) if layout_id else None,
         page_name=str(raw.get("page_name") or "homepage"),
         slots=slots,
+        ad_placements=_ad_placements_from_raw(raw),
     )
 
 

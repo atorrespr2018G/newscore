@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from shared.models.common import utc_now
+from shared.schemas.page_ad_placements_schemas import PageAdPlacementOut
 
 HomepagePageSectionType = Literal[
     "hero",
@@ -42,6 +43,7 @@ class HomepagePageSections(BaseModel):
     market_id: str
     region_id: str | None = None
     items: list[HomepagePageSectionItem] = []
+    ads: list[PageAdPlacementOut] = Field(default_factory=list)
     updated_at: str = Field(default_factory=lambda: utc_now().isoformat())
 
     model_config = {

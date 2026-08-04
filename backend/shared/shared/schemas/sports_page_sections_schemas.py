@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from shared.schemas.page_ad_placements_schemas import PageAdPlacementIn, PageAdPlacementOut
+
 SportsPageSectionType = Literal["hero", "top_stories", "live", "world", "sport"]
 
 
@@ -33,6 +35,7 @@ class SportsPageSectionsOut(BaseModel):
     region_id: str | None = None
     region_code: str | None = None
     items: list[SportsPageSectionItemOut]
+    ads: list[PageAdPlacementOut] = Field(default_factory=list)
     updated_at: str
 
 
@@ -40,3 +43,4 @@ class SportsPageSectionsUpdate(BaseModel):
     """Replace the ordered sports page section list for a market or region."""
 
     items: list[SportsPageSectionItemIn]
+    ads: list[PageAdPlacementIn] | None = None

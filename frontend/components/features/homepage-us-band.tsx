@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl'
 import { splitUsFeaturedArticles } from '@/lib/helpers/feed-layout'
 import { belowMediaTextClass } from '@/lib/helpers/text-helpers'
 import { AdSlot } from '@/components/ui/ad-slot'
+import { usePageAds } from '@/context/page-ads-context'
 
 interface IHomepageUsBandProps {
   slot: IFeedSlot
@@ -133,10 +134,18 @@ function UsPictureNewsScreen({ article }: { article: IArticle }): JSX.Element {
 }
 
 /** US featured-band square ad unit. */
-function UsBandAdScreen(): JSX.Element {
+function UsBandAdScreen(): JSX.Element | null {
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender('us_band')) {
+    return null
+  }
   return (
     <div className="overflow-hidden border border-neutral-200">
-      <AdSlot slotKey="homepage-us-band" className="rounded-none border-0" />
+      <AdSlot
+        slotKey="homepage-us-band"
+        variant={variantFor('us_band', 'square')}
+        className="rounded-none border-0"
+      />
     </div>
   )
 }

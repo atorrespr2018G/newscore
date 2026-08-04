@@ -23,6 +23,7 @@ import {
 import { PRESENTATION_GRID_4 } from '@/lib/presentation-types'
 import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-band'
 import { AdSlot } from '@/components/ui/ad-slot'
+import { usePageAds } from '@/context/page-ads-context'
 
 interface IMastheadProps {
   activeSection?: string
@@ -329,8 +330,12 @@ function MastheadMobileSectionNavigationFallback({
 /**
  * Sticky masthead leaderboard slot; keeps a measured section for scroll locking.
  */
-function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }): JSX.Element {
+function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }): JSX.Element | null {
   const tCommon = useTranslations('common')
+  const { shouldRender, variantFor } = usePageAds()
+  if (!shouldRender('masthead')) {
+    return null
+  }
 
   return (
     <section
@@ -339,7 +344,10 @@ function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }):
       className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
     >
       <div className="site-container py-4">
-        <AdSlot slotKey="masthead-leaderboard" />
+        <AdSlot
+          slotKey="masthead-leaderboard"
+          variant={variantFor('masthead', 'leaderboard')}
+        />
       </div>
     </section>
   )

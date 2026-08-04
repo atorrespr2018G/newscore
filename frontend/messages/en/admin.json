@@ -367,6 +367,37 @@
     "saveFailed": "Failed to save sports list.",
     "loadFailed": "Failed to load sports list."
   },
+  "pageAds": {
+    "heading": "Advertisements",
+    "hint": "Configure ad type and location for this page. Disabled placements are hidden on the public site.",
+    "empty": "No advertisements configured. Add one or save to keep defaults from the server.",
+    "type": "Ad type",
+    "location": "Location",
+    "anchor": "Section anchor",
+    "anchorPlaceholder": "Select section slug",
+    "enabled": "Enabled",
+    "add": "Add advertisement",
+    "remove": "Remove",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "types": {
+      "leaderboard": "Leaderboard",
+      "ribbon": "Ribbon",
+      "rail": "Rail",
+      "tall": "Tall",
+      "square": "Square"
+    },
+    "locations": {
+      "masthead": "Masthead",
+      "after_hero": "After hero",
+      "before_section": "Before section",
+      "after_section": "After section",
+      "hero_rail": "Hero rail",
+      "us_band": "US featured band",
+      "editorial_band": "Editorial band",
+      "health_carousel": "Health carousel"
+    }
+  },
   "mainPage": {
     "heading": "Main Page sections",
     "subtitle": "Manage the ordered list of Main Page sections (hero, Top Stories, Live, Extra Stories, Politics, Sports, Entertainment, and more) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → homepage.",

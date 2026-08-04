@@ -2,6 +2,12 @@ query HomepageFeed($market: String!, $town: String, $regionCode: String, $pageNa
   homepageFeed(market: $market, town: $town, regionCode: $regionCode, pageName: $pageName) {
     layoutId
     pageName
+    adPlacements {
+      adType
+      location
+      enabled
+      anchorSlug
+    }
     slots {
       id
       positionKey
