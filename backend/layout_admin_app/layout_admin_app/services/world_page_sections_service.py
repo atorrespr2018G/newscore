@@ -25,9 +25,12 @@ from shared.core.world_page_sections_sync import (
     SECTION_TYPE_CATEGORY,
     SECTION_TYPE_HERO,
     expand_world_section_items,
+    has_ribbon_ad_section,
+    insert_legacy_world_ribbon_ads,
     slugify_section_label,
     sync_world_layout_slots,
 )
+
 from shared.models.common import utc_now
 from shared.read.collections import WORLD_PAGE_SECTIONS_COLLECTION
 from shared.read.market_reads import get_market_by_code
@@ -38,6 +41,8 @@ from shared.schemas.world_page_sections_schemas import (
     WorldPageSectionsOut,
     WorldPageSectionsUpdate,
 )
+
+RIBBON_ADS_MIGRATED_FIELD = "ribbon_ads_migrated"
 
 logger = get_logger(__name__)
 
@@ -210,6 +215,7 @@ async def _upsert_sections_doc(
     items: list[dict[str, str]],
     ads: list[dict[str, Any]],
     now: str,
+    ribbon_ads_migrated: bool = True,
 ) -> None:
     """Insert or replace the World sections document for one scope."""
 
@@ -220,6 +226,7 @@ async def _upsert_sections_doc(
         "ads": ads,
         "updated_at": now,
         "region_id": region_id,
+        RIBBON_ADS_MIGRATED_FIELD: ribbon_ads_migrated,
     }
     if existing is not None:
         await db[WORLD_PAGE_SECTIONS_COLLECTION].update_one(
@@ -305,6 +312,38 @@ async def get_for_market(
         )
     items = expand_world_section_items(list(doc.get("items") or []))
     ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_WORLD)
+    now = utc_now().isoformat()
+    if not doc.get(RIBBON_ADS_MIGRATED_FIELD) and not has_ribbon_ad_section(items):
+        items = insert_legacy_world_ribbon_ads(items)
+        await _upsert_sections_doc(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            items=items,
+            ads=ads,
+            now=now,
+            ribbon_ads_migrated=True,
+        )
+        await sync_world_layout_slots(
+            db,
+            market_id=market_id,
+            items=items,
+            region_id=region_id,
+        )
+        return _to_out(
+            market_id=market_id,
+            market_code=str(market["code"]),
+            region_id=region_id,
+            region_code=normalized_region,
+            items=items,
+            ads=ads,
+            updated_at=now,
+        )
+    if not doc.get(RIBBON_ADS_MIGRATED_FIELD):
+        await db[WORLD_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": doc["_id"]},
+            {"$set": {RIBBON_ADS_MIGRATED_FIELD: True}},
+        )
     return _to_out(
         market_id=market_id,
         market_code=str(market["code"]),
@@ -312,7 +351,7 @@ async def get_for_market(
         region_code=normalized_region,
         items=items,
         ads=ads,
-        updated_at=str(doc.get("updated_at") or utc_now().isoformat()),
+        updated_at=str(doc.get("updated_at") or now),
     )
 
 

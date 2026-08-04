@@ -42,6 +42,7 @@ const SECTION_TYPES: WorldPageSectionType[] = [
   'spotlight',
   'rail',
   'category',
+  'ribbon_ad',
 ]
 
 const DEFAULT_LABEL_BY_TYPE: Record<WorldPageSectionType, string> = {
@@ -52,6 +53,7 @@ const DEFAULT_LABEL_BY_TYPE: Record<WorldPageSectionType, string> = {
   spotlight: 'Europe',
   rail: 'Latin America',
   category: '',
+  ribbon_ad: 'Ribbon Advertisement',
 }
 
 const CANONICAL_SLUG_BY_TYPE: Partial<Record<WorldPageSectionType, string>> = {

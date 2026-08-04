@@ -40,6 +40,7 @@ const SECTION_TYPES: SportsPageSectionType[] = [
   'live',
   'world',
   'sport',
+  'ribbon_ad',
 ]
 
 const DEFAULT_LABEL_BY_TYPE: Record<SportsPageSectionType, string> = {
@@ -48,6 +49,7 @@ const DEFAULT_LABEL_BY_TYPE: Record<SportsPageSectionType, string> = {
   live: 'Live',
   world: 'World',
   sport: '',
+  ribbon_ad: 'Ribbon Advertisement',
 }
 
 const CANONICAL_SLUG_BY_TYPE: Partial<Record<SportsPageSectionType, string>> = {

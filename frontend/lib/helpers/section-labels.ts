@@ -162,7 +162,14 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
 ])
 
 /** Slots on the Sports page that are not compact sport rows. */
-const SPORTS_PAGE_NON_COMPACT_KEYS = new Set(['hero', 'us-featured', 'us', 'health', 'world'])
+const SPORTS_PAGE_NON_COMPACT_KEYS = new Set([
+  'hero',
+  'us-featured',
+  'us',
+  'health',
+  'world',
+  'ad-ribbon',
+])
 
 
 
@@ -182,6 +189,9 @@ export const COMPACT_SIX_BAND_EXTENDED_LIMIT = 12
  */
 export function isCompactSixBandPositionKey(positionKey: string, pageName?: string): boolean {
   const normalized = positionKey.trim().toLowerCase()
+  if (normalized === 'ad-ribbon' || normalized.startsWith('ad-ribbon-')) {
+    return false
+  }
   if (COMPACT_SIX_BAND_POSITION_KEYS.has(normalized)) {
     return true
   }
@@ -527,9 +537,11 @@ export function sectionAnchorId(positionKey: string): string {
  */
 
 export function isHomepageSectionVisible(positionKey: string): boolean {
-
-  return !HIDDEN_HOMEPAGE_SECTION_KEYS.has(positionKey.trim().toLowerCase())
-
+  const key = positionKey.trim().toLowerCase()
+  if (key === 'ad-ribbon' || key.startsWith('ad-ribbon-')) {
+    return false
+  }
+  return !HIDDEN_HOMEPAGE_SECTION_KEYS.has(key)
 }
 
 

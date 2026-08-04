@@ -76,14 +76,17 @@ function AdRibbon({
   index = 0,
   location = 'before_section',
   anchorSlug,
+  force = false,
 }: {
   index?: number
   location?: PageAdLocation
   anchorSlug?: string | null
+  /** Configuration-driven ribbon_ad slots always render. */
+  force?: boolean
 }): JSX.Element | null {
   const t = useTranslations('common')
   const { shouldRender, variantFor } = usePageAds()
-  if (!shouldRender(location, anchorSlug)) {
+  if (!force && !shouldRender(location, anchorSlug)) {
     return null
   }
 
@@ -294,7 +297,7 @@ function shouldInsertHomepageAdBefore(
   previousSlot: IFeedSlot | null,
   previousKind: HomepagePageSlotKind | null,
 ): boolean {
-  if (previousKind === null) {
+  if (previousKind === null || kind === 'ribbon_ad') {
     return false
   }
   if (kind === 'live_carousel' || kind === 'editorial_lead') {
@@ -364,10 +367,12 @@ function PoliticsSportsSection({
   politicsSlot,
   sportsSlot,
   adIndex,
+  showAdRibbon = true,
 }: {
   politicsSlot: IFeedSlot | undefined
   sportsSlot: IFeedSlot | undefined
   adIndex: number
+  showAdRibbon?: boolean
 }): JSX.Element | null {
   if (!politicsSlot && !sportsSlot) {
     return null
@@ -376,7 +381,9 @@ function PoliticsSportsSection({
     <div className="space-y-2">
       {politicsSlot ? (
         <>
-          <AdRibbon index={adIndex} location="before_section" anchorSlug="politics" />
+          {showAdRibbon ? (
+            <AdRibbon index={adIndex} location="before_section" anchorSlug="politics" />
+          ) : null}
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageSection slot={politicsSlot} />
           </Suspense>
@@ -398,11 +405,16 @@ function HomepagePageSlotBlock({
   slot,
   kind,
   title,
+  adIndex = 0,
 }: {
   slot: IFeedSlot
   kind: HomepagePageSlotKind
   title: string
+  adIndex?: number
 }): JSX.Element | null {
+  if (kind === 'ribbon_ad') {
+    return <AdRibbon index={adIndex} force />
+  }
   if (kind === 'hero') {
     return (
       <PlacementSlotScope slotId={slot.id}>
@@ -432,6 +444,16 @@ function HomepagePageSlotBlock({
 /**
  * Main Page stack: render layout slots in configured order with ad-ribbon heuristics.
  */
+/**
+ * Whether the feed already includes configuration-driven ribbon advertisement slots.
+ *
+ * @param slots Ordered feed slots.
+ * @returns True when heuristic ribbons should be suppressed.
+ */
+function feedHasConfiguredRibbonAds(slots: IFeedSlot[]): boolean {
+  return slots.some((slot) => resolveHomepagePageSlotKind(slot) === 'ribbon_ad')
+}
+
 function MainPageOrderedSections({
   slots,
   sectionLabel,
@@ -443,6 +465,7 @@ function MainPageOrderedSections({
   pageName?: string
 }): JSX.Element {
   const orderedSlots = repairLegacyHomepageSlotOrder(slots)
+  const useConfiguredRibbons = feedHasConfiguredRibbonAds(orderedSlots)
   const blocks: JSX.Element[] = []
   let index = 0
   let adIndex = 0
@@ -453,7 +476,8 @@ function MainPageOrderedSections({
     const remaining = orderedSlots.slice(index)
     const bandTaken = takeEditorialBand(remaining)
     if (bandTaken) {
-      const bandAdIndex = previousKind !== null ? adIndex++ : null
+      const bandAdIndex =
+        !useConfiguredRibbons && previousKind !== null ? adIndex++ : null
       blocks.push(
         <div key={`${bandTaken.band.lead.id}-band`} className="space-y-2">
           {bandAdIndex !== null ? (
@@ -482,7 +506,7 @@ function MainPageOrderedSections({
     const pairTaken = takePoliticsSportsPair(remaining)
     if (pairTaken) {
       const pairAdIndex = adIndex
-      if (pairTaken.politics) {
+      if (!useConfiguredRibbons && pairTaken.politics) {
         adIndex += 1
       }
       blocks.push(
@@ -491,6 +515,7 @@ function MainPageOrderedSections({
           politicsSlot={pairTaken.politics}
           sportsSlot={pairTaken.sports}
           adIndex={pairAdIndex}
+          showAdRibbon={!useConfiguredRibbons}
         />,
       )
       previousSlot = pairTaken.sports ?? pairTaken.politics
@@ -502,9 +527,23 @@ function MainPageOrderedSections({
     const slot = orderedSlots[index]
     const kind = resolveHomepagePageSlotKind(slot)
     const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
-    const showAdBefore = shouldInsertHomepageAdBefore(slot, kind, previousSlot, previousKind)
+    if (kind === 'ribbon_ad') {
+      const ribbonIndex = adIndex++
+      blocks.push(
+        <div key={slot.id} className="space-y-2">
+          <HomepagePageSlotBlock slot={slot} kind={kind} title={title} adIndex={ribbonIndex} />
+        </div>,
+      )
+      previousSlot = slot
+      previousKind = kind
+      index += 1
+      continue
+    }
+    const showAdBefore =
+      !useConfiguredRibbons &&
+      shouldInsertHomepageAdBefore(slot, kind, previousSlot, previousKind)
     const beforeAdIndex = showAdBefore ? adIndex++ : null
-    const heroAdIndex = kind === 'hero' ? adIndex++ : null
+    const heroAdIndex = !useConfiguredRibbons && kind === 'hero' ? adIndex++ : null
     blocks.push(
       <div key={slot.id} className="space-y-2">
         {beforeAdIndex !== null ? (
@@ -544,6 +583,9 @@ function shouldInsertSportsAdBefore(
   previousKind: ReturnType<typeof resolveSportsPageSlotKind> | null,
   compactIndex: number,
 ): boolean {
+  if (kind === 'ribbon_ad') {
+    return false
+  }
   if (kind === 'live_carousel') {
     return true
   }
@@ -563,11 +605,16 @@ function SportsPageSlotBlock({
   slot,
   kind,
   title,
+  adIndex = 0,
 }: {
   slot: IFeedSlot
   kind: ReturnType<typeof resolveSportsPageSlotKind>
   title: string
+  adIndex?: number
 }): JSX.Element | null {
+  if (kind === 'ribbon_ad') {
+    return <AdRibbon index={adIndex} force />
+  }
   if (kind === 'hero') {
     return (
       <PlacementSlotScope slotId={slot.id}>
@@ -608,6 +655,9 @@ function SportsPageSections({
   slots: IFeedSlot[]
   sectionLabel: (positionKey: string) => string
 }): JSX.Element {
+  const useConfiguredRibbons = slots.some(
+    (slot) => resolveSportsPageSlotKind(slot) === 'ribbon_ad',
+  )
   const blocks: JSX.Element[] = []
   let compactIndex = 0
   let adIndex = 0
@@ -615,10 +665,21 @@ function SportsPageSections({
 
   for (const slot of slots) {
     const kind = resolveSportsPageSlotKind(slot)
-    const showAdBefore = shouldInsertSportsAdBefore(kind, previousKind, compactIndex)
     const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
+    if (kind === 'ribbon_ad') {
+      const ribbonIndex = adIndex++
+      blocks.push(
+        <div key={slot.id} className="space-y-2">
+          <SportsPageSlotBlock slot={slot} kind={kind} title={title} adIndex={ribbonIndex} />
+        </div>,
+      )
+      previousKind = kind
+      continue
+    }
+    const showAdBefore =
+      !useConfiguredRibbons && shouldInsertSportsAdBefore(kind, previousKind, compactIndex)
     const beforeAdIndex = showAdBefore ? adIndex++ : null
-    const heroAdIndex = kind === 'hero' ? adIndex++ : null
+    const heroAdIndex = !useConfiguredRibbons && kind === 'hero' ? adIndex++ : null
     blocks.push(
       <div key={slot.id} className="space-y-2">
         {beforeAdIndex !== null ? (

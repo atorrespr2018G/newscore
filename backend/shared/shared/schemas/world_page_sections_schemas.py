@@ -16,6 +16,7 @@ WorldPageSectionType = Literal[
     "spotlight",
     "rail",
     "category",
+    "ribbon_ad",
 ]
 
 

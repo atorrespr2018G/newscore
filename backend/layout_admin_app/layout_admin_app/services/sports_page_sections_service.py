@@ -20,13 +20,17 @@ from shared.core.regions import get_region_by_code
 from shared.core.sports_page_sections_sync import (
     CANONICAL_SLUG_BY_TYPE,
     DEFAULT_FIXED_SECTION_ITEMS,
+    PREFERRED_SLUG_PREFIX_BY_TYPE,
     PRESERVED_SPORTS_PAGE_KEYS,
     SECTION_TYPE_HERO,
     SECTION_TYPE_SPORT,
     expand_legacy_section_items,
+    has_ribbon_ad_section,
+    insert_legacy_sports_ribbon_ads,
     slugify_sport_label,
     sync_sports_layout_slots,
 )
+
 from shared.models.common import utc_now
 from shared.read.collections import SPORTS_PAGE_SECTIONS_COLLECTION
 from shared.read.market_reads import get_market_by_code
@@ -37,6 +41,8 @@ from shared.schemas.sports_page_sections_schemas import (
     SportsPageSectionsOut,
     SportsPageSectionsUpdate,
 )
+
+RIBBON_ADS_MIGRATED_FIELD = "ribbon_ads_migrated"
 
 logger = get_logger(__name__)
 
@@ -50,6 +56,17 @@ def _normalize_slug(value: str) -> str:
     if not normalized:
         raise ValidationError("Section slug must contain letters or numbers")
     return normalized
+
+
+def _unique_preferred_slug(prefix: str, seen_slugs: set[str]) -> str:
+    """Pick an unused slug for repeatable section types (ribbon_ad, etc.)."""
+
+    if prefix not in seen_slugs:
+        return prefix
+    suffix = 2
+    while f"{prefix}-{suffix}" in seen_slugs:
+        suffix += 1
+    return f"{prefix}-{suffix}"
 
 
 def _resolve_item_slug(
@@ -70,6 +87,10 @@ def _resolve_item_slug(
     canonical = CANONICAL_SLUG_BY_TYPE.get(section_type)
     if canonical and canonical not in seen_slugs:
         return canonical
+
+    preferred_prefix = PREFERRED_SLUG_PREFIX_BY_TYPE.get(section_type)
+    if preferred_prefix:
+        return _unique_preferred_slug(preferred_prefix, seen_slugs)
 
     return slugify_sport_label(label)
 
@@ -106,7 +127,11 @@ def _normalize_items(items: list[SportsPageSectionItemIn]) -> list[dict[str, str
             expected = CANONICAL_SLUG_BY_TYPE.get(section_type)
             if expected and slug == expected:
                 pass
-            elif slug in PRESERVED_SPORTS_PAGE_KEYS and slug != expected:
+            elif (
+                section_type not in PREFERRED_SLUG_PREFIX_BY_TYPE
+                and slug in PRESERVED_SPORTS_PAGE_KEYS
+                and slug != expected
+            ):
                 raise ValidationError(
                     f"Slug '{slug}' is reserved for another section type",
                 )
@@ -191,6 +216,7 @@ async def _upsert_sections_doc(
     items: list[dict[str, str]],
     ads: list[dict[str, Any]],
     now: str,
+    ribbon_ads_migrated: bool = True,
 ) -> None:
     """Insert or replace the sports sections document for one scope."""
 
@@ -201,6 +227,7 @@ async def _upsert_sections_doc(
         "ads": ads,
         "updated_at": now,
         "region_id": region_id,
+        RIBBON_ADS_MIGRATED_FIELD: ribbon_ads_migrated,
     }
     if existing is not None:
         await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
@@ -286,6 +313,38 @@ async def get_for_market(
         )
     items = expand_legacy_section_items(list(doc.get("items") or []))
     ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_SPORTS)
+    now = utc_now().isoformat()
+    if not doc.get(RIBBON_ADS_MIGRATED_FIELD) and not has_ribbon_ad_section(items):
+        items = insert_legacy_sports_ribbon_ads(items)
+        await _upsert_sections_doc(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            items=items,
+            ads=ads,
+            now=now,
+            ribbon_ads_migrated=True,
+        )
+        await sync_sports_layout_slots(
+            db,
+            market_id=market_id,
+            items=items,
+            region_id=region_id,
+        )
+        return _to_out(
+            market_id=market_id,
+            market_code=str(market["code"]),
+            region_id=region_id,
+            region_code=normalized_region,
+            items=items,
+            ads=ads,
+            updated_at=now,
+        )
+    if not doc.get(RIBBON_ADS_MIGRATED_FIELD):
+        await db[SPORTS_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": doc["_id"]},
+            {"$set": {RIBBON_ADS_MIGRATED_FIELD: True}},
+        )
     return _to_out(
         market_id=market_id,
         market_code=str(market["code"]),
@@ -293,7 +352,7 @@ async def get_for_market(
         region_code=normalized_region,
         items=items,
         ads=ads,
-        updated_at=str(doc.get("updated_at") or utc_now().isoformat()),
+        updated_at=str(doc.get("updated_at") or now),
     )
 
 

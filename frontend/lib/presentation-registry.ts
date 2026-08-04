@@ -8,6 +8,7 @@ import {
   PRESENTATION_HERO,
   PRESENTATION_LIVE_CAROUSEL,
   PRESENTATION_RAIL_COMPACT,
+  PRESENTATION_RIBBON_AD,
 } from '@/lib/presentation-types'
 
 /** Maps slot presentationType to the default StoryCard variant. */
@@ -19,9 +20,10 @@ export const CARD_VARIANT_BY_PRESENTATION: Record<string, StoryCardVariant> = {
   [PRESENTATION_GRID_4]: 'grid',
   [PRESENTATION_FEATURED_BAND]: 'grid',
   [PRESENTATION_LIVE_CAROUSEL]: 'grid',
+  [PRESENTATION_RIBBON_AD]: 'grid',
 }
 
-export type SlotModuleKind = 'hero' | 'editorial-band' | 'grid-section'
+export type SlotModuleKind = 'hero' | 'editorial-band' | 'grid-section' | 'ribbon-ad'
 
 /** Maps presentationType to the homepage layout module that renders the slot. */
 export const MODULE_KIND_BY_PRESENTATION: Record<string, SlotModuleKind> = {
@@ -32,6 +34,7 @@ export const MODULE_KIND_BY_PRESENTATION: Record<string, SlotModuleKind> = {
   [PRESENTATION_GRID_4]: 'grid-section',
   [PRESENTATION_FEATURED_BAND]: 'grid-section',
   [PRESENTATION_LIVE_CAROUSEL]: 'grid-section',
+  [PRESENTATION_RIBBON_AD]: 'ribbon-ad',
 }
 
 /**
@@ -72,4 +75,5 @@ export {
   PRESENTATION_HERO,
   PRESENTATION_LIVE_CAROUSEL,
   PRESENTATION_RAIL_COMPACT,
+  PRESENTATION_RIBBON_AD,
 }

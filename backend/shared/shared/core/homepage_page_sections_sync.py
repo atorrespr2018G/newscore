@@ -18,6 +18,7 @@ from shared.core.markets import (
     PRESENTATION_HERO,
     PRESENTATION_LIVE_CAROUSEL,
     PRESENTATION_RAIL_COMPACT,
+    PRESENTATION_RIBBON_AD,
 )
 from shared.models.common import utc_now
 from shared.read.collections import (
@@ -43,6 +44,10 @@ SECTION_TYPE_MORE_TOP_STORIES = "more_top_stories"
 SECTION_TYPE_SPOTLIGHT = "spotlight"
 SECTION_TYPE_RAIL = "rail"
 SECTION_TYPE_CATEGORY = "category"
+SECTION_TYPE_RIBBON_AD = "ribbon_ad"
+
+RIBBON_AD_POSITION_KEY = "ad-ribbon"
+RIBBON_AD_ARTICLE_LIMIT = 0
 
 HOMEPAGE_PAGE_SECTION_TYPES = frozenset(
     {
@@ -53,6 +58,7 @@ HOMEPAGE_PAGE_SECTION_TYPES = frozenset(
         SECTION_TYPE_SPOTLIGHT,
         SECTION_TYPE_RAIL,
         SECTION_TYPE_CATEGORY,
+        SECTION_TYPE_RIBBON_AD,
     },
 )
 
@@ -67,6 +73,7 @@ PREFERRED_SLUG_PREFIX_BY_TYPE = {
     SECTION_TYPE_MORE_TOP_STORIES: MORE_TOP_STORIES_POSITION_KEY,
     SECTION_TYPE_SPOTLIGHT: SPOTLIGHT_POSITION_KEY,
     SECTION_TYPE_RAIL: RAIL_POSITION_KEY,
+    SECTION_TYPE_RIBBON_AD: RIBBON_AD_POSITION_KEY,
 }
 
 PRESERVED_HOMEPAGE_PAGE_KEYS = frozenset(
@@ -90,58 +97,140 @@ DEFAULT_LABEL_BY_TYPE = {
     SECTION_TYPE_MORE_TOP_STORIES: "More Top Stories",
     SECTION_TYPE_SPOTLIGHT: "Government",
     SECTION_TYPE_RAIL: "Sports",
+    SECTION_TYPE_RIBBON_AD: "Ribbon Advertisement",
 }
 
-# Defaults match the previous public landing stack (not raw seed order_index).
-DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = [
-    {"section_type": SECTION_TYPE_HERO, "slug": HERO_POSITION_KEY, "label": "Hero"},
-    {
-        "section_type": SECTION_TYPE_TOP_STORIES,
-        "slug": US_FEATURED_POSITION_KEY,
-        "label": "Top Stories",
-    },
-    {
-        "section_type": SECTION_TYPE_MORE_TOP_STORIES,
-        "slug": MORE_TOP_STORIES_POSITION_KEY,
-        "label": "More Top Stories",
-    },
-    {
-        "section_type": SECTION_TYPE_SPOTLIGHT,
-        "slug": SPOTLIGHT_POSITION_KEY,
-        "label": "Government",
-    },
-    {"section_type": SECTION_TYPE_RAIL, "slug": RAIL_POSITION_KEY, "label": "Sports"},
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "politics", "label": "Politics"},
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "sports", "label": "Sports"},
-    {"section_type": SECTION_TYPE_LIVE, "slug": LIVE_POSITION_KEY, "label": "Live"},
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "finance", "label": "Health"},
-    {
-        "section_type": SECTION_TYPE_CATEGORY,
-        "slug": "entertainment",
-        "label": "Entertainment",
-    },
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "world", "label": "World"},
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "technology", "label": "Technology"},
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "business", "label": "Business"},
-    {
-        "section_type": SECTION_TYPE_MORE_TOP_STORIES,
-        "slug": f"{MORE_TOP_STORIES_POSITION_KEY}-2",
-        "label": "Extra Stories",
-    },
-    {
-        "section_type": SECTION_TYPE_SPOTLIGHT,
-        "slug": f"{SPOTLIGHT_POSITION_KEY}-2",
-        "label": "World watch",
-    },
-    {
-        "section_type": SECTION_TYPE_RAIL,
-        "slug": f"{RAIL_POSITION_KEY}-2",
-        "label": "Featured",
-    },
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "us", "label": "US"},
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "style", "label": "Style"},
-    {"section_type": SECTION_TYPE_CATEGORY, "slug": "travel", "label": "Travel"},
-]
+# Category keys that historically had a heuristic ribbon immediately before them.
+_HOMEPAGE_RIBBON_BEFORE_CATEGORY_KEYS = frozenset(
+    {"politics", "health", "finance", "technology", "world"},
+)
+
+
+def _ribbon_ad_item(slug: str) -> dict[str, str]:
+    """Build one configurable ribbon advertisement section row."""
+
+    return {
+        "section_type": SECTION_TYPE_RIBBON_AD,
+        "slug": slug,
+        "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_RIBBON_AD],
+    }
+
+
+def _next_ribbon_slug(used_slugs: set[str]) -> str:
+    """Allocate the next unused ``ad-ribbon`` / ``ad-ribbon-N`` slug."""
+
+    if RIBBON_AD_POSITION_KEY not in used_slugs:
+        return RIBBON_AD_POSITION_KEY
+    suffix = 2
+    while f"{RIBBON_AD_POSITION_KEY}-{suffix}" in used_slugs:
+        suffix += 1
+    return f"{RIBBON_AD_POSITION_KEY}-{suffix}"
+
+
+def has_ribbon_ad_section(items: list[dict[str, str]]) -> bool:
+    """Return whether the section list already includes ribbon advertisement rows."""
+
+    return any(item.get("section_type") == SECTION_TYPE_RIBBON_AD for item in items)
+
+
+def insert_legacy_homepage_ribbon_ads(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Insert ribbon rows matching the former homepage heuristic placements.
+
+    Args:
+        items: Typed section rows without configurable ribbons.
+
+    Returns:
+        Copy of ``items`` with ribbon advertisement rows inserted in legacy spots.
+    """
+
+    if has_ribbon_ad_section(items):
+        return [dict(row) for row in items]
+
+    result: list[dict[str, str]] = []
+    used_slugs = {str(item.get("slug") or "") for item in items}
+    previous_type: str | None = None
+
+    for item in items:
+        section_type = item["section_type"]
+        slug = item["slug"]
+        needs_before = False
+        if previous_type is not None:
+            if section_type in {SECTION_TYPE_MORE_TOP_STORIES, SECTION_TYPE_LIVE}:
+                needs_before = True
+            elif (
+                section_type == SECTION_TYPE_CATEGORY
+                and slug in _HOMEPAGE_RIBBON_BEFORE_CATEGORY_KEYS
+            ):
+                needs_before = True
+        if needs_before:
+            ribbon_slug = _next_ribbon_slug(used_slugs)
+            used_slugs.add(ribbon_slug)
+            result.append(_ribbon_ad_item(ribbon_slug))
+        result.append(dict(item))
+        if section_type == SECTION_TYPE_HERO:
+            ribbon_slug = _next_ribbon_slug(used_slugs)
+            used_slugs.add(ribbon_slug)
+            result.append(_ribbon_ad_item(ribbon_slug))
+        previous_type = section_type
+    return result
+
+
+# Defaults match the previous public landing stack, including heuristic ad ribbons.
+DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_homepage_ribbon_ads(
+    [
+        {"section_type": SECTION_TYPE_HERO, "slug": HERO_POSITION_KEY, "label": "Hero"},
+        {
+            "section_type": SECTION_TYPE_TOP_STORIES,
+            "slug": US_FEATURED_POSITION_KEY,
+            "label": "Top Stories",
+        },
+        {
+            "section_type": SECTION_TYPE_MORE_TOP_STORIES,
+            "slug": MORE_TOP_STORIES_POSITION_KEY,
+            "label": "More Top Stories",
+        },
+        {
+            "section_type": SECTION_TYPE_SPOTLIGHT,
+            "slug": SPOTLIGHT_POSITION_KEY,
+            "label": "Government",
+        },
+        {"section_type": SECTION_TYPE_RAIL, "slug": RAIL_POSITION_KEY, "label": "Sports"},
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "politics", "label": "Politics"},
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "sports", "label": "Sports"},
+        {"section_type": SECTION_TYPE_LIVE, "slug": LIVE_POSITION_KEY, "label": "Live"},
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "finance", "label": "Health"},
+        {
+            "section_type": SECTION_TYPE_CATEGORY,
+            "slug": "entertainment",
+            "label": "Entertainment",
+        },
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "world", "label": "World"},
+        {
+            "section_type": SECTION_TYPE_CATEGORY,
+            "slug": "technology",
+            "label": "Technology",
+        },
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "business", "label": "Business"},
+        {
+            "section_type": SECTION_TYPE_MORE_TOP_STORIES,
+            "slug": f"{MORE_TOP_STORIES_POSITION_KEY}-2",
+            "label": "Extra Stories",
+        },
+        {
+            "section_type": SECTION_TYPE_SPOTLIGHT,
+            "slug": f"{SPOTLIGHT_POSITION_KEY}-2",
+            "label": "World watch",
+        },
+        {
+            "section_type": SECTION_TYPE_RAIL,
+            "slug": f"{RAIL_POSITION_KEY}-2",
+            "label": "Featured",
+        },
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "us", "label": "US"},
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "style", "label": "Style"},
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "travel", "label": "Travel"},
+    ],
+)
 
 # Spotlight position keys that fill from a specific category slug.
 SPOTLIGHT_CATEGORY_BY_SLUG = {
@@ -469,6 +558,15 @@ async def _slot_spec_for_section(
             "presentation_type": PRESENTATION_LIVE_CAROUSEL,
             "category_id": live_category_id,
             "limit": LIVE_ARTICLE_LIMIT,
+        }
+    if section_type == SECTION_TYPE_RIBBON_AD:
+        return {
+            "position_key": slug,
+            "order_index": order_index,
+            "display_name": label,
+            "presentation_type": PRESENTATION_RIBBON_AD,
+            "category_id": None,
+            "limit": RIBBON_AD_ARTICLE_LIMIT,
         }
     if section_type == SECTION_TYPE_MORE_TOP_STORIES:
         return {

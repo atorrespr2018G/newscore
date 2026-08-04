@@ -38,6 +38,7 @@ const SECTION_TYPES: MainPageSectionType[] = [
   'spotlight',
   'rail',
   'category',
+  'ribbon_ad',
 ]
 
 const DEFAULT_LABEL_BY_TYPE: Record<MainPageSectionType, string> = {
@@ -48,6 +49,7 @@ const DEFAULT_LABEL_BY_TYPE: Record<MainPageSectionType, string> = {
   spotlight: 'Government',
   rail: 'Sports',
   category: '',
+  ribbon_ad: 'Ribbon Advertisement',
 }
 
 const CANONICAL_SLUG_BY_TYPE: Partial<Record<MainPageSectionType, string>> = {

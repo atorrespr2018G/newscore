@@ -8,6 +8,7 @@ import {
   PRESENTATION_HERO,
   PRESENTATION_LIVE_CAROUSEL,
   PRESENTATION_RAIL_COMPACT,
+  PRESENTATION_RIBBON_AD,
 } from '@/lib/presentation-registry'
 import {
   HOMEPAGE_POST_POLITICS_SECTION_KEYS,
@@ -520,7 +521,12 @@ export function selectHomepageSections(slots: IFeedSlot[]): IHomepageSections {
 }
 
 /** How a sports page slot should render on the public stack. */
-export type SportsPageSlotKind = 'hero' | 'featured_band' | 'live_carousel' | 'compact_six'
+export type SportsPageSlotKind =
+  | 'hero'
+  | 'featured_band'
+  | 'live_carousel'
+  | 'compact_six'
+  | 'ribbon_ad'
 
 /**
  * Resolve the Sports page renderer for a slot (supports legacy position keys).
@@ -539,6 +545,9 @@ export function resolveSportsPageSlotKind(slot: IFeedSlot): SportsPageSlotKind {
   if (presentation === PRESENTATION_LIVE_CAROUSEL) {
     return 'live_carousel'
   }
+  if (presentation === PRESENTATION_RIBBON_AD) {
+    return 'ribbon_ad'
+  }
 
   const key = normalizedPositionKey(slot)
   if (key === 'hero') {
@@ -549,6 +558,9 @@ export function resolveSportsPageSlotKind(slot: IFeedSlot): SportsPageSlotKind {
   }
   if (key === 'health') {
     return 'live_carousel'
+  }
+  if (key === 'ad-ribbon' || key.startsWith('ad-ribbon-')) {
+    return 'ribbon_ad'
   }
   return 'compact_six'
 }
@@ -562,6 +574,7 @@ export type HomepagePageSlotKind =
   | 'editorial_spotlight'
   | 'rail_compact'
   | 'compact_six'
+  | 'ribbon_ad'
 
 /**
  * Restore Top Stories (`us-featured`) after Hero when legacy layouts place it
@@ -608,6 +621,9 @@ export function resolveHomepagePageSlotKind(slot: IFeedSlot): HomepagePageSlotKi
   if (presentation === PRESENTATION_LIVE_CAROUSEL) {
     return 'live_carousel'
   }
+  if (presentation === PRESENTATION_RIBBON_AD) {
+    return 'ribbon_ad'
+  }
   if (presentation === PRESENTATION_EDITORIAL_LEAD) {
     return 'editorial_lead'
   }
@@ -619,6 +635,9 @@ export function resolveHomepagePageSlotKind(slot: IFeedSlot): HomepagePageSlotKi
   }
 
   const key = normalizedPositionKey(slot)
+  if (key === 'ad-ribbon' || key.startsWith('ad-ribbon-')) {
+    return 'ribbon_ad'
+  }
   if (key === 'hero') {
     return 'hero'
   }

@@ -28,9 +28,19 @@ import type { IFeedSlot, IHomepageFeed } from '@/interfaces/feed'
 import {
   PRESENTATION_GRID_4,
   PRESENTATION_HERO,
+  PRESENTATION_LIVE_CAROUSEL,
+  PRESENTATION_RIBBON_AD,
 } from '@/lib/presentation-registry'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { usePageAds, useSyncPageAdPlacements } from '@/context/page-ads-context'
+
+const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
+
+const HomepageHealthCarousel = dynamic(
+  () =>
+    import('@/components/features/homepage-health-carousel').then((m) => m.HealthCarouselSection),
+  { loading: () => <SectionSkeleton /> },
+)
 
 const HomepageEditorialBand = dynamic(
   () => import('@/components/features/homepage-editorial-band').then((m) => m.HomepageEditorialBand),
@@ -49,14 +59,17 @@ function AdRibbon({
   index = 0,
   location = 'before_section',
   anchorSlug,
+  force = false,
 }: {
   index?: number
   location?: 'after_hero' | 'before_section' | 'after_section'
   anchorSlug?: string | null
+  /** Configuration-driven ribbon_ad slots always render. */
+  force?: boolean
 }): JSX.Element | null {
   const t = useTranslations('common')
   const { shouldRender, variantFor } = usePageAds()
-  if (!shouldRender(location, anchorSlug)) {
+  if (!force && !shouldRender(location, anchorSlug)) {
     return null
   }
 
@@ -523,10 +536,94 @@ export function SectionPage({
   const usedSlotIds = editorialSlotIds(editorialBands)
   if (heroSlot) usedSlotIds.add(heroSlot.id)
 
-  const gridSlots = slots.filter(
-    (slot) => slot.presentationType === PRESENTATION_GRID_4 && !usedSlotIds.has(slot.id),
+  const bodySlots = slots.filter((slot) => {
+    if (usedSlotIds.has(slot.id)) {
+      return false
+    }
+    return (
+      slot.presentationType === PRESENTATION_GRID_4 ||
+      slot.presentationType === PRESENTATION_RIBBON_AD ||
+      slot.presentationType === PRESENTATION_LIVE_CAROUSEL
+    )
+  })
+  const useConfiguredRibbons = slots.some(
+    (slot) => slot.presentationType === PRESENTATION_RIBBON_AD,
   )
   let adIndex = 0
+  const heroRibbonIndex = !useConfiguredRibbons ? adIndex++ : null
+  const editorialBlocks = editorialBands.map((band, bandIndex) => {
+    const bandAdIndex = !useConfiguredRibbons && bandIndex > 0 ? adIndex++ : null
+    return (
+      <div key={`${band.lead.id}-${band.spotlight.id}-${band.rail?.id ?? 'no-rail'}`} className="space-y-2">
+        {bandAdIndex !== null ? (
+          <AdRibbon
+            index={bandAdIndex}
+            location="before_section"
+            anchorSlug={normalizedPositionKey(band.lead)}
+          />
+        ) : null}
+        <Suspense fallback={<SectionSkeleton />}>
+          <HomepageEditorialBand
+            moreTopStoriesSlot={band.lead}
+            spotlightSlot={band.spotlight}
+            rightRailSlot={band.rail}
+            pageName={pageName}
+            hideLeadHeadlineLinks={editorial?.hideLeadHeadlineLinks}
+            showTrailingNewsScreen={editorial?.showTrailingNewsScreen}
+          />
+        </Suspense>
+      </div>
+    )
+  })
+  const bodyBlocks: JSX.Element[] = []
+  let previousGridSlot: IFeedSlot | undefined
+  for (const slot of bodySlots) {
+    if (slot.presentationType === PRESENTATION_RIBBON_AD) {
+      const ribbonIndex = adIndex++
+      bodyBlocks.push(
+        <div key={slot.id} className="space-y-2">
+          <AdRibbon index={ribbonIndex} location="before_section" force />
+        </div>,
+      )
+      continue
+    }
+    if (slot.presentationType === PRESENTATION_LIVE_CAROUSEL) {
+      bodyBlocks.push(
+        <div key={slot.id} className="space-y-2">
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomepageHealthCarousel
+              slot={{
+                ...slot,
+                articles: slot.articles.slice(0, LIVE_CAROUSEL_ARTICLE_LIMIT),
+              }}
+            />
+          </Suspense>
+        </div>,
+      )
+      continue
+    }
+    const beforeAdIndex =
+      !useConfiguredRibbons && shouldShowGridAdBefore(slot, previousGridSlot)
+        ? adIndex++
+        : null
+    const afterAdIndex =
+      !useConfiguredRibbons && shouldShowGridAdAfter(slot) ? adIndex++ : null
+    previousGridSlot = slot
+    const slotKey = normalizedPositionKey(slot)
+    bodyBlocks.push(
+      <div key={slot.id} className="space-y-2">
+        {beforeAdIndex !== null ? (
+          <AdRibbon index={beforeAdIndex} location="before_section" anchorSlug={slotKey} />
+        ) : null}
+        <Suspense fallback={<SectionSkeleton />}>
+          <HomepageSection slot={slot} pageName={pageName} />
+        </Suspense>
+        {afterAdIndex !== null ? (
+          <AdRibbon index={afterAdIndex} location="after_section" anchorSlug={slotKey} />
+        ) : null}
+      </div>,
+    )
+  }
 
   return (
     <div className="space-y-2">
@@ -554,48 +651,11 @@ export function SectionPage({
         layout={hero}
         plainStoryTitles={plainStoryTitles}
       />
-      <AdRibbon index={adIndex++} location="after_hero" />
-
-      {editorialBands.map((band, bandIndex) => (
-        <div key={`${band.lead.id}-${band.spotlight.id}-${band.rail?.id ?? 'no-rail'}`} className="space-y-2">
-          {bandIndex > 0 ? (
-            <AdRibbon
-              index={adIndex++}
-              location="before_section"
-              anchorSlug={normalizedPositionKey(band.lead)}
-            />
-          ) : null}
-          <Suspense fallback={<SectionSkeleton />}>
-            <HomepageEditorialBand
-              moreTopStoriesSlot={band.lead}
-              spotlightSlot={band.spotlight}
-              rightRailSlot={band.rail}
-              pageName={pageName}
-              hideLeadHeadlineLinks={editorial?.hideLeadHeadlineLinks}
-              showTrailingNewsScreen={editorial?.showTrailingNewsScreen}
-            />
-          </Suspense>
-        </div>
-      ))}
-
-      {gridSlots.map((slot, index) => {
-        const beforeAdIndex = shouldShowGridAdBefore(slot, gridSlots[index - 1]) ? adIndex++ : null
-        const afterAdIndex = shouldShowGridAdAfter(slot) ? adIndex++ : null
-        const slotKey = normalizedPositionKey(slot)
-        return (
-          <div key={slot.id} className="space-y-2">
-            {beforeAdIndex !== null ? (
-              <AdRibbon index={beforeAdIndex} location="before_section" anchorSlug={slotKey} />
-            ) : null}
-            <Suspense fallback={<SectionSkeleton />}>
-              <HomepageSection slot={slot} pageName={pageName} />
-            </Suspense>
-            {afterAdIndex !== null ? (
-              <AdRibbon index={afterAdIndex} location="after_section" anchorSlug={slotKey} />
-            ) : null}
-          </div>
-        )
-      })}
+      {heroRibbonIndex !== null ? (
+        <AdRibbon index={heroRibbonIndex} location="after_hero" />
+      ) : null}
+      {editorialBlocks}
+      {bodyBlocks}
     </div>
   )
 }

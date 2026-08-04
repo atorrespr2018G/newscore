@@ -9,6 +9,8 @@ export const PRESENTATION_GRID_4 = 'grid_4'
 export const PRESENTATION_FEATURED_BAND = 'featured_band'
 /** Live carousel band on the Sports page. */
 export const PRESENTATION_LIVE_CAROUSEL = 'live_carousel'
+/** Configurable horizontal ribbon advertisement between page sections. */
+export const PRESENTATION_RIBBON_AD = 'ribbon_ad'
 
 export const EDITORIAL_PRESENTATION_TYPES = new Set([
   PRESENTATION_EDITORIAL_LEAD,

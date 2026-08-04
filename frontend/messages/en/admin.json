@@ -340,7 +340,7 @@
   "sportsPage": {
     "heading": "Sports sections",
     "subtitle": "Manage the ordered list of Sports page sections (hero, Top Stories, Live, World, and sport rows) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → sports.",
-    "listHint": "Add, remove, rename, or reorder any section. Saving updates Placement → sports for the same market, state, county, or town. Compact sport rows show an ad ribbon every two rows.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows between sports. Saving updates Placement → sports for the same market, state, county, or town. Compact sport rows also keep an ad ribbon every two rows.",
     "labelPlaceholder": "Section name",
     "addSport": "Add sport",
     "addType": {
@@ -348,14 +348,16 @@
       "top_stories": "Add Top Stories",
       "live": "Add Live",
       "world": "Add World",
-      "sport": "Add sport"
+      "sport": "Add sport",
+      "ribbon_ad": "Add Ribbon Advertisement"
     },
     "types": {
       "hero": "Hero",
       "top_stories": "Top Stories",
       "live": "Live",
       "world": "World",
-      "sport": "Sport"
+      "sport": "Sport",
+      "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
     "moveUp": "Up",
@@ -401,7 +403,7 @@
   "mainPage": {
     "heading": "Main Page sections",
     "subtitle": "Manage the ordered list of Main Page sections (hero, Top Stories, Live, Extra Stories, Politics, Sports, Entertainment, and more) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → homepage.",
-    "listHint": "Add, remove, rename, or reorder any section. Saving updates Placement → homepage for the same market, state, county, or town. The public landing page follows this order.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows. Saving updates Placement → homepage for the same market, state, county, or town. The public landing page follows this order.",
     "labelPlaceholder": "Section name",
     "addType": {
       "hero": "Add hero",
@@ -410,7 +412,8 @@
       "more_top_stories": "Add Extra Stories",
       "spotlight": "Add spotlight",
       "rail": "Add rail",
-      "category": "Add category"
+      "category": "Add category",
+      "ribbon_ad": "Add Ribbon Advertisement"
     },
     "types": {
       "hero": "Hero",
@@ -419,7 +422,8 @@
       "more_top_stories": "Extra Stories",
       "spotlight": "Spotlight",
       "rail": "Rail",
-      "category": "Category"
+      "category": "Category",
+      "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
     "moveUp": "Up",
@@ -434,7 +438,7 @@
   "worldPage": {
     "heading": "World sections",
     "subtitle": "Manage the ordered list of World page sections (hero, USA/Canada, Europe, Latin America, Asia, and more) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → world.",
-    "listHint": "Add, remove, rename, or reorder any section. Saving updates Placement → world for the same market, state, county, or town. The public World page follows this order.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows. Saving updates Placement → world for the same market, state, county, or town. The public World page follows this order.",
     "labelPlaceholder": "Section name",
     "addType": {
       "hero": "Add hero",
@@ -443,7 +447,8 @@
       "more_top_stories": "Add Extra Stories",
       "spotlight": "Add spotlight",
       "rail": "Add rail",
-      "category": "Add category"
+      "category": "Add category",
+      "ribbon_ad": "Add Ribbon Advertisement"
     },
     "types": {
       "hero": "Hero",
@@ -452,7 +457,8 @@
       "more_top_stories": "Extra Stories",
       "spotlight": "Spotlight",
       "rail": "Rail",
-      "category": "Category"
+      "category": "Category",
+      "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
     "moveUp": "Up",

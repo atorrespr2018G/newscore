@@ -16,6 +16,7 @@ from shared.core.homepage_page_sections_sync import (
     DEFAULT_HOMEPAGE_SECTION_ITEMS,
     PRESERVED_HOMEPAGE_PAGE_KEYS,
     expand_homepage_section_items,
+    insert_legacy_homepage_ribbon_ads,
     slugify_section_label,
 )
 from shared.core.markets import (
@@ -26,6 +27,7 @@ from shared.core.markets import (
     PRESENTATION_HERO,
     PRESENTATION_LIVE_CAROUSEL,
     PRESENTATION_RAIL_COMPACT,
+    PRESENTATION_RIBBON_AD,
 )
 
 
@@ -43,6 +45,8 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     types = [row["section_type"] for row in DEFAULT_HOMEPAGE_SECTION_ITEMS]
     slugs = [row["slug"] for row in DEFAULT_HOMEPAGE_SECTION_ITEMS]
     assert types[0] == "hero"
+    assert types[1] == "ribbon_ad"
+    assert slugs[1] == "ad-ribbon"
     assert "politics" in slugs
     assert "sports" in slugs
     assert "health" in slugs
@@ -53,6 +57,30 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert DEFAULT_HOMEPAGE_SECTION_ITEMS[
         slugs.index("more-top-stories-2")
     ]["label"] == "Extra Stories"
+
+
+def test_insert_legacy_homepage_ribbon_ads_places_post_hero_ribbon() -> None:
+    """Legacy homepage heuristics put a ribbon between Hero and Top Stories."""
+
+    items = insert_legacy_homepage_ribbon_ads(
+        [
+            {"section_type": "hero", "slug": "hero", "label": "Hero"},
+            {
+                "section_type": "top_stories",
+                "slug": "us-featured",
+                "label": "Top Stories",
+            },
+            {"section_type": "live", "slug": "health", "label": "Live"},
+        ],
+    )
+    assert [row["section_type"] for row in items] == [
+        "hero",
+        "ribbon_ad",
+        "top_stories",
+        "ribbon_ad",
+        "live",
+    ]
+    assert items[1]["slug"] == "ad-ribbon"
 
 
 def test_expand_homepage_section_items_empty_uses_defaults() -> None:
@@ -73,6 +101,29 @@ def test_expand_homepage_section_items_keeps_typed_order() -> None:
     assert expand_homepage_section_items(items) == [
         {"section_type": "live", "slug": "health", "label": "Live"},
         {"section_type": "category", "slug": "politics", "label": "Politics"},
+    ]
+
+
+def test_expand_homepage_section_items_keeps_ribbon_ad() -> None:
+    """Ribbon advertisement rows stay in configured order."""
+
+    items = [
+        {"section_type": "hero", "slug": "hero", "label": "Hero"},
+        {
+            "section_type": "ribbon_ad",
+            "slug": "ad-ribbon",
+            "label": "Ribbon Advertisement",
+        },
+        {"section_type": "live", "slug": "health", "label": "Live"},
+    ]
+    assert expand_homepage_section_items(items) == [
+        {"section_type": "hero", "slug": "hero", "label": "Hero"},
+        {
+            "section_type": "ribbon_ad",
+            "slug": "ad-ribbon",
+            "label": "Ribbon Advertisement",
+        },
+        {"section_type": "live", "slug": "health", "label": "Live"},
     ]
 
 
@@ -163,3 +214,45 @@ async def test_sync_homepage_layout_slots_targets_one_region_only() -> None:
     assert specs[5]["presentation_type"] == PRESENTATION_RAIL_COMPACT
     assert specs[6]["presentation_type"] == PRESENTATION_GRID_4
     assert [spec["order_index"] for spec in specs] == list(range(7))
+
+
+@pytest.mark.asyncio
+async def test_sync_homepage_layout_slots_maps_ribbon_ad() -> None:
+    """Ribbon advertisement sections sync to ribbon_ad presentation slots."""
+
+    from shared.core import homepage_page_sections_sync as sync_mod
+
+    apply_mock = AsyncMock(return_value=["slot-1"])
+
+    with patch.object(
+        sync_mod,
+        "_ensure_homepage_layout",
+        new=AsyncMock(return_value={"_id": "layout-market"}),
+    ), patch.object(
+        sync_mod,
+        "_category_id_by_slug",
+        new=AsyncMock(return_value=None),
+    ), patch.object(
+        sync_mod,
+        "_apply_homepage_slots_to_layout",
+        new=apply_mock,
+    ):
+        await sync_mod.sync_homepage_layout_slots(
+            MagicMock(),
+            market_id="mkt-us",
+            items=[
+                {"section_type": "hero", "slug": "hero", "label": "Hero"},
+                {
+                    "section_type": "ribbon_ad",
+                    "slug": "ad-ribbon",
+                    "label": "Ribbon Advertisement",
+                },
+                {"section_type": "live", "slug": "health", "label": "Live"},
+            ],
+        )
+
+    specs = apply_mock.await_args.kwargs["slot_specs"]
+    assert specs[1]["presentation_type"] == PRESENTATION_RIBBON_AD
+    assert specs[1]["position_key"] == "ad-ribbon"
+    assert specs[1]["limit"] == 0
+    assert specs[1]["category_id"] is None

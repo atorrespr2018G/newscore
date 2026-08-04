@@ -9,11 +9,18 @@ from pydantic import BaseModel, Field
 from shared.models.common import utc_now
 from shared.schemas.page_ad_placements_schemas import PageAdPlacementOut
 
-SportsPageSectionType = Literal["hero", "top_stories", "live", "world", "sport"]
+SportsPageSectionType = Literal[
+    "hero",
+    "top_stories",
+    "live",
+    "world",
+    "sport",
+    "ribbon_ad",
+]
 
 
 class SportsPageSectionItem(BaseModel):
-    """One ordered section on a sports page (hero, band, live, world, or sport)."""
+    """One ordered section on a sports page (hero, band, live, world, sport, or ad)."""
 
     section_type: SportsPageSectionType = "sport"
     slug: str

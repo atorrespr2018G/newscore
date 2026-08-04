@@ -300,6 +300,7 @@ export type SportsPageSectionType =
   | 'live'
   | 'world'
   | 'sport'
+  | 'ribbon_ad'
 
 /** One ordered section on a sports page. */
 export interface ISportsPageSectionItem {
@@ -375,6 +376,7 @@ export type MainPageSectionType =
   | 'spotlight'
   | 'rail'
   | 'category'
+  | 'ribbon_ad'
 
 /** One ordered section on the main landing page. */
 export interface IMainPageSectionItem {
@@ -450,6 +452,7 @@ export type WorldPageSectionType =
   | 'spotlight'
   | 'rail'
   | 'category'
+  | 'ribbon_ad'
 
 /** One ordered section on the World page. */
 export interface IWorldPageSectionItem {

@@ -8,7 +8,14 @@ from pydantic import BaseModel, Field
 
 from shared.schemas.page_ad_placements_schemas import PageAdPlacementIn, PageAdPlacementOut
 
-SportsPageSectionType = Literal["hero", "top_stories", "live", "world", "sport"]
+SportsPageSectionType = Literal[
+    "hero",
+    "top_stories",
+    "live",
+    "world",
+    "sport",
+    "ribbon_ad",
+]
 
 
 class SportsPageSectionItemIn(BaseModel):

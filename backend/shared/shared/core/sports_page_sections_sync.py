@@ -20,6 +20,7 @@ from shared.core.markets import (
     PRESENTATION_GRID_4,
     PRESENTATION_HERO,
     PRESENTATION_LIVE_CAROUSEL,
+    PRESENTATION_RIBBON_AD,
 )
 from shared.core.regions import get_region_by_code
 from shared.models.common import utc_now
@@ -47,6 +48,11 @@ SECTION_TYPE_TOP_STORIES = "top_stories"
 SECTION_TYPE_LIVE = "live"
 SECTION_TYPE_WORLD = "world"
 SECTION_TYPE_SPORT = "sport"
+SECTION_TYPE_RIBBON_AD = "ribbon_ad"
+
+RIBBON_AD_POSITION_KEY = "ad-ribbon"
+RIBBON_AD_ARTICLE_LIMIT = 0
+
 SPORTS_PAGE_SECTION_TYPES = frozenset(
     {
         SECTION_TYPE_HERO,
@@ -54,6 +60,7 @@ SPORTS_PAGE_SECTION_TYPES = frozenset(
         SECTION_TYPE_LIVE,
         SECTION_TYPE_WORLD,
         SECTION_TYPE_SPORT,
+        SECTION_TYPE_RIBBON_AD,
     },
 )
 CANONICAL_SLUG_BY_TYPE = {
@@ -62,13 +69,107 @@ CANONICAL_SLUG_BY_TYPE = {
     SECTION_TYPE_LIVE: LIVE_POSITION_KEY,
     SECTION_TYPE_WORLD: WORLD_POSITION_KEY,
 }
+# First occurrence prefers these slugs; later rows get numbered suffixes.
+PREFERRED_SLUG_PREFIX_BY_TYPE = {
+    SECTION_TYPE_RIBBON_AD: RIBBON_AD_POSITION_KEY,
+}
 DEFAULT_LABEL_BY_TYPE = {
     SECTION_TYPE_HERO: "Sports",
     SECTION_TYPE_TOP_STORIES: "Top Stories",
     SECTION_TYPE_LIVE: "Live",
     SECTION_TYPE_WORLD: "World",
+    SECTION_TYPE_RIBBON_AD: "Ribbon Advertisement",
 }
-DEFAULT_FIXED_SECTION_ITEMS: list[dict[str, str]] = [
+SPORTS_SECTION_PAIR_SIZE = 2
+
+
+def _ribbon_ad_item(slug: str) -> dict[str, str]:
+    """Build one configurable ribbon advertisement section row."""
+
+    return {
+        "section_type": SECTION_TYPE_RIBBON_AD,
+        "slug": slug,
+        "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_RIBBON_AD],
+    }
+
+
+def _next_ribbon_slug(used_slugs: set[str]) -> str:
+    """Allocate the next unused ``ad-ribbon`` / ``ad-ribbon-N`` slug."""
+
+    if RIBBON_AD_POSITION_KEY not in used_slugs:
+        return RIBBON_AD_POSITION_KEY
+    suffix = 2
+    while f"{RIBBON_AD_POSITION_KEY}-{suffix}" in used_slugs:
+        suffix += 1
+    return f"{RIBBON_AD_POSITION_KEY}-{suffix}"
+
+
+def has_ribbon_ad_section(items: list[dict[str, str]]) -> bool:
+    """Return whether the section list already includes ribbon advertisement rows."""
+
+    return any(item.get("section_type") == SECTION_TYPE_RIBBON_AD for item in items)
+
+
+def insert_legacy_sports_ribbon_ads(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Insert ribbon rows matching the former sports-page heuristic placements.
+
+    Args:
+        items: Typed section rows without configurable ribbons.
+
+    Returns:
+        Copy of ``items`` with ribbon advertisement rows inserted in legacy spots.
+    """
+
+    if has_ribbon_ad_section(items):
+        return [dict(row) for row in items]
+
+    result: list[dict[str, str]] = []
+    used_slugs = {str(item.get("slug") or "") for item in items}
+    previous_type: str | None = None
+    compact_index = 0
+
+    for item in items:
+        section_type = item["section_type"]
+        needs_before = False
+        if section_type == SECTION_TYPE_LIVE:
+            needs_before = True
+        elif (
+            section_type == SECTION_TYPE_WORLD
+            and previous_type is not None
+            and previous_type != SECTION_TYPE_HERO
+        ):
+            needs_before = True
+        elif (
+            section_type == SECTION_TYPE_SPORT
+            and compact_index > 0
+            and compact_index % SPORTS_SECTION_PAIR_SIZE == 0
+        ):
+            needs_before = True
+        elif (
+            section_type == SECTION_TYPE_TOP_STORIES
+            and previous_type is not None
+            and previous_type != SECTION_TYPE_HERO
+            and previous_type != SECTION_TYPE_RIBBON_AD
+        ):
+            needs_before = True
+
+        if needs_before:
+            ribbon_slug = _next_ribbon_slug(used_slugs)
+            used_slugs.add(ribbon_slug)
+            result.append(_ribbon_ad_item(ribbon_slug))
+
+        result.append(dict(item))
+        if section_type == SECTION_TYPE_HERO:
+            ribbon_slug = _next_ribbon_slug(used_slugs)
+            used_slugs.add(ribbon_slug)
+            result.append(_ribbon_ad_item(ribbon_slug))
+        if section_type == SECTION_TYPE_SPORT:
+            compact_index += 1
+        previous_type = section_type
+    return result
+
+
+DEFAULT_FIXED_SECTION_ITEMS_WITHOUT_RIBBONS: list[dict[str, str]] = [
     {
         "section_type": SECTION_TYPE_HERO,
         "slug": HERO_POSITION_KEY,
@@ -90,6 +191,9 @@ DEFAULT_FIXED_SECTION_ITEMS: list[dict[str, str]] = [
         "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_WORLD],
     },
 ]
+DEFAULT_FIXED_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_sports_ribbon_ads(
+    [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS_WITHOUT_RIBBONS],
+)
 
 SPORTS_SECTION_ARTICLE_LIMIT = 12
 SPORTS_HERO_ARTICLE_LIMIT = 12
@@ -162,7 +266,9 @@ def expand_legacy_section_items(items: list[dict[str, Any]]) -> list[dict[str, s
         for item in items
         if str(item.get("slug") or "").strip() and str(item.get("label") or "").strip()
     ]
-    return [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS] + sports
+    return insert_legacy_sports_ribbon_ads(
+        [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS_WITHOUT_RIBBONS] + sports,
+    )
 
 
 def sport_rows_from_labels(labels: list[str]) -> list[dict[str, str]]:
@@ -192,10 +298,13 @@ def default_sports_page_section_items(labels: list[str]) -> list[dict[str, str]]
         labels: Ordered sport display names.
 
     Returns:
-        Fixed sections followed by sport rows.
+        Fixed sections followed by sport rows, with legacy ad ribbons inserted.
     """
 
-    return [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS] + sport_rows_from_labels(labels)
+    return insert_legacy_sports_ribbon_ads(
+        [dict(row) for row in DEFAULT_FIXED_SECTION_ITEMS_WITHOUT_RIBBONS]
+        + sport_rows_from_labels(labels),
+    )
 
 
 async def _ensure_sport_category(db: AsyncIOMotorDatabase, *, slug: str, label: str) -> str:
@@ -508,6 +617,15 @@ async def _slot_spec_for_section(
             "presentation_type": PRESENTATION_FEATURED_BAND,
             "category_id": world_category_id,
             "limit": SPORTS_WORLD_ARTICLE_LIMIT,
+        }
+    if section_type == SECTION_TYPE_RIBBON_AD:
+        return {
+            "position_key": slug,
+            "order_index": order_index,
+            "display_name": label,
+            "presentation_type": PRESENTATION_RIBBON_AD,
+            "category_id": None,
+            "limit": RIBBON_AD_ARTICLE_LIMIT,
         }
 
     category_id = await _ensure_sport_category(db, slug=slug, label=label)

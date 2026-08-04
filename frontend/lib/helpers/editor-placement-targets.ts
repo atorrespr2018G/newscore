@@ -8,7 +8,10 @@ import {
 import { pinnedIdAtIndex } from '@/lib/helpers/pinned-ids'
 import { editorPinnedIds, slotForEditorPlacement } from '@/lib/helpers/slot-editor-pinned-ids'
 import { homepageSectionTitle, staticSectionLabelTranslator } from '@/lib/helpers/section-labels'
-import { moduleKindForPresentation } from '@/lib/presentation-registry'
+import {
+  moduleKindForPresentation,
+  PRESENTATION_RIBBON_AD,
+} from '@/lib/presentation-registry'
 
 const DEFAULT_PRESENTATION_TYPE = 'grid_4'
 const DEFAULT_TARGET_COUNT = 1
@@ -173,9 +176,13 @@ export function buildPlacementTargets(slots: ISlotOut[], pageName?: string): IPl
   const targets: IPlacementTarget[] = []
 
   for (const slot of sortSlotsForEditorCanvas(slots)) {
+    const presentationType = slot.presentation_type || DEFAULT_PRESENTATION_TYPE
+    // Ribbon ads are configuration-only chrome; they have no article pins.
+    if (presentationType === PRESENTATION_RIBBON_AD) {
+      continue
+    }
     const editorSlot = slotForEditorPlacement(slot)
     const slotLabel = resolveSlotLabel(slot, pageName)
-    const presentationType = slot.presentation_type || DEFAULT_PRESENTATION_TYPE
     const targetCount = resolveSlotTargetCount(slot)
 
     for (let index = 0; index < targetCount; index += 1) {

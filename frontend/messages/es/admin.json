@@ -340,7 +340,7 @@
   "sportsPage": {
     "heading": "Secciones de deportes",
     "subtitle": "Administra la lista ordenada de secciones de la página Deportes (héroe, Principales, En vivo, Mundo y filas deportivas) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → sports.",
-    "listHint": "Agrega, quita, renombra o reordena cualquier sección. Al guardar se actualiza Placement → sports para el mismo mercado, estado, condado o pueblo. Las filas deportivas compactas muestran una cinta publicitaria cada dos filas.",
+    "listHint": "Agrega, quita, renombra o reordena cualquier sección, incluidas las filas de cinta publicitaria entre deportes. Al guardar se actualiza Placement → sports para el mismo mercado, estado, condado o pueblo. Las filas deportivas compactas también mantienen una cinta publicitaria cada dos filas.",
     "labelPlaceholder": "Nombre de la sección",
     "addSport": "Agregar deporte",
     "addType": {
@@ -348,14 +348,16 @@
       "top_stories": "Agregar Principales",
       "live": "Agregar En vivo",
       "world": "Agregar Mundo",
-      "sport": "Agregar deporte"
+      "sport": "Agregar deporte",
+      "ribbon_ad": "Agregar cinta publicitaria"
     },
     "types": {
       "hero": "Héroe",
       "top_stories": "Principales",
       "live": "En vivo",
       "world": "Mundo",
-      "sport": "Deporte"
+      "sport": "Deporte",
+      "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
     "moveUp": "Subir",
@@ -401,7 +403,7 @@
   "mainPage": {
     "heading": "Secciones de la página principal",
     "subtitle": "Administra la lista ordenada de secciones de la página principal (héroe, Principales, En vivo, Historias extra, Política, Deportes, Entretenimiento y más) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → homepage.",
-    "listHint": "Agrega, quita, renombra o reordena cualquier sección. Al guardar se actualiza Placement → homepage para el mismo mercado, estado, condado o pueblo. La página pública sigue este orden.",
+    "listHint": "Agrega, quita, renombra o reordena cualquier sección, incluidas las filas de cinta publicitaria. Al guardar se actualiza Placement → homepage para el mismo mercado, estado, condado o pueblo. La página pública sigue este orden.",
     "labelPlaceholder": "Nombre de la sección",
     "addType": {
       "hero": "Agregar héroe",
@@ -410,7 +412,8 @@
       "more_top_stories": "Agregar Historias extra",
       "spotlight": "Agregar spotlight",
       "rail": "Agregar rail",
-      "category": "Agregar categoría"
+      "category": "Agregar categoría",
+      "ribbon_ad": "Agregar cinta publicitaria"
     },
     "types": {
       "hero": "Héroe",
@@ -419,7 +422,8 @@
       "more_top_stories": "Historias extra",
       "spotlight": "Spotlight",
       "rail": "Rail",
-      "category": "Categoría"
+      "category": "Categoría",
+      "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
     "moveUp": "Subir",
@@ -434,7 +438,7 @@
   "worldPage": {
     "heading": "Secciones de Mundo",
     "subtitle": "Administra la lista ordenada de secciones de la página Mundo (héroe, EE. UU./Canadá, Europa, América Latina, Asia y más) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → world.",
-    "listHint": "Agrega, quita, renombra o reordena cualquier sección. Al guardar se actualiza Placement → world para el mismo mercado, estado, condado o pueblo. La página pública de Mundo sigue este orden.",
+    "listHint": "Agrega, quita, renombra o reordena cualquier sección, incluidas las filas de cinta publicitaria. Al guardar se actualiza Placement → world para el mismo mercado, estado, condado o pueblo. La página pública de Mundo sigue este orden.",
     "labelPlaceholder": "Nombre de la sección",
     "addType": {
       "hero": "Agregar héroe",
@@ -443,7 +447,8 @@
       "more_top_stories": "Agregar Historias extra",
       "spotlight": "Agregar spotlight",
       "rail": "Agregar rail",
-      "category": "Agregar categoría"
+      "category": "Agregar categoría",
+      "ribbon_ad": "Agregar cinta publicitaria"
     },
     "types": {
       "hero": "Héroe",
@@ -452,7 +457,8 @@
       "more_top_stories": "Historias extra",
       "spotlight": "Spotlight",
       "rail": "Rail",
-      "category": "Categoría"
+      "category": "Categoría",
+      "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
     "moveUp": "Subir",

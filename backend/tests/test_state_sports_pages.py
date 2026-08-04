@@ -75,8 +75,11 @@ def test_expand_legacy_section_items_prepends_fixed_bands() -> None:
     )
     assert [row["section_type"] for row in expanded] == [
         "hero",
+        "ribbon_ad",
         "top_stories",
+        "ribbon_ad",
         "live",
+        "ribbon_ad",
         "world",
         "sport",
     ]
@@ -199,17 +202,21 @@ async def test_sync_sports_layout_slots_targets_one_region_only() -> None:
     specs = apply_mock.await_args.kwargs["slot_specs"]
     assert [spec["position_key"] for spec in specs] == [
         "hero",
+        "ad-ribbon",
         "us-featured",
+        "ad-ribbon-2",
         "health",
+        "ad-ribbon-3",
         "world",
         "baseball",
     ]
     assert specs[0]["presentation_type"] == PRESENTATION_HERO
-    assert specs[1]["presentation_type"] == PRESENTATION_FEATURED_BAND
-    assert specs[2]["presentation_type"] == PRESENTATION_LIVE_CAROUSEL
-    assert specs[3]["presentation_type"] == PRESENTATION_FEATURED_BAND
-    assert specs[4]["presentation_type"] == PRESENTATION_GRID_4
-    assert [spec["order_index"] for spec in specs] == list(range(5))
+    assert specs[1]["presentation_type"] == "ribbon_ad"
+    assert specs[2]["presentation_type"] == PRESENTATION_FEATURED_BAND
+    assert specs[4]["presentation_type"] == PRESENTATION_LIVE_CAROUSEL
+    assert specs[6]["presentation_type"] == PRESENTATION_FEATURED_BAND
+    assert specs[7]["presentation_type"] == PRESENTATION_GRID_4
+    assert [spec["order_index"] for spec in specs] == list(range(8))
     assert not hasattr(sync_mod, "_sync_region_sports_layouts")
 
 
