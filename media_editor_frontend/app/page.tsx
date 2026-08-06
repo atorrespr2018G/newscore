@@ -102,12 +102,20 @@ export default function MediaLibraryPage(): JSX.Element {
     }
   }
 
-  async function persistStory(next: IMediaStory): Promise<void> {
-    const poolIds = sanitizePoolIds(next.pool_asset_ids, assetsById)
+  /**
+   * Persist a story after sanitizing pool/report IDs against a known asset map.
+   * @param next - Story patch to save.
+   * @param lookup - Asset lookup; pass a fresh map when a new edit is not in React state yet.
+   */
+  async function persistStory(
+    next: IMediaStory,
+    lookup: Map<string, IMediaAsset> = assetsById,
+  ): Promise<void> {
+    const poolIds = sanitizePoolIds(next.pool_asset_ids, lookup)
     const cleaned = {
       ...next,
       pool_asset_ids: poolIds,
-      selected_asset_ids: sanitizeSelectedIds(next.selected_asset_ids, poolIds, assetsById),
+      selected_asset_ids: sanitizeSelectedIds(next.selected_asset_ids, poolIds, lookup),
     }
     const saved = await updateStory(cleaned)
     setStories((current) => current.map((story) => (story.id === saved.id ? saved : story)))
@@ -133,12 +141,16 @@ export default function MediaLibraryPage(): JSX.Element {
         return getRootId(asset, nextAssetsById)
       },
     )
-    await persistStory({
-      ...activeStory,
-      pool_asset_ids: nextLists.poolIds,
-      selected_asset_ids: nextLists.selectedIds,
-      status: 'draft',
-    })
+    // Use nextAssetsById so sanitize does not drop the brand-new derivative from the report.
+    await persistStory(
+      {
+        ...activeStory,
+        pool_asset_ids: nextLists.poolIds,
+        selected_asset_ids: nextLists.selectedIds,
+        status: 'draft',
+      },
+      nextAssetsById,
+    )
     setSelected(derivative)
   }
 
