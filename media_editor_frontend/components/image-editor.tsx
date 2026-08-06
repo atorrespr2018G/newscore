@@ -51,17 +51,18 @@ export function ImageEditor({ asset, onClose, onSaved }: IImageEditorProps): JSX
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-950 p-3 md:p-4">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 text-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-brand-ink/90 p-3 backdrop-blur-sm md:p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-white">
         <div>
-          <p className="text-sm font-medium">Editing {asset.title ?? asset.original_filename}</p>
-          <p className="text-xs text-white/70">
-            Use the Crop tool at the bottom (or Adjust tab). Drag the blue handles on the image to crop.
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-300">Image studio</p>
+          <p className="font-serif text-2xl">Editing {asset.title ?? asset.original_filename}</p>
+          <p className="mt-1 text-xs text-white/70">
+            Crop is selected by default. Drag the handles on the image, then save a new version.
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            className="rounded bg-white/15 px-3 py-1.5 text-sm hover:bg-white/25"
+            className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20"
             type="button"
             onClick={() => {
               setError('')
@@ -70,13 +71,13 @@ export function ImageEditor({ asset, onClose, onSaved }: IImageEditorProps): JSX
           >
             Return to default
           </button>
-          <button className="rounded bg-white/15 px-3 py-1.5 text-sm hover:bg-white/25" type="button" onClick={onClose}>
+          <button className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-slate-100" type="button" onClick={onClose}>
             Close
           </button>
         </div>
       </div>
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-      <div className="filerobot-shell min-h-0 flex-1 overflow-hidden rounded bg-white">
+      {error && <p className="mb-3 rounded-xl bg-brand-soft px-3 py-2 text-sm text-red-800">{error}</p>}
+      <div className="filerobot-shell min-h-0 flex-1 overflow-hidden rounded-2xl bg-white shadow-lift">
         <FilerobotImageEditor
           key={`${asset.id}-${editorKey}`}
           source={sourceUrl}
