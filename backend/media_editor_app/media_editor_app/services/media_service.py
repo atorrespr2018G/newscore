@@ -133,12 +133,71 @@ async def update_metadata(
 
 
 async def delete_media(db: AsyncIOMotorDatabase, *, media_id: str, owner_id: str) -> None:
-    """Delete an original upload, its edit versions, files, and story references."""
+    """Delete one edit version, or an original and its whole edit family."""
 
     document = await db[MEDIA_COLLECTION].find_one({"_id": media_id, "uploader_id": owner_id})
     if document is None:
         raise LookupError("Media asset not found")
-    root_id = str(document.get("version_of") or document["_id"])
+    if document.get("version_of"):
+        await _delete_derivative(db, document=document, owner_id=owner_id)
+        return
+    await _delete_original_family(db, root_id=str(document["_id"]), owner_id=owner_id)
+
+
+async def _delete_derivative(
+    db: AsyncIOMotorDatabase, *, document: dict[str, Any], owner_id: str
+) -> None:
+    """Delete a single edited version and point report slots back at the original."""
+
+    media_id = str(document["_id"])
+    root_id = str(document["version_of"])
+    # Also remove any later edits that still point at this id as their parent.
+    dependents = await db[MEDIA_COLLECTION].find(
+        {"uploader_id": owner_id, "version_of": media_id},
+    ).to_list(200)
+    delete_docs = [document, *dependents]
+    delete_ids = [str(item["_id"]) for item in delete_docs]
+    replacement = root_id
+    root = await db[MEDIA_COLLECTION].find_one({"_id": root_id, "uploader_id": owner_id})
+    if root is None:
+        replacement = ""
+    stories = await db["media_stories"].find(
+        {"owner_id": owner_id, "selected_asset_ids": {"$in": delete_ids}},
+    ).to_list(200)
+    for story in stories:
+        next_selected = list(story.get("selected_asset_ids") or [])
+        for deleted_id in delete_ids:
+            next_selected = _replace_selected_id(next_selected, deleted_id, replacement)
+        next_selected = [asset_id for asset_id in next_selected if asset_id]
+        await db["media_stories"].update_one(
+            {"_id": story["_id"]},
+            {"$set": {"selected_asset_ids": next_selected}},
+        )
+    await db["media_stories"].update_many(
+        {"owner_id": owner_id},
+        {"$pull": {"pool_asset_ids": {"$in": delete_ids}, "selected_asset_ids": {"$in": delete_ids}}},
+    )
+    for item in delete_docs:
+        _unlink_media_file(item)
+    await db[MEDIA_COLLECTION].delete_many({"_id": {"$in": delete_ids}, "uploader_id": owner_id})
+
+
+def _replace_selected_id(selected_ids: list[str], old_id: str, replacement_id: str) -> list[str]:
+    """Swap one report id for another without introducing duplicates."""
+
+    next_ids: list[str] = []
+    for asset_id in selected_ids:
+        next_id = replacement_id if asset_id == old_id else asset_id
+        if next_id not in next_ids:
+            next_ids.append(next_id)
+    return next_ids
+
+
+async def _delete_original_family(
+    db: AsyncIOMotorDatabase, *, root_id: str, owner_id: str
+) -> None:
+    """Delete an original upload, every edit of it, files, and story references."""
+
     family = await db[MEDIA_COLLECTION].find(
         {
             "uploader_id": owner_id,
@@ -158,13 +217,19 @@ async def delete_media(db: AsyncIOMotorDatabase, *, media_id: str, owner_id: str
         },
     )
     for item in family:
-        url = str(item.get("url") or "")
-        if not url:
-            continue
-        file_path = get_local_path(url)
-        if file_path.exists():
-            file_path.unlink()
+        _unlink_media_file(item)
     await db[MEDIA_COLLECTION].delete_many({"_id": {"$in": family_ids}, "uploader_id": owner_id})
+
+
+def _unlink_media_file(document: dict[str, Any]) -> None:
+    """Remove the on-disk file for one media document when present."""
+
+    url = str(document.get("url") or "")
+    if not url:
+        return
+    file_path = get_local_path(url)
+    if file_path.exists():
+        file_path.unlink()
 
 
 
@@ -250,11 +315,45 @@ async def list_versions(
     document = await db[MEDIA_COLLECTION].find_one({"_id": media_id, "uploader_id": owner_id})
     if document is None:
         raise LookupError("Media asset not found")
-    root_id = document.get("version_of") or document["_id"]
-    root = await db[MEDIA_COLLECTION].find_one({"_id": root_id, "uploader_id": owner_id})
-    if root is None:
-        raise LookupError("Original media asset not found")
+    root = await _resolve_existing_root(db, document=document, owner_id=owner_id)
+    root_id = str(root["_id"])
     versions = await db[MEDIA_COLLECTION].find(
         {"version_of": root_id, "uploader_id": owner_id},
     ).sort("created_at", 1).to_list(100)
-    return root_id, [_serialize(root), *[_serialize(item) for item in versions]]
+    family: dict[str, dict[str, Any]] = {root_id: root}
+    for item in versions:
+        family[str(item["_id"])] = item
+    document_id = str(document["_id"])
+    if document_id not in family:
+        family[document_id] = document
+    ordered = [family[root_id]]
+    ordered.extend(
+        sorted(
+            (item for item_id, item in family.items() if item_id != root_id),
+            key=lambda item: str(item.get("created_at") or ""),
+        ),
+    )
+    return root_id, [_serialize(item) for item in ordered]
+
+async def _resolve_existing_root(
+    db: AsyncIOMotorDatabase, *, document: dict[str, Any], owner_id: str
+) -> dict[str, Any]:
+    """Walk version_of links and return the oldest existing ancestor.
+
+    Orphaned edits (parent deleted) are treated as their own root so re-edit still works.
+    """
+
+    current = document
+    seen: set[str] = set()
+    while current.get("version_of"):
+        current_id = str(current["_id"])
+        if current_id in seen:
+            break
+        seen.add(current_id)
+        parent = await db[MEDIA_COLLECTION].find_one(
+            {"_id": current["version_of"], "uploader_id": owner_id},
+        )
+        if parent is None:
+            break
+        current = parent
+    return current

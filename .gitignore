@@ -10,6 +10,8 @@ mongo_data/
 media/images/
 media/videos/
 media-editor/
+# Large rembg weights — keep locally under backend/media_editor_app/models/
+*.onnx
 *.tsbuildinfo
 *.egg-info/
 .coverage

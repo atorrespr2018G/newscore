@@ -10,6 +10,41 @@ export interface IDragPayload {
   source: DragListKind
 }
 
+const DRAG_MIME = 'application/x-newscore-media-id'
+
+/** MIME type used for HTML5 drag-and-drop between story collections. */
+export function getDragMime(): string {
+  return DRAG_MIME
+}
+
+/**
+ * Encode a drag payload for transfer between story lists.
+ * @param dataTransfer - Browser drag data store.
+ * @param payload - Asset being dragged.
+ */
+export function writeDragPayload(dataTransfer: DataTransfer, payload: IDragPayload): void {
+  const raw = JSON.stringify(payload)
+  dataTransfer.setData(DRAG_MIME, raw)
+  dataTransfer.setData('text/plain', raw)
+  dataTransfer.effectAllowed = 'move'
+}
+
+/**
+ * Read a drag payload from a drop event, or null when the mime is absent.
+ * @param dataTransfer - Browser drag data store from the drop event.
+ * @returns Parsed payload or null.
+ * @throws When the payload JSON is present but invalid.
+ */
+export function readDragPayload(dataTransfer: DataTransfer): IDragPayload | null {
+  const raw = dataTransfer.getData(DRAG_MIME) || dataTransfer.getData('text/plain')
+  if (!raw) return null
+  const parsed = JSON.parse(raw) as IDragPayload
+  if (!parsed.assetId || !parsed.rootId || (parsed.source !== 'pool' && parsed.source !== 'selected')) {
+    throw new Error('Invalid media drag payload')
+  }
+  return parsed
+}
+
 /**
  * Return the original upload ID for an asset or version.
  * Walks older intermediate version_of links created before root lineage was enforced.
@@ -40,6 +75,30 @@ export function sanitizePoolIds(poolIds: string[], assetsById: Map<string, IMedi
   return poolIds.filter((id) => {
     const asset = assetsById.get(id)
     return Boolean(asset && !asset.version_of)
+  })
+}
+
+/**
+ * Keep report IDs whose original still exists in the story pool.
+ * Drops orphans that point at a deleted original (those break drag/save).
+ * @param selectedIds - Ordered report asset IDs.
+ * @param poolIds - Sanitized originals pool IDs.
+ * @param assetsById - Asset lookup used to resolve roots.
+ * @returns Report IDs that still validate against the pool.
+ */
+export function sanitizeSelectedIds(
+  selectedIds: string[],
+  poolIds: string[],
+  assetsById: Map<string, IMediaAsset>,
+): string[] {
+  const pool = new Set(poolIds)
+  return selectedIds.filter((id) => {
+    const asset = assetsById.get(id)
+    if (!asset) return false
+    const rootId = getRootId(asset, assetsById)
+    const root = assetsById.get(rootId)
+    if (!root || root.version_of) return false
+    return pool.has(rootId)
   })
 }
 

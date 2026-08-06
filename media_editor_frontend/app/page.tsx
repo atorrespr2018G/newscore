@@ -33,6 +33,7 @@ import {
   adoptEditedDerivative,
   getRootId,
   sanitizePoolIds,
+  sanitizeSelectedIds,
 } from '@/lib/story-selection'
 
 const RICH_TEXT_LABELS = {
@@ -66,6 +67,7 @@ export default function MediaLibraryPage(): JSX.Element {
   const [message, setMessage] = useState('')
   const [authenticated, setAuthenticated] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [removingBackground, setRemovingBackground] = useState(false)
 
   const assetsById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets])
   const activeStory = stories.find((story) => story.id === activeStoryId) ?? null
@@ -80,10 +82,14 @@ export default function MediaLibraryPage(): JSX.Element {
     try {
       const [newAssets, newStories] = await Promise.all([listAssets(), listStories()])
       const byId = new Map(newAssets.map((asset) => [asset.id, asset]))
-      const cleanedStories = newStories.map((story) => ({
-        ...story,
-        pool_asset_ids: sanitizePoolIds(story.pool_asset_ids, byId),
-      }))
+      const cleanedStories = newStories.map((story) => {
+        const poolIds = sanitizePoolIds(story.pool_asset_ids, byId)
+        return {
+          ...story,
+          pool_asset_ids: poolIds,
+          selected_asset_ids: sanitizeSelectedIds(story.selected_asset_ids, poolIds, byId),
+        }
+      })
       setAssets(newAssets)
       setStories(cleanedStories)
       setActiveStoryId((current) => current ?? cleanedStories[0]?.id ?? null)
@@ -97,9 +103,11 @@ export default function MediaLibraryPage(): JSX.Element {
   }
 
   async function persistStory(next: IMediaStory): Promise<void> {
+    const poolIds = sanitizePoolIds(next.pool_asset_ids, assetsById)
     const cleaned = {
       ...next,
-      pool_asset_ids: sanitizePoolIds(next.pool_asset_ids, assetsById),
+      pool_asset_ids: poolIds,
+      selected_asset_ids: sanitizeSelectedIds(next.selected_asset_ids, poolIds, assetsById),
     }
     const saved = await updateStory(cleaned)
     setStories((current) => current.map((story) => (story.id === saved.id ? saved : story)))
@@ -135,6 +143,8 @@ export default function MediaLibraryPage(): JSX.Element {
   }
 
   async function openImageEditor(asset: IMediaAsset): Promise<void> {
+    setEditorAsset(null)
+    setVersionPickerAsset(null)
     try {
       const versions = await listAssetVersions(asset.id)
       if (versions.items.length <= 1) {
@@ -143,7 +153,9 @@ export default function MediaLibraryPage(): JSX.Element {
       }
       setVersionPickerAsset(asset)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to open image editor')
+      // Orphaned edits (missing original) still open directly in the studio.
+      setMessage(error instanceof Error ? error.message : 'Unable to load versions — opening editor')
+      setEditorAsset(asset)
     }
   }
 
@@ -211,14 +223,20 @@ export default function MediaLibraryPage(): JSX.Element {
                 setSelected(asset)
                 void openImageEditor(asset)
               }}
+              removingBackground={removingBackground}
               onRemoveBackground={(asset) => {
                 void (async () => {
+                  setRemovingBackground(true)
+                  setMessage('Removing background… this can take a few seconds')
                   try {
                     setSelected(asset)
                     const derivative = await removeBackground(asset.id)
                     await handleEditedDerivative(asset, derivative)
+                    setMessage('Background removed — new version saved')
                   } catch (error) {
                     setMessage(error instanceof Error ? error.message : 'Background removal failed')
+                  } finally {
+                    setRemovingBackground(false)
                   }
                 })()
               }}
@@ -309,6 +327,15 @@ export default function MediaLibraryPage(): JSX.Element {
           onChoose={(version) => {
             setVersionPickerAsset(null)
             setEditorAsset(version)
+          }}
+          onDelete={async (version) => {
+            if (!version.version_of) {
+              throw new Error('Re-edit cannot delete the original')
+            }
+            await deleteAsset(version.id)
+            if (selected?.id === version.id) setSelected(null)
+            await refresh()
+            setMessage('Edit version deleted')
           }}
         />
       )}

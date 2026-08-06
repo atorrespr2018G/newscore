@@ -42,6 +42,24 @@ interface IMediaListResponse {
 
 const apiUrl = process.env.NEXT_PUBLIC_MEDIA_EDITOR_API_URL ?? 'http://localhost:5004/api/v1/media-editor'
 
+/**
+ * Normalize FastAPI error payloads into a single message string.
+ * @param body - Parsed JSON error body, if any.
+ * @returns Human-readable detail or null.
+ */
+function readErrorDetail(body: unknown): string | null {
+  if (!body || typeof body !== 'object') return null
+  const detail = (body as { detail?: unknown }).detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => (typeof item === 'object' && item && 'msg' in item ? String((item as { msg: unknown }).msg) : String(item)))
+      .join('; ')
+  }
+  if (detail != null) return String(detail)
+  return null
+}
+
 /** Read the origin-local access token for API authorization. */
 export function getAccessToken(): string | null {
   return window.localStorage.getItem('media_editor_access_token')
@@ -65,7 +83,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    throw new Error(body?.detail ?? 'Media editor request failed')
+    throw new Error(readErrorDetail(body) ?? 'Media editor request failed')
   }
   if (response.status === 204) {
     return undefined as T

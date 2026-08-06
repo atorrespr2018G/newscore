@@ -1,14 +1,16 @@
 'use client'
 
-import { PointerEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { DragEvent, PointerEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { IMediaAsset, IMediaStory } from '@/lib/media-editor-client'
 import {
   getPreferredVersion,
   getRootId,
   IDragPayload,
+  readDragPayload,
   removeFromSelected,
   sanitizePoolIds,
   selectFromPool,
+  writeDragPayload,
 } from '@/lib/story-selection'
 
 const DRAG_THRESHOLD_PX = 6
@@ -36,6 +38,7 @@ interface IStoryWorkspaceProps {
   onDeleteAsset: (asset: IMediaAsset) => void
   onStoryChange: (story: IMediaStory) => Promise<void>
   onError: (message: string) => void
+  removingBackground?: boolean
 }
 
 /**
@@ -55,17 +58,23 @@ export function StoryWorkspace({
   onDeleteAsset,
   onStoryChange,
   onError,
+  removingBackground = false,
 }: IStoryWorkspaceProps): JSX.Element {
   const [dropHint, setDropHint] = useState<'pool' | 'selected' | null>(null)
   const [dragPayload, setDragPayload] = useState<IDragPayload | null>(null)
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(null)
   const dragOrigin = useRef<{ x: number; y: number; payload: IDragPayload } | null>(null)
   const activeDragRef = useRef<IDragPayload | null>(null)
+  const suppressClickRef = useRef(false)
   const storyRef = useRef(story)
   const poolRootIdsRef = useRef<string[]>([])
   const assetsByIdRef = useRef(assetsById)
   const reportPaneRef = useRef<HTMLElement | null>(null)
   const poolPaneRef = useRef<HTMLElement | null>(null)
+  const onErrorRef = useRef(onError)
+  const onStoryChangeRef = useRef(onStoryChange)
+  onErrorRef.current = onError
+  onStoryChangeRef.current = onStoryChange
 
   const poolRootIds = useMemo(
     () => sanitizePoolIds(story.pool_asset_ids, assetsById),
@@ -78,9 +87,9 @@ export function StoryWorkspace({
 
   async function persist(next: IMediaStory): Promise<void> {
     try {
-      await onStoryChange(next)
+      await onStoryChangeRef.current(next)
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Unable to update story collections')
+      onErrorRef.current(error instanceof Error ? error.message : 'Unable to update story collections')
     }
   }
 
@@ -153,6 +162,7 @@ export function StoryWorkspace({
   function zoneAtPoint(clientX: number, clientY: number): 'pool' | 'selected' | null {
     const reportBox = reportPaneRef.current?.getBoundingClientRect()
     const poolBox = poolPaneRef.current?.getBoundingClientRect()
+    // Prefer report when panes are stacked and the pointer sits on the boundary.
     if (reportBox && pointInRect(clientX, clientY, reportBox)) return 'selected'
     if (poolBox && pointInRect(clientX, clientY, poolBox)) return 'pool'
     return null
@@ -164,6 +174,7 @@ export function StoryWorkspace({
       if (!origin) return
       const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y)
       if (distance < DRAG_THRESHOLD_PX) return
+      suppressClickRef.current = true
       activeDragRef.current = origin.payload
       setDragPayload(origin.payload)
       setDragPoint({ x: event.clientX, y: event.clientY })
@@ -172,38 +183,62 @@ export function StoryWorkspace({
 
     function onPointerUp(event: globalThis.PointerEvent): void {
       const active = activeDragRef.current
+      const wasDragging = Boolean(active)
       dragOrigin.current = null
       activeDragRef.current = null
       if (active) {
         const zone = zoneAtPoint(event.clientX, event.clientY)
         if (zone) applyDrop(active, zone)
+        else if (active.source === 'pool') {
+          // Fallback: if the release is below the pool pane, treat as drop on report.
+          const poolBox = poolPaneRef.current?.getBoundingClientRect()
+          const reportBox = reportPaneRef.current?.getBoundingClientRect()
+          if (poolBox && reportBox && event.clientY > poolBox.bottom - 8) {
+            applyDrop(active, 'selected')
+          }
+        }
       }
       setDragPayload(null)
       setDragPoint(null)
       setDropHint(null)
+      if (wasDragging) {
+        window.setTimeout(() => {
+          suppressClickRef.current = false
+        }, 0)
+      }
     }
 
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-    window.addEventListener('pointercancel', onPointerUp)
+    // Capture phase so scroll containers / pointer capture cannot swallow the gesture.
+    document.addEventListener('pointermove', onPointerMove, true)
+    document.addEventListener('pointerup', onPointerUp, true)
+    document.addEventListener('pointercancel', onPointerUp, true)
     return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-      window.removeEventListener('pointercancel', onPointerUp)
+      document.removeEventListener('pointermove', onPointerMove, true)
+      document.removeEventListener('pointerup', onPointerUp, true)
+      document.removeEventListener('pointercancel', onPointerUp, true)
     }
-  }, [onError, onStoryChange])
+    // Listeners read the latest logic through refs; mount once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const poolCards = poolRootIds.map((rootId) => {
-    try {
-      return getPreferredVersion(rootId, assets, story.selected_asset_ids)
-    } catch {
-      return assetsById.get(rootId) ?? null
-    }
-  }).filter((asset): asset is IMediaAsset => Boolean(asset))
+  const poolCards = poolRootIds
+    .map((rootId) => {
+      try {
+        return { rootId, asset: getPreferredVersion(rootId, assets, story.selected_asset_ids) }
+      } catch {
+        const asset = assetsById.get(rootId) ?? null
+        return asset ? { rootId, asset } : null
+      }
+    })
+    .filter((card): card is { rootId: string; asset: IMediaAsset } => Boolean(card))
 
   const selectedCards = story.selected_asset_ids
-    .map((id) => assetsById.get(id) ?? null)
-    .filter((asset): asset is IMediaAsset => Boolean(asset))
+    .map((id) => {
+      const asset = assetsById.get(id) ?? null
+      if (!asset) return null
+      return { rootId: getRootId(asset, assetsById), asset }
+    })
+    .filter((card): card is { rootId: string; asset: IMediaAsset } => Boolean(card))
 
   const selectedRootId = selectedAssetId
     ? (() => {
@@ -213,12 +248,12 @@ export function StoryWorkspace({
     : null
 
   const reportTarget = selectedCards.find(
-    (asset) => asset.id === selectedAssetId || getRootId(asset, assetsById) === selectedRootId,
-  ) ?? null
+    (card) => card.asset.id === selectedAssetId || card.rootId === selectedRootId,
+  )?.asset ?? null
 
   const poolTarget = poolCards.find(
-    (asset) => asset.id === selectedAssetId || getRootId(asset, assetsById) === selectedRootId,
-  ) ?? null
+    (card) => card.asset.id === selectedAssetId || card.rootId === selectedRootId,
+  )?.asset ?? null
 
   const draggedAsset = dragPayload
     ? assetsById.get(dragPayload.assetId) ?? null
@@ -226,13 +261,26 @@ export function StoryWorkspace({
 
   function beginDrag(event: PointerEvent<HTMLElement>, payload: IDragPayload): void {
     if (event.button !== 0) return
-    // Do not preventDefault here — that suppresses click selection on many browsers.
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    } catch {
-      // Capture is best-effort; window listeners still track the gesture.
-    }
+    // Avoid setPointerCapture — it can trap move/up inside the card and break drops.
+    suppressClickRef.current = false
     dragOrigin.current = { x: event.clientX, y: event.clientY, payload }
+  }
+
+  function handleCardClick(asset: IMediaAsset): void {
+    if (suppressClickRef.current) return
+    onSelectAsset(asset)
+  }
+
+  function handleHtmlDrop(event: DragEvent<HTMLElement>, zone: 'pool' | 'selected'): void {
+    event.preventDefault()
+    setDropHint(null)
+    try {
+      const payload = readDragPayload(event.dataTransfer)
+      if (!payload) return
+      applyDrop(payload, zone)
+    } catch (error) {
+      onErrorRef.current(error instanceof Error ? error.message : 'Drop failed')
+    }
   }
 
   return (
@@ -243,7 +291,6 @@ export function StoryWorkspace({
         subtitle="Select a picture, then Add to report — or drag it into the report list"
         emptyLabel="Use Add pictures above to load originals for this story"
         cards={poolCards}
-        assetsById={assetsById}
         selectedAssetId={selectedAssetId}
         selectedRootId={selectedRootId}
         dragSource="pool"
@@ -255,17 +302,21 @@ export function StoryWorkspace({
               asset={poolTarget}
               alreadyInReport={Boolean(
                 poolTarget
-                && selectedCards.some(
-                  (card) => getRootId(card, assetsById) === getRootId(poolTarget, assetsById),
-                ),
+                && selectedCards.some((card) => card.rootId === getRootId(poolTarget, assetsById)),
               )}
               onAddToReport={addPoolAssetToReport}
               onDeleteAsset={onDeleteAsset}
             />
           </>
         }
-        onSelectAsset={onSelectAsset}
+        onSelectAsset={handleCardClick}
         onCardPointerDown={beginDrag}
+        onDragOver={(event) => {
+          event.preventDefault()
+          setDropHint('pool')
+        }}
+        onDragLeave={() => setDropHint(null)}
+        onDrop={(event) => handleHtmlDrop(event, 'pool')}
       />
       <CollectionPane
         paneRef={reportPaneRef}
@@ -273,7 +324,6 @@ export function StoryWorkspace({
         subtitle="Drop originals here, or use Add to report. Select a picture for the actions below."
         emptyLabel="Drop pictures here from the originals pool"
         cards={selectedCards}
-        assetsById={assetsById}
         selectedAssetId={selectedAssetId}
         selectedRootId={selectedRootId}
         dragSource="selected"
@@ -282,6 +332,7 @@ export function StoryWorkspace({
         toolbar={
           <ReportPictureActions
             asset={reportTarget}
+            removingBackground={removingBackground}
             onEditImage={onEditImage}
             onRemoveBackground={onRemoveBackground}
             onRemoveFromReport={(assetId) => {
@@ -294,10 +345,15 @@ export function StoryWorkspace({
             }}
           />
         }
-        onSelectAsset={onSelectAsset}
+        onSelectAsset={handleCardClick}
         onCardPointerDown={beginDrag}
+        onDragOver={(event) => {
+          event.preventDefault()
+          setDropHint('selected')
+        }}
+        onDragLeave={() => setDropHint(null)}
+        onDrop={(event) => handleHtmlDrop(event, 'selected')}
       />
-
       {dragPayload && dragPoint && draggedAsset && (
         <div
           className="pointer-events-none fixed z-50 w-40 rounded-xl border border-brand bg-white px-2 py-2 shadow-lift"
@@ -365,6 +421,7 @@ function PoolPictureActions({
 
 interface IReportPictureActionsProps {
   asset: IMediaAsset | null
+  removingBackground: boolean
   onEditImage: (asset: IMediaAsset) => void
   onRemoveBackground: (asset: IMediaAsset) => void
   onRemoveFromReport: (assetId: string) => void
@@ -373,6 +430,7 @@ interface IReportPictureActionsProps {
 /** Report-only actions: edit, remove background, or remove from report (original stays). */
 function ReportPictureActions({
   asset,
+  removingBackground,
   onEditImage,
   onRemoveBackground,
   onRemoveFromReport,
@@ -404,10 +462,10 @@ function ReportPictureActions({
         <button
           type="button"
           className="me-btn-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!enabled || !isImage}
+          disabled={!enabled || !isImage || removingBackground}
           onClick={() => asset && onRemoveBackground(asset)}
         >
-          Remove background
+          {removingBackground ? 'Removing…' : 'Remove background'}
         </button>
         <button
           type="button"
@@ -422,13 +480,17 @@ function ReportPictureActions({
   )
 }
 
+interface IStoryCard {
+  rootId: string
+  asset: IMediaAsset
+}
+
 interface ICollectionPaneProps {
   paneRef: React.MutableRefObject<HTMLElement | null>
   title: string
   subtitle: string
   emptyLabel: string
-  cards: IMediaAsset[]
-  assetsById: Map<string, IMediaAsset>
+  cards: IStoryCard[]
   selectedAssetId: string | null
   selectedRootId: string | null
   dragSource: 'pool' | 'selected'
@@ -437,16 +499,18 @@ interface ICollectionPaneProps {
   toolbar?: ReactNode
   onSelectAsset: (asset: IMediaAsset) => void
   onCardPointerDown: (event: PointerEvent<HTMLElement>, payload: IDragPayload) => void
+  onDragOver: (event: DragEvent<HTMLElement>) => void
+  onDragLeave: () => void
+  onDrop: (event: DragEvent<HTMLElement>) => void
 }
 
-/** One story collection pane with pointer-driven drag cards. */
+/** One story collection pane with HTML5 + pointer drag cards. */
 function CollectionPane({
   paneRef,
   title,
   subtitle,
   emptyLabel,
   cards,
-  assetsById,
   selectedAssetId,
   selectedRootId,
   dragSource,
@@ -455,12 +519,18 @@ function CollectionPane({
   toolbar,
   onSelectAsset,
   onCardPointerDown,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: ICollectionPaneProps): JSX.Element {
   return (
     <section
       ref={paneRef as React.RefObject<HTMLElement>}
       data-drop-zone={dragSource}
       className={`me-panel min-h-[320px] p-4 md:p-5 ${highlight ? 'ring-2 ring-brand/30 border-brand/40' : ''}`}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       <div className="mb-4">
         <p className="me-label mb-0">{dragSource === 'pool' ? 'Originals' : 'Report order'}</p>
@@ -476,17 +546,24 @@ function CollectionPane({
         </div>
       ) : (
         <ul className="space-y-2">
-          {cards.map((asset, index) => {
-            const rootId = getRootId(asset, assetsById)
+          {cards.map(({ rootId, asset }, index) => {
             const active = asset.id === selectedAssetId || selectedRootId === rootId
             const hasEdits = Boolean(asset.version_of)
             return (
               <li key={`${dragSource}-${rootId}`}>
                 <article
+                  draggable
                   className={`flex cursor-grab touch-none items-center gap-3 rounded-xl border bg-white px-3 py-2 active:cursor-grabbing select-none ${
                     active ? 'border-brand shadow-lift ring-2 ring-brand/15' : 'border-brand-line hover:border-slate-300'
                   }`}
                   onClick={() => onSelectAsset(asset)}
+                  onDragStart={(event) => {
+                    writeDragPayload(event.dataTransfer, {
+                      assetId: asset.id,
+                      rootId,
+                      source: dragSource,
+                    })
+                  }}
                   onPointerDown={(event) => {
                     onCardPointerDown(event, {
                       assetId: asset.id,
