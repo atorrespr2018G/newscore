@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #111827;
+  background: #f8fafc;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Keep Filerobot tools (Crop/Rotate/Flip) visible inside the modal shell. */
+.filerobot-shell,
+.filerobot-shell .FIE_root {
+  height: 100%;
+  min-height: 0;
+}
+
+.filerobot-shell .FIE_tools-bar,
+.filerobot-shell [class*='sc-dwg14p'] {
+  max-width: 100%;
+}
+
+.filerobot-shell .FIE_tools-bar > div,
+.filerobot-shell [class*='sc-dwg14p-1'] {
+  overflow-x: auto !important;
+  flex-wrap: wrap !important;
+  max-height: none !important;
+}

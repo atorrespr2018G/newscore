@@ -29,7 +29,7 @@ services:
 
   admin_app:
     build: ./backend/admin_app
-    command: sh -c "pip install -e /shared && uvicorn main:app --host 0.0.0.0 --port 5001 --reload"
+    command: sh -c "pip install -e /shared --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org && uvicorn main:app --host 0.0.0.0 --port 5001 --reload"
     ports:
       - "5001:5001"
     env_file: .env
@@ -64,6 +64,19 @@ services:
       - ./backend/shared:/shared
       - ./backend/news_storage_app:/app
       - ./media:/media
+
+  media_editor_app:
+    build: ./backend/media_editor_app
+    command: uvicorn main:app --host 0.0.0.0 --port 5004 --reload
+    ports:
+      - "5004:5004"
+    env_file: .env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend/media_editor_app:/app
+      - ./media-editor:/media-editor
 
   layout_admin_app:
     build: ./backend/layout_admin_app
@@ -217,6 +230,22 @@ services:
       graphql_router:
         condition: service_healthy
         restart: true
+
+  media_editor_frontend:
+    build: ./media_editor_frontend
+    command: npm run dev
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./media_editor_frontend:/app
+      - /app/node_modules
+    env_file: .env
+    environment:
+      NEXT_PUBLIC_MEDIA_EDITOR_API_URL: http://localhost:5004/api/v1/media-editor
+      NEXT_PUBLIC_NEWSCORE_AUTH_URL: http://localhost/api/v1/admin
+    depends_on:
+      media_editor_app:
+        condition: service_started
 
   nginx:
     image: nginx:alpine

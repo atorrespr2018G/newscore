@@ -9,6 +9,7 @@
 mongo_data/
 media/images/
 media/videos/
+media-editor/
 *.tsbuildinfo
 *.egg-info/
 .coverage
