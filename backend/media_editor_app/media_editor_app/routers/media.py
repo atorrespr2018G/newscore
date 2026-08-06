@@ -1,4 +1,4 @@
-"""Authenticated media, derivative, collection, and handoff endpoints."""
+"""Authenticated media, story package, and handoff endpoints."""
 
 from __future__ import annotations
 
@@ -11,14 +11,15 @@ from media_editor_app.auth import TokenPayload, require_role
 from media_editor_app.database import get_database
 from media_editor_app.schemas import (
     MediaAssetOut,
-    MediaCollectionCreate,
-    MediaCollectionOut,
-    MediaCollectionUpdate,
     MediaListOut,
     MediaMetadataUpdate,
+    MediaStoryCreate,
+    MediaStoryOut,
+    MediaStoryUpdate,
+    MediaVersionListOut,
     VideoEditInstruction,
 )
-from media_editor_app.services import collection_service, media_service
+from media_editor_app.services import media_service, story_service
 
 router = APIRouter(prefix="/api/v1/media-editor", tags=["media-editor"])
 _REPORTER_ACCESS = Depends(require_role("reporter", "editor"))
@@ -35,14 +36,20 @@ def _client_error(exc: Exception) -> HTTPException:
 @router.post("/assets", response_model=MediaAssetOut, status_code=status.HTTP_201_CREATED)
 async def upload_asset(
     file: UploadFile = File(...),
+    story_id: str | None = Query(default=None),
     db: AsyncIOMotorDatabase = Depends(get_database),
     user: TokenPayload = _REPORTER_ACCESS,
 ) -> MediaAssetOut:
-    """Upload an image or video source asset."""
+    """Upload an image or video and optionally attach it to a story originals pool."""
 
     try:
-        return await media_service.upload_media(db, file=file, uploader_id=user.sub)
-    except ValueError as exc:
+        asset = await media_service.upload_media(db, file=file, uploader_id=user.sub)
+        if story_id:
+            await story_service.add_asset_to_pool(
+                db, story_id=story_id, owner_id=user.sub, asset_id=asset.id,
+            )
+        return asset
+    except (LookupError, ValueError) as exc:
         raise _client_error(exc) from exc
 
 
@@ -69,6 +76,21 @@ async def read_asset(
 
     try:
         return await media_service.get_media(db, media_id=media_id, owner_id=user.sub)
+    except LookupError as exc:
+        raise _client_error(exc) from exc
+
+
+@router.get("/assets/{media_id}/versions", response_model=MediaVersionListOut)
+async def browse_asset_versions(
+    media_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    user: TokenPayload = _REPORTER_ACCESS,
+) -> MediaVersionListOut:
+    """List the original upload and every edited version for one picture."""
+
+    try:
+        root_id, items = await media_service.list_versions(db, media_id=media_id, owner_id=user.sub)
+        return MediaVersionListOut(root_id=root_id, items=items)
     except LookupError as exc:
         raise _client_error(exc) from exc
 
@@ -146,53 +168,64 @@ async def render_asset_video(
         raise _client_error(exc) from exc
 
 
-@router.post("/collections", response_model=MediaCollectionOut, status_code=status.HTTP_201_CREATED)
-async def create_collection(
-    payload: MediaCollectionCreate,
+@router.post("/stories", response_model=MediaStoryOut, status_code=status.HTTP_201_CREATED)
+async def create_story(
+    payload: MediaStoryCreate,
     db: AsyncIOMotorDatabase = Depends(get_database),
     user: TokenPayload = _REPORTER_ACCESS,
-) -> MediaCollectionOut:
-    """Create a draft ordered media collection."""
+) -> MediaStoryOut:
+    """Create a draft story package with empty originals and report collections."""
+
+    return await story_service.create_story(db, owner_id=user.sub, payload=payload)
+
+
+@router.get("/stories", response_model=List[MediaStoryOut])
+async def browse_stories(
+    db: AsyncIOMotorDatabase = Depends(get_database), user: TokenPayload = _REPORTER_ACCESS,
+) -> list[MediaStoryOut]:
+    """List the caller's story media packages."""
+
+    return await story_service.list_stories(db, owner_id=user.sub)
+
+
+@router.get("/stories/{story_id}", response_model=MediaStoryOut)
+async def read_story(
+    story_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    user: TokenPayload = _REPORTER_ACCESS,
+) -> MediaStoryOut:
+    """Return one owned story package."""
 
     try:
-        return await collection_service.create_collection(db, owner_id=user.sub, payload=payload)
-    except ValueError as exc:
+        return await story_service.get_story(db, story_id=story_id, owner_id=user.sub)
+    except LookupError as exc:
         raise _client_error(exc) from exc
 
 
-@router.get("/collections", response_model=List[MediaCollectionOut])
-async def browse_collections(
-    db: AsyncIOMotorDatabase = Depends(get_database), user: TokenPayload = _REPORTER_ACCESS,
-) -> list[MediaCollectionOut]:
-    """List the caller's ordered media collections."""
-
-    return await collection_service.list_collections(db, owner_id=user.sub)
-
-
-@router.put("/collections/{collection_id}", response_model=MediaCollectionOut)
-async def replace_collection(
-    collection_id: str,
-    payload: MediaCollectionUpdate,
+@router.put("/stories/{story_id}", response_model=MediaStoryOut)
+async def replace_story(
+    story_id: str,
+    payload: MediaStoryUpdate,
     db: AsyncIOMotorDatabase = Depends(get_database),
     user: TokenPayload = _REPORTER_ACCESS,
-) -> MediaCollectionOut:
-    """Replace a collection's title, metadata, order, and readiness state."""
+) -> MediaStoryOut:
+    """Replace story metadata, originals pool, report order, and readiness."""
 
     try:
-        return await collection_service.update_collection(
-            db, collection_id=collection_id, owner_id=user.sub, payload=payload,
+        return await story_service.update_story(
+            db, story_id=story_id, owner_id=user.sub, payload=payload,
         )
     except (LookupError, ValueError) as exc:
         raise _client_error(exc) from exc
 
 
-@router.get("/handoff/collections/{collection_id}", response_model=MediaCollectionOut)
+@router.get("/handoff/stories/{story_id}", response_model=MediaStoryOut)
 async def read_ready_handoff(
-    collection_id: str, db: AsyncIOMotorDatabase = Depends(get_database), user: TokenPayload = _REPORTER_ACCESS,
-) -> MediaCollectionOut:
-    """Read a ready collection through the future editor handoff boundary."""
+    story_id: str, db: AsyncIOMotorDatabase = Depends(get_database), user: TokenPayload = _REPORTER_ACCESS,
+) -> MediaStoryOut:
+    """Read a ready story through the future editor handoff boundary."""
 
     try:
-        return await collection_service.get_ready_collection(db, collection_id=collection_id, owner_id=user.sub)
+        return await story_service.get_ready_story(db, story_id=story_id, owner_id=user.sub)
     except LookupError as exc:
         raise _client_error(exc) from exc

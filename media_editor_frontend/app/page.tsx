@@ -1,39 +1,74 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { DocumentTitleField } from '@/components/document-title-field'
+import { RichTextEditor } from '@/components/rich-text-editor'
+import { StoryUploadControl } from '@/components/story-upload-control'
+import { StoryWorkspace } from '@/components/story-workspace'
+import { VersionPicker } from '@/components/version-picker'
 import { VideoEditor } from '@/components/video-editor'
 import {
   clearAccessToken,
-  createCollection,
+  createStory,
   deleteAsset,
   getAccessToken,
   IMediaAsset,
-  IMediaCollection,
+  IMediaStory,
   listAssets,
-  listCollections,
+  listAssetVersions,
+  listStories,
   login,
   removeBackground,
   renderVideo,
   updateAsset,
-  updateCollection,
-  uploadAsset,
+  updateStory,
 } from '@/lib/media-editor-client'
+import {
+  MAX_TITLE_LENGTH,
+  toDescriptionHtml,
+  validateMediaMetadata,
+} from '@/lib/media-metadata'
+import {
+  adoptEditedDerivative,
+  getRootId,
+  sanitizePoolIds,
+} from '@/lib/story-selection'
+
+const RICH_TEXT_LABELS = {
+  bold: 'Bold',
+  italic: 'Italic',
+  heading2: 'H2',
+  heading3: 'H3',
+  bulletList: 'Bullets',
+  orderedList: 'Numbers',
+  blockquote: 'Quote',
+  link: 'Link',
+  unlink: 'Unlink',
+  linkPrompt: 'Enter link URL',
+  undo: 'Undo',
+  redo: 'Redo',
+}
 
 const ImageEditor = dynamic(
   () => import('@/components/image-editor').then((module) => module.ImageEditor),
   { ssr: false },
 )
 
-/** Render the independent reporter media-library workspace. */
+/** Render the independent reporter story media workspace. */
 export default function MediaLibraryPage(): JSX.Element {
   const [assets, setAssets] = useState<IMediaAsset[]>([])
-  const [collections, setCollections] = useState<IMediaCollection[]>([])
+  const [stories, setStories] = useState<IMediaStory[]>([])
+  const [activeStoryId, setActiveStoryId] = useState<string | null>(null)
   const [selected, setSelected] = useState<IMediaAsset | null>(null)
   const [editorAsset, setEditorAsset] = useState<IMediaAsset | null>(null)
+  const [versionPickerAsset, setVersionPickerAsset] = useState<IMediaAsset | null>(null)
   const [message, setMessage] = useState('')
   const [authenticated, setAuthenticated] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  const assetsById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets])
+  const activeStory = stories.find((story) => story.id === activeStoryId) ?? null
 
   useEffect(() => setAuthenticated(Boolean(getAccessToken())), [])
   useEffect(() => {
@@ -43,15 +78,70 @@ export default function MediaLibraryPage(): JSX.Element {
   async function refresh(): Promise<void> {
     setBusy(true)
     try {
-      const [newAssets, newCollections] = await Promise.all([listAssets(), listCollections()])
+      const [newAssets, newStories] = await Promise.all([listAssets(), listStories()])
+      const byId = new Map(newAssets.map((asset) => [asset.id, asset]))
+      const cleanedStories = newStories.map((story) => ({
+        ...story,
+        pool_asset_ids: sanitizePoolIds(story.pool_asset_ids, byId),
+      }))
       setAssets(newAssets)
-      setCollections(newCollections)
+      setStories(cleanedStories)
+      setActiveStoryId((current) => current ?? cleanedStories[0]?.id ?? null)
       setSelected((current) => newAssets.find((asset) => asset.id === current?.id) ?? null)
       setMessage('')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load media library')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function persistStory(next: IMediaStory): Promise<void> {
+    const cleaned = {
+      ...next,
+      pool_asset_ids: sanitizePoolIds(next.pool_asset_ids, assetsById),
+    }
+    const saved = await updateStory(cleaned)
+    setStories((current) => current.map((story) => (story.id === saved.id ? saved : story)))
+  }
+
+  async function handleEditedDerivative(source: IMediaAsset, derivative: IMediaAsset): Promise<void> {
+    setAssets((current) => [derivative, ...current.filter((asset) => asset.id !== derivative.id)])
+    if (!activeStory) {
+      await refresh()
+      return
+    }
+    const rootId = getRootId(source)
+    const nextLists = adoptEditedDerivative(
+      activeStory.pool_asset_ids,
+      activeStory.selected_asset_ids,
+      rootId,
+      derivative.id,
+      (assetId) => {
+        const asset = assetId === derivative.id ? derivative : assetsById.get(assetId)
+        if (!asset) throw new Error(`Asset ${assetId} was not found`)
+        return getRootId(asset)
+      },
+    )
+    await persistStory({
+      ...activeStory,
+      pool_asset_ids: nextLists.poolIds,
+      selected_asset_ids: nextLists.selectedIds,
+      status: 'draft',
+    })
+    setSelected(derivative)
+  }
+
+  async function openImageEditor(asset: IMediaAsset): Promise<void> {
+    try {
+      const versions = await listAssetVersions(asset.id)
+      if (versions.items.length <= 1) {
+        setEditorAsset(asset)
+        return
+      }
+      setVersionPickerAsset(asset)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to open image editor')
     }
   }
 
@@ -67,12 +157,15 @@ export default function MediaLibraryPage(): JSX.Element {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand">NewsCore</p>
             <h1 className="font-serif text-3xl text-brand-ink md:text-4xl">Media Desk</h1>
-            <p className="mt-1 text-sm text-slate-500">Prepare pictures and video for editorial handoff</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Per-story originals pool and ordered report pictures
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden rounded-xl border border-brand-line bg-brand-paper px-3 py-2 text-xs text-slate-600 sm:block">
-            {assets.length} assets · {collections.length} collections
+            {stories.length} stories · {assets.length} assets
+            {busy ? ' · refreshing' : ''}
           </div>
           <button
             className="me-btn-secondary"
@@ -92,22 +185,133 @@ export default function MediaLibraryPage(): JSX.Element {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="space-y-6">
-          <UploadControl
-            onUploaded={(asset) => {
-              setAssets((current) => [asset, ...current])
-              setSelected(asset)
-            }}
-            onError={setMessage}
-          />
-          <AssetGrid assets={assets} selected={selected} busy={busy} onSelect={setSelected} />
-          <CollectionManager assets={assets} collections={collections} onChanged={refresh} onError={setMessage} />
-        </section>
-        <AssetInspector asset={selected} onUpdated={refresh} onError={setMessage} onImageEdit={setEditorAsset} />
+      <div className="space-y-6">
+        <StoryPicker
+          stories={stories}
+          activeStoryId={activeStoryId}
+          onSelect={setActiveStoryId}
+          onCreated={(story) => {
+            setStories((current) => [story, ...current])
+            setActiveStoryId(story.id)
+          }}
+          onError={setMessage}
+        />
+
+        {activeStory ? (
+          <>
+            <StoryWorkspace
+              story={activeStory}
+              assets={assets}
+              assetsById={assetsById}
+              selectedAssetId={selected?.id ?? null}
+              onSelectAsset={setSelected}
+              onEditImage={(asset) => {
+                setSelected(asset)
+                void openImageEditor(asset)
+              }}
+              onRemoveBackground={(asset) => {
+                void (async () => {
+                  try {
+                    setSelected(asset)
+                    const derivative = await removeBackground(asset.id)
+                    await handleEditedDerivative(asset, derivative)
+                  } catch (error) {
+                    setMessage(error instanceof Error ? error.message : 'Background removal failed')
+                  }
+                })()
+              }}
+              onDeleteAsset={(asset) => {
+                void (async () => {
+                  if (!window.confirm(`Delete "${asset.title ?? asset.original_filename}"? This cannot be undone.`)) {
+                    return
+                  }
+                  try {
+                    await deleteAsset(asset.id)
+                    if (selected?.id === asset.id) setSelected(null)
+                    await refresh()
+                  } catch (error) {
+                    setMessage(error instanceof Error ? error.message : 'Delete failed')
+                  }
+                })()
+              }}
+              onStoryChange={persistStory}
+              onError={setMessage}
+              poolUploadControl={
+                <StoryUploadControl
+                  storyId={activeStory.id}
+                  onUploaded={(asset) => {
+                    if (asset.version_of) return
+                    setAssets((current) => [asset, ...current])
+                    setStories((current) =>
+                      current.map((story) =>
+                        story.id !== activeStory.id
+                          ? story
+                          : {
+                              ...story,
+                              pool_asset_ids: story.pool_asset_ids.includes(asset.id)
+                                ? story.pool_asset_ids
+                                : [...story.pool_asset_ids, asset.id],
+                              status: 'draft',
+                            },
+                      ),
+                    )
+                    setSelected(asset)
+                  }}
+                  onError={setMessage}
+                />
+              }
+            />
+            {selected?.file_type === 'video' && (
+              <section className="me-panel p-5 md:p-6">
+                <p className="me-label mb-0">Report video</p>
+                <h2 className="mb-4 font-serif text-2xl text-brand-ink">Trim & overlays</h2>
+                <VideoEditor
+                  asset={selected}
+                  onRender={async (instruction) => {
+                    try {
+                      await renderVideo(selected.id, instruction)
+                      await refresh()
+                    } catch (error) {
+                      setMessage(error instanceof Error ? error.message : 'Video render failed')
+                    }
+                  }}
+                />
+              </section>
+            )}
+            <AssetInspector asset={selected} onUpdated={refresh} onError={setMessage} />
+            <ReadyControls story={activeStory} onPersist={persistStory} onError={setMessage} />
+          </>
+        ) : (
+          <section className="me-panel px-6 py-16 text-center">
+            <p className="font-serif text-3xl text-brand-ink">Create a story to begin</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Each news item gets its own originals pool and a separate ordered report collection.
+            </p>
+          </section>
+        )}
       </div>
 
-      {editorAsset && <ImageEditor asset={editorAsset} onClose={() => setEditorAsset(null)} onSaved={refresh} />}
+      {versionPickerAsset && (
+        <VersionPicker
+          asset={versionPickerAsset}
+          onClose={() => setVersionPickerAsset(null)}
+          onError={setMessage}
+          onChoose={(version) => {
+            setVersionPickerAsset(null)
+            setEditorAsset(version)
+          }}
+        />
+      )}
+
+      {editorAsset && (
+        <ImageEditor
+          asset={editorAsset}
+          onClose={() => setEditorAsset(null)}
+          onSaved={async (derivative) => {
+            await handleEditedDerivative(editorAsset, derivative)
+          }}
+        />
+      )}
     </main>
   )
 }
@@ -180,111 +384,74 @@ function LoginScreen({ onSuccess }: ILoginScreenProps): JSX.Element {
   )
 }
 
-interface IUploadControlProps {
-  onUploaded: (asset: IMediaAsset) => void
+interface IStoryPickerProps {
+  stories: IMediaStory[]
+  activeStoryId: string | null
+  onSelect: (storyId: string) => void
+  onCreated: (story: IMediaStory) => void
   onError: (message: string) => void
 }
 
-/** Upload a supported image or video directly into the independent service. */
-function UploadControl({ onUploaded, onError }: IUploadControlProps): JSX.Element {
-  const [uploading, setUploading] = useState(false)
+/** Create and switch between reporter story packages. */
+function StoryPicker({
+  stories,
+  activeStoryId,
+  onSelect,
+  onCreated,
+  onError,
+}: IStoryPickerProps): JSX.Element {
+  const [title, setTitle] = useState('')
+  const [creating, setCreating] = useState(false)
 
-  async function change(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setUploading(true)
+  async function create(): Promise<void> {
+    if (!title.trim()) return
+    setCreating(true)
     try {
-      onUploaded(await uploadAsset(file))
-    } catch (exception) {
-      onError(exception instanceof Error ? exception.message : 'Upload failed')
+      onCreated(await createStory(title.trim()))
+      setTitle('')
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Unable to create story')
     } finally {
-      setUploading(false)
-      event.target.value = ''
+      setCreating(false)
     }
   }
 
   return (
-    <label className="me-panel group flex cursor-pointer flex-col items-center justify-center border-dashed px-6 py-10 text-center transition hover:border-brand/40 hover:bg-brand-soft/40">
-      <span className="mb-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-mist text-lg font-semibold text-brand-ink transition group-hover:bg-white">
-        +
-      </span>
-      <span className="font-serif text-2xl text-brand-ink">
-        {uploading ? 'Uploading…' : 'Drop media into the desk'}
-      </span>
-      <span className="mt-2 max-w-md text-sm text-slate-500">
-        JPEG, PNG, WebP, MP4, WebM, or QuickTime. Files are stored in the independent media service.
-      </span>
-      <input
-        className="sr-only"
-        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-        type="file"
-        disabled={uploading}
-        onChange={change}
-      />
-    </label>
-  )
-}
-
-interface IAssetGridProps {
-  assets: IMediaAsset[]
-  selected: IMediaAsset | null
-  busy: boolean
-  onSelect: (asset: IMediaAsset) => void
-}
-
-/** Display uploaded assets in a selectable visual library. */
-function AssetGrid({ assets, selected, busy, onSelect }: IAssetGridProps): JSX.Element {
-  return (
     <section className="me-panel p-5 md:p-6">
-      <div className="mb-5 flex items-end justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="me-label mb-0">Library</p>
-          <h2 className="font-serif text-3xl text-brand-ink">Picture & video pool</h2>
+          <p className="me-label mb-0">Story package</p>
+          <h2 className="font-serif text-3xl text-brand-ink">News assignments</h2>
         </div>
-        {busy && <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Refreshing</span>}
       </div>
-      {assets.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-brand-line bg-brand-paper px-6 py-16 text-center">
-          <p className="font-serif text-2xl text-brand-ink">No media yet</p>
-          <p className="mt-2 text-sm text-slate-500">Upload an image or video to begin editing and ordering.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          {assets.map((asset) => {
-            const active = asset.id === selected?.id
+      <div className="flex flex-col gap-3 md:flex-row">
+        <input
+          className="me-input md:flex-1"
+          placeholder="Story title (e.g. City hall budget vote)"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+        <button className="me-btn-primary whitespace-nowrap" disabled={!title.trim() || creating} onClick={() => void create()}>
+          {creating ? 'Creating…' : 'New story'}
+        </button>
+      </div>
+      {stories.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {stories.map((story) => {
+            const active = story.id === activeStoryId
             return (
               <button
-                key={asset.id}
-                className={`overflow-hidden rounded-2xl border text-left transition ${
-                  active
-                    ? 'border-brand shadow-lift ring-2 ring-brand/20'
-                    : 'border-brand-line hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-panel'
+                key={story.id}
+                type="button"
+                className={`rounded-xl border px-3 py-2 text-sm transition ${
+                  active ? 'border-brand bg-brand-soft text-brand' : 'border-brand-line bg-white text-slate-600'
                 }`}
-                onClick={() => onSelect(asset)}
+                onClick={() => onSelect(story.id)}
               >
-                <div className="relative aspect-[4/3] bg-brand-mist">
-                  {asset.file_type === 'image' ? (
-                    <img
-                      alt={asset.alt_text ?? asset.original_filename}
-                      className="h-full w-full object-cover"
-                      src={asset.preview_url ?? asset.url}
-                    />
-                  ) : (
-                    <video className="h-full w-full object-cover" src={asset.url} muted />
-                  )}
-                  <span className="absolute left-3 top-3 rounded-lg bg-brand-ink/80 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
-                    {asset.version_of ? 'Edited' : asset.file_type}
-                  </span>
-                </div>
-                <div className="space-y-1 px-3 py-3">
-                  <p className="truncate text-sm font-semibold text-brand-ink">
-                    {asset.title ?? asset.original_filename}
-                  </p>
-                  <p className="truncate text-xs text-slate-500">
-                    {asset.width && asset.height ? `${asset.width}×${asset.height}` : 'Ready'}
-                    {asset.version_of ? ' · derivative' : ''}
-                  </p>
-                </div>
+                {story.title}
+                <span className="ml-2 text-xs opacity-70">
+                  {story.selected_asset_ids.length}/{story.pool_asset_ids.length} · {story.status}
+                </span>
               </button>
             )
           })}
@@ -294,214 +461,121 @@ function AssetGrid({ assets, selected, busy, onSelect }: IAssetGridProps): JSX.E
   )
 }
 
+interface IReadyControlsProps {
+  story: IMediaStory
+  onPersist: (story: IMediaStory) => Promise<void>
+  onError: (message: string) => void
+}
+
+/** Mark the ordered report selection ready for later NewsCore handoff. */
+function ReadyControls({ story, onPersist, onError }: IReadyControlsProps): JSX.Element {
+  async function markReady(): Promise<void> {
+    try {
+      await onPersist({ ...story, status: 'ready' })
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'Unable to mark story ready')
+    }
+  }
+
+  return (
+    <section className="me-panel flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
+      <div>
+        <p className="me-label mb-0">Handoff</p>
+        <h2 className="font-serif text-2xl text-brand-ink">Report package status</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          {story.selected_asset_ids.length} picture(s) ordered for the report · currently {story.status}
+        </p>
+      </div>
+      <button
+        className="me-btn-primary"
+        disabled={story.selected_asset_ids.length === 0 || story.status === 'ready'}
+        onClick={() => void markReady()}
+      >
+        {story.status === 'ready' ? 'Ready for editors' : 'Mark report ready'}
+      </button>
+    </section>
+  )
+}
+
 interface IAssetInspectorProps {
   asset: IMediaAsset | null
   onUpdated: () => Promise<void>
   onError: (message: string) => void
-  onImageEdit: (asset: IMediaAsset) => void
 }
 
-/** Edit selected asset metadata and open its applicable editing controls. */
-function AssetInspector({ asset, onUpdated, onError, onImageEdit }: IAssetInspectorProps): JSX.Element {
+/** Edit headline and description only; picture actions live in report order. */
+function AssetInspector({ asset, onUpdated, onError }: IAssetInspectorProps): JSX.Element {
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
+  const [description, setDescription] = useState('<p></p>')
+  const [saving, setSaving] = useState(false)
+  const editorEnabled = Boolean(asset)
 
   useEffect(() => {
     setTitle(asset?.title ?? '')
-    setDescription(asset?.description ?? '')
+    setDescription(toDescriptionHtml(asset?.description))
   }, [asset])
 
-  if (!asset) {
-    return (
-      <aside className="me-panel sticky top-6 h-fit p-6">
-        <p className="me-label">Inspector</p>
-        <h2 className="font-serif text-3xl text-brand-ink">Select a frame</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-500">
-          Choose an asset from the library to edit metadata, crop and annotate pictures, or trim video.
-        </p>
-      </aside>
-    )
-  }
-
-  async function save(): Promise<void> {
-    try {
-      await updateAsset(asset.id, { title, description })
-      await onUpdated()
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Save failed')
+  async function saveEdition(): Promise<void> {
+    if (!asset) {
+      onError('Select a picture first to edit its headline and description')
+      return
     }
-  }
-
-  async function removeBg(): Promise<void> {
-    try {
-      await removeBackground(asset.id)
-      await onUpdated()
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Background removal failed')
+    const validationError = validateMediaMetadata(title, description)
+    if (validationError) {
+      onError(validationError)
+      return
     }
-  }
-
-  async function removeAsset(): Promise<void> {
-    if (!window.confirm(`Delete "${asset.title ?? asset.original_filename}"? This cannot be undone.`)) return
+    setSaving(true)
     try {
-      await deleteAsset(asset.id)
+      await updateAsset(asset.id, { title: title.trim(), description })
       await onUpdated()
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Delete failed')
+      onError(error instanceof Error ? error.message : 'Unable to save edition')
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <aside className="me-panel sticky top-6 h-fit space-y-5 p-6">
-      <div>
-        <p className="me-label">Inspector</p>
-        <h2 className="font-serif text-3xl text-brand-ink">Asset details</h2>
-        {asset.version_of && (
-          <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-brand">Edited derivative</p>
-        )}
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-brand-line bg-brand-mist">
-        {asset.file_type === 'image' ? (
-          <img
-            alt={asset.alt_text ?? asset.original_filename}
-            className="max-h-56 w-full object-cover"
-            src={asset.preview_url ?? asset.url}
-          />
-        ) : (
-          <video className="max-h-56 w-full object-cover" controls src={asset.url} />
-        )}
-      </div>
-
-      <div>
-        <label className="me-label" htmlFor="asset-title">Title</label>
-        <input id="asset-title" className="me-input" value={title} onChange={(event) => setTitle(event.target.value)} />
-      </div>
-      <div>
-        <label className="me-label" htmlFor="asset-description">News description</label>
-        <textarea
-          id="asset-description"
-          className="me-input min-h-[110px] resize-y"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button className="me-btn-primary" onClick={() => void save()}>Save metadata</button>
-        {asset.file_type === 'image' && (
-          <>
-            <button className="me-btn-secondary" onClick={() => onImageEdit(asset)}>Edit image</button>
-            <button className="me-btn-secondary" onClick={() => void removeBg()}>Remove background</button>
-          </>
-        )}
-      </div>
-
-      {asset.file_type === 'video' && (
-        <VideoEditor
-          asset={asset}
-          onRender={async (instruction) => {
-            try {
-              await renderVideo(asset.id, instruction)
-              await onUpdated()
-            } catch (error) {
-              onError(error instanceof Error ? error.message : 'Video render failed')
-            }
-          }}
-        />
-      )}
-
-      <button className="me-btn-danger w-full" onClick={() => void removeAsset()}>
-        Delete {asset.version_of ? 'edited picture' : 'asset'}
-      </button>
-    </aside>
-  )
-}
-
-interface ICollectionManagerProps {
-  assets: IMediaAsset[]
-  collections: IMediaCollection[]
-  onChanged: () => Promise<void>
-  onError: (message: string) => void
-}
-
-/** Create and mark ready an ordered collection for the future NewsCore handoff. */
-function CollectionManager({ assets, collections, onChanged, onError }: ICollectionManagerProps): JSX.Element {
-  const [title, setTitle] = useState('')
-  const [assetIds, setAssetIds] = useState<string[]>([])
-
-  async function create(): Promise<void> {
-    try {
-      const collection = await createCollection(title)
-      await updateCollection(collection, assetIds, 'ready')
-      setTitle('')
-      setAssetIds([])
-      await onChanged()
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Collection save failed')
-    }
-  }
-
-  function toggle(id: string): void {
-    setAssetIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]))
-  }
-
-  return (
-    <section className="me-panel p-5 md:p-6">
-      <div className="mb-5">
-        <p className="me-label mb-0">Handoff</p>
-        <h2 className="font-serif text-3xl text-brand-ink">Ready collections</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          Order selected assets and mark the package ready for a later NewsCore editor import.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3 md:flex-row">
-        <input
-          className="me-input md:flex-1"
-          placeholder="Collection title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-        />
-        <button className="me-btn-primary whitespace-nowrap" disabled={!title || assetIds.length === 0} onClick={() => void create()}>
-          Mark selected ready
+    <section className="me-panel overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line px-5 py-4 md:px-6">
+        <div>
+          <p className="me-label mb-0">Edition</p>
+          <h2 className="font-serif text-2xl text-brand-ink">Headline & description</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {asset
+              ? `Editing text for ${asset.title ?? asset.original_filename}`
+              : 'Select a picture from the report order to write its headline and description.'}
+          </p>
+        </div>
+        <button className="me-btn-primary" disabled={!editorEnabled || saving} onClick={() => void saveEdition()}>
+          {saving ? 'Saving edition…' : 'Save edition'}
         </button>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        {assets.map((asset) => {
-          const checked = assetIds.includes(asset.id)
-          return (
-            <label
-              key={asset.id}
-              className={`cursor-pointer rounded-xl border px-3 py-2 text-sm transition ${
-                checked ? 'border-brand bg-brand-soft text-brand' : 'border-brand-line bg-white text-slate-600'
-              }`}
-            >
-              <input className="sr-only" checked={checked} type="checkbox" onChange={() => toggle(asset.id)} />
-              {asset.title ?? asset.original_filename}
-            </label>
-          )
-        })}
+      <div className={`space-y-5 px-5 py-5 md:px-6 ${editorEnabled ? '' : 'pointer-events-none opacity-60'}`}>
+        <div className="min-w-0">
+          <span className="block text-sm font-medium text-slate-700">Headline</span>
+          <DocumentTitleField
+            value={title}
+            onChange={setTitle}
+            placeholder="Write a headline…"
+            ariaLabel="Headline"
+            maxLength={MAX_TITLE_LENGTH}
+            formatCount={(count, max) => `${count}/${max}`}
+          />
+        </div>
+        <div className="min-w-0">
+          <span className="block text-sm font-medium text-slate-700">Description</span>
+          <RichTextEditor
+            key={asset?.id ?? 'no-asset'}
+            value={description}
+            onChange={setDescription}
+            labels={RICH_TEXT_LABELS}
+            ariaLabel="Description"
+          />
+        </div>
       </div>
-
-      <ul className="mt-6 space-y-2">
-        {collections.length === 0 ? (
-          <li className="rounded-xl bg-brand-paper px-4 py-3 text-sm text-slate-500">No ready collections yet.</li>
-        ) : (
-          collections.map((collection) => (
-            <li
-              key={collection.id}
-              className="flex items-center justify-between rounded-xl border border-brand-line bg-white px-4 py-3 text-sm"
-            >
-              <span className="font-semibold text-brand-ink">{collection.title}</span>
-              <span className="text-slate-500">
-                {collection.status} · {collection.asset_ids.length} assets
-              </span>
-            </li>
-          ))
-        )}
-      </ul>
     </section>
   )
 }

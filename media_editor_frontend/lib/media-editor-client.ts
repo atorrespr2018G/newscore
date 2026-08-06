@@ -1,6 +1,7 @@
 /** Typed HTTP client for the independent media-editor API. */
 
 export type MediaType = 'image' | 'video'
+export type StoryStatus = 'draft' | 'ready'
 
 export interface IMediaAsset {
   id: string
@@ -22,12 +23,14 @@ export interface IMediaAsset {
   created_at: string
 }
 
-export interface IMediaCollection {
+/** One news story with an originals pool and an ordered report selection. */
+export interface IMediaStory {
   id: string
   title: string
   description: string | null
-  asset_ids: string[]
-  status: 'draft' | 'ready'
+  pool_asset_ids: string[]
+  selected_asset_ids: string[]
+  status: StoryStatus
   owner_id: string
   created_at: string
   updated_at: string
@@ -90,11 +93,12 @@ export async function listAssets(fileType?: MediaType): Promise<IMediaAsset[]> {
   return response.items
 }
 
-/** Upload a source image or video file. */
-export async function uploadAsset(file: File): Promise<IMediaAsset> {
+/** Upload a source image or video file, optionally into a story originals pool. */
+export async function uploadAsset(file: File, storyId?: string): Promise<IMediaAsset> {
   const body = new FormData()
   body.append('file', file)
-  return request<IMediaAsset>('/assets', { method: 'POST', body })
+  const query = storyId ? `?story_id=${encodeURIComponent(storyId)}` : ''
+  return request<IMediaAsset>(`/assets${query}`, { method: 'POST', body })
 }
 
 /** Persist an asset's editable newsroom metadata. */
@@ -114,6 +118,11 @@ export async function deleteAsset(id: string): Promise<void> {
 /** Create a transparent derivative from an image asset. */
 export async function removeBackground(id: string): Promise<IMediaAsset> {
   return request<IMediaAsset>(`/assets/${id}/remove-background`, { method: 'POST' })
+}
+
+/** List the original upload and every edited version for one picture family. */
+export async function listAssetVersions(id: string): Promise<{ root_id: string; items: IMediaAsset[] }> {
+  return request<{ root_id: string; items: IMediaAsset[] }>(`/assets/${id}/versions`)
 }
 
 /** Save an image-editor export as an immutable derivative asset. */
@@ -141,34 +150,31 @@ export async function renderVideo(
   })
 }
 
-/** List the authenticated reporter's ordered media collections. */
-export async function listCollections(): Promise<IMediaCollection[]> {
-  return request<IMediaCollection[]>('/collections')
+/** List the authenticated reporter's story media packages. */
+export async function listStories(): Promise<IMediaStory[]> {
+  return request<IMediaStory[]>('/stories')
 }
 
-/** Create a reporter-owned draft collection. */
-export async function createCollection(title: string): Promise<IMediaCollection> {
-  return request<IMediaCollection>('/collections', {
+/** Create a draft story package for one news report. */
+export async function createStory(title: string, description?: string): Promise<IMediaStory> {
+  return request<IMediaStory>('/stories', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, asset_ids: [] }),
+    body: JSON.stringify({ title, description: description || null }),
   })
 }
 
-/** Persist a collection's ordered media selection and readiness status. */
-export async function updateCollection(
-  collection: IMediaCollection,
-  assetIds: string[],
-  status: IMediaCollection['status'],
-): Promise<IMediaCollection> {
-  return request<IMediaCollection>(`/collections/${collection.id}`, {
+/** Persist story metadata, originals pool, report order, and readiness. */
+export async function updateStory(story: IMediaStory): Promise<IMediaStory> {
+  return request<IMediaStory>(`/stories/${story.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      title: collection.title,
-      description: collection.description,
-      asset_ids: assetIds,
-      status,
+      title: story.title,
+      description: story.description,
+      pool_asset_ids: story.pool_asset_ids,
+      selected_asset_ids: story.selected_asset_ids,
+      status: story.status,
     }),
   })
 }

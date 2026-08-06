@@ -36,9 +36,10 @@ def get_database() -> AsyncIOMotorDatabase:
 
 
 async def ensure_indexes() -> None:
-    """Create indexes required for asset browse and collection ownership."""
+    """Create indexes required for asset browse and story ownership."""
 
     database = get_database()
     await database["media_assets"].create_index([("uploader_id", 1), ("_id", -1)])
     await database["media_assets"].create_index([("uploader_id", 1), ("file_type", 1)])
-    await database["media_collections"].create_index([("owner_id", 1), ("updated_at", -1)])
+    await database["media_stories"].create_index([("owner_id", 1), ("updated_at", -1)])
+

@@ -4,18 +4,18 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, model_validator
 
 MediaType = Literal["image", "video"]
 ProcessingStatus = Literal["ready", "processing", "failed"]
-CollectionStatus = Literal["draft", "ready"]
+StoryStatus = Literal["draft", "ready"]
 
 
 class MediaMetadataUpdate(BaseModel):
     """Editable newsroom metadata for a media asset."""
 
     title: str | None = Field(default=None, max_length=200)
-    description: str | None = Field(default=None, max_length=2_000)
+    description: str | None = Field(default=None, max_length=20_000)
     alt_text: str | None = Field(default=None, max_length=500)
     credit: str | None = Field(default=None, max_length=200)
     tags: list[str] | None = Field(default=None, max_length=20)
@@ -45,22 +45,42 @@ class MediaListOut(BaseModel):
     next_cursor: str | None = None
 
 
-class MediaCollectionCreate(BaseModel):
-    """Payload that creates a reporter-owned ordered media collection."""
+class MediaStoryCreate(BaseModel):
+    """Payload that creates a reporter story media package."""
 
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2_000)
-    asset_ids: list[str] = Field(default_factory=list, max_length=100)
 
 
-class MediaCollectionUpdate(MediaCollectionCreate):
-    """Payload that replaces editable collection fields and ordering."""
+class MediaStoryUpdate(BaseModel):
+    """Payload that updates a story pool, selected report order, and readiness."""
 
-    status: CollectionStatus = "draft"
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2_000)
+    pool_asset_ids: list[str] = Field(default_factory=list, max_length=200)
+    selected_asset_ids: list[str] = Field(default_factory=list, max_length=100)
+    status: StoryStatus = "draft"
+
+    @model_validator(mode="after")
+    def validate_unique_ids(self) -> "MediaStoryUpdate":
+        """Ensure pool and report ID lists do not contain duplicates."""
+
+        if len(self.pool_asset_ids) != len(set(self.pool_asset_ids)):
+            raise ValueError("Story pool asset IDs must be unique")
+        if len(self.selected_asset_ids) != len(set(self.selected_asset_ids)):
+            raise ValueError("Selected report asset IDs must be unique")
+        return self
 
 
-class MediaCollectionOut(MediaCollectionUpdate):
-    """Serialized ordered collection for newsroom handoff."""
+class MediaVersionListOut(BaseModel):
+    """Original upload plus every edited version in one picture family."""
+
+    root_id: str
+    items: list[MediaAssetOut]
+
+
+class MediaStoryOut(MediaStoryUpdate):
+    """Serialized story package with originals pool and ordered report selection."""
 
     id: str
     owner_id: str

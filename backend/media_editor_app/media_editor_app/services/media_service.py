@@ -133,14 +133,14 @@ async def update_metadata(
 
 
 async def delete_media(db: AsyncIOMotorDatabase, *, media_id: str, owner_id: str) -> None:
-    """Delete an owned asset, its file, and any collection references."""
+    """Delete an owned asset, its file, and any story pool/report references."""
 
     document = await db[MEDIA_COLLECTION].find_one({"_id": media_id, "uploader_id": owner_id})
     if document is None:
         raise LookupError("Media asset not found")
-    await db["media_collections"].update_many(
+    await db["media_stories"].update_many(
         {"owner_id": owner_id},
-        {"$pull": {"asset_ids": media_id}},
+        {"$pull": {"pool_asset_ids": media_id, "selected_asset_ids": media_id}},
     )
     url = str(document.get("url") or "")
     if url:
@@ -211,14 +211,33 @@ def _create_version(
 ) -> dict[str, Any]:
     """Construct derivative metadata while retaining immutable source lineage."""
 
+    root_id = source.get("version_of") or source["_id"]
     document = _create_document(
-        file_type=source["file_type"], url=url, filename=f"edited-{source['_id']}.{extension}",
+        file_type=source["file_type"], url=url, filename=f"edited-{root_id}.{extension}",
         uploader_id=source["uploader_id"], dimensions=dimensions,
     )
-    document["version_of"] = source["_id"]
+    document["version_of"] = root_id
     document["title"] = source.get("title")
     document["description"] = source.get("description")
     document["alt_text"] = source.get("alt_text")
     document["credit"] = source.get("credit")
     document["tags"] = source.get("tags", [])
     return document
+
+
+async def list_versions(
+    db: AsyncIOMotorDatabase, *, media_id: str, owner_id: str
+) -> tuple[str, list[MediaAssetOut]]:
+    """Return the original upload and all edited versions for one picture family."""
+
+    document = await db[MEDIA_COLLECTION].find_one({"_id": media_id, "uploader_id": owner_id})
+    if document is None:
+        raise LookupError("Media asset not found")
+    root_id = document.get("version_of") or document["_id"]
+    root = await db[MEDIA_COLLECTION].find_one({"_id": root_id, "uploader_id": owner_id})
+    if root is None:
+        raise LookupError("Original media asset not found")
+    versions = await db[MEDIA_COLLECTION].find(
+        {"version_of": root_id, "uploader_id": owner_id},
+    ).sort("created_at", 1).to_list(100)
+    return root_id, [_serialize(root), *[_serialize(item) for item in versions]]

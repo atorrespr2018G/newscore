@@ -73,6 +73,55 @@ select {
   }
 }
 
+/* TipTap surface — mirrors reporter body readability without @tailwindcss/typography. */
+.me-prose {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--brand-ink);
+}
+
+.me-prose p {
+  margin: 0.4rem 0;
+}
+
+.me-prose h2 {
+  margin: 0.8rem 0 0.4rem;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.me-prose h3 {
+  margin: 0.7rem 0 0.35rem;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.me-prose ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.4rem 0;
+}
+
+.me-prose ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.4rem 0;
+}
+
+.me-prose blockquote {
+  margin: 0.5rem 0;
+  border-left: 3px solid var(--brand-line);
+  padding-left: 0.75rem;
+  color: #475569;
+}
+
+.me-prose a {
+  color: var(--brand-red);
+  text-decoration: underline;
+}
+
 /* Keep Filerobot tools visible inside the modal shell. */
 .filerobot-shell,
 .filerobot-shell .FIE_root {

@@ -7,7 +7,7 @@ import { IMediaAsset, saveImageDerivative } from '@/lib/media-editor-client'
 interface IImageEditorProps {
   asset: IMediaAsset
   onClose: () => void
-  onSaved: () => Promise<void>
+  onSaved: (derivative: IMediaAsset) => Promise<void>
 }
 
 /**
@@ -42,8 +42,11 @@ export function ImageEditor({ asset, onClose, onSaved }: IImageEditorProps): JSX
         blob = await response.blob()
       }
       if (!blob) throw new Error('Image editor did not return an export')
-      await saveImageDerivative(asset.id, new File([blob], `edited-${asset.id}.png`, { type: 'image/png' }))
-      await onSaved()
+      const derivative = await saveImageDerivative(
+        asset.id,
+        new File([blob], `edited-${asset.id}.png`, { type: 'image/png' }),
+      )
+      await onSaved(derivative)
       onClose()
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Unable to save edited image')
