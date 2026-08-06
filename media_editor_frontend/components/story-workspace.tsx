@@ -137,6 +137,10 @@ export function StoryWorkspace({
       })()
     : null
 
+  const reportTarget = selectedCards.find(
+    (asset) => asset.id === selectedAssetId || getRootId(asset) === selectedRootId,
+  ) ?? null
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <CollectionPane
@@ -159,7 +163,7 @@ export function StoryWorkspace({
       />
       <CollectionPane
         title="Pictures for the report"
-        subtitle="Drag from the left, then reorder. Edit pictures here before handoff."
+        subtitle="Select a picture, then use the actions below. Drag to reorder."
         emptyLabel="Drag pictures here from the originals pool"
         cards={selectedCards}
         selectedAssetId={selectedAssetId}
@@ -167,10 +171,23 @@ export function StoryWorkspace({
         dragSource="selected"
         highlight={dropHint === 'selected'}
         showOrder
+        toolbar={
+          <ReportPictureActions
+            asset={reportTarget}
+            onEditImage={onEditImage}
+            onRemoveBackground={onRemoveBackground}
+            onDeleteAsset={onDeleteAsset}
+            onRemoveFromReport={(assetId) => {
+              void persist({
+                ...story,
+                pool_asset_ids: poolRootIds,
+                selected_asset_ids: removeFromSelected(story.selected_asset_ids, assetId),
+                status: 'draft',
+              })
+            }}
+          />
+        }
         onSelectAsset={onSelectAsset}
-        onEditImage={onEditImage}
-        onRemoveBackground={onRemoveBackground}
-        onDeleteAsset={onDeleteAsset}
         onDragOver={(event) => {
           event.preventDefault()
           setDropHint('selected')
@@ -178,15 +195,80 @@ export function StoryWorkspace({
         onDragLeave={() => setDropHint(null)}
         onDrop={(event) => handleSelectedDrop(event)}
         onDropAtIndex={(event, index) => handleSelectedDrop(event, index)}
-        onRemoveFromReport={(assetId) => {
-          void persist({
-            ...story,
-            pool_asset_ids: poolRootIds,
-            selected_asset_ids: removeFromSelected(story.selected_asset_ids, assetId),
-            status: 'draft',
-          })
-        }}
       />
+    </div>
+  )
+}
+
+interface IReportPictureActionsProps {
+  asset: IMediaAsset | null
+  onEditImage: (asset: IMediaAsset) => void
+  onRemoveBackground: (asset: IMediaAsset) => void
+  onDeleteAsset: (asset: IMediaAsset) => void
+  onRemoveFromReport: (assetId: string) => void
+}
+
+/**
+ * Single action menu for the selected report-order picture.
+ * @param props - Selected report asset and picture-action callbacks.
+ * @returns Shared edit/remove/delete controls for the report collection.
+ */
+function ReportPictureActions({
+  asset,
+  onEditImage,
+  onRemoveBackground,
+  onDeleteAsset,
+  onRemoveFromReport,
+}: IReportPictureActionsProps): JSX.Element {
+  const enabled = Boolean(asset)
+  const isImage = asset?.file_type === 'image'
+
+  return (
+    <div className="mb-4 rounded-xl border border-brand-line bg-brand-paper px-3 py-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          Picture actions
+        </p>
+        <p className="truncate text-xs text-slate-500">
+          {asset
+            ? `Selected: ${asset.title ?? asset.original_filename}`
+            : 'Select a picture in the report list'}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="me-btn-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!enabled || !isImage}
+          onClick={() => asset && onEditImage(asset)}
+        >
+          Edit image
+        </button>
+        <button
+          type="button"
+          className="me-btn-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!enabled || !isImage}
+          onClick={() => asset && onRemoveBackground(asset)}
+        >
+          Remove background
+        </button>
+        <button
+          type="button"
+          className="me-btn-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!enabled}
+          onClick={() => asset && onRemoveFromReport(asset.id)}
+        >
+          Remove from report
+        </button>
+        <button
+          type="button"
+          className="me-btn-danger px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!enabled}
+          onClick={() => asset && onDeleteAsset(asset)}
+        >
+          Delete picture
+        </button>
+      </div>
     </div>
   )
 }
@@ -203,14 +285,10 @@ interface ICollectionPaneProps {
   showOrder?: boolean
   toolbar?: ReactNode
   onSelectAsset: (asset: IMediaAsset) => void
-  onEditImage?: (asset: IMediaAsset) => void
-  onRemoveBackground?: (asset: IMediaAsset) => void
-  onDeleteAsset?: (asset: IMediaAsset) => void
   onDragOver: (event: DragEvent<HTMLElement>) => void
   onDragLeave: () => void
   onDrop: (event: DragEvent<HTMLElement>) => void
   onDropAtIndex?: (event: DragEvent<HTMLElement>, index: number) => void
-  onRemoveFromReport?: (assetId: string) => void
 }
 
 /** One story collection pane with HTML5 drag-and-drop cards. */
@@ -226,14 +304,10 @@ function CollectionPane({
   showOrder = false,
   toolbar,
   onSelectAsset,
-  onEditImage,
-  onRemoveBackground,
-  onDeleteAsset,
   onDragOver,
   onDragLeave,
   onDrop,
   onDropAtIndex,
-  onRemoveFromReport,
 }: ICollectionPaneProps): JSX.Element {
   return (
     <section
@@ -272,8 +346,8 @@ function CollectionPane({
                       source: dragSource,
                     })
                   }}
-                  className={`flex cursor-grab items-center gap-3 rounded-xl border bg-white px-3 py-2 active:cursor-grabbing ${
-                    active ? 'border-brand shadow-lift ring-2 ring-brand/15' : 'border-brand-line'
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border bg-white px-3 py-2 ${
+                    active ? 'border-brand shadow-lift ring-2 ring-brand/15' : 'border-brand-line hover:border-slate-300'
                   }`}
                   onClick={() => onSelectAsset(asset)}
                 >
@@ -300,57 +374,8 @@ function CollectionPane({
                     <p className="truncate text-xs text-slate-500">
                       {hasEdits ? 'Edited' : asset.file_type}
                       {asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}
+                      {active ? ' · selected' : ''}
                     </p>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                    {onEditImage && asset.file_type === 'image' && (
-                      <button
-                        type="button"
-                        className="me-btn-secondary px-2 py-1 text-xs"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onEditImage(asset)
-                        }}
-                      >
-                        Edit image
-                      </button>
-                    )}
-                    {onRemoveBackground && asset.file_type === 'image' && (
-                      <button
-                        type="button"
-                        className="me-btn-secondary px-2 py-1 text-xs"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onRemoveBackground(asset)
-                        }}
-                      >
-                        Remove background
-                      </button>
-                    )}
-                    {onRemoveFromReport && (
-                      <button
-                        type="button"
-                        className="me-btn-secondary px-2 py-1 text-xs"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onRemoveFromReport(asset.id)
-                        }}
-                      >
-                        Remove
-                      </button>
-                    )}
-                    {onDeleteAsset && (
-                      <button
-                        type="button"
-                        className="me-btn-danger px-2 py-1 text-xs"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onDeleteAsset(asset)
-                        }}
-                      >
-                        Delete
-                      </button>
-                    )}
                   </div>
                 </article>
               </li>
