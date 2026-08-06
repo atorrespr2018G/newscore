@@ -133,21 +133,38 @@ async def update_metadata(
 
 
 async def delete_media(db: AsyncIOMotorDatabase, *, media_id: str, owner_id: str) -> None:
-    """Delete an owned asset, its file, and any story pool/report references."""
+    """Delete an original upload, its edit versions, files, and story references."""
 
     document = await db[MEDIA_COLLECTION].find_one({"_id": media_id, "uploader_id": owner_id})
     if document is None:
         raise LookupError("Media asset not found")
+    root_id = str(document.get("version_of") or document["_id"])
+    family = await db[MEDIA_COLLECTION].find(
+        {
+            "uploader_id": owner_id,
+            "$or": [{"_id": root_id}, {"version_of": root_id}],
+        },
+    ).to_list(200)
+    if not family:
+        raise LookupError("Media asset not found")
+    family_ids = [str(item["_id"]) for item in family]
     await db["media_stories"].update_many(
         {"owner_id": owner_id},
-        {"$pull": {"pool_asset_ids": media_id, "selected_asset_ids": media_id}},
+        {
+            "$pull": {
+                "pool_asset_ids": {"$in": family_ids},
+                "selected_asset_ids": {"$in": family_ids},
+            },
+        },
     )
-    url = str(document.get("url") or "")
-    if url:
+    for item in family:
+        url = str(item.get("url") or "")
+        if not url:
+            continue
         file_path = get_local_path(url)
         if file_path.exists():
             file_path.unlink()
-    await db[MEDIA_COLLECTION].delete_one({"_id": media_id, "uploader_id": owner_id})
+    await db[MEDIA_COLLECTION].delete_many({"_id": {"$in": family_ids}, "uploader_id": owner_id})
 
 
 

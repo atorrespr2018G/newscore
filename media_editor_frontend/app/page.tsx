@@ -106,21 +106,23 @@ export default function MediaLibraryPage(): JSX.Element {
   }
 
   async function handleEditedDerivative(source: IMediaAsset, derivative: IMediaAsset): Promise<void> {
-    setAssets((current) => [derivative, ...current.filter((asset) => asset.id !== derivative.id)])
+    const nextAssets = [derivative, ...assets.filter((asset) => asset.id !== derivative.id)]
+    const nextAssetsById = new Map(nextAssets.map((asset) => [asset.id, asset]))
+    setAssets(nextAssets)
     if (!activeStory) {
       await refresh()
       return
     }
-    const rootId = getRootId(source)
+    const rootId = getRootId(source, nextAssetsById)
     const nextLists = adoptEditedDerivative(
-      activeStory.pool_asset_ids,
+      sanitizePoolIds(activeStory.pool_asset_ids, nextAssetsById),
       activeStory.selected_asset_ids,
       rootId,
       derivative.id,
       (assetId) => {
-        const asset = assetId === derivative.id ? derivative : assetsById.get(assetId)
+        const asset = nextAssetsById.get(assetId)
         if (!asset) throw new Error(`Asset ${assetId} was not found`)
-        return getRootId(asset)
+        return getRootId(asset, nextAssetsById)
       },
     )
     await persistStory({
@@ -222,12 +224,20 @@ export default function MediaLibraryPage(): JSX.Element {
               }}
               onDeleteAsset={(asset) => {
                 void (async () => {
-                  if (!window.confirm(`Delete "${asset.title ?? asset.original_filename}"? This cannot be undone.`)) {
+                  const label = asset.title ?? asset.original_filename
+                  if (
+                    !window.confirm(
+                      `Permanently delete "${label}" from originals? Edits of this picture are removed too. This cannot be undone.`,
+                    )
+                  ) {
                     return
                   }
                   try {
+                    const deletedRootId = getRootId(asset, assetsById)
                     await deleteAsset(asset.id)
-                    if (selected?.id === asset.id) setSelected(null)
+                    if (selected && getRootId(selected, assetsById) === deletedRootId) {
+                      setSelected(null)
+                    }
                     await refresh()
                   } catch (error) {
                     setMessage(error instanceof Error ? error.message : 'Delete failed')

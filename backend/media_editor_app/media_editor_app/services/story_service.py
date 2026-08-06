@@ -12,6 +12,7 @@ from media_editor_app.schemas import MediaStoryCreate, MediaStoryOut, MediaStory
 
 STORIES = "media_stories"
 ASSETS = "media_assets"
+_MAX_VERSION_DEPTH = 20
 
 
 def _now() -> str:
@@ -117,6 +118,27 @@ async def get_ready_story(
     return _serialize(document)
 
 
+async def _resolve_root_id(
+    db: AsyncIOMotorDatabase, *, asset_id: str, owner_id: str
+) -> str:
+    """Walk version_of links until the original upload is found."""
+
+    current_id = asset_id
+    seen: set[str] = set()
+    for _ in range(_MAX_VERSION_DEPTH):
+        if current_id in seen:
+            raise ValueError("Invalid media version lineage")
+        seen.add(current_id)
+        document = await db[ASSETS].find_one({"_id": current_id, "uploader_id": owner_id})
+        if document is None:
+            raise ValueError("Each story asset must belong to its owner")
+        parent_id = document.get("version_of")
+        if not parent_id:
+            return document["_id"]
+        current_id = str(parent_id)
+    raise ValueError("Invalid media version lineage")
+
+
 async def _validate_story_assets(
     db: AsyncIOMotorDatabase, *, owner_id: str, payload: MediaStoryUpdate
 ) -> None:
@@ -136,6 +158,6 @@ async def _validate_story_assets(
             raise ValueError("Story pool may only contain original uploads")
     pool = set(payload.pool_asset_ids)
     for asset_id in payload.selected_asset_ids:
-        root_id = by_id[asset_id].get("version_of") or asset_id
+        root_id = await _resolve_root_id(db, asset_id=asset_id, owner_id=owner_id)
         if root_id not in pool:
             raise ValueError("Report pictures must come from originals in the story pool")

@@ -2,8 +2,6 @@
 
 import type { IMediaAsset } from '@/lib/media-editor-client'
 
-const DRAG_MIME = 'application/x-newscore-media-id'
-
 export type DragListKind = 'pool' | 'selected'
 
 export interface IDragPayload {
@@ -12,33 +10,24 @@ export interface IDragPayload {
   source: DragListKind
 }
 
-/** MIME type used for HTML5 drag-and-drop between story collections. */
-export function getDragMime(): string {
-  return DRAG_MIME
-}
-
-/** Encode a drag payload for transfer between story lists. */
-export function writeDragPayload(dataTransfer: DataTransfer, payload: IDragPayload): void {
-  const raw = JSON.stringify(payload)
-  dataTransfer.setData(DRAG_MIME, raw)
-  dataTransfer.setData('text/plain', raw)
-  dataTransfer.effectAllowed = 'move'
-}
-
-/** Read a drag payload from a drop event, or null when the mime is absent. */
-export function readDragPayload(dataTransfer: DataTransfer): IDragPayload | null {
-  const raw = dataTransfer.getData(DRAG_MIME) || dataTransfer.getData('text/plain')
-  if (!raw) return null
-  const parsed = JSON.parse(raw) as IDragPayload
-  if (!parsed.assetId || !parsed.rootId || (parsed.source !== 'pool' && parsed.source !== 'selected')) {
-    throw new Error('Invalid media drag payload')
+/**
+ * Return the original upload ID for an asset or version.
+ * Walks older intermediate version_of links created before root lineage was enforced.
+ * @param asset - Asset or derivative.
+ * @param assetsById - Optional lookup used to walk the full version chain.
+ * @returns The top-most original upload ID.
+ */
+export function getRootId(asset: IMediaAsset, assetsById?: Map<string, IMediaAsset>): string {
+  let current = asset
+  const seen = new Set<string>()
+  while (current.version_of) {
+    if (seen.has(current.id)) break
+    seen.add(current.id)
+    const parent = assetsById?.get(current.version_of)
+    if (!parent) return current.version_of
+    current = parent
   }
-  return parsed
-}
-
-/** Return the original upload ID for an asset or version. */
-export function getRootId(asset: IMediaAsset): string {
-  return asset.version_of ?? asset.id
+  return current.id
 }
 
 /**
@@ -71,9 +60,10 @@ export function getPreferredVersion(
   if (!root) {
     throw new Error(`Original picture ${rootId} was not found`)
   }
+  const assetsById = new Map(assets.map((asset) => [asset.id, asset]))
   const selectedMatch = selectedIds
     .map((id) => assets.find((asset) => asset.id === id))
-    .find((asset) => asset && getRootId(asset) === rootId)
+    .find((asset) => asset && getRootId(asset, assetsById) === rootId)
   if (selectedMatch) return selectedMatch
   const versions = assets
     .filter((asset) => asset.version_of === rootId)
@@ -102,7 +92,13 @@ export function selectFromPool(
   if (!poolIds.includes(rootId)) {
     throw new Error('Report pictures must come from the story originals pool')
   }
-  const without = selectedIds.filter((id) => resolveRootId(id) !== rootId)
+  const without = selectedIds.filter((id) => {
+    try {
+      return resolveRootId(id) !== rootId
+    } catch {
+      return id !== rootId && id !== versionId
+    }
+  })
   const index = insertIndex === undefined ? without.length : Math.max(0, Math.min(insertIndex, without.length))
   const nextSelected = [...without.slice(0, index), versionId, ...without.slice(index)]
   return { poolIds, selectedIds: nextSelected }
