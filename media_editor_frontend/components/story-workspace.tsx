@@ -34,6 +34,7 @@ interface IStoryWorkspaceProps {
   poolUploadControl: ReactNode
   onSelectAsset: (asset: IMediaAsset) => void
   onEditImage: (asset: IMediaAsset) => void
+  onEditVideo: (asset: IMediaAsset) => void
   onRemoveBackground: (asset: IMediaAsset) => void
   onDeleteAsset: (asset: IMediaAsset) => void
   onStoryChange: (story: IMediaStory) => Promise<void>
@@ -54,6 +55,7 @@ export function StoryWorkspace({
   poolUploadControl,
   onSelectAsset,
   onEditImage,
+  onEditVideo,
   onRemoveBackground,
   onDeleteAsset,
   onStoryChange,
@@ -340,6 +342,7 @@ export function StoryWorkspace({
             asset={reportTarget}
             removingBackground={removingBackground}
             onEditImage={onEditImage}
+            onEditVideo={onEditVideo}
             onRemoveBackground={onRemoveBackground}
             onRemoveFromReport={(assetId) => {
               void persist({
@@ -429,31 +432,34 @@ interface IReportPictureActionsProps {
   asset: IMediaAsset | null
   removingBackground: boolean
   onEditImage: (asset: IMediaAsset) => void
+  onEditVideo: (asset: IMediaAsset) => void
   onRemoveBackground: (asset: IMediaAsset) => void
   onRemoveFromReport: (assetId: string) => void
 }
 
-/** Report-only actions: edit, remove background, or remove from report (original stays). */
+/** Report-only actions: edit media, remove background, or remove from report. */
 function ReportPictureActions({
   asset,
   removingBackground,
   onEditImage,
+  onEditVideo,
   onRemoveBackground,
   onRemoveFromReport,
 }: IReportPictureActionsProps): JSX.Element {
   const enabled = Boolean(asset)
   const isImage = asset?.file_type === 'image'
+  const isVideo = asset?.file_type === 'video'
 
   return (
     <div className="mb-4 rounded-xl border border-brand-line bg-brand-paper px-3 py-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-          Picture actions
+          Media actions
         </p>
         <p className="truncate text-xs text-slate-500">
           {asset
             ? `Selected: ${asset.title ?? asset.original_filename}`
-            : 'Select a picture in the report list'}
+            : 'Select a media item in the report list'}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -464,6 +470,14 @@ function ReportPictureActions({
           onClick={() => asset && onEditImage(asset)}
         >
           Edit image
+        </button>
+        <button
+          type="button"
+          className="me-btn-secondary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!enabled || !isVideo}
+          onClick={() => asset && onEditVideo(asset)}
+        >
+          Edit video
         </button>
         <button
           type="button"

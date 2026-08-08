@@ -20,7 +20,6 @@ import {
   listStories,
   login,
   removeBackground,
-  renderVideo,
   updateAsset,
   updateStory,
 } from '@/lib/media-editor-client'
@@ -62,7 +61,8 @@ export default function MediaLibraryPage(): JSX.Element {
   const [stories, setStories] = useState<IMediaStory[]>([])
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null)
   const [selected, setSelected] = useState<IMediaAsset | null>(null)
-  const [editorAsset, setEditorAsset] = useState<IMediaAsset | null>(null)
+  const [imageEditorAsset, setImageEditorAsset] = useState<IMediaAsset | null>(null)
+  const [videoEditorAsset, setVideoEditorAsset] = useState<IMediaAsset | null>(null)
   const [versionPickerAsset, setVersionPickerAsset] = useState<IMediaAsset | null>(null)
   const [message, setMessage] = useState('')
   const [authenticated, setAuthenticated] = useState(false)
@@ -159,20 +159,33 @@ export default function MediaLibraryPage(): JSX.Element {
     setSelected(derivative)
   }
 
-  async function openImageEditor(asset: IMediaAsset): Promise<void> {
-    setEditorAsset(null)
+  /**
+   * Open the image or video studio for an asset, optionally via the version picker.
+   * @param asset - Selected report media asset.
+   */
+  function openStudio(asset: IMediaAsset): void {
+    if (asset.file_type === 'video') {
+      setVideoEditorAsset(asset)
+      return
+    }
+    setImageEditorAsset(asset)
+  }
+
+  async function openMediaEditor(asset: IMediaAsset): Promise<void> {
+    setImageEditorAsset(null)
+    setVideoEditorAsset(null)
     setVersionPickerAsset(null)
     try {
       const versions = await listAssetVersions(asset.id)
       if (versions.items.length <= 1) {
-        setEditorAsset(asset)
+        openStudio(asset)
         return
       }
       setVersionPickerAsset(asset)
     } catch (error) {
       // Orphaned edits (missing original) still open directly in the studio.
       setMessage(error instanceof Error ? error.message : 'Unable to load versions — opening editor')
-      setEditorAsset(asset)
+      openStudio(asset)
     }
   }
 
@@ -239,7 +252,11 @@ export default function MediaLibraryPage(): JSX.Element {
               onSelectAsset={setSelected}
               onEditImage={(asset) => {
                 setSelected(asset)
-                void openImageEditor(asset)
+                void openMediaEditor(asset)
+              }}
+              onEditVideo={(asset) => {
+                setSelected(asset)
+                void openMediaEditor(asset)
               }}
               removingBackground={removingBackground}
               onRemoveBackground={(asset) => {
@@ -307,23 +324,6 @@ export default function MediaLibraryPage(): JSX.Element {
                 />
               }
             />
-            {selected?.file_type === 'video' && (
-              <section className="me-panel p-5 md:p-6">
-                <p className="me-label mb-0">Report video</p>
-                <h2 className="mb-4 font-serif text-2xl text-brand-ink">Trim & overlays</h2>
-                <VideoEditor
-                  asset={selected}
-                  onRender={async (instruction) => {
-                    try {
-                      await renderVideo(selected.id, instruction)
-                      await refresh()
-                    } catch (error) {
-                      setMessage(error instanceof Error ? error.message : 'Video render failed')
-                    }
-                  }}
-                />
-              </section>
-            )}
             <ReadyControls story={activeStory} onPersist={persistStory} onError={setMessage} />
           </>
         ) : (
@@ -343,7 +343,7 @@ export default function MediaLibraryPage(): JSX.Element {
           onError={setMessage}
           onChoose={(version) => {
             setVersionPickerAsset(null)
-            setEditorAsset(version)
+            openStudio(version)
           }}
           onDelete={async (version) => {
             if (!version.version_of) {
@@ -357,12 +357,23 @@ export default function MediaLibraryPage(): JSX.Element {
         />
       )}
 
-      {editorAsset && (
+      {imageEditorAsset && (
         <ImageEditor
-          asset={editorAsset}
-          onClose={() => setEditorAsset(null)}
+          asset={imageEditorAsset}
+          onClose={() => setImageEditorAsset(null)}
           onSaved={async (derivative) => {
-            await handleEditedDerivative(editorAsset, derivative)
+            await handleEditedDerivative(imageEditorAsset, derivative)
+          }}
+        />
+      )}
+
+      {videoEditorAsset && (
+        <VideoEditor
+          asset={videoEditorAsset}
+          onClose={() => setVideoEditorAsset(null)}
+          onSaved={async (derivative) => {
+            await handleEditedDerivative(videoEditorAsset, derivative)
+            setMessage('Shorter video rendered and added to the report')
           }}
         />
       )}

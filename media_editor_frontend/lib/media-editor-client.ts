@@ -161,12 +161,17 @@ export async function saveImageDerivative(id: string, file: File): Promise<IMedi
   return request<IMediaAsset>(`/assets/${id}/derivatives/image`, { method: 'POST', body })
 }
 
-/** Render a basic video derivative through the backend FFmpeg worker. */
+/** One included time range for multi-segment video render. */
+export interface IVideoSegment {
+  start_seconds: number
+  end_seconds: number
+}
+
+/** Render a shorter MP4 from ordered segments through the backend FFmpeg path. */
 export async function renderVideo(
   id: string,
   instruction: {
-    trim_start_seconds: number
-    trim_end_seconds?: number
+    segments: IVideoSegment[]
     title?: string
     lower_third?: string
     logo_url?: string

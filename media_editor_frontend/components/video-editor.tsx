@@ -1,73 +1,381 @@
 'use client'
 
-import { useState } from 'react'
-import type { IMediaAsset } from '@/lib/media-editor-client'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { IMediaAsset, IVideoSegment } from '@/lib/media-editor-client'
+import { renderVideo } from '@/lib/media-editor-client'
+
+const MAX_SEGMENTS = 20
+const MIN_SEGMENT_SECONDS = 0.1
 
 interface IVideoEditorProps {
   asset: IMediaAsset
-  onRender: (instruction: {
-    trim_start_seconds: number
-    trim_end_seconds?: number
-    title?: string
-    lower_third?: string
-    logo_url?: string
-  }) => Promise<void>
+  onClose: () => void
+  onSaved: (derivative: IMediaAsset) => Promise<void>
 }
 
-/** Capture basic newsroom video edit instructions for backend FFmpeg rendering. */
-export function VideoEditor({ asset, onRender }: IVideoEditorProps): JSX.Element {
-  const [start, setStart] = useState(0)
-  const [end, setEnd] = useState(asset.duration ?? 0)
+interface IEditorSegment extends IVideoSegment {
+  id: string
+}
+
+/**
+ * Format seconds as m:ss.d for newsroom trim labels.
+ * @param seconds - Time in seconds.
+ * @returns Compact timestamp string.
+ */
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00.0'
+  const whole = Math.floor(seconds)
+  const tenths = Math.floor((seconds - whole) * 10)
+  const minutes = Math.floor(whole / 60)
+  const secs = whole % 60
+  return `${minutes}:${String(secs).padStart(2, '0')}.${tenths}`
+}
+
+/**
+ * Build a default segment around the playhead or the full clip.
+ * @param duration - Source duration in seconds.
+ * @param playhead - Current video time.
+ * @returns Inclusive time range.
+ */
+function defaultSegment(duration: number, playhead: number): IVideoSegment {
+  if (duration <= MIN_SEGMENT_SECONDS) {
+    return { start_seconds: 0, end_seconds: Math.max(duration, MIN_SEGMENT_SECONDS) }
+  }
+  const start = Math.min(Math.max(0, playhead), Math.max(0, duration - MIN_SEGMENT_SECONDS))
+  const end = Math.min(duration, Math.max(start + Math.min(5, duration), start + MIN_SEGMENT_SECONDS))
+  return { start_seconds: Number(start.toFixed(2)), end_seconds: Number(end.toFixed(2)) }
+}
+
+/** Full-screen studio to mark ordered segments and render one shorter MP4. */
+export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX.Element {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const duration = asset.duration && asset.duration > 0 ? asset.duration : 0
+  const [segments, setSegments] = useState<IEditorSegment[]>(() => {
+    const first = defaultSegment(duration || 10, 0)
+    return [{ id: crypto.randomUUID(), ...first }]
+  })
+  const [activeId, setActiveId] = useState<string>(() => segments[0]?.id ?? '')
+  const [playhead, setPlayhead] = useState(0)
+  const [resolvedDuration, setResolvedDuration] = useState(duration)
   const [title, setTitle] = useState('')
   const [lowerThird, setLowerThird] = useState('')
-  const [logoUrl, setLogoUrl] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [playingSelection, setPlayingSelection] = useState(false)
 
-  async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault()
+  const active = segments.find((segment) => segment.id === activeId) ?? segments[0] ?? null
+  const totalDuration = useMemo(
+    () => segments.reduce((sum, segment) => sum + (segment.end_seconds - segment.start_seconds), 0),
+    [segments],
+  )
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !active) return
+    if (video.currentTime < active.start_seconds || video.currentTime > active.end_seconds) {
+      video.currentTime = active.start_seconds
+    }
+  }, [activeId, active?.start_seconds, active?.end_seconds])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return undefined
+    function onTimeUpdate(): void {
+      if (!videoRef.current || !active) return
+      const time = videoRef.current.currentTime
+      setPlayhead(time)
+      if (playingSelection && time >= active.end_seconds - 0.05) {
+        videoRef.current.pause()
+        videoRef.current.currentTime = active.start_seconds
+        setPlayingSelection(false)
+      }
+    }
+    function onLoaded(): void {
+      if (!videoRef.current) return
+      const next = videoRef.current.duration
+      if (Number.isFinite(next) && next > 0) setResolvedDuration(next)
+    }
+    video.addEventListener('timeupdate', onTimeUpdate)
+    video.addEventListener('loadedmetadata', onLoaded)
+    return () => {
+      video.removeEventListener('timeupdate', onTimeUpdate)
+      video.removeEventListener('loadedmetadata', onLoaded)
+    }
+  }, [active, playingSelection])
+
+  function updateActive(patch: Partial<IVideoSegment>): void {
+    if (!active) return
+    setSegments((current) =>
+      current.map((segment) => {
+        if (segment.id !== active.id) return segment
+        const start = patch.start_seconds ?? segment.start_seconds
+        const end = patch.end_seconds ?? segment.end_seconds
+        return {
+          ...segment,
+          start_seconds: Number(Math.max(0, start).toFixed(2)),
+          end_seconds: Number(Math.max(start + MIN_SEGMENT_SECONDS, end).toFixed(2)),
+        }
+      }),
+    )
+  }
+
+  function addSegment(): void {
+    if (segments.length >= MAX_SEGMENTS) {
+      setError(`Maximum of ${MAX_SEGMENTS} segments`)
+      return
+    }
+    const next = { id: crypto.randomUUID(), ...defaultSegment(resolvedDuration || 10, playhead) }
+    setSegments((current) => [...current, next])
+    setActiveId(next.id)
+    setError('')
+  }
+
+  function removeActive(): void {
+    if (segments.length <= 1 || !active) return
+    const remaining = segments.filter((segment) => segment.id !== active.id)
+    setSegments(remaining)
+    setActiveId(remaining[0].id)
+  }
+
+  function moveActive(offset: -1 | 1): void {
+    if (!active) return
+    const index = segments.findIndex((segment) => segment.id === active.id)
+    const target = index + offset
+    if (index < 0 || target < 0 || target >= segments.length) return
+    setSegments((current) => {
+      const copy = [...current]
+      const [item] = copy.splice(index, 1)
+      copy.splice(target, 0, item)
+      return copy
+    })
+  }
+
+  function playSelection(): void {
+    const video = videoRef.current
+    if (!video || !active) return
+    video.currentTime = active.start_seconds
+    void video.play()
+    setPlayingSelection(true)
+  }
+
+  async function submit(): Promise<void> {
+    if (segments.length === 0) {
+      setError('Add at least one segment')
+      return
+    }
+    for (const segment of segments) {
+      if (segment.end_seconds <= segment.start_seconds) {
+        setError('Each segment end must be after its start')
+        return
+      }
+      if (resolvedDuration > 0 && segment.end_seconds > resolvedDuration + 0.05) {
+        setError('A segment ends after the source duration')
+        return
+      }
+    }
     setBusy(true)
+    setError('')
     try {
-      await onRender({
-        trim_start_seconds: start,
-        trim_end_seconds: end || undefined,
-        title: title || undefined,
-        lower_third: lowerThird || undefined,
-        logo_url: logoUrl || undefined,
+      const derivative = await renderVideo(asset.id, {
+        segments: segments.map(({ start_seconds, end_seconds }) => ({ start_seconds, end_seconds })),
+        title: title.trim() || undefined,
+        lower_third: lowerThird.trim() || undefined,
       })
+      await onSaved(derivative)
+      onClose()
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : 'Video render failed')
     } finally {
       setBusy(false)
     }
   }
 
+  const maxTime = resolvedDuration || Math.max(...segments.map((segment) => segment.end_seconds), 1)
+
   return (
-    <form className="space-y-3 rounded-2xl border border-brand-line bg-brand-paper p-4" onSubmit={submit}>
-      <p className="me-label mb-0">Video edit</p>
-      <video className="max-h-56 w-full rounded-xl bg-brand-ink" controls src={asset.url} />
-      <div className="grid grid-cols-2 gap-3">
+    <div className="fixed inset-0 z-50 flex flex-col bg-brand-ink/90 p-3 backdrop-blur-sm md:p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-white">
         <div>
-          <label className="me-label" htmlFor="trim-start">Start (sec)</label>
-          <input id="trim-start" className="me-input" min="0" step="0.1" type="number" value={start} onChange={(event) => setStart(Number(event.target.value))} />
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-300">Video studio</p>
+          <p className="font-serif text-2xl">Editing {asset.title ?? asset.original_filename}</p>
+          <p className="mt-1 text-xs text-white/70">
+            Mark ordered segments to keep, then render one shorter video file.
+          </p>
         </div>
-        <div>
-          <label className="me-label" htmlFor="trim-end">End (sec)</label>
-          <input id="trim-end" className="me-input" min="0" step="0.1" type="number" value={end} onChange={(event) => setEnd(Number(event.target.value))} />
+        <div className="flex gap-2">
+          <button
+            className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20"
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button className="me-btn-primary" type="button" disabled={busy} onClick={() => void submit()}>
+            {busy ? 'Rendering…' : 'Render video'}
+          </button>
         </div>
       </div>
-      <div>
-        <label className="me-label" htmlFor="video-title">Title</label>
-        <input id="video-title" className="me-input" value={title} onChange={(event) => setTitle(event.target.value)} />
+
+      <div className="me-panel grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto p-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.8fr)]">
+        <div className="space-y-3">
+          <video
+            ref={videoRef}
+            className="max-h-[50vh] w-full rounded-xl bg-brand-ink"
+            controls
+            src={asset.url}
+            onPlay={() => setPlayingSelection(false)}
+          />
+          {active && (
+            <div className="space-y-3 rounded-xl border border-brand-line bg-brand-paper p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Active segment · {formatTime(active.end_seconds - active.start_seconds)}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className="me-btn-secondary px-3 py-1.5 text-xs" onClick={playSelection}>
+                    Play selection
+                  </button>
+                  <button
+                    type="button"
+                    className="me-btn-secondary px-3 py-1.5 text-xs"
+                    onClick={() => updateActive({ start_seconds: playhead })}
+                  >
+                    Set in
+                  </button>
+                  <button
+                    type="button"
+                    className="me-btn-secondary px-3 py-1.5 text-xs"
+                    onClick={() => updateActive({ end_seconds: playhead })}
+                  >
+                    Set out
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-sm">
+                  <span className="me-label">In (sec)</span>
+                  <input
+                    className="me-input"
+                    type="number"
+                    min={0}
+                    max={maxTime}
+                    step={0.1}
+                    value={active.start_seconds}
+                    onChange={(event) => updateActive({ start_seconds: Number(event.target.value) })}
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="me-label">Out (sec)</span>
+                  <input
+                    className="me-input"
+                    type="number"
+                    min={0}
+                    max={maxTime}
+                    step={0.1}
+                    value={active.end_seconds}
+                    onChange={(event) => updateActive({ end_seconds: Number(event.target.value) })}
+                  />
+                </label>
+              </div>
+              <div className="space-y-1">
+                <input
+                  className="w-full accent-brand"
+                  type="range"
+                  min={0}
+                  max={maxTime}
+                  step={0.1}
+                  value={active.start_seconds}
+                  onChange={(event) => updateActive({ start_seconds: Number(event.target.value) })}
+                />
+                <input
+                  className="w-full accent-brand"
+                  type="range"
+                  min={0}
+                  max={maxTime}
+                  step={0.1}
+                  value={active.end_seconds}
+                  onChange={(event) => updateActive({ end_seconds: Number(event.target.value) })}
+                />
+                <p className="text-xs text-slate-500">
+                  Playhead {formatTime(playhead)} · source {formatTime(maxTime)} · output {formatTime(totalDuration)}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex min-h-0 flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="me-label mb-0">Segments</p>
+              <p className="text-sm text-slate-600">{segments.length} kept · {formatTime(totalDuration)} total</p>
+            </div>
+            <button type="button" className="me-btn-primary px-3 py-1.5 text-xs" onClick={addSegment}>
+              Add segment
+            </button>
+          </div>
+          <ul className="min-h-0 flex-1 space-y-2 overflow-auto">
+            {segments.map((segment, index) => {
+              const selected = segment.id === active?.id
+              return (
+                <li key={segment.id}>
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                      selected
+                        ? 'border-brand bg-brand-soft shadow-lift ring-2 ring-brand/15'
+                        : 'border-brand-line bg-white hover:border-slate-300'
+                    }`}
+                    onClick={() => setActiveId(segment.id)}
+                  >
+                    <p className="text-sm font-semibold text-brand-ink">
+                      {index + 1}. {formatTime(segment.start_seconds)} → {formatTime(segment.end_seconds)}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Keep {formatTime(segment.end_seconds - segment.start_seconds)}
+                    </p>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="me-btn-secondary px-3 py-1.5 text-xs" onClick={() => moveActive(-1)}>
+              Move up
+            </button>
+            <button type="button" className="me-btn-secondary px-3 py-1.5 text-xs" onClick={() => moveActive(1)}>
+              Move down
+            </button>
+            <button
+              type="button"
+              className="me-btn-danger px-3 py-1.5 text-xs"
+              disabled={segments.length <= 1}
+              onClick={removeActive}
+            >
+              Remove
+            </button>
+          </div>
+          <div className="space-y-2 border-t border-brand-line pt-3">
+            <p className="me-label mb-0">Optional overlays</p>
+            <input
+              className="me-input"
+              placeholder="Title burn-in"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
+            <input
+              className="me-input"
+              placeholder="Lower third"
+              value={lowerThird}
+              onChange={(event) => setLowerThird(event.target.value)}
+            />
+          </div>
+          {error && (
+            <p className="rounded-xl bg-brand-soft px-3 py-2 text-sm text-red-700">{error}</p>
+          )}
+        </div>
       </div>
-      <div>
-        <label className="me-label" htmlFor="lower-third">Lower third</label>
-        <input id="lower-third" className="me-input" value={lowerThird} onChange={(event) => setLowerThird(event.target.value)} />
-      </div>
-      <div>
-        <label className="me-label" htmlFor="logo-url">Logo URL</label>
-        <input id="logo-url" className="me-input" type="url" value={logoUrl} onChange={(event) => setLogoUrl(event.target.value)} />
-      </div>
-      <button className="me-btn-primary w-full" disabled={busy} type="submit">
-        {busy ? 'Rendering…' : 'Render edited video'}
-      </button>
-    </form>
+    </div>
   )
 }

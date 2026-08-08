@@ -10,6 +10,8 @@ MediaType = Literal["image", "video"]
 ProcessingStatus = Literal["ready", "processing", "failed"]
 StoryStatus = Literal["draft", "ready"]
 
+_MAX_VIDEO_SEGMENTS: int = 20
+
 
 class MediaMetadataUpdate(BaseModel):
     """Editable newsroom metadata for a media asset."""
@@ -88,11 +90,41 @@ class MediaStoryOut(MediaStoryUpdate):
     updated_at: str
 
 
-class VideoEditInstruction(BaseModel):
-    """Validated render instruction for the first video-editor release."""
+class VideoSegment(BaseModel):
+    """One included time range from a source video, in seconds."""
 
+    start_seconds: float = Field(ge=0)
+    end_seconds: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> "VideoSegment":
+        """Ensure the segment has a positive duration."""
+
+        if self.end_seconds <= self.start_seconds:
+            raise ValueError("Segment end time must be after its start time")
+        return self
+
+
+class VideoEditInstruction(BaseModel):
+    """Ordered segments (and optional overlays) for rendering one shorter MP4."""
+
+    segments: list[VideoSegment] = Field(default_factory=list, max_length=_MAX_VIDEO_SEGMENTS)
+    # Legacy single-trim fields — used when segments is empty.
     trim_start_seconds: float = Field(default=0, ge=0)
     trim_end_seconds: float | None = Field(default=None, gt=0)
     title: str | None = Field(default=None, max_length=120)
     lower_third: str | None = Field(default=None, max_length=180)
     logo_url: HttpUrl | None = None
+
+    @model_validator(mode="after")
+    def ensure_segments(self) -> "VideoEditInstruction":
+        """Require at least one segment, deriving from legacy trim fields when needed."""
+
+        if self.segments:
+            return self
+        if self.trim_end_seconds is None:
+            raise ValueError("Provide at least one segment (or trim_end_seconds)")
+        self.segments = [
+            VideoSegment(start_seconds=self.trim_start_seconds, end_seconds=self.trim_end_seconds),
+        ]
+        return self
