@@ -555,12 +555,12 @@ function CollectionPane({
           {emptyLabel}
         </div>
       ) : (
-        <ul className="flex flex-row gap-3 overflow-x-auto pb-1">
+        <ul className="story-media-grid">
           {cards.map(({ rootId, asset }, index) => {
             const active = asset.id === selectedAssetId || selectedRootId === rootId
             const hasEdits = Boolean(asset.version_of)
             return (
-              <li key={`${dragSource}-${rootId}`} className="w-40 shrink-0">
+              <li key={`${dragSource}-${rootId}`} className="min-w-0">
                 <article
                   draggable
                   className={`flex h-full cursor-grab touch-none flex-col overflow-hidden rounded-xl border bg-white active:cursor-grabbing select-none ${
@@ -582,17 +582,17 @@ function CollectionPane({
                     })
                   }}
                 >
-                  <div className="relative h-28 w-full overflow-hidden bg-brand-mist">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-brand-mist">
                     {asset.file_type === 'image' ? (
                       <img
                         alt={asset.alt_text ?? asset.original_filename}
-                        className="pointer-events-none h-full w-full object-cover"
+                        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
                         draggable={false}
                         src={asset.preview_url ?? asset.url}
                       />
                     ) : (
                       <video
-                        className="pointer-events-none h-full w-full object-cover"
+                        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
                         draggable={false}
                         muted
                         src={asset.url}
@@ -604,11 +604,11 @@ function CollectionPane({
                       </span>
                     )}
                   </div>
-                  <div className="min-w-0 px-2.5 py-2">
-                    <p className="truncate text-sm font-semibold text-brand-ink">
+                  <div className="min-w-0 px-2 py-2 sm:px-2.5">
+                    <p className="truncate text-xs font-semibold text-brand-ink sm:text-sm">
                       {asset.title ?? asset.original_filename}
                     </p>
-                    <p className="truncate text-xs text-slate-500">
+                    <p className="truncate text-[11px] text-slate-500 sm:text-xs">
                       {hasEdits ? 'Edited' : asset.file_type}
                       {asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}
                       {active ? ' · selected' : ''}
