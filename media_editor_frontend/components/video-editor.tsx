@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { SegmentTimelineBar } from '@/components/segment-timeline-bar'
 import type { IMediaAsset, IVideoSegment } from '@/lib/media-editor-client'
 import { renderVideo } from '@/lib/media-editor-client'
 
@@ -61,7 +62,9 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
   const [lowerThird, setLowerThird] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [playingSelection, setPlayingSelection] = useState(false)
+  const playingSelectionRef = useRef(false)
+  const selectionOutRef = useRef(0)
+  const selectionWatchRef = useRef<number | null>(null)
 
   const active = segments.find((segment) => segment.id === activeId) ?? segments[0] ?? null
   const totalDuration = useMemo(
@@ -70,25 +73,24 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
   )
 
   useEffect(() => {
+    selectionOutRef.current = active?.end_seconds ?? 0
+  }, [active?.end_seconds])
+
+  useEffect(() => {
     const video = videoRef.current
     if (!video || !active) return
-    if (video.currentTime < active.start_seconds || video.currentTime > active.end_seconds) {
-      video.currentTime = active.start_seconds
-    }
-  }, [activeId, active?.start_seconds, active?.end_seconds])
+    stopSelectionWatch()
+    playingSelectionRef.current = false
+    video.pause()
+    video.currentTime = active.start_seconds
+    setPlayhead(active.start_seconds)
+  }, [activeId])
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return undefined
     function onTimeUpdate(): void {
-      if (!videoRef.current || !active) return
-      const time = videoRef.current.currentTime
-      setPlayhead(time)
-      if (playingSelection && time >= active.end_seconds - 0.05) {
-        videoRef.current.pause()
-        videoRef.current.currentTime = active.start_seconds
-        setPlayingSelection(false)
-      }
+      enforceSelectionOut()
     }
     function onLoaded(): void {
       if (!videoRef.current) return
@@ -100,8 +102,44 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
     return () => {
       video.removeEventListener('timeupdate', onTimeUpdate)
       video.removeEventListener('loadedmetadata', onLoaded)
+      stopSelectionWatch()
     }
-  }, [active, playingSelection])
+  }, [])
+
+  /** Cancel the high-frequency Play selection watch loop. */
+  function stopSelectionWatch(): void {
+    if (selectionWatchRef.current != null) {
+      window.cancelAnimationFrame(selectionWatchRef.current)
+      selectionWatchRef.current = null
+    }
+  }
+
+  /** Pause at Set out while Play selection is active. */
+  function enforceSelectionOut(): void {
+    const el = videoRef.current
+    if (!el) return
+    const time = el.currentTime
+    setPlayhead(time)
+    if (!playingSelectionRef.current) return
+    if (time + 0.02 < selectionOutRef.current) return
+    playingSelectionRef.current = false
+    stopSelectionWatch()
+    el.pause()
+    el.currentTime = selectionOutRef.current
+    setPlayhead(selectionOutRef.current)
+  }
+
+  /** Poll currentTime so short segments still stop on Set out. */
+  function startSelectionWatch(): void {
+    stopSelectionWatch()
+    const tick = (): void => {
+      enforceSelectionOut()
+      if (playingSelectionRef.current) {
+        selectionWatchRef.current = window.requestAnimationFrame(tick)
+      }
+    }
+    selectionWatchRef.current = window.requestAnimationFrame(tick)
+  }
 
   function updateActive(patch: Partial<IVideoSegment>): void {
     if (!active) return
@@ -153,9 +191,29 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
   function playSelection(): void {
     const video = videoRef.current
     if (!video || !active) return
+    selectionOutRef.current = active.end_seconds
+    playingSelectionRef.current = true
+    video.pause()
     video.currentTime = active.start_seconds
-    void video.play()
-    setPlayingSelection(true)
+    setPlayhead(active.start_seconds)
+    startSelectionWatch()
+    void video.play().catch(() => {
+      playingSelectionRef.current = false
+      stopSelectionWatch()
+    })
+  }
+
+  const maxTime = resolvedDuration || Math.max(...segments.map((segment) => segment.end_seconds), 1)
+
+  /**
+   * Seek the preview player and sync the playhead label.
+   * @param seconds - Target time on the source timeline.
+   */
+  function seekTo(seconds: number): void {
+    const video = videoRef.current
+    const next = Number(Math.max(0, Math.min(maxTime, seconds)).toFixed(2))
+    setPlayhead(next)
+    if (video) video.currentTime = next
   }
 
   async function submit(): Promise<void> {
@@ -190,8 +248,6 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
     }
   }
 
-  const maxTime = resolvedDuration || Math.max(...segments.map((segment) => segment.end_seconds), 1)
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-brand-ink/90 p-3 backdrop-blur-sm md:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-white">
@@ -224,7 +280,10 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
             className="max-h-[50vh] w-full rounded-xl bg-brand-ink"
             controls
             src={asset.url}
-            onPlay={() => setPlayingSelection(false)}
+            onPlay={() => {
+              // Native control play is free playback; only Play selection arms the out-stop.
+              if (!playingSelectionRef.current) stopSelectionWatch()
+            }}
           />
           {active && (
             <div className="space-y-3 rounded-xl border border-brand-line bg-brand-paper p-3">
@@ -252,6 +311,16 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
                   </button>
                 </div>
               </div>
+              <SegmentTimelineBar
+                duration={maxTime}
+                startSeconds={active.start_seconds}
+                endSeconds={active.end_seconds}
+                playheadSeconds={playhead}
+                onChangeRange={(startSeconds, endSeconds) => {
+                  updateActive({ start_seconds: startSeconds, end_seconds: endSeconds })
+                }}
+                onSeek={seekTo}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <label className="block text-sm">
                   <span className="me-label">In (sec)</span>
@@ -278,29 +347,9 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
                   />
                 </label>
               </div>
-              <div className="space-y-1">
-                <input
-                  className="w-full accent-brand"
-                  type="range"
-                  min={0}
-                  max={maxTime}
-                  step={0.1}
-                  value={active.start_seconds}
-                  onChange={(event) => updateActive({ start_seconds: Number(event.target.value) })}
-                />
-                <input
-                  className="w-full accent-brand"
-                  type="range"
-                  min={0}
-                  max={maxTime}
-                  step={0.1}
-                  value={active.end_seconds}
-                  onChange={(event) => updateActive({ end_seconds: Number(event.target.value) })}
-                />
-                <p className="text-xs text-slate-500">
-                  Playhead {formatTime(playhead)} · source {formatTime(maxTime)} · output {formatTime(totalDuration)}
-                </p>
-              </div>
+              <p className="text-xs text-slate-500">
+                Playhead {formatTime(playhead)} · source {formatTime(maxTime)} · output {formatTime(totalDuration)}
+              </p>
             </div>
           )}
         </div>
