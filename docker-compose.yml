@@ -245,9 +245,12 @@ services:
     env_file: .env
     environment:
       NEXT_PUBLIC_MEDIA_EDITOR_API_URL: http://localhost:5004/api/v1/media-editor
-      NEXT_PUBLIC_NEWSCORE_AUTH_URL: http://localhost/api/v1/admin
+      # Hit admin_app directly so Media Desk works without nginx / the full stack.
+      NEXT_PUBLIC_NEWSCORE_AUTH_URL: http://localhost:5001
     depends_on:
       media_editor_app:
+        condition: service_started
+      admin_app:
         condition: service_started
 
   nginx:

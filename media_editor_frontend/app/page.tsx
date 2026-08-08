@@ -96,7 +96,12 @@ export default function MediaLibraryPage(): JSX.Element {
       setSelected((current) => newAssets.find((asset) => asset.id === current?.id) ?? null)
       setMessage('')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to load media library')
+      const text = error instanceof Error ? error.message : 'Unable to load media library'
+      if (text.includes('sign in again') || !getAccessToken()) {
+        clearAccessToken()
+        setAuthenticated(false)
+      }
+      setMessage(text)
     } finally {
       setBusy(false)
     }
@@ -225,6 +230,7 @@ export default function MediaLibraryPage(): JSX.Element {
 
         {activeStory ? (
           <>
+            <AssetInspector asset={selected} onUpdated={refresh} onError={setMessage} />
             <StoryWorkspace
               story={activeStory}
               assets={assets}
@@ -318,7 +324,6 @@ export default function MediaLibraryPage(): JSX.Element {
                 />
               </section>
             )}
-            <AssetInspector asset={selected} onUpdated={refresh} onError={setMessage} />
             <ReadyControls story={activeStory} onPersist={persistStory} onError={setMessage} />
           </>
         ) : (

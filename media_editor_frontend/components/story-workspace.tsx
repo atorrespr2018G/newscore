@@ -190,10 +190,14 @@ export function StoryWorkspace({
         const zone = zoneAtPoint(event.clientX, event.clientY)
         if (zone) applyDrop(active, zone)
         else if (active.source === 'pool') {
-          // Fallback: if the release is below the pool pane, treat as drop on report.
+          // Fallback when release lands just outside the report card (stacked or side-by-side).
           const poolBox = poolPaneRef.current?.getBoundingClientRect()
           const reportBox = reportPaneRef.current?.getBoundingClientRect()
-          if (poolBox && reportBox && event.clientY > poolBox.bottom - 8) {
+          if (
+            poolBox
+            && reportBox
+            && (event.clientY > poolBox.bottom - 8 || event.clientX > poolBox.right - 8)
+          ) {
             applyDrop(active, 'selected')
           }
         }
@@ -284,9 +288,10 @@ export function StoryWorkspace({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="story-board flex flex-col gap-4">
       <CollectionPane
         paneRef={poolPaneRef}
+        className="min-w-0 w-full"
         title="All pictures for this news"
         subtitle="Select a picture, then Add to report — or drag it into the report list"
         emptyLabel="Use Add pictures above to load originals for this story"
@@ -320,6 +325,7 @@ export function StoryWorkspace({
       />
       <CollectionPane
         paneRef={reportPaneRef}
+        className="min-w-0 w-full"
         title="Pictures for the report"
         subtitle="Drop originals here, or use Add to report. Select a picture for the actions below."
         emptyLabel="Drop pictures here from the originals pool"
@@ -487,6 +493,7 @@ interface IStoryCard {
 
 interface ICollectionPaneProps {
   paneRef: React.MutableRefObject<HTMLElement | null>
+  className?: string
   title: string
   subtitle: string
   emptyLabel: string
@@ -507,6 +514,7 @@ interface ICollectionPaneProps {
 /** One story collection pane with HTML5 + pointer drag cards. */
 function CollectionPane({
   paneRef,
+  className = '',
   title,
   subtitle,
   emptyLabel,
@@ -527,7 +535,9 @@ function CollectionPane({
     <section
       ref={paneRef as React.RefObject<HTMLElement>}
       data-drop-zone={dragSource}
-      className={`me-panel min-h-[320px] p-4 md:p-5 ${highlight ? 'ring-2 ring-brand/30 border-brand/40' : ''}`}
+      className={`me-panel flex min-h-[320px] flex-col p-4 md:p-5 ${className} ${
+        highlight ? 'ring-2 ring-brand/30 border-brand/40' : ''
+      }`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -545,15 +555,15 @@ function CollectionPane({
           {emptyLabel}
         </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="flex flex-row gap-3 overflow-x-auto pb-1">
           {cards.map(({ rootId, asset }, index) => {
             const active = asset.id === selectedAssetId || selectedRootId === rootId
             const hasEdits = Boolean(asset.version_of)
             return (
-              <li key={`${dragSource}-${rootId}`}>
+              <li key={`${dragSource}-${rootId}`} className="w-40 shrink-0">
                 <article
                   draggable
-                  className={`flex cursor-grab touch-none items-center gap-3 rounded-xl border bg-white px-3 py-2 active:cursor-grabbing select-none ${
+                  className={`flex h-full cursor-grab touch-none flex-col overflow-hidden rounded-xl border bg-white active:cursor-grabbing select-none ${
                     active ? 'border-brand shadow-lift ring-2 ring-brand/15' : 'border-brand-line hover:border-slate-300'
                   }`}
                   onClick={() => onSelectAsset(asset)}
@@ -572,7 +582,7 @@ function CollectionPane({
                     })
                   }}
                 >
-                  <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-brand-mist">
+                  <div className="relative h-28 w-full overflow-hidden bg-brand-mist">
                     {asset.file_type === 'image' ? (
                       <img
                         alt={asset.alt_text ?? asset.original_filename}
@@ -589,12 +599,12 @@ function CollectionPane({
                       />
                     )}
                     {showOrder && (
-                      <span className="absolute left-1 top-1 rounded bg-brand-ink/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      <span className="absolute left-1.5 top-1.5 rounded bg-brand-ink/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                         {index + 1}
                       </span>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 px-2.5 py-2">
                     <p className="truncate text-sm font-semibold text-brand-ink">
                       {asset.title ?? asset.original_filename}
                     </p>

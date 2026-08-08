@@ -83,6 +83,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
+    if (response.status === 401) {
+      clearAccessToken()
+      throw new Error('Session expired — sign in again')
+    }
     throw new Error(readErrorDetail(body) ?? 'Media editor request failed')
   }
   if (response.status === 204) {
@@ -94,11 +98,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 /** Sign in with the existing NewsCore authentication API. */
 export async function login(email: string, password: string): Promise<void> {
   const authUrl = process.env.NEXT_PUBLIC_NEWSCORE_AUTH_URL ?? 'http://localhost:5001'
-  const response = await fetch(`${authUrl}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
+  let response: Response
+  try {
+    response = await fetch(`${authUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+  } catch {
+    throw new Error(
+      `Cannot reach NewsCore auth at ${authUrl}. Start admin_app (port 5001), then retry.`,
+    )
+  }
   if (!response.ok) throw new Error('NewsCore sign-in failed')
   const body = (await response.json()) as { access_token: string }
   setAccessToken(body.access_token)
