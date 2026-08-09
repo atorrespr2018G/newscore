@@ -3,6 +3,7 @@
 import { DragEvent, PointerEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { MediaThumb } from '@/components/media-thumb'
 import { IMediaAsset, IMediaStory } from '@/lib/media-editor-client'
+import { htmlToPlainText } from '@/lib/media-metadata'
 import {
   getPreferredVersion,
   getRootId,
@@ -13,6 +14,18 @@ import {
   sanitizePoolIds,
   selectFromPool,
 } from '@/lib/story-selection'
+
+/**
+ * Short plain-text subtitle for a media card.
+ * @param asset - Asset shown on the card.
+ * @param hasEdits - Whether this card is an edited derivative.
+ * @returns Display subtitle without raw HTML tags.
+ */
+function cardSubtitle(asset: IMediaAsset, hasEdits: boolean): string {
+  const plain = asset.description ? htmlToPlainText(asset.description) : ''
+  if (plain) return plain
+  return hasEdits ? 'Edited' : asset.file_type
+}
 
 const DRAG_THRESHOLD_PX = 12
 
@@ -386,6 +399,10 @@ export function StoryWorkspace({
     // Avoid setPointerCapture — it can trap move/up inside the card and break drops.
     suppressClickRef.current = false
     dragOrigin.current = { x: event.clientX, y: event.clientY, payload }
+    // Select immediately so Edition (headline/description) enables even if this
+    // press becomes a drag reorder.
+    const asset = assetsByIdRef.current.get(payload.assetId)
+    if (asset) onSelectAssetRef.current(asset)
   }
 
   function handleCardClick(asset: IMediaAsset): void {
@@ -791,10 +808,11 @@ function CollectionPane({
                     <p className="truncate text-xs font-semibold text-brand-ink sm:text-sm">
                       {asset.title ?? asset.original_filename}
                     </p>
-                    <p className="truncate text-[11px] text-slate-500 sm:text-xs" title={asset.description ?? undefined}>
-                      {hasEdits
-                        ? asset.description || 'Edited'
-                        : asset.description || asset.file_type}
+                    <p
+                      className="truncate text-[11px] text-slate-500 sm:text-xs"
+                      title={asset.description ? htmlToPlainText(asset.description) : undefined}
+                    >
+                      {cardSubtitle(asset, hasEdits)}
                       {!hasEdits && asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}
                       {active ? ' · selected' : ''}
                     </p>

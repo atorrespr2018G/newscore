@@ -3,7 +3,7 @@
 import Link from '@tiptap/extension-link'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 
 /** Localized labels for the rich-text editor toolbar controls. */
 export interface IRichTextToolbarLabels {
@@ -21,11 +21,17 @@ export interface IRichTextToolbarLabels {
   redo: string
 }
 
+/** Imperative helpers for reading the live editor document. */
+export interface IRichTextEditorHandle {
+  getHTML: () => string
+}
+
 interface IRichTextEditorProps {
   value: string
   onChange: (html: string) => void
   labels: IRichTextToolbarLabels
   ariaLabel?: string
+  editable?: boolean
 }
 
 interface IToolbarButtonProps {
@@ -36,6 +42,16 @@ interface IToolbarButtonProps {
 }
 
 const EMPTY_HTML = '<p></p>'
+
+/** Normalize empty TipTap documents for equality checks. */
+function normalizeEditorHtml(html: string): string {
+  const compact = html
+    .replace(/<br class="ProseMirror-trailingBreak">/g, '')
+    .replace(/<br\s*\/?>/g, '')
+    .trim()
+  if (compact === '' || compact === '<p></p>') return EMPTY_HTML
+  return html.trim()
+}
 
 /** A single toolbar control rendered as an accessible toggle button. */
 function ToolbarButton({ label, active, disabled, onClick }: IToolbarButtonProps): JSX.Element {
@@ -107,40 +123,64 @@ function RichTextToolbar({
  * @param props - Current HTML value, change handler, labels, and aria label.
  * @returns The toolbar plus editable content surface.
  */
-export function RichTextEditor({
-  value,
-  onChange,
-  labels,
-  ariaLabel,
-}: IRichTextEditorProps): JSX.Element {
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } }),
-    ],
-    content: value || EMPTY_HTML,
-    editorProps: {
-      attributes: {
-        'aria-label': ariaLabel ?? '',
-        class: 'me-prose min-h-[12rem] px-3 py-2 focus:outline-none',
+export const RichTextEditor = forwardRef<IRichTextEditorHandle, IRichTextEditorProps>(
+  function RichTextEditor(
+    { value, onChange, labels, ariaLabel, editable = true },
+    ref,
+  ): JSX.Element {
+    const emittedHtmlRef = useRef(normalizeEditorHtml(value || EMPTY_HTML))
+    const editor = useEditor({
+      immediatelyRender: false,
+      editable,
+      extensions: [
+        StarterKit,
+        Link.configure({
+          openOnClick: false,
+          autolink: true,
+          HTMLAttributes: { rel: 'noopener noreferrer' },
+        }),
+      ],
+      content: value || EMPTY_HTML,
+      editorProps: {
+        attributes: {
+          'aria-label': ariaLabel ?? '',
+          class: 'me-prose min-h-[12rem] px-3 py-2 focus:outline-none',
+        },
       },
-    },
-    onUpdate: ({ editor: current }) => onChange(current.getHTML()),
-  })
+      onUpdate: ({ editor: current }) => {
+        const html = current.getHTML()
+        emittedHtmlRef.current = normalizeEditorHtml(html)
+        onChange(html)
+      },
+    })
 
-  useEffect(() => {
-    if (!editor) return
-    const next = value || EMPTY_HTML
-    if (next !== editor.getHTML()) {
-      editor.commands.setContent(next, { emitUpdate: false })
-    }
-  }, [editor, value])
+    useImperativeHandle(ref, () => ({
+      getHTML: () => editor?.getHTML() ?? emittedHtmlRef.current,
+    }), [editor])
 
-  return (
-    <div className="mt-1 overflow-hidden rounded-xl border border-brand-line bg-white">
-      <RichTextToolbar editor={editor} labels={labels} />
-      <EditorContent editor={editor} />
-    </div>
-  )
-}
+    useEffect(() => {
+      if (!editor) return
+      editor.setEditable(editable)
+    }, [editor, editable])
+
+    useEffect(() => {
+      if (!editor) return
+      const next = normalizeEditorHtml(value || EMPTY_HTML)
+      const live = normalizeEditorHtml(editor.getHTML())
+      if (next === live) return
+      if (editor.isFocused) return
+      // Parent can lag the last keystroke after blur; keep non-empty live docs.
+      // Still allow hydration when the editor is empty and saved HTML arrives.
+      if (live === emittedHtmlRef.current && live !== EMPTY_HTML && next !== live) return
+      editor.commands.setContent(value || EMPTY_HTML, { emitUpdate: false })
+      emittedHtmlRef.current = next
+    }, [editor, value])
+
+    return (
+      <div className="mt-1 overflow-hidden rounded-xl border border-brand-line bg-white">
+        <RichTextToolbar editor={editor} labels={labels} />
+        <EditorContent editor={editor} />
+      </div>
+    )
+  },
+)

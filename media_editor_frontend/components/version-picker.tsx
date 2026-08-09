@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { MediaThumb } from '@/components/media-thumb'
 import { IMediaAsset, listAssetVersions } from '@/lib/media-editor-client'
 
 interface IVersionPickerProps {
@@ -112,11 +113,7 @@ export function VersionPicker({
                       onClick={() => setSelectedId(item.id)}
                     >
                       <div className="relative aspect-[4/3] bg-brand-mist">
-                        <img
-                          alt={item.alt_text ?? item.original_filename}
-                          className="h-full w-full object-cover"
-                          src={item.preview_url ?? item.url}
-                        />
+                        <MediaThumb asset={item} />
                         <span className="absolute left-3 top-3 rounded-lg bg-brand-ink/80 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
                           {itemIsOriginal ? 'Original' : `Edit ${index}`}
                         </span>
@@ -125,8 +122,9 @@ export function VersionPicker({
                         <p className="truncate text-sm font-semibold text-brand-ink">
                           {item.title ?? item.original_filename}
                         </p>
-                        <p className="truncate text-xs text-slate-500">
-                          {new Date(item.created_at).toLocaleString()}
+                        <p className="truncate text-xs text-slate-500" title={item.description ?? undefined}>
+                          {item.description
+                            || new Date(item.created_at).toLocaleString()}
                           {active ? ' · selected' : ''}
                         </p>
                       </div>

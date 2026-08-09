@@ -33,6 +33,61 @@ def probe_video(file_path: Path) -> tuple[int | None, int | None, float | None]:
     return stream.get("width"), stream.get("height"), duration
 
 
+def extract_video_poster(video_path: Path) -> bytes:
+    """Extract a JPEG poster frame from a video for library thumbnails.
+
+    Args:
+        video_path: Local path to an MP4 (or other FFmpeg-readable video).
+
+    Returns:
+        JPEG image bytes.
+
+    Raises:
+        ValueError: If no poster frame can be extracted.
+    """
+
+    for at_seconds in (0.5, 0.0):
+        try:
+            return _extract_poster_at(video_path, at_seconds)
+        except ValueError:
+            continue
+    raise ValueError("Failed to extract video poster frame")
+
+
+def _extract_poster_at(video_path: Path, at_seconds: float) -> bytes:
+    """Grab one JPEG frame at a timestamp.
+
+    Args:
+        video_path: Local video path.
+        at_seconds: Seek position before grabbing the frame.
+
+    Returns:
+        JPEG bytes for the frame.
+
+    Raises:
+        ValueError: If FFmpeg fails or the frame file is empty.
+    """
+
+    ffmpeg = _ffmpeg_module()
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as handle:
+        poster_path = Path(handle.name)
+    try:
+        (
+            ffmpeg.input(str(video_path), ss=at_seconds)
+            .output(str(poster_path), vframes=1, format="image2", **{"qscale:v": 2})
+            .overwrite_output()
+            .run(quiet=True)
+        )
+        content = poster_path.read_bytes()
+        if not content:
+            raise ValueError("Poster frame was empty")
+        return content
+    except ffmpeg.Error as exc:
+        raise ValueError("Unable to extract video poster frame") from exc
+    finally:
+        poster_path.unlink(missing_ok=True)
+
+
 def probe_audio_duration(file_path: Path) -> float | None:
     """Return duration for an audio file using ffprobe.
 

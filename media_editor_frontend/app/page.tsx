@@ -1,13 +1,15 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { DocumentTitleField } from '@/components/document-title-field'
-import { RichTextEditor } from '@/components/rich-text-editor'
+import { RichTextEditor, type IRichTextEditorHandle } from '@/components/rich-text-editor'
+import { StoryTaxonomyFields } from '@/components/story-taxonomy-fields'
 import { StoryUploadControl } from '@/components/story-upload-control'
 import { StoryWorkspace } from '@/components/story-workspace'
 import { VersionPicker } from '@/components/version-picker'
 import { VideoEditor } from '@/components/video-editor'
+import { VideoMergePicker } from '@/components/video-merge-picker'
 import {
   clearAccessToken,
   createStory,
@@ -20,10 +22,12 @@ import {
   listStories,
   login,
   mergeVideos,
+  normalizeStoryTaxonomy,
   removeBackground,
   updateAsset,
   updateStory,
 } from '@/lib/media-editor-client'
+import { validateStoryTaxonomy } from '@/lib/taxonomy/story-taxonomy'
 import {
   MAX_TITLE_LENGTH,
   toDescriptionHtml,
@@ -35,6 +39,25 @@ import {
   sanitizePoolIds,
   sanitizeSelectedIds,
 } from '@/lib/story-selection'
+
+/**
+ * Whether local story state already moved past the payload that was just saved.
+ * @param local - Current in-memory story.
+ * @param savedPayload - Payload that was sent to the API.
+ * @returns True when applying the save response would clobber a newer edit.
+ */
+function storyAheadOfSave(local: IMediaStory, savedPayload: IMediaStory): boolean {
+  return (
+    local.market_code !== savedPayload.market_code
+    || local.town_id !== savedPayload.town_id
+    || local.county_id !== savedPayload.county_id
+    || local.international_potential !== savedPayload.international_potential
+    || local.status !== savedPayload.status
+    || local.category_slugs.join('\0') !== savedPayload.category_slugs.join('\0')
+    || local.pool_asset_ids.join('\0') !== savedPayload.pool_asset_ids.join('\0')
+    || local.selected_asset_ids.join('\0') !== savedPayload.selected_asset_ids.join('\0')
+  )
+}
 
 const RICH_TEXT_LABELS = {
   bold: 'Bold',
@@ -70,6 +93,7 @@ export default function MediaLibraryPage(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [removingBackground, setRemovingBackground] = useState(false)
   const [mergingVideos, setMergingVideos] = useState(false)
+  const [mergePickerOpen, setMergePickerOpen] = useState(false)
 
   const assetsById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets])
   const activeStory = stories.find((story) => story.id === activeStoryId) ?? null
@@ -79,17 +103,50 @@ export default function MediaLibraryPage(): JSX.Element {
     if (authenticated) void refresh()
   }, [authenticated])
 
+  // Keep Edition unlocked: prefer current selection if it belongs to this story.
+  useEffect(() => {
+    if (!activeStory) {
+      setSelected(null)
+      return
+    }
+    setSelected((current) => {
+      if (current && assetsById.has(current.id)) {
+        const rootId = getRootId(current, assetsById)
+        const inStory =
+          activeStory.selected_asset_ids.includes(current.id)
+          || activeStory.pool_asset_ids.includes(rootId)
+          || activeStory.pool_asset_ids.includes(current.id)
+        if (inStory) {
+          const fresh = assetsById.get(current.id)
+          if (!fresh) return current
+          // Avoid swapping the object on every stories refresh while typing.
+          if (
+            fresh.title === current.title
+            && fresh.description === current.description
+            && fresh.preview_url === current.preview_url
+          ) {
+            return current
+          }
+          return fresh
+        }
+      }
+      const fallbackId = activeStory.selected_asset_ids[0] ?? activeStory.pool_asset_ids[0]
+      return fallbackId ? (assetsById.get(fallbackId) ?? null) : null
+    })
+  }, [activeStory, assetsById])
+
   async function refresh(): Promise<void> {
     setBusy(true)
     try {
       const [newAssets, newStories] = await Promise.all([listAssets(), listStories()])
       const byId = new Map(newAssets.map((asset) => [asset.id, asset]))
       const cleanedStories = newStories.map((story) => {
-        const poolIds = sanitizePoolIds(story.pool_asset_ids, byId)
+        const normalized = normalizeStoryTaxonomy(story)
+        const poolIds = sanitizePoolIds(normalized.pool_asset_ids, byId)
         return {
-          ...story,
+          ...normalized,
           pool_asset_ids: poolIds,
-          selected_asset_ids: sanitizeSelectedIds(story.selected_asset_ids, poolIds, byId),
+          selected_asset_ids: sanitizeSelectedIds(normalized.selected_asset_ids, poolIds, byId),
         }
       })
       setAssets(newAssets)
@@ -124,8 +181,24 @@ export default function MediaLibraryPage(): JSX.Element {
       pool_asset_ids: poolIds,
       selected_asset_ids: sanitizeSelectedIds(next.selected_asset_ids, poolIds, lookup),
     }
-    const saved = await updateStory(cleaned)
-    setStories((current) => current.map((story) => (story.id === saved.id ? saved : story)))
+    try {
+      const saved = await updateStory(cleaned)
+      setStories((current) =>
+        current.map((story) => {
+          if (story.id !== saved.id) return story
+          // Skip stale responses when a newer local patch already landed.
+          if (storyAheadOfSave(story, cleaned)) return story
+          return normalizeStoryTaxonomy(saved)
+        }),
+      )
+    } catch (error) {
+      const text = error instanceof Error ? error.message : 'Unable to update story'
+      if (text.includes('sign in again') || !getAccessToken()) {
+        clearAccessToken()
+        setAuthenticated(false)
+      }
+      throw error
+    }
   }
 
   async function handleEditedDerivative(source: IMediaAsset, derivative: IMediaAsset): Promise<void> {
@@ -191,33 +264,57 @@ export default function MediaLibraryPage(): JSX.Element {
     }
   }
 
-  /**
-   * Merge report-order videos into one file and place it in the report.
-   * Edited clips stay in the originals pool; report videos are replaced by the merge.
-   */
-  async function mergeReportVideos(): Promise<void> {
-    if (!activeStory) return
-    const videoIds = activeStory.selected_asset_ids.filter(
-      (assetId) => assetsById.get(assetId)?.file_type === 'video',
-    )
-    if (videoIds.length < 2) {
-      setMessage('Add at least two videos to the report order before merging')
-      return
+  /** Videos available to merge: report order first, then other pool videos. */
+  const mergeCandidateVideos = useMemo(() => {
+    if (!activeStory) return [] as IMediaAsset[]
+    const seen = new Set<string>()
+    const ordered: IMediaAsset[] = []
+    for (const assetId of activeStory.selected_asset_ids) {
+      const asset = assetsById.get(assetId)
+      if (!asset || asset.file_type !== 'video' || seen.has(asset.id)) continue
+      seen.add(asset.id)
+      ordered.push(asset)
     }
-    if (
-      !window.confirm(
-        `Merge ${videoIds.length} report videos (in current order) into one file? Images stay in the report; source videos remain in originals.`,
+    for (const assetId of activeStory.pool_asset_ids) {
+      const asset = assetsById.get(assetId)
+      if (!asset || asset.file_type !== 'video' || seen.has(asset.id)) continue
+      // Prefer showing the report/selected version of a family when present.
+      const alreadyFamily = ordered.some(
+        (item) => getRootId(item, assetsById) === getRootId(asset, assetsById),
       )
-    ) {
+      if (alreadyFamily) continue
+      seen.add(asset.id)
+      ordered.push(asset)
+    }
+    return ordered
+  }, [activeStory, assetsById])
+
+  /**
+   * Merge the user-selected videos into one file and place it in the report.
+   * @param videoIds - Chosen asset ids in merge order.
+   */
+  async function mergeSelectedVideos(videoIds: string[]): Promise<void> {
+    if (!activeStory) return
+    if (videoIds.length < 2) {
+      setMessage('Select at least two videos to merge')
       return
     }
     setMergingVideos(true)
     setMessage('Merging videos… this can take a minute')
     try {
       const merged = await mergeVideos(videoIds)
-      const imageIds = activeStory.selected_asset_ids.filter(
-        (assetId) => assetsById.get(assetId)?.file_type === 'image',
+      const mergedRoots = new Set(
+        videoIds.map((assetId) => {
+          const asset = assetsById.get(assetId)
+          return asset ? getRootId(asset, assetsById) : assetId
+        }),
       )
+      const keptReportIds = activeStory.selected_asset_ids.filter((assetId) => {
+        const asset = assetsById.get(assetId)
+        if (!asset) return false
+        if (asset.file_type !== 'video') return true
+        return !mergedRoots.has(getRootId(asset, assetsById)) && !videoIds.includes(asset.id)
+      })
       const nextPool = activeStory.pool_asset_ids.includes(merged.id)
         ? activeStory.pool_asset_ids
         : [...activeStory.pool_asset_ids, merged.id]
@@ -228,12 +325,13 @@ export default function MediaLibraryPage(): JSX.Element {
         {
           ...activeStory,
           pool_asset_ids: nextPool,
-          selected_asset_ids: [...imageIds, merged.id],
+          selected_asset_ids: [...keptReportIds, merged.id],
           status: 'draft',
         },
         nextAssetsById,
       )
       setSelected(merged)
+      setMergePickerOpen(false)
       setMessage('Merged video created and placed in the report')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to merge videos')
@@ -288,14 +386,34 @@ export default function MediaLibraryPage(): JSX.Element {
           activeStoryId={activeStoryId}
           onSelect={setActiveStoryId}
           onCreated={(story) => {
-            setStories((current) => [story, ...current])
-            setActiveStoryId(story.id)
+            const normalized = normalizeStoryTaxonomy(story)
+            setStories((current) => [normalized, ...current])
+            setActiveStoryId(normalized.id)
           }}
           onError={setMessage}
         />
 
         {activeStory ? (
           <>
+            <StoryTaxonomyFields
+              story={activeStory}
+              onPatch={(partial) => {
+                // Merge against latest story state so rapid chip/select edits do not clobber each other.
+                setStories((current) => {
+                  const index = current.findIndex((story) => story.id === activeStory.id)
+                  if (index < 0) return current
+                  const next = { ...current[index], ...partial, status: 'draft' as const }
+                  void persistStory(next).catch((error: unknown) => {
+                    setMessage(
+                      error instanceof Error ? error.message : 'Unable to save placement',
+                    )
+                  })
+                  return current.map((story, storyIndex) =>
+                    storyIndex === index ? next : story,
+                  )
+                })
+              }}
+            />
             <AssetInspector asset={selected} onUpdated={refresh} onError={setMessage} />
             <StoryWorkspace
               story={activeStory}
@@ -311,9 +429,16 @@ export default function MediaLibraryPage(): JSX.Element {
                 setSelected(asset)
                 void openMediaEditor(asset)
               }}
-              onMergeVideos={mergeReportVideos}
+              onMergeVideos={async () => {
+                if (mergeCandidateVideos.length < 2) {
+                  setMessage('Add at least two videos to this story before merging')
+                  return
+                }
+                setMergePickerOpen(true)
+              }}
               removingBackground={removingBackground}
               mergingVideos={mergingVideos}
+              mergeCandidateCount={mergeCandidateVideos.length}
               onRemoveBackground={(asset) => {
                 void (async () => {
                   setRemovingBackground(true)
@@ -430,6 +555,17 @@ export default function MediaLibraryPage(): JSX.Element {
             await handleEditedDerivative(videoEditorAsset, derivative)
             setMessage('Shorter video rendered and added to the report')
           }}
+        />
+      )}
+
+      {mergePickerOpen && (
+        <VideoMergePicker
+          videos={mergeCandidateVideos}
+          busy={mergingVideos}
+          onClose={() => {
+            if (!mergingVideos) setMergePickerOpen(false)
+          }}
+          onMerge={mergeSelectedVideos}
         />
       )}
     </main>
@@ -590,6 +726,11 @@ interface IReadyControlsProps {
 /** Mark the ordered report selection ready for later NewsCore handoff. */
 function ReadyControls({ story, onPersist, onError }: IReadyControlsProps): JSX.Element {
   async function markReady(): Promise<void> {
+    const taxonomyError = validateStoryTaxonomy(story.category_slugs)
+    if (taxonomyError) {
+      onError(taxonomyError)
+      return
+    }
     try {
       await onPersist({ ...story, status: 'ready' })
     } catch (error) {
@@ -625,30 +766,61 @@ interface IAssetInspectorProps {
 
 /** Edit headline and description only; picture actions live in report order. */
 function AssetInspector({ asset, onUpdated, onError }: IAssetInspectorProps): JSX.Element {
+  const assetId = asset?.id ?? null
+  const [draftAssetId, setDraftAssetId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('<p></p>')
   const [saving, setSaving] = useState(false)
+  const [saveNotice, setSaveNotice] = useState('')
+  const titleRef = useRef(title)
+  const descriptionRef = useRef(description)
+  const descriptionEditorRef = useRef<IRichTextEditorHandle>(null)
   const editorEnabled = Boolean(asset)
 
-  useEffect(() => {
-    setTitle(asset?.title ?? '')
-    setDescription(toDescriptionHtml(asset?.description))
-  }, [asset])
+  // Sync during render so TipTap mounts with the saved HTML (not an empty first paint).
+  if (assetId !== draftAssetId) {
+    const nextTitle = asset?.title ?? ''
+    const nextDescription = toDescriptionHtml(asset?.description)
+    setDraftAssetId(assetId)
+    setTitle(nextTitle)
+    setDescription(nextDescription)
+    titleRef.current = nextTitle
+    descriptionRef.current = nextDescription
+    setSaveNotice('')
+  }
+
+  function handleTitleChange(next: string): void {
+    titleRef.current = next
+    setTitle(next)
+  }
+
+  function handleDescriptionChange(next: string): void {
+    descriptionRef.current = next
+    setDescription(next)
+  }
 
   async function saveEdition(): Promise<void> {
     if (!asset) {
       onError('Select a picture first to edit its headline and description')
       return
     }
-    const validationError = validateMediaMetadata(title, description)
+    // Read live TipTap HTML — clicking Save blurs the editor before React state settles.
+    const liveDescription = descriptionEditorRef.current?.getHTML() ?? descriptionRef.current
+    const liveTitle = titleRef.current
+    descriptionRef.current = liveDescription
+    setDescription(liveDescription)
+    const validationError = validateMediaMetadata(liveTitle, liveDescription)
     if (validationError) {
       onError(validationError)
+      setSaveNotice('')
       return
     }
     setSaving(true)
+    setSaveNotice('')
     try {
-      await updateAsset(asset.id, { title: title.trim(), description })
+      await updateAsset(asset.id, { title: liveTitle.trim(), description: liveDescription })
       await onUpdated()
+      setSaveNotice('Edition saved')
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Unable to save edition')
     } finally {
@@ -667,32 +839,45 @@ function AssetInspector({ asset, onUpdated, onError }: IAssetInspectorProps): JS
               ? `Editing text for ${asset.title ?? asset.original_filename}`
               : 'Select a picture from the report order to write its headline and description.'}
           </p>
+          {saveNotice ? <p className="mt-1 text-sm text-emerald-700">{saveNotice}</p> : null}
         </div>
-        <button className="me-btn-primary" disabled={!editorEnabled || saving} onClick={() => void saveEdition()}>
+        <button
+          type="button"
+          className="me-btn-primary"
+          disabled={!editorEnabled || saving}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => void saveEdition()}
+        >
           {saving ? 'Saving edition…' : 'Save edition'}
         </button>
       </div>
 
-      <div className={`space-y-5 px-5 py-5 md:px-6 ${editorEnabled ? '' : 'pointer-events-none opacity-60'}`}>
+      <div className={`space-y-5 px-5 py-5 md:px-6 ${editorEnabled ? '' : 'opacity-60'}`}>
         <div className="min-w-0">
           <span className="block text-sm font-medium text-slate-700">Headline</span>
           <DocumentTitleField
             value={title}
-            onChange={setTitle}
+            onChange={handleTitleChange}
             placeholder="Write a headline…"
             ariaLabel="Headline"
             maxLength={MAX_TITLE_LENGTH}
             formatCount={(count, max) => `${count}/${max}`}
+            disabled={!editorEnabled}
           />
         </div>
         <div className="min-w-0">
           <span className="block text-sm font-medium text-slate-700">Description</span>
+          <p className="mt-0.5 text-xs text-slate-500">
+            At least 10 characters · click Save edition to keep your changes
+          </p>
           <RichTextEditor
+            ref={descriptionEditorRef}
             key={asset?.id ?? 'no-asset'}
             value={description}
-            onChange={setDescription}
+            onChange={handleDescriptionChange}
             labels={RICH_TEXT_LABELS}
             ariaLabel="Description"
+            editable={editorEnabled}
           />
         </div>
       </div>

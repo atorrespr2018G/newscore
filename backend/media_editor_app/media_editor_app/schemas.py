@@ -9,8 +9,10 @@ from pydantic import BaseModel, Field, HttpUrl, model_validator
 MediaType = Literal["image", "video", "audio"]
 ProcessingStatus = Literal["ready", "processing", "failed"]
 StoryStatus = Literal["draft", "ready"]
+MarketCode = Literal["us", "pr", "co"]
 
 _MAX_VIDEO_SEGMENTS: int = 20
+_MAX_STORY_CATEGORIES: int = 3
 
 
 class MediaMetadataUpdate(BaseModel):
@@ -52,6 +54,11 @@ class MediaStoryCreate(BaseModel):
 
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2_000)
+    market_code: MarketCode = "us"
+    town_id: str | None = Field(default=None, max_length=80)
+    county_id: str | None = Field(default=None, max_length=80)
+    category_slugs: list[str] = Field(default_factory=list, max_length=_MAX_STORY_CATEGORIES)
+    international_potential: int | None = Field(default=None, ge=1, le=10)
 
 
 class MediaStoryUpdate(BaseModel):
@@ -62,15 +69,22 @@ class MediaStoryUpdate(BaseModel):
     pool_asset_ids: list[str] = Field(default_factory=list, max_length=200)
     selected_asset_ids: list[str] = Field(default_factory=list, max_length=100)
     status: StoryStatus = "draft"
+    market_code: MarketCode = "us"
+    town_id: str | None = Field(default=None, max_length=80)
+    county_id: str | None = Field(default=None, max_length=80)
+    category_slugs: list[str] = Field(default_factory=list, max_length=_MAX_STORY_CATEGORIES)
+    international_potential: int | None = Field(default=None, ge=1, le=10)
 
     @model_validator(mode="after")
     def validate_unique_ids(self) -> "MediaStoryUpdate":
-        """Ensure pool and report ID lists do not contain duplicates."""
+        """Ensure pool, report, and category lists do not contain duplicates."""
 
         if len(self.pool_asset_ids) != len(set(self.pool_asset_ids)):
             raise ValueError("Story pool asset IDs must be unique")
         if len(self.selected_asset_ids) != len(set(self.selected_asset_ids)):
             raise ValueError("Selected report asset IDs must be unique")
+        if len(self.category_slugs) != len(set(self.category_slugs)):
+            raise ValueError("Story category slugs must be unique")
         return self
 
 

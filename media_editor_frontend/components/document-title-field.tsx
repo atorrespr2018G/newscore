@@ -9,6 +9,7 @@ interface IDocumentTitleFieldProps {
   ariaLabel: string
   maxLength: number
   formatCount: (count: number, max: number) => string
+  disabled?: boolean
 }
 
 /**
@@ -23,6 +24,7 @@ export function DocumentTitleField({
   ariaLabel,
   maxLength,
   formatCount,
+  disabled = false,
 }: IDocumentTitleFieldProps): JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -43,7 +45,8 @@ export function DocumentTitleField({
         aria-label={ariaLabel}
         maxLength={maxLength}
         rows={1}
-        className="block w-full resize-none border-0 border-b border-brand-line bg-transparent px-0 py-1 font-serif text-3xl font-bold leading-tight text-brand-ink focus:border-brand focus:outline-none focus:ring-0"
+        disabled={disabled}
+        className="block w-full resize-none border-0 border-b border-brand-line bg-transparent px-0 py-1 font-serif text-3xl font-bold leading-tight text-brand-ink focus:border-brand focus:outline-none focus:ring-0 disabled:cursor-not-allowed"
       />
       <p className="mt-1 text-right text-xs text-slate-400">{formatCount(value.length, maxLength)}</p>
     </div>

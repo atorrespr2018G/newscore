@@ -24,7 +24,13 @@ def _now() -> str:
 def _serialize(doc: dict[str, Any]) -> MediaStoryOut:
     """Serialize a Mongo story document into its API form."""
 
-    return MediaStoryOut(id=doc["_id"], **{key: value for key, value in doc.items() if key != "_id"})
+    data = {key: value for key, value in doc.items() if key != "_id"}
+    data.setdefault("market_code", "us")
+    data.setdefault("town_id", None)
+    data.setdefault("county_id", None)
+    data.setdefault("international_potential", None)
+    data["category_slugs"] = list(data.get("category_slugs") or [])
+    return MediaStoryOut(id=doc["_id"], **data)
 
 
 async def create_story(
@@ -41,6 +47,11 @@ async def create_story(
         "pool_asset_ids": [],
         "selected_asset_ids": [],
         "status": "draft",
+        "market_code": payload.market_code,
+        "town_id": payload.town_id,
+        "county_id": payload.county_id,
+        "category_slugs": list(payload.category_slugs),
+        "international_potential": payload.international_potential,
         "created_at": timestamp,
         "updated_at": timestamp,
     }

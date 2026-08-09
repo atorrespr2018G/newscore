@@ -13,17 +13,26 @@ export const MIN_DESCRIPTION_TEXT_LENGTH = 10
 export const MAX_DESCRIPTION_HTML_LENGTH = 20_000
 
 /**
+ * Strip tags from rich-text HTML for plain-text length or card previews.
+ * @param html - Rich-text editor HTML output.
+ * @returns Trimmed plain text.
+ */
+export function htmlToPlainText(html: string): string {
+  if (typeof document === 'undefined') {
+    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  }
+  const container = document.createElement('div')
+  container.innerHTML = html
+  return (container.textContent ?? '').replace(/\s+/g, ' ').trim()
+}
+
+/**
  * Count trimmed plain-text characters inside rich-text HTML.
  * @param html - Rich-text editor HTML output.
  * @returns Number of non-whitespace-trimmed text characters.
  */
 export function htmlTextLength(html: string): number {
-  if (typeof document === 'undefined') {
-    return html.replace(/<[^>]*>/g, '').trim().length
-  }
-  const container = document.createElement('div')
-  container.innerHTML = html
-  return (container.textContent ?? '').trim().length
+  return htmlToPlainText(html).length
 }
 
 /**

@@ -2,6 +2,7 @@
 
 export type MediaType = 'image' | 'video' | 'audio'
 export type StoryStatus = 'draft' | 'ready'
+export type MarketCode = 'us' | 'pr' | 'co'
 
 export interface IMediaAsset {
   id: string
@@ -31,6 +32,11 @@ export interface IMediaStory {
   pool_asset_ids: string[]
   selected_asset_ids: string[]
   status: StoryStatus
+  market_code: MarketCode
+  town_id: string | null
+  county_id: string | null
+  category_slugs: string[]
+  international_potential: number | null
   owner_id: string
   created_at: string
   updated_at: string
@@ -227,6 +233,27 @@ export async function updateStory(story: IMediaStory): Promise<IMediaStory> {
       pool_asset_ids: story.pool_asset_ids,
       selected_asset_ids: story.selected_asset_ids,
       status: story.status,
+      market_code: story.market_code,
+      town_id: story.town_id,
+      county_id: story.county_id,
+      category_slugs: story.category_slugs,
+      international_potential: story.international_potential,
     }),
   })
+}
+
+/**
+ * Fill taxonomy defaults for stories created before placement fields existed.
+ * @param story - Raw story payload from the API.
+ * @returns Story with reporter-parity taxonomy fields present.
+ */
+export function normalizeStoryTaxonomy(story: IMediaStory): IMediaStory {
+  return {
+    ...story,
+    market_code: story.market_code ?? 'us',
+    town_id: story.town_id ?? null,
+    county_id: story.county_id ?? null,
+    category_slugs: Array.isArray(story.category_slugs) ? story.category_slugs : [],
+    international_potential: story.international_potential ?? null,
+  }
 }

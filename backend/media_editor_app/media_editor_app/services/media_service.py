@@ -14,6 +14,7 @@ from media_editor_app.config import get_max_upload_bytes
 from media_editor_app.schemas import MediaAssetOut, MediaMetadataUpdate, VideoEditInstruction, VideoMergeInstruction
 from media_editor_app.services.image_processing import extract_dimensions, remove_background
 from media_editor_app.services.video_processing import (
+    extract_video_poster,
     merge_video_files,
     probe_audio_duration,
     probe_video,
@@ -86,8 +87,53 @@ async def upload_media(db: AsyncIOMotorDatabase, *, file: UploadFile, uploader_i
         file_type=file_type, url=url, filename=file.filename or f"upload.{extension}",
         uploader_id=uploader_id, dimensions=dimensions,
     )
+    if file_type == "video":
+        document["preview_url"] = _save_video_poster(path)
     await db[MEDIA_COLLECTION].insert_one(document)
     return _serialize(document)
+
+
+def _save_video_poster(video_path: Path) -> str:
+    """Persist a JPEG poster frame and return its public URL.
+
+    Args:
+        video_path: Local path to the rendered or uploaded video.
+
+    Returns:
+        Public URL for the poster image.
+    """
+
+    content = extract_video_poster(video_path)
+    _, preview_url = save_file(content=content, media_type="images", extension="jpg")
+    return preview_url
+
+
+def _original_video_label(source: dict[str, Any]) -> str:
+    """Human label for the original clip an edit came from."""
+
+    label = (source.get("title") or source.get("original_filename") or "original video").strip()
+    if label.startswith("Edit · "):
+        label = label.removeprefix("Edit · ").strip() or label
+    return label
+
+
+def _video_edit_labels(source: dict[str, Any], *, audio_note: str | None = None) -> tuple[str, str]:
+    """Build title and description that point back to the source video.
+
+    Args:
+        source: Source asset document (root or prior edit).
+        audio_note: Optional short note about mute/replace audio.
+
+    Returns:
+        Title and description for the new edited video.
+    """
+
+    label = _original_video_label(source)
+    title = f"Edit · {label}"[:200]
+    description = f'Edited from "{label}".'
+    if audio_note:
+        description = f"{description} {audio_note}"
+    return title, description[:2_000]
 
 
 def _normalize_content_type(content_type: str | None) -> str:
@@ -294,6 +340,7 @@ async def create_video_version(
     """Render a new MP4 derivative based on an approved basic edit instruction."""
 
     source = await _get_source_document(db, media_id=media_id, owner_id=owner_id, media_type="video")
+    lineage_source = await _resolve_lineage_source(db, source=source, owner_id=owner_id)
     replace_audio_path = await _resolve_replace_audio_path(
         db,
         owner_id=owner_id,
@@ -306,9 +353,39 @@ async def create_video_version(
         instruction,
         replace_audio_path=replace_audio_path,
     )
+    audio_note = None
+    if instruction.mute_audio:
+        audio_note = "Audio removed."
+    elif replace_audio_path is not None:
+        audio_note = "New narration or soundtrack applied."
     version = _create_version(source=source, url=url, dimensions=probe_video(output_path), extension="mp4")
+    version["preview_url"] = _save_video_poster(output_path)
+    version["title"], version["description"] = _video_edit_labels(
+        lineage_source, audio_note=audio_note,
+    )
     await db[MEDIA_COLLECTION].insert_one(version)
     return _serialize(version)
+
+
+async def _resolve_lineage_source(
+    db: AsyncIOMotorDatabase, *, source: dict[str, Any], owner_id: str
+) -> dict[str, Any]:
+    """Return the original upload document when labeling an edit.
+
+    Args:
+        db: Media-editor Mongo database.
+        source: Asset being edited (root or prior derivative).
+        owner_id: Authenticated uploader id.
+
+    Returns:
+        Root original document when available, otherwise the source itself.
+    """
+
+    root_id = source.get("version_of")
+    if not root_id:
+        return source
+    root = await db[MEDIA_COLLECTION].find_one({"_id": root_id, "uploader_id": owner_id})
+    return root or source
 
 
 async def _resolve_replace_audio_path(
@@ -379,8 +456,10 @@ async def merge_video_assets(
         dimensions=probe_video(output_path),
     )
     document["_id"] = merge_id
+    source_labels = [_original_video_label(source) for source in sources]
     document["title"] = "Merged report video"
-    document["description"] = "Joined from independently edited videos"
+    document["description"] = f"Merged from: {', '.join(source_labels)}."[:2_000]
+    document["preview_url"] = _save_video_poster(output_path)
     await db[MEDIA_COLLECTION].insert_one(document)
     return _serialize(document)
 
