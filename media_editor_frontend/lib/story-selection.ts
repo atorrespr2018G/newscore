@@ -164,13 +164,31 @@ export function selectFromPool(
 }
 
 /**
- * Remove an asset from the ordered report list while keeping it in the pool.
+ * Remove an asset (and any other report slots in its original family) from the report.
+ * Keeps the original in the pool.
  * @param selectedIds - Current ordered report IDs.
- * @param assetId - Asset to remove from the report.
+ * @param assetId - Asset (or version) to remove from the report.
+ * @param assetsById - Optional lookup used to drop the whole picture/video family.
  * @returns Updated selected ID list.
  */
-export function removeFromSelected(selectedIds: string[], assetId: string): string[] {
-  return selectedIds.filter((id) => id !== assetId)
+export function removeFromSelected(
+  selectedIds: string[],
+  assetId: string,
+  assetsById?: Map<string, IMediaAsset>,
+): string[] {
+  if (!assetsById) {
+    return selectedIds.filter((id) => id !== assetId)
+  }
+  const target = assetsById.get(assetId)
+  if (!target) {
+    return selectedIds.filter((id) => id !== assetId)
+  }
+  const rootId = getRootId(target, assetsById)
+  return selectedIds.filter((id) => {
+    const asset = assetsById.get(id)
+    if (!asset) return id !== assetId
+    return getRootId(asset, assetsById) !== rootId
+  })
 }
 
 /**
