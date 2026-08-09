@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { AudioModeType, AudioRecorder } from '@/components/audio-recorder'
 import { SegmentTimelineBar } from '@/components/segment-timeline-bar'
 import type { IMediaAsset, IVideoSegment } from '@/lib/media-editor-client'
-import { renderVideo } from '@/lib/media-editor-client'
+import { renderVideo, uploadAsset } from '@/lib/media-editor-client'
 
 const MAX_SEGMENTS = 20
 const MIN_SEGMENT_SECONDS = 0.1
+const AUDIO_UPLOAD_ACCEPT = 'audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/webm,audio/ogg,.mp3,.wav,.m4a,.aac,.webm,.ogg'
 
 interface IVideoEditorProps {
   asset: IMediaAsset
@@ -60,6 +62,9 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
   const [resolvedDuration, setResolvedDuration] = useState(duration)
   const [title, setTitle] = useState('')
   const [lowerThird, setLowerThird] = useState('')
+  const [audioMode, setAudioMode] = useState<AudioModeType>('keep')
+  const [recordedAudio, setRecordedAudio] = useState<File | null>(null)
+  const [uploadedAudio, setUploadedAudio] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const playingSelectionRef = useRef(false)
@@ -216,6 +221,24 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
     if (video) video.currentTime = next
   }
 
+  /**
+   * Upload a replacement soundtrack when the studio is in record or upload mode.
+   * @returns Audio asset id, or undefined when keeping/muting original audio.
+   */
+  async function resolveReplacementAudioId(): Promise<string | undefined> {
+    if (audioMode === 'record') {
+      if (!recordedAudio) throw new Error('Record narration before rendering, or choose Keep original')
+      const uploaded = await uploadAsset(recordedAudio)
+      return uploaded.id
+    }
+    if (audioMode === 'upload') {
+      if (!uploadedAudio) throw new Error('Choose an audio file before rendering, or choose Keep original')
+      const uploaded = await uploadAsset(uploadedAudio)
+      return uploaded.id
+    }
+    return undefined
+  }
+
   async function submit(): Promise<void> {
     if (segments.length === 0) {
       setError('Add at least one segment')
@@ -234,10 +257,13 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
     setBusy(true)
     setError('')
     try {
+      const replaceAudioId = await resolveReplacementAudioId()
       const derivative = await renderVideo(asset.id, {
         segments: segments.map(({ start_seconds, end_seconds }) => ({ start_seconds, end_seconds })),
         title: title.trim() || undefined,
         lower_third: lowerThird.trim() || undefined,
+        mute_audio: audioMode === 'mute',
+        replace_audio_asset_id: replaceAudioId,
       })
       await onSaved(derivative)
       onClose()
@@ -246,6 +272,17 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
     } finally {
       setBusy(false)
     }
+  }
+
+  /**
+   * Switch audio mode and clear takes that no longer apply.
+   * @param mode - Keep, mute, record, or upload.
+   */
+  function changeAudioMode(mode: AudioModeType): void {
+    setAudioMode(mode)
+    setError('')
+    if (mode !== 'record') setRecordedAudio(null)
+    if (mode !== 'upload') setUploadedAudio(null)
   }
 
   return (
@@ -404,6 +441,60 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
             >
               Remove
             </button>
+          </div>
+          <div className="space-y-2 border-t border-brand-line pt-3">
+            <p className="me-label mb-0">Audio</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ['keep', 'Keep original'],
+                  ['mute', 'Mute'],
+                  ['record', 'Record narration'],
+                  ['upload', 'Upload audio'],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`px-3 py-1.5 text-xs ${
+                    audioMode === mode ? 'me-btn-primary' : 'me-btn-secondary'
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
+                  disabled={busy}
+                  onClick={() => changeAudioMode(mode)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {audioMode === 'mute' && (
+              <p className="text-xs text-slate-500">Rendered video will have no soundtrack.</p>
+            )}
+            {audioMode === 'record' && (
+              <AudioRecorder
+                videoRef={videoRef}
+                disabled={busy}
+                onRecordingChange={setRecordedAudio}
+                onError={setError}
+              />
+            )}
+            {audioMode === 'upload' && (
+              <label className="block text-sm">
+                <span className="me-label">Audio file</span>
+                <input
+                  className="me-input"
+                  type="file"
+                  accept={AUDIO_UPLOAD_ACCEPT}
+                  disabled={busy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null
+                    setUploadedAudio(file)
+                  }}
+                />
+                {uploadedAudio && (
+                  <p className="mt-1 text-xs text-slate-500">Selected: {uploadedAudio.name}</p>
+                )}
+              </label>
+            )}
           </div>
           <div className="space-y-2 border-t border-brand-line pt-3">
             <p className="me-label mb-0">Optional overlays</p>

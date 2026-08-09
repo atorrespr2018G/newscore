@@ -13,12 +13,28 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from media_editor_app.config import get_max_upload_bytes
 from media_editor_app.schemas import MediaAssetOut, MediaMetadataUpdate, VideoEditInstruction, VideoMergeInstruction
 from media_editor_app.services.image_processing import extract_dimensions, remove_background
-from media_editor_app.services.video_processing import merge_video_files, probe_video, render_video
+from media_editor_app.services.video_processing import (
+    merge_video_files,
+    probe_audio_duration,
+    probe_video,
+    render_video,
+)
 from media_editor_app.storage import get_local_path, save_file
 
 MEDIA_COLLECTION = "media_assets"
 _IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 _VIDEO_TYPES = {"video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov"}
+_AUDIO_TYPES = {
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/mp4": "m4a",
+    "audio/aac": "aac",
+    "audio/x-m4a": "m4a",
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+}
 
 
 def _now() -> str:
@@ -74,14 +90,22 @@ async def upload_media(db: AsyncIOMotorDatabase, *, file: UploadFile, uploader_i
     return _serialize(document)
 
 
+def _normalize_content_type(content_type: str | None) -> str:
+    """Strip codec parameters from a Content-Type header value."""
+
+    return (content_type or "").split(";", maxsplit=1)[0].strip().lower()
+
+
 def _validate_content_type(file: UploadFile) -> tuple[str, str]:
     """Return the normalized extension and media type for a supported upload."""
 
-    content_type = file.content_type or ""
+    content_type = _normalize_content_type(file.content_type)
     if content_type in _IMAGE_TYPES:
         return _IMAGE_TYPES[content_type], "image"
     if content_type in _VIDEO_TYPES:
         return _VIDEO_TYPES[content_type], "video"
+    if content_type in _AUDIO_TYPES:
+        return _AUDIO_TYPES[content_type], "audio"
     raise ValueError("Unsupported media type")
 
 
@@ -91,6 +115,8 @@ def _get_dimensions(*, file_type: str, content: bytes, path: Path) -> tuple[int 
     if file_type == "image":
         width, height = extract_dimensions(content)
         return width, height, None
+    if file_type == "audio":
+        return None, None, probe_audio_duration(path)
     return probe_video(path)
 
 
@@ -268,11 +294,53 @@ async def create_video_version(
     """Render a new MP4 derivative based on an approved basic edit instruction."""
 
     source = await _get_source_document(db, media_id=media_id, owner_id=owner_id, media_type="video")
+    replace_audio_path = await _resolve_replace_audio_path(
+        db,
+        owner_id=owner_id,
+        asset_id=instruction.replace_audio_asset_id,
+    )
     output_path, url = save_file(content=b"", media_type="videos", extension="mp4")
-    render_video(get_local_path(source["url"]), output_path, instruction)
+    render_video(
+        get_local_path(source["url"]),
+        output_path,
+        instruction,
+        replace_audio_path=replace_audio_path,
+    )
     version = _create_version(source=source, url=url, dimensions=probe_video(output_path), extension="mp4")
     await db[MEDIA_COLLECTION].insert_one(version)
     return _serialize(version)
+
+
+async def _resolve_replace_audio_path(
+    db: AsyncIOMotorDatabase,
+    *,
+    owner_id: str,
+    asset_id: str | None,
+) -> Path | None:
+    """Resolve an owned audio asset to a local path for FFmpeg muxing.
+
+    Args:
+        db: Media-editor Mongo database.
+        owner_id: Authenticated uploader id.
+        asset_id: Optional audio asset id from the render instruction.
+
+    Returns:
+        Local filesystem path, or None when no replacement was requested.
+
+    Raises:
+        LookupError: If the asset is missing or not owned.
+        ValueError: If the asset is not an audio file.
+    """
+
+    if not asset_id:
+        return None
+    document = await _get_source_document(
+        db, media_id=asset_id, owner_id=owner_id, media_type="audio",
+    )
+    path = get_local_path(str(document["url"]))
+    if not path.exists():
+        raise ValueError("Replacement audio file was not found on disk")
+    return path
 
 
 async def merge_video_assets(

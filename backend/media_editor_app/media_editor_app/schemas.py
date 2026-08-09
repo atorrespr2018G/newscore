@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl, model_validator
 
-MediaType = Literal["image", "video"]
+MediaType = Literal["image", "video", "audio"]
 ProcessingStatus = Literal["ready", "processing", "failed"]
 StoryStatus = Literal["draft", "ready"]
 
@@ -115,11 +115,15 @@ class VideoEditInstruction(BaseModel):
     title: str | None = Field(default=None, max_length=120)
     lower_third: str | None = Field(default=None, max_length=180)
     logo_url: HttpUrl | None = None
+    mute_audio: bool = False
+    replace_audio_asset_id: str | None = Field(default=None, min_length=1, max_length=80)
 
     @model_validator(mode="after")
     def ensure_segments(self) -> "VideoEditInstruction":
         """Require at least one segment, deriving from legacy trim fields when needed."""
 
+        if self.mute_audio and self.replace_audio_asset_id:
+            raise ValueError("Cannot mute audio and replace audio in the same render")
         if self.segments:
             return self
         if self.trim_end_seconds is None:

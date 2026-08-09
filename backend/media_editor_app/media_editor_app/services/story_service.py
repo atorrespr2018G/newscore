@@ -92,6 +92,8 @@ async def add_asset_to_pool(
         raise LookupError("Media asset not found")
     if document.get("version_of"):
         raise ValueError("Only original uploads can join the story originals pool")
+    if document.get("file_type") not in {"image", "video"}:
+        raise ValueError("Only image and video originals can join the story pool")
     story = await db[STORIES].find_one_and_update(
         {"_id": story_id, "owner_id": owner_id},
         {

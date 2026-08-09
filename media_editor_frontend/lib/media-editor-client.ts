@@ -1,6 +1,6 @@
 /** Typed HTTP client for the independent media-editor API. */
 
-export type MediaType = 'image' | 'video'
+export type MediaType = 'image' | 'video' | 'audio'
 export type StoryStatus = 'draft' | 'ready'
 
 export interface IMediaAsset {
@@ -167,15 +167,20 @@ export interface IVideoSegment {
   end_seconds: number
 }
 
+/** Render instruction for segment trim, overlays, and audio mute/replace. */
+export interface IVideoRenderInstruction {
+  segments: IVideoSegment[]
+  title?: string
+  lower_third?: string
+  logo_url?: string
+  mute_audio?: boolean
+  replace_audio_asset_id?: string
+}
+
 /** Render a shorter MP4 from ordered segments through the backend FFmpeg path. */
 export async function renderVideo(
   id: string,
-  instruction: {
-    segments: IVideoSegment[]
-    title?: string
-    lower_third?: string
-    logo_url?: string
-  },
+  instruction: IVideoRenderInstruction,
 ): Promise<IMediaAsset> {
   return request<IMediaAsset>(`/assets/${id}/render`, {
     method: 'POST',

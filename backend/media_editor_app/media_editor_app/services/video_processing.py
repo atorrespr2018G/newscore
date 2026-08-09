@@ -33,27 +33,71 @@ def probe_video(file_path: Path) -> tuple[int | None, int | None, float | None]:
     return stream.get("width"), stream.get("height"), duration
 
 
-def render_video(source_path: Path, output_path: Path, instruction: VideoEditInstruction) -> None:
-    """Extract ordered segments, concatenate into one MP4, and apply optional overlays.
+def probe_audio_duration(file_path: Path) -> float | None:
+    """Return duration for an audio file using ffprobe.
+
+    Args:
+        file_path: Local path to an audio upload.
+
+    Returns:
+        Duration in seconds, or None when unknown.
+
+    Raises:
+        ValueError: If ffprobe cannot read the file or no audio stream exists.
+    """
+
+    ffmpeg = _ffmpeg_module()
+    try:
+        metadata = ffmpeg.probe(str(file_path))
+    except ffmpeg.Error as exc:
+        raise ValueError("Unable to read uploaded audio") from exc
+    stream = next((item for item in metadata["streams"] if item["codec_type"] == "audio"), None)
+    if stream is None:
+        raise ValueError("Uploaded file does not contain an audio stream")
+    return float(metadata["format"].get("duration", 0)) or None
+
+
+def render_video(
+    source_path: Path,
+    output_path: Path,
+    instruction: VideoEditInstruction,
+    *,
+    replace_audio_path: Path | None = None,
+) -> None:
+    """Extract ordered segments, concatenate, apply overlays, then mute or replace audio.
 
     Args:
         source_path: Local path to the source video.
         output_path: Destination path for the rendered MP4.
-        instruction: Ordered segments plus optional burn-in fields.
+        instruction: Ordered segments plus optional burn-in and audio flags.
+        replace_audio_path: Optional soundtrack to mux over the rendered picture.
 
     Raises:
-        ValueError: If segments are invalid or FFmpeg fails.
+        ValueError: If segments are invalid, audio options conflict, or FFmpeg fails.
     """
 
+    if instruction.mute_audio and replace_audio_path is not None:
+        raise ValueError("Cannot mute audio and replace audio in the same render")
     ffmpeg = _ffmpeg_module()
     _, _, source_duration = probe_video(source_path)
     segments = _validated_segments(instruction.segments, source_duration)
     with tempfile.TemporaryDirectory(prefix="media-editor-video-") as temp_dir:
         temp_root = Path(temp_dir)
-        clip_paths = [_extract_segment(ffmpeg, source_path, temp_root, index, segment) for index, segment in enumerate(segments)]
+        clip_paths = [
+            _extract_segment(ffmpeg, source_path, temp_root, index, segment)
+            for index, segment in enumerate(segments)
+        ]
         concat_path = temp_root / "joined.mp4"
         _concat_clips(ffmpeg, clip_paths, concat_path)
-        _apply_overlays_and_write(ffmpeg, concat_path, output_path, instruction)
+        pictured_path = temp_root / "pictured.mp4"
+        _apply_overlays_and_write(ffmpeg, concat_path, pictured_path, instruction)
+        _apply_audio_stage(
+            ffmpeg,
+            pictured_path,
+            output_path,
+            mute_audio=instruction.mute_audio,
+            replace_audio_path=replace_audio_path,
+        )
 
 
 def _validated_segments(segments: list[VideoSegment], source_duration: float | None) -> list[VideoSegment]:
@@ -193,3 +237,78 @@ def _apply_overlays_and_write(ffmpeg, source_path: Path, output_path: Path, inst
         )
     except ffmpeg.Error as exc:
         raise ValueError("Video overlay rendering failed") from exc
+
+
+def _apply_audio_stage(
+    ffmpeg,
+    video_path: Path,
+    output_path: Path,
+    *,
+    mute_audio: bool,
+    replace_audio_path: Path | None,
+) -> None:
+    """Mute, replace, or pass through audio after the picture is finalized.
+
+    Args:
+        ffmpeg: Loaded ffmpeg-python module.
+        video_path: Intermediate MP4 with picture (and optional original audio).
+        output_path: Final destination MP4.
+        mute_audio: When True, write a video-only file.
+        replace_audio_path: When set, mux this soundtrack and drop original audio.
+
+    Raises:
+        ValueError: If FFmpeg fails or the replacement file is missing.
+    """
+
+    if not mute_audio and replace_audio_path is None:
+        if video_path.resolve() != output_path.resolve():
+            output_path.write_bytes(video_path.read_bytes())
+        return
+    if mute_audio:
+        _write_muted_video(ffmpeg, video_path, output_path)
+        return
+    if replace_audio_path is None or not replace_audio_path.exists():
+        raise ValueError("Replacement audio file was not found")
+    _write_replaced_audio(ffmpeg, video_path, replace_audio_path, output_path)
+
+
+def _write_muted_video(ffmpeg, video_path: Path, output_path: Path) -> None:
+    """Write a video-only MP4 with no audio stream."""
+
+    stream = ffmpeg.input(str(video_path))
+    try:
+        (
+            ffmpeg.output(stream.video, str(output_path), vcodec="copy", movflags="+faststart")
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except ffmpeg.Error as exc:
+        raise ValueError("Failed to mute video audio") from exc
+
+
+def _write_replaced_audio(
+    ffmpeg,
+    video_path: Path,
+    audio_path: Path,
+    output_path: Path,
+) -> None:
+    """Mux replacement audio onto the picture, trimming to the shorter stream."""
+
+    video_in = ffmpeg.input(str(video_path))
+    audio_in = ffmpeg.input(str(audio_path))
+    try:
+        (
+            ffmpeg.output(
+                video_in.video,
+                audio_in.audio,
+                str(output_path),
+                vcodec="copy",
+                acodec="aac",
+                shortest=None,
+                movflags="+faststart",
+            )
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except ffmpeg.Error as exc:
+        raise ValueError("Failed to replace video audio") from exc
