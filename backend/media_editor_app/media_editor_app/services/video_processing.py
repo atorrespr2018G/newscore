@@ -292,15 +292,20 @@ def _write_replaced_audio(
     audio_path: Path,
     output_path: Path,
 ) -> None:
-    """Mux replacement audio onto the picture, trimming to the shorter stream."""
+    """Mux replacement audio onto the full picture length.
+
+    Short narration is padded with silence so the video is never truncated.
+    Long narration is cut at the end of the picture via ``-shortest``.
+    """
 
     video_in = ffmpeg.input(str(video_path))
-    audio_in = ffmpeg.input(str(audio_path))
+    # apad extends short audio with silence; -shortest then ends on the video.
+    audio = ffmpeg.input(str(audio_path)).audio.filter("apad")
     try:
         (
             ffmpeg.output(
                 video_in.video,
-                audio_in.audio,
+                audio,
                 str(output_path),
                 vcodec="copy",
                 acodec="aac",

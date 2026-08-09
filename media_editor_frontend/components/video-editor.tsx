@@ -35,7 +35,17 @@ function formatTime(seconds: number): string {
 }
 
 /**
- * Build a default segment around the playhead or the full clip.
+ * Build a segment covering the entire source clip.
+ * @param duration - Source duration in seconds.
+ * @returns Inclusive time range from 0 to duration.
+ */
+function fullClipSegment(duration: number): IVideoSegment {
+  const end = duration > MIN_SEGMENT_SECONDS ? duration : Math.max(duration, MIN_SEGMENT_SECONDS)
+  return { start_seconds: 0, end_seconds: Number(end.toFixed(2)) }
+}
+
+/**
+ * Build a short segment around the playhead when adding another keep-range.
  * @param duration - Source duration in seconds.
  * @param playhead - Current video time.
  * @returns Inclusive time range.
@@ -54,12 +64,13 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const duration = asset.duration && asset.duration > 0 ? asset.duration : 0
   const [segments, setSegments] = useState<IEditorSegment[]>(() => {
-    const first = defaultSegment(duration || 10, 0)
+    const first = fullClipSegment(duration || 10)
     return [{ id: crypto.randomUUID(), ...first }]
   })
   const [activeId, setActiveId] = useState<string>(() => segments[0]?.id ?? '')
   const [playhead, setPlayhead] = useState(0)
   const [resolvedDuration, setResolvedDuration] = useState(duration)
+  const didExpandToSourceRef = useRef(false)
   const [title, setTitle] = useState('')
   const [lowerThird, setLowerThird] = useState('')
   const [audioMode, setAudioMode] = useState<AudioModeType>('keep')
@@ -90,6 +101,20 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
     video.currentTime = active.start_seconds
     setPlayhead(active.start_seconds)
   }, [activeId])
+
+  useEffect(() => {
+    // Once real duration is known, expand the bootstrap single segment to the full clip
+    // so narration/render does not drop the rest of a merged video.
+    if (didExpandToSourceRef.current || resolvedDuration <= MIN_SEGMENT_SECONDS) return
+    didExpandToSourceRef.current = true
+    setSegments((current) => {
+      if (current.length !== 1) return current
+      const only = current[0]
+      if (only.start_seconds !== 0) return current
+      if (only.end_seconds + 0.05 >= resolvedDuration) return current
+      return [{ ...only, end_seconds: Number(resolvedDuration.toFixed(2)) }]
+    })
+  }, [resolvedDuration])
 
   useEffect(() => {
     const video = videoRef.current
@@ -292,7 +317,7 @@ export function VideoEditor({ asset, onClose, onSaved }: IVideoEditorProps): JSX
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-300">Video studio</p>
           <p className="font-serif text-2xl">Editing {asset.title ?? asset.original_filename}</p>
           <p className="mt-1 text-xs text-white/70">
-            Mark ordered segments to keep, then render one shorter video file.
+            Starts with the full clip. Trim or add segments only if you want a shorter cut, then render.
           </p>
         </div>
         <div className="flex gap-2">
