@@ -13,7 +13,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from shared.core.constants import SUPPORTED_IMAGE_TYPES, SUPPORTED_VIDEO_TYPES
 from shared.core.exceptions import MediaUploadError, NotFoundError, PayloadTooLargeError
 from shared.core.file_storage import delete_media_file, save_image, save_video
-from shared.schemas.media_schemas import MediaOut
+from shared.schemas.media_schemas import MediaOut, MediaRegisterExternal
 
 MEDIA_COLLECTION = "media"
 
@@ -108,6 +108,47 @@ async def upload_video(db: AsyncIOMotorDatabase, *, file: UploadFile, uploader_i
         "height": None,
         "duration": None,
         "uploader_id": uploader_id,
+        "created_at": _utc_now_iso(),
+    }
+    await db[MEDIA_COLLECTION].insert_one(doc)
+    return _to_out(doc)
+
+
+async def register_external(
+    db: AsyncIOMotorDatabase, *, payload: MediaRegisterExternal, uploader_id: str
+) -> MediaOut:
+    """Create a News Storage media row that points at an already-hosted URL.
+
+    Used when the reporter imports independent Media Desk originals/edits.
+    Reuses an existing row when the same Media Desk asset was imported before.
+
+    Args:
+        db: Database connection.
+        payload: External URL and optional Media Desk source id.
+        uploader_id: Authenticated reporter id.
+
+    Returns:
+        Registered media payload.
+    """
+
+    source_asset_id = (payload.source_asset_id or "").strip() or None
+    if source_asset_id:
+        existing = await db[MEDIA_COLLECTION].find_one(
+            {"uploader_id": uploader_id, "source_asset_id": source_asset_id},
+        )
+        if existing is not None:
+            return _to_out(existing)
+
+    media_id = str(uuid4())
+    doc = {
+        "_id": media_id,
+        "file_type": payload.file_type,
+        "url": str(payload.url),
+        "width": payload.width,
+        "height": payload.height,
+        "duration": payload.duration,
+        "uploader_id": uploader_id,
+        "source_asset_id": source_asset_id,
         "created_at": _utc_now_iso(),
     }
     await db[MEDIA_COLLECTION].insert_one(doc)

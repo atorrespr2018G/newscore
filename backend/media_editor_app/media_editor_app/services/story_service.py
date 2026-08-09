@@ -8,7 +8,14 @@ from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from media_editor_app.schemas import MediaStoryCreate, MediaStoryOut, MediaStoryUpdate
+from media_editor_app.schemas import (
+    MediaAssetOut,
+    MediaStoryCreate,
+    MediaStoryHandoffOut,
+    MediaStoryOut,
+    MediaStoryUpdate,
+)
+from media_editor_app.services import media_service
 
 STORIES = "media_stories"
 ASSETS = "media_assets"
@@ -81,6 +88,12 @@ async def update_story(
     """Replace story metadata, pool membership, report order, and readiness."""
 
     await _validate_story_assets(db, owner_id=owner_id, payload=payload)
+    # Detach former nested edits so each pool item is a standalone picture/video.
+    if payload.pool_asset_ids:
+        await db[ASSETS].update_many(
+            {"_id": {"$in": list(payload.pool_asset_ids)}, "uploader_id": owner_id},
+            {"$set": {"version_of": None}},
+        )
     changes = payload.model_dump()
     changes["updated_at"] = _now()
     document = await db[STORIES].find_one_and_update(
@@ -101,10 +114,8 @@ async def add_asset_to_pool(
     document = await db[ASSETS].find_one({"_id": asset_id, "uploader_id": owner_id})
     if document is None:
         raise LookupError("Media asset not found")
-    if document.get("version_of"):
-        raise ValueError("Only original uploads can join the story originals pool")
     if document.get("file_type") not in {"image", "video"}:
-        raise ValueError("Only image and video originals can join the story pool")
+        raise ValueError("Only image and video assets can join the story pool")
     story = await db[STORIES].find_one_and_update(
         {"_id": story_id, "owner_id": owner_id},
         {
@@ -131,6 +142,33 @@ async def get_ready_story(
     return _serialize(document)
 
 
+async def list_ready_handoffs(
+    db: AsyncIOMotorDatabase, *, owner_id: str
+) -> list[MediaStoryHandoffOut]:
+    """List ready story packages with report assets in transfer order.
+
+    Each selected asset is returned independently so the reporter can import
+    originals and edits as separate article media items.
+    """
+
+    documents = await db[STORIES].find(
+        {"owner_id": owner_id, "status": "ready"},
+    ).sort("updated_at", -1).to_list(100)
+    packages: list[MediaStoryHandoffOut] = []
+    for document in documents:
+        story = _serialize(document)
+        assets: list[MediaAssetOut] = []
+        for asset_id in story.selected_asset_ids:
+            try:
+                assets.append(
+                    await media_service.get_media(db, media_id=asset_id, owner_id=owner_id),
+                )
+            except LookupError:
+                continue
+        packages.append(MediaStoryHandoffOut(story=story, assets=assets))
+    return packages
+
+
 async def _resolve_root_id(
     db: AsyncIOMotorDatabase, *, asset_id: str, owner_id: str
 ) -> str:
@@ -155,7 +193,7 @@ async def _resolve_root_id(
 async def _validate_story_assets(
     db: AsyncIOMotorDatabase, *, owner_id: str, payload: MediaStoryUpdate
 ) -> None:
-    """Validate pool originals and that report picks belong to those originals."""
+    """Validate pool membership and that report picks are exact pool asset IDs."""
 
     related_ids = list({*payload.pool_asset_ids, *payload.selected_asset_ids})
     if not related_ids:
@@ -167,10 +205,9 @@ async def _validate_story_assets(
     if len(by_id) != len(related_ids):
         raise ValueError("Each story asset must belong to its owner")
     for asset_id in payload.pool_asset_ids:
-        if by_id[asset_id].get("version_of"):
-            raise ValueError("Story pool may only contain original uploads")
+        if by_id[asset_id].get("file_type") not in {"image", "video"}:
+            raise ValueError("Story pool may only contain image or video assets")
     pool = set(payload.pool_asset_ids)
     for asset_id in payload.selected_asset_ids:
-        root_id = await _resolve_root_id(db, asset_id=asset_id, owner_id=owner_id)
-        if root_id not in pool:
-            raise ValueError("Report pictures must come from originals in the story pool")
+        if asset_id not in pool:
+            raise ValueError("Report pictures must come from assets in the story pool")

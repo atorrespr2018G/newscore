@@ -14,6 +14,10 @@ import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { LocalizedFileInput } from '@/components/ui/localized-file-input'
 import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/rich-text-editor'
 import { CategoryChipGroup } from '@/components/features/category-chip-group'
+import {
+  MediaDeskImport,
+  type IReporterDraftMedia,
+} from '@/components/features/media-desk-import'
 import { submitArticleForReview } from '@/lib/api/article-workflow-client'
 import { getCategories, type ICategoryOut } from '@/lib/api/category-client'
 import { apiConfig } from '@/lib/api/config'
@@ -46,10 +50,7 @@ interface IReporterLocation {
   countyId: string | null
 }
 
-interface IUploadedMedia {
-  id: string
-  url: string
-}
+type IUploadedMedia = IReporterDraftMedia
 
 interface IArticleOut {
   id: string
@@ -369,6 +370,15 @@ export default function ReporterUploadPage(): JSX.Element {
             ))}
           </select>
         </label>
+
+        <MediaDeskImport
+          images={images}
+          videos={videos}
+          disabled={uploadingMedia || loading}
+          onError={setError}
+          onImportImages={(items) => setImages((current) => [...current, ...items])}
+          onImportVideos={(items) => setVideos((current) => [...current, ...items])}
+        />
 
         <div>
           <p className="text-sm font-medium text-neutral-700">{t('reporter.fields.images')}</p>

@@ -81,6 +81,29 @@ export function uploadVideo(file: File): Promise<IMediaOut> {
   return uploadMediaFile('/media/video', file)
 }
 
+/** Payload to register a hosted Media Desk (or other) URL into News Storage. */
+export interface IMediaRegisterExternal {
+  file_type: 'image' | 'video'
+  url: string
+  width?: number | null
+  height?: number | null
+  duration?: number | null
+  source_asset_id?: string | null
+}
+
+/**
+ * Register an already-hosted image/video URL for use in article media_ids.
+ *
+ * @param payload External URL and optional Media Desk source asset id.
+ * @returns News Storage media row (reused when source_asset_id was imported before).
+ */
+export function registerExternalMedia(payload: IMediaRegisterExternal): Promise<IMediaOut> {
+  return apiFetch<IMediaOut>(`${apiConfig.news}/media/external`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 /**
  * Load a media asset by id.
  *

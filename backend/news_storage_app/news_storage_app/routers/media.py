@@ -9,7 +9,7 @@ from news_storage_app.services import media_service
 from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
 from shared.read.media_reads import list_media_by_ids
-from shared.schemas.media_schemas import MediaOut
+from shared.schemas.media_schemas import MediaOut, MediaRegisterExternal
 
 router = APIRouter(prefix="/media")
 
@@ -66,6 +66,19 @@ async def upload_video(
     """Upload a video."""
 
     return await media_service.upload_video(db, file=file, uploader_id=current_user.sub)
+
+
+@router.post("/external", response_model=MediaOut, status_code=status.HTTP_201_CREATED)
+async def register_external_media(
+    payload: MediaRegisterExternal,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: TokenPayload = Depends(require_role("reporter", "editor")),
+) -> MediaOut:
+    """Register a Media Desk (or other hosted) asset URL for article media_ids."""
+
+    return await media_service.register_external(
+        db, payload=payload, uploader_id=current_user.sub,
+    )
 
 
 @router.delete("/{media_id}", status_code=status.HTTP_204_NO_CONTENT)

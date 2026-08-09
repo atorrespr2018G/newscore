@@ -45,6 +45,20 @@
       "noFileSelected": "Ningún archivo seleccionado",
       "filesSelected": "{count, plural, one {# archivo seleccionado} other {# archivos seleccionados}}"
     },
+    "mediaDesk": {
+      "heading": "Media Desk",
+      "hint": "Importa paquetes listos. Cada imagen o video es independiente — nada anidado dentro de otro.",
+      "reportOrderHint": "Coincide con el orden del reporte en Media Desk: una imagen o video independiente por tarjeta.",
+      "loading": "Cargando paquetes listos…",
+      "empty": "Aún no hay paquetes listos en Media Desk. Marca una historia como lista primero.",
+      "package": "Paquete listo",
+      "untitled": "Paquete sin título",
+      "noAssets": "Este paquete no tiene imágenes o videos importables.",
+      "selectAsset": "Seleccionar {label} ({badge})",
+      "alreadyImported": "Ya en el borrador",
+      "importSelected": "Importar seleccionados ({count})",
+      "importing": "Importando…"
+    },
     "validation": {
       "marketNotReady": "El mercado aún no está listo. Inténtalo de nuevo en un momento.",
       "waitForUploads": "Espera a que terminen las subidas antes de guardar.",
@@ -71,6 +85,8 @@
       "loadCategories": "No se pudieron cargar las categorías",
       "imageUpload": "Error al subir la imagen",
       "videoUpload": "Error al subir el video",
+      "loadMediaDesk": "No se pudieron cargar los paquetes de Media Desk",
+      "importMediaDesk": "No se pudo importar desde Media Desk",
       "saveDraft": "No se pudo guardar el borrador",
       "submitForReview": "No se pudo enviar a revisión"
     },

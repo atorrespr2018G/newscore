@@ -10,6 +10,12 @@ export interface IDragPayload {
   source: DragListKind
 }
 
+/** One independently selectable card in the story pool. */
+export interface IStoryPoolCard {
+  rootId: string
+  asset: IMediaAsset
+}
+
 const DRAG_MIME = 'application/x-newscore-media-id'
 
 /** MIME type used for HTML5 drag-and-drop between story collections. */
@@ -46,19 +52,66 @@ export function readDragPayload(dataTransfer: DataTransfer): IDragPayload | null
 }
 
 /**
- * Return the original upload ID for an asset or version.
- * Walks older intermediate version_of links created before root lineage was enforced.
- * @param asset - Asset or derivative.
- * @param assetsById - Optional lookup used to walk the full version chain.
- * @returns The top-most original upload ID.
+ * Identity helper kept for drag payloads — each asset is its own root.
+ * @param asset - Pool or report asset.
+ * @returns The asset's own id.
  */
-export function getRootId(asset: IMediaAsset, assetsById?: Map<string, IMediaAsset>): string {
+export function getRootId(asset: IMediaAsset): string {
+  return asset.id
+}
+
+/**
+ * Keep image/video assets that still exist in the library.
+ * @param poolIds - Current pool IDs.
+ * @param assetsById - Asset lookup.
+ * @returns Pool IDs limited to existing image/video assets.
+ */
+export function sanitizePoolIds(poolIds: string[], assetsById: Map<string, IMediaAsset>): string[] {
+  return poolIds.filter((id) => {
+    const asset = assetsById.get(id)
+    return Boolean(asset && (asset.file_type === 'image' || asset.file_type === 'video'))
+  })
+}
+
+/**
+ * Promote former nested edits into the pool as their own standalone items.
+ * @param poolIds - Current pool IDs (may be originals only).
+ * @param assets - Full library list.
+ * @param assetsById - Asset lookup for legacy version_of walks.
+ * @returns Pool IDs including every former nested edit under those roots.
+ */
+export function expandPoolWithDetachedEdits(
+  poolIds: string[],
+  assets: IMediaAsset[],
+  assetsById: Map<string, IMediaAsset>,
+): string[] {
+  const next = [...poolIds]
+  const seen = new Set(next)
+  for (const poolId of poolIds) {
+    for (const asset of assets) {
+      if (asset.file_type !== 'image' && asset.file_type !== 'video') continue
+      if (seen.has(asset.id)) continue
+      if (_legacyRootId(asset, assetsById) !== poolId) continue
+      next.push(asset.id)
+      seen.add(asset.id)
+    }
+  }
+  return next
+}
+
+/**
+ * Walk legacy version_of links for one-time pool expansion.
+ * @param asset - Asset that may still carry nested lineage.
+ * @param assetsById - Asset lookup.
+ * @returns Top-most ancestor id.
+ */
+function _legacyRootId(asset: IMediaAsset, assetsById: Map<string, IMediaAsset>): string {
   let current = asset
   const seen = new Set<string>()
   while (current.version_of) {
     if (seen.has(current.id)) break
     seen.add(current.id)
-    const parent = assetsById?.get(current.version_of)
+    const parent = assetsById.get(current.version_of)
     if (!parent) return current.version_of
     current = parent
   }
@@ -66,24 +119,10 @@ export function getRootId(asset: IMediaAsset, assetsById?: Map<string, IMediaAss
 }
 
 /**
- * Keep only original upload IDs in the story pool.
- * @param poolIds - Current pool IDs that may include accidental derivatives.
- * @param assetsById - Asset lookup used to detect derivatives.
- * @returns Pool IDs limited to original uploads.
- */
-export function sanitizePoolIds(poolIds: string[], assetsById: Map<string, IMediaAsset>): string[] {
-  return poolIds.filter((id) => {
-    const asset = assetsById.get(id)
-    return Boolean(asset && !asset.version_of)
-  })
-}
-
-/**
- * Keep report IDs whose original still exists in the story pool.
- * Drops orphans that point at a deleted original (those break drag/save).
+ * Keep report IDs that are exact members of the story pool.
  * @param selectedIds - Ordered report asset IDs.
- * @param poolIds - Sanitized originals pool IDs.
- * @param assetsById - Asset lookup used to resolve roots.
+ * @param poolIds - Sanitized pool IDs.
+ * @param assetsById - Asset lookup.
  * @returns Report IDs that still validate against the pool.
  */
 export function sanitizeSelectedIds(
@@ -95,100 +134,82 @@ export function sanitizeSelectedIds(
   return selectedIds.filter((id) => {
     const asset = assetsById.get(id)
     if (!asset) return false
-    const rootId = getRootId(asset, assetsById)
-    const root = assetsById.get(rootId)
-    if (!root || root.version_of) return false
-    return pool.has(rootId)
+    if (asset.file_type !== 'image' && asset.file_type !== 'video') return false
+    return pool.has(id)
   })
 }
 
 /**
- * Choose the thumbnail asset for one originals-pool slot.
- * Prefers the version already chosen for the report, else the latest edit, else the original.
- * @param rootId - Original upload ID stored in the pool.
- * @param assets - All reporter assets.
- * @param selectedIds - Ordered report asset IDs.
- * @returns The single thumbnail asset for that picture family.
+ * Build one pool card per pool asset — never nest edits inside another picture.
+ * @param poolIds - Pool asset IDs.
+ * @param _assets - Unused; kept for call-site compatibility.
+ * @param assetsById - Asset lookup.
+ * @returns Flat list of independently selectable pool cards.
  */
-export function getPreferredVersion(
-  rootId: string,
-  assets: IMediaAsset[],
-  selectedIds: string[],
-): IMediaAsset {
-  const root = assets.find((asset) => asset.id === rootId)
-  if (!root) {
-    throw new Error(`Original picture ${rootId} was not found`)
+export function buildIndependentPoolCards(
+  poolIds: string[],
+  _assets: IMediaAsset[],
+  assetsById: Map<string, IMediaAsset>,
+): IStoryPoolCard[] {
+  const cards: IStoryPoolCard[] = []
+  for (const assetId of poolIds) {
+    const asset = assetsById.get(assetId)
+    if (!asset) continue
+    if (asset.file_type !== 'image' && asset.file_type !== 'video') continue
+    cards.push({ rootId: asset.id, asset })
   }
-  const assetsById = new Map(assets.map((asset) => [asset.id, asset]))
-  const selectedMatch = selectedIds
-    .map((id) => assets.find((asset) => asset.id === id))
-    .find((asset) => asset && getRootId(asset, assetsById) === rootId)
-  if (selectedMatch) return selectedMatch
-  const versions = assets
-    .filter((asset) => asset.version_of === rootId)
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))
-  return versions[0] ?? root
+  return cards
 }
 
 /**
- * Move a picture family from the originals pool into the ordered report list.
- * @param poolIds - Current originals pool IDs (roots only).
+ * Short badge for a standalone pool/report card.
+ * @param asset - Card asset.
+ * @returns Display badge.
+ */
+export function versionBadgeLabel(asset: IMediaAsset): string {
+  const name = `${asset.title ?? ''} ${asset.original_filename ?? ''}`.toLowerCase()
+  if (name.includes('edit') || asset.original_filename.startsWith('edited-')) return 'Edit'
+  return asset.file_type === 'video' ? 'Video' : 'Picture'
+}
+
+/**
+ * Add one pool asset to the report.
+ * @param poolIds - Current pool IDs.
  * @param selectedIds - Current ordered report IDs.
- * @param rootId - Original upload ID for the dragged family.
- * @param versionId - Version thumbnail currently shown for that family.
+ * @param rootId - Pool membership id (same as asset id for independent assets).
+ * @param assetId - Exact asset ID to add.
  * @param insertIndex - Optional index in the report list; defaults to append.
- * @param resolveRootId - Maps any selected ID to its original upload ID.
  * @returns Updated pool and selected ID lists.
  */
 export function selectFromPool(
   poolIds: string[],
   selectedIds: string[],
   rootId: string,
-  versionId: string,
-  insertIndex: number | undefined,
-  resolveRootId: (assetId: string) => string,
+  assetId: string,
+  insertIndex?: number,
 ): { poolIds: string[]; selectedIds: string[] } {
-  if (!poolIds.includes(rootId)) {
+  if (!poolIds.includes(rootId) && !poolIds.includes(assetId)) {
     throw new Error('Report pictures must come from the story originals pool')
   }
-  const without = selectedIds.filter((id) => {
-    try {
-      return resolveRootId(id) !== rootId
-    } catch {
-      return id !== rootId && id !== versionId
-    }
-  })
-  const index = insertIndex === undefined ? without.length : Math.max(0, Math.min(insertIndex, without.length))
-  const nextSelected = [...without.slice(0, index), versionId, ...without.slice(index)]
+  if (selectedIds.includes(assetId)) {
+    return { poolIds, selectedIds }
+  }
+  const index =
+    insertIndex === undefined
+      ? selectedIds.length
+      : Math.max(0, Math.min(insertIndex, selectedIds.length))
+  const nextSelected = [...selectedIds.slice(0, index), assetId, ...selectedIds.slice(index)]
   return { poolIds, selectedIds: nextSelected }
 }
 
 /**
- * Remove an asset (and any other report slots in its original family) from the report.
- * Keeps the original in the pool.
+ * Remove only the clicked report asset.
  * @param selectedIds - Current ordered report IDs.
- * @param assetId - Asset (or version) to remove from the report.
- * @param assetsById - Optional lookup used to drop the whole picture/video family.
+ * @param assetId - Exact asset to remove from the report.
  * @returns Updated selected ID list.
  */
-export function removeFromSelected(
-  selectedIds: string[],
-  assetId: string,
-  assetsById?: Map<string, IMediaAsset>,
-): string[] {
-  if (!assetsById) {
-    return selectedIds.filter((id) => id !== assetId)
-  }
-  const target = assetsById.get(assetId)
-  if (!target) {
-    return selectedIds.filter((id) => id !== assetId)
-  }
-  const rootId = getRootId(target, assetsById)
-  return selectedIds.filter((id) => {
-    const asset = assetsById.get(id)
-    if (!asset) return id !== assetId
-    return getRootId(asset, assetsById) !== rootId
-  })
+export function removeFromSelected(selectedIds: string[], assetId: string): string[] {
+  return selectedIds.filter((id) => id !== assetId)
 }
 
 /**
@@ -208,26 +229,33 @@ export function reorderSelected(selectedIds: string[], assetId: string, insertIn
 }
 
 /**
- * Keep the originals pool on the root upload and point the report at the new edit.
- * @param poolIds - Current originals pool IDs.
+ * Add a newly saved edit as its own pool (and report) picture/video.
+ * @param poolIds - Current pool IDs.
  * @param selectedIds - Current ordered report IDs.
- * @param rootId - Original upload ID for the edited family.
- * @param derivativeId - Newly saved edited asset ID.
- * @param resolveRootId - Maps any selected ID to its original upload ID.
+ * @param _rootId - Unused; edits are not nested under a family root.
+ * @param derivativeId - Newly saved independent asset ID.
+ * @param sourceId - Asset that was edited.
  * @returns Updated pool and selected ID lists.
  */
 export function adoptEditedDerivative(
   poolIds: string[],
   selectedIds: string[],
-  rootId: string,
+  _rootId: string,
   derivativeId: string,
-  resolveRootId: (assetId: string) => string,
+  sourceId: string,
 ): { poolIds: string[]; selectedIds: string[] } {
-  const nextPool = poolIds.filter((id) => id !== derivativeId)
-  if (!nextPool.includes(rootId)) nextPool.push(rootId)
-  const familyInReport = selectedIds.some((id) => resolveRootId(id) === rootId)
-  const nextSelected = familyInReport
-    ? selectedIds.map((id) => (resolveRootId(id) === rootId ? derivativeId : id))
-    : selectedIds
-  return { poolIds: nextPool, selectedIds: nextSelected }
+  const nextPool = poolIds.includes(derivativeId) ? poolIds : [...poolIds, derivativeId]
+  const withoutDerivative = selectedIds.filter((id) => id !== derivativeId)
+  const sourceIndex = withoutDerivative.indexOf(sourceId)
+  if (sourceIndex < 0) {
+    return { poolIds: nextPool, selectedIds: withoutDerivative }
+  }
+  return {
+    poolIds: nextPool,
+    selectedIds: [
+      ...withoutDerivative.slice(0, sourceIndex + 1),
+      derivativeId,
+      ...withoutDerivative.slice(sourceIndex + 1),
+    ],
+  }
 }

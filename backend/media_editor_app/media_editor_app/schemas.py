@@ -104,6 +104,13 @@ class MediaStoryOut(MediaStoryUpdate):
     updated_at: str
 
 
+class MediaStoryHandoffOut(BaseModel):
+    """Ready Media Desk package with independently selectable report assets."""
+
+    story: MediaStoryOut
+    assets: list[MediaAssetOut] = Field(default_factory=list)
+
+
 class VideoSegment(BaseModel):
     """One included time range from a source video, in seconds."""
 

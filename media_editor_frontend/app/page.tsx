@@ -7,7 +7,6 @@ import { RichTextEditor, type IRichTextEditorHandle } from '@/components/rich-te
 import { StoryTaxonomyFields } from '@/components/story-taxonomy-fields'
 import { StoryUploadControl } from '@/components/story-upload-control'
 import { StoryWorkspace } from '@/components/story-workspace'
-import { VersionPicker } from '@/components/version-picker'
 import { VideoEditor } from '@/components/video-editor'
 import { VideoMergePicker } from '@/components/video-merge-picker'
 import {
@@ -18,7 +17,6 @@ import {
   IMediaAsset,
   IMediaStory,
   listAssets,
-  listAssetVersions,
   listStories,
   login,
   mergeVideos,
@@ -35,7 +33,7 @@ import {
 } from '@/lib/media-metadata'
 import {
   adoptEditedDerivative,
-  getRootId,
+  expandPoolWithDetachedEdits,
   sanitizePoolIds,
   sanitizeSelectedIds,
 } from '@/lib/story-selection'
@@ -87,7 +85,6 @@ export default function MediaLibraryPage(): JSX.Element {
   const [selected, setSelected] = useState<IMediaAsset | null>(null)
   const [imageEditorAsset, setImageEditorAsset] = useState<IMediaAsset | null>(null)
   const [videoEditorAsset, setVideoEditorAsset] = useState<IMediaAsset | null>(null)
-  const [versionPickerAsset, setVersionPickerAsset] = useState<IMediaAsset | null>(null)
   const [message, setMessage] = useState('')
   const [authenticated, setAuthenticated] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -111,10 +108,8 @@ export default function MediaLibraryPage(): JSX.Element {
     }
     setSelected((current) => {
       if (current && assetsById.has(current.id)) {
-        const rootId = getRootId(current, assetsById)
         const inStory =
           activeStory.selected_asset_ids.includes(current.id)
-          || activeStory.pool_asset_ids.includes(rootId)
           || activeStory.pool_asset_ids.includes(current.id)
         if (inStory) {
           const fresh = assetsById.get(current.id)
@@ -142,7 +137,12 @@ export default function MediaLibraryPage(): JSX.Element {
       const byId = new Map(newAssets.map((asset) => [asset.id, asset]))
       const cleanedStories = newStories.map((story) => {
         const normalized = normalizeStoryTaxonomy(story)
-        const poolIds = sanitizePoolIds(normalized.pool_asset_ids, byId)
+        const expandedPool = expandPoolWithDetachedEdits(
+          sanitizePoolIds(normalized.pool_asset_ids, byId),
+          newAssets,
+          byId,
+        )
+        const poolIds = sanitizePoolIds(expandedPool, byId)
         return {
           ...normalized,
           pool_asset_ids: poolIds,
@@ -154,6 +154,13 @@ export default function MediaLibraryPage(): JSX.Element {
       setActiveStoryId((current) => current ?? cleanedStories[0]?.id ?? null)
       setSelected((current) => newAssets.find((asset) => asset.id === current?.id) ?? null)
       setMessage('')
+      // Persist expanded pools so former nested edits become standalone pool items.
+      for (const story of cleanedStories) {
+        const original = newStories.find((item) => item.id === story.id)
+        if (!original) continue
+        if (original.pool_asset_ids.join('\0') === story.pool_asset_ids.join('\0')) continue
+        void updateStory(story).catch(() => undefined)
+      }
     } catch (error) {
       const text = error instanceof Error ? error.message : 'Unable to load media library'
       if (text.includes('sign in again') || !getAccessToken()) {
@@ -209,17 +216,12 @@ export default function MediaLibraryPage(): JSX.Element {
       await refresh()
       return
     }
-    const rootId = getRootId(source, nextAssetsById)
     const nextLists = adoptEditedDerivative(
       sanitizePoolIds(activeStory.pool_asset_ids, nextAssetsById),
       activeStory.selected_asset_ids,
-      rootId,
+      source.id,
       derivative.id,
-      (assetId) => {
-        const asset = nextAssetsById.get(assetId)
-        if (!asset) throw new Error(`Asset ${assetId} was not found`)
-        return getRootId(asset, nextAssetsById)
-      },
+      source.id,
     )
     // Use nextAssetsById so sanitize does not drop the brand-new derivative from the report.
     await persistStory(
@@ -249,19 +251,8 @@ export default function MediaLibraryPage(): JSX.Element {
   async function openMediaEditor(asset: IMediaAsset): Promise<void> {
     setImageEditorAsset(null)
     setVideoEditorAsset(null)
-    setVersionPickerAsset(null)
-    try {
-      const versions = await listAssetVersions(asset.id)
-      if (versions.items.length <= 1) {
-        openStudio(asset)
-        return
-      }
-      setVersionPickerAsset(asset)
-    } catch (error) {
-      // Orphaned edits (missing original) still open directly in the studio.
-      setMessage(error instanceof Error ? error.message : 'Unable to load versions — opening editor')
-      openStudio(asset)
-    }
+    // Edits create a new independent picture/video — never nest inside the source.
+    openStudio(asset)
   }
 
   /** Videos available to merge: report order first, then other pool videos. */
@@ -278,11 +269,6 @@ export default function MediaLibraryPage(): JSX.Element {
     for (const assetId of activeStory.pool_asset_ids) {
       const asset = assetsById.get(assetId)
       if (!asset || asset.file_type !== 'video' || seen.has(asset.id)) continue
-      // Prefer showing the report/selected version of a family when present.
-      const alreadyFamily = ordered.some(
-        (item) => getRootId(item, assetsById) === getRootId(asset, assetsById),
-      )
-      if (alreadyFamily) continue
       seen.add(asset.id)
       ordered.push(asset)
     }
@@ -303,17 +289,12 @@ export default function MediaLibraryPage(): JSX.Element {
     setMessage('Merging videos… this can take a minute')
     try {
       const merged = await mergeVideos(videoIds)
-      const mergedRoots = new Set(
-        videoIds.map((assetId) => {
-          const asset = assetsById.get(assetId)
-          return asset ? getRootId(asset, assetsById) : assetId
-        }),
-      )
+      const mergedIds = new Set(videoIds)
       const keptReportIds = activeStory.selected_asset_ids.filter((assetId) => {
         const asset = assetsById.get(assetId)
         if (!asset) return false
         if (asset.file_type !== 'video') return true
-        return !mergedRoots.has(getRootId(asset, assetsById)) && !videoIds.includes(asset.id)
+        return !mergedIds.has(asset.id)
       })
       const nextPool = activeStory.pool_asset_ids.includes(merged.id)
         ? activeStory.pool_asset_ids
@@ -447,7 +428,11 @@ export default function MediaLibraryPage(): JSX.Element {
                     setSelected(asset)
                     const derivative = await removeBackground(asset.id)
                     await handleEditedDerivative(asset, derivative)
-                    setMessage('Background removed — new version saved')
+                    setMessage(
+                      activeStory.selected_asset_ids.includes(asset.id)
+                        ? 'Saved as a new independent picture in Report order'
+                        : 'Saved as a new independent picture in the pool',
+                    )
                   } catch (error) {
                     setMessage(error instanceof Error ? error.message : 'Background removal failed')
                   } finally {
@@ -460,15 +445,14 @@ export default function MediaLibraryPage(): JSX.Element {
                   const label = asset.title ?? asset.original_filename
                   if (
                     !window.confirm(
-                      `Permanently delete "${label}" from originals? Edits of this picture are removed too. This cannot be undone.`,
+                      `Permanently delete "${label}"? This cannot be undone.`,
                     )
                   ) {
                     return
                   }
                   try {
-                    const deletedRootId = getRootId(asset, assetsById)
                     await deleteAsset(asset.id)
-                    if (selected && getRootId(selected, assetsById) === deletedRootId) {
+                    if (selected?.id === asset.id) {
                       setSelected(null)
                     }
                     await refresh()
@@ -483,7 +467,6 @@ export default function MediaLibraryPage(): JSX.Element {
                 <StoryUploadControl
                   storyId={activeStory.id}
                   onUploaded={(asset) => {
-                    if (asset.version_of) return
                     setAssets((current) => [asset, ...current])
                     setStories((current) =>
                       current.map((story) =>
@@ -516,33 +499,20 @@ export default function MediaLibraryPage(): JSX.Element {
         )}
       </div>
 
-      {versionPickerAsset && (
-        <VersionPicker
-          asset={versionPickerAsset}
-          onClose={() => setVersionPickerAsset(null)}
-          onError={setMessage}
-          onChoose={(version) => {
-            setVersionPickerAsset(null)
-            openStudio(version)
-          }}
-          onDelete={async (version) => {
-            if (!version.version_of) {
-              throw new Error('Re-edit cannot delete the original')
-            }
-            await deleteAsset(version.id)
-            if (selected?.id === version.id) setSelected(null)
-            await refresh()
-            setMessage('Edit version deleted')
-          }}
-        />
-      )}
-
       {imageEditorAsset && (
         <ImageEditor
           asset={imageEditorAsset}
           onClose={() => setImageEditorAsset(null)}
           onSaved={async (derivative) => {
+            const sourceInReport = Boolean(
+              activeStory?.selected_asset_ids.includes(imageEditorAsset.id),
+            )
             await handleEditedDerivative(imageEditorAsset, derivative)
+            setMessage(
+              sourceInReport
+                ? 'Saved as a new independent picture in Report order'
+                : 'Saved as a new independent picture in the pool',
+            )
           }}
         />
       )}
@@ -552,8 +522,15 @@ export default function MediaLibraryPage(): JSX.Element {
           asset={videoEditorAsset}
           onClose={() => setVideoEditorAsset(null)}
           onSaved={async (derivative) => {
+            const sourceInReport = Boolean(
+              activeStory?.selected_asset_ids.includes(videoEditorAsset.id),
+            )
             await handleEditedDerivative(videoEditorAsset, derivative)
-            setMessage('Shorter video rendered and added to the report')
+            setMessage(
+              sourceInReport
+                ? 'Saved as a new independent video in Report order'
+                : 'Saved as a new independent video in the pool',
+            )
           }}
         />
       )}

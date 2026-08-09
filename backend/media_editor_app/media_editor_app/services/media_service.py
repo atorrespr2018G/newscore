@@ -205,15 +205,31 @@ async def update_metadata(
 
 
 async def delete_media(db: AsyncIOMotorDatabase, *, media_id: str, owner_id: str) -> None:
-    """Delete one edit version, or an original and its whole edit family."""
+    """Delete one media asset only — edits are independent pictures/videos."""
 
     document = await db[MEDIA_COLLECTION].find_one({"_id": media_id, "uploader_id": owner_id})
     if document is None:
         raise LookupError("Media asset not found")
-    if document.get("version_of"):
-        await _delete_derivative(db, document=document, owner_id=owner_id)
-        return
-    await _delete_original_family(db, root_id=str(document["_id"]), owner_id=owner_id)
+    await _delete_single_asset(db, document=document, owner_id=owner_id)
+
+
+async def _delete_single_asset(
+    db: AsyncIOMotorDatabase, *, document: dict[str, Any], owner_id: str
+) -> None:
+    """Remove one asset from disk, library, and every story reference."""
+
+    media_id = str(document["_id"])
+    # Former nested edits become standalone if they still pointed here.
+    await db[MEDIA_COLLECTION].update_many(
+        {"uploader_id": owner_id, "version_of": media_id},
+        {"$set": {"version_of": None}},
+    )
+    await db["media_stories"].update_many(
+        {"owner_id": owner_id},
+        {"$pull": {"pool_asset_ids": media_id, "selected_asset_ids": media_id}},
+    )
+    _unlink_media_file(document)
+    await db[MEDIA_COLLECTION].delete_one({"_id": media_id, "uploader_id": owner_id})
 
 
 async def _delete_derivative(
@@ -480,15 +496,20 @@ async def _get_source_document(
 def _create_version(
     *, source: dict[str, Any], url: str, dimensions: tuple[int | None, int | None, float | None], extension: str
 ) -> dict[str, Any]:
-    """Construct derivative metadata while retaining immutable source lineage."""
+    """Construct a new independent picture/video from an edit (not nested under source)."""
 
-    root_id = source.get("version_of") or source["_id"]
+    source_id = str(source["_id"])
     document = _create_document(
-        file_type=source["file_type"], url=url, filename=f"edited-{root_id}.{extension}",
-        uploader_id=source["uploader_id"], dimensions=dimensions,
+        file_type=source["file_type"],
+        url=url,
+        filename=f"edited-{source_id}.{extension}",
+        uploader_id=source["uploader_id"],
+        dimensions=dimensions,
     )
-    document["version_of"] = root_id
-    document["title"] = source.get("title")
+    # Independent asset — never nest inside the source picture/video.
+    document["version_of"] = None
+    source_label = (source.get("title") or source.get("original_filename") or "Media").strip()
+    document["title"] = f"{source_label} · edit"
     document["description"] = source.get("description")
     document["alt_text"] = source.get("alt_text")
     document["credit"] = source.get("credit")

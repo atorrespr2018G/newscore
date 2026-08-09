@@ -14,6 +14,7 @@ from media_editor_app.schemas import (
     MediaListOut,
     MediaMetadataUpdate,
     MediaStoryCreate,
+    MediaStoryHandoffOut,
     MediaStoryOut,
     MediaStoryUpdate,
     MediaVersionListOut,
@@ -234,6 +235,16 @@ async def replace_story(
         )
     except (LookupError, ValueError) as exc:
         raise _client_error(exc) from exc
+
+
+@router.get("/handoff/packages", response_model=List[MediaStoryHandoffOut])
+async def browse_ready_handoffs(
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    user: TokenPayload = _REPORTER_ACCESS,
+) -> list[MediaStoryHandoffOut]:
+    """List ready Media Desk packages with independently selectable report assets."""
+
+    return await story_service.list_ready_handoffs(db, owner_id=user.sub)
 
 
 @router.get("/handoff/stories/{story_id}", response_model=MediaStoryOut)

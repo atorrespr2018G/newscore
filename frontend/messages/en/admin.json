@@ -45,6 +45,20 @@
       "noFileSelected": "No file selected",
       "filesSelected": "{count, plural, one {# file selected} other {# files selected}}"
     },
+    "mediaDesk": {
+      "heading": "Media Desk",
+      "hint": "Import ready report packages. Each picture or video is standalone — nothing nested inside another.",
+      "reportOrderHint": "Items match Media Desk Report order: one independent picture or video per card.",
+      "loading": "Loading ready packages…",
+      "empty": "No ready Media Desk packages yet. Mark a story ready in Media Desk first.",
+      "package": "Ready package",
+      "untitled": "Untitled package",
+      "noAssets": "This package has no importable images or videos.",
+      "selectAsset": "Select {label} ({badge})",
+      "alreadyImported": "Already in draft",
+      "importSelected": "Import selected ({count})",
+      "importing": "Importing…"
+    },
     "validation": {
       "marketNotReady": "Market is not ready yet. Try again in a moment.",
       "waitForUploads": "Wait for uploads to finish before saving.",
@@ -71,6 +85,8 @@
       "loadCategories": "Failed to load categories",
       "imageUpload": "Image upload failed",
       "videoUpload": "Video upload failed",
+      "loadMediaDesk": "Failed to load Media Desk packages",
+      "importMediaDesk": "Failed to import from Media Desk",
       "saveDraft": "Failed to save draft",
       "submitForReview": "Failed to submit for review"
     },

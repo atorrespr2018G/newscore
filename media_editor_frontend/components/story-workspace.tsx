@@ -5,7 +5,7 @@ import { MediaThumb } from '@/components/media-thumb'
 import { IMediaAsset, IMediaStory } from '@/lib/media-editor-client'
 import { htmlToPlainText } from '@/lib/media-metadata'
 import {
-  getPreferredVersion,
+  buildIndependentPoolCards,
   getRootId,
   IDragPayload,
   readDragPayload,
@@ -13,6 +13,7 @@ import {
   reorderSelected,
   sanitizePoolIds,
   selectFromPool,
+  versionBadgeLabel,
 } from '@/lib/story-selection'
 
 /**
@@ -118,12 +119,6 @@ export function StoryWorkspace({
     }
   }
 
-  function resolveRootId(assetId: string): string {
-    const asset = assetsByIdRef.current.get(assetId)
-    if (!asset) throw new Error(`Asset ${assetId} was not found`)
-    return getRootId(asset, assetsByIdRef.current)
-  }
-
   /**
    * Visual insert slot in the report grid (before card index, or length to append).
    * @param clientX - Pointer X in the viewport.
@@ -193,7 +188,6 @@ export function StoryWorkspace({
           payload.rootId,
           payload.assetId,
           insertIndex,
-          resolveRootId,
         )
         void persist({
           ...currentStory,
@@ -227,7 +221,6 @@ export function StoryWorkspace({
           selected_asset_ids: removeFromSelected(
             currentStory.selected_asset_ids,
             payload.assetId,
-            assetsByIdRef.current,
           ),
           status: 'draft',
         })
@@ -238,15 +231,13 @@ export function StoryWorkspace({
   }
 
   function addPoolAssetToReport(asset: IMediaAsset): void {
-    const rootId = getRootId(asset, assetsById)
+    const rootId = getRootId(asset)
     try {
       const next = selectFromPool(
         poolRootIds,
         story.selected_asset_ids,
         rootId,
         asset.id,
-        undefined,
-        resolveRootId,
       )
       void persist({
         ...story,
@@ -261,19 +252,15 @@ export function StoryWorkspace({
   }
 
   /**
-   * Drop one report media item (and its version family) from the ordered report list.
-   * @param assetId - Report asset or edited version to remove.
+   * Drop one report media item from the ordered report list.
+   * @param assetId - Exact report asset to remove (sibling edits stay).
    */
   function removeAssetFromReport(assetId: string): void {
     const currentStory = storyRef.current
     void persist({
       ...currentStory,
       pool_asset_ids: poolRootIdsRef.current,
-      selected_asset_ids: removeFromSelected(
-        currentStory.selected_asset_ids,
-        assetId,
-        assetsByIdRef.current,
-      ),
+      selected_asset_ids: removeFromSelected(currentStory.selected_asset_ids, assetId),
       status: 'draft',
     })
   }
@@ -356,39 +343,28 @@ export function StoryWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const poolCards = poolRootIds
-    .map((rootId) => {
-      try {
-        return { rootId, asset: getPreferredVersion(rootId, assets, story.selected_asset_ids) }
-      } catch {
-        const asset = assetsById.get(rootId) ?? null
-        return asset ? { rootId, asset } : null
-      }
-    })
-    .filter((card): card is { rootId: string; asset: IMediaAsset } => Boolean(card))
+  const poolCards: IStoryCard[] = useMemo(
+    () =>
+      buildIndependentPoolCards(poolRootIds, assets, assetsById).map((card) => ({
+        rootId: card.rootId,
+        asset: card.asset,
+        badge: versionBadgeLabel(card.asset),
+      })),
+    [poolRootIds, assets, assetsById],
+  )
 
-  const selectedCards = story.selected_asset_ids
-    .map((id) => {
-      const asset = assetsById.get(id) ?? null
-      if (!asset) return null
-      return { rootId: getRootId(asset, assetsById), asset }
-    })
-    .filter((card): card is { rootId: string; asset: IMediaAsset } => Boolean(card))
+  const selectedCards = story.selected_asset_ids.flatMap((id): IStoryCard[] => {
+    const asset = assetsById.get(id)
+    if (!asset) return []
+    return [{
+      rootId: getRootId(asset),
+      asset,
+      badge: versionBadgeLabel(asset),
+    }]
+  })
 
-  const selectedRootId = selectedAssetId
-    ? (() => {
-        const selected = assetsById.get(selectedAssetId)
-        return selected ? getRootId(selected, assetsById) : null
-      })()
-    : null
-
-  const reportTarget = selectedCards.find(
-    (card) => card.asset.id === selectedAssetId || card.rootId === selectedRootId,
-  )?.asset ?? null
-
-  const poolTarget = poolCards.find(
-    (card) => card.asset.id === selectedAssetId || card.rootId === selectedRootId,
-  )?.asset ?? null
+  const reportTarget = selectedCards.find((card) => card.asset.id === selectedAssetId)?.asset ?? null
+  const poolTarget = poolCards.find((card) => card.asset.id === selectedAssetId)?.asset ?? null
 
   const draggedAsset = dragPayload
     ? assetsById.get(dragPayload.assetId) ?? null
@@ -428,11 +404,10 @@ export function StoryWorkspace({
         paneRef={poolPaneRef}
         className="min-w-0 w-full"
         title="All pictures for this news"
-        subtitle="Select a picture, then Add to report — or drag it into the report list"
+        subtitle="Each picture or video stands alone — an edit becomes a new item, never nested inside another"
         emptyLabel="Use Add pictures above to load originals for this story"
         cards={poolCards}
         selectedAssetId={selectedAssetId}
-        selectedRootId={selectedRootId}
         dragSource="pool"
         highlight={dropHint === 'pool'}
         toolbar={
@@ -441,8 +416,7 @@ export function StoryWorkspace({
             <PoolPictureActions
               asset={poolTarget}
               alreadyInReport={Boolean(
-                poolTarget
-                && selectedCards.some((card) => card.rootId === getRootId(poolTarget, assetsById)),
+                poolTarget && story.selected_asset_ids.includes(poolTarget.id),
               )}
               onAddToReport={addPoolAssetToReport}
               onDeleteAsset={onDeleteAsset}
@@ -462,11 +436,10 @@ export function StoryWorkspace({
         paneRef={reportPaneRef}
         className="min-w-0 w-full"
         title="Pictures for the report"
-        subtitle="Drag cards to reorder. Drop originals here, or use Remove on a card."
-        emptyLabel="Drop pictures here from the originals pool"
+        subtitle="Report order — one independent picture or video per card. Drag to reorder."
+        emptyLabel="Drop pictures here from the pool"
         cards={selectedCards}
         selectedAssetId={selectedAssetId}
-        selectedRootId={selectedRootId}
         dragSource="selected"
         highlight={dropHint === 'selected'}
         showOrder
@@ -571,7 +544,7 @@ function PoolPictureActions({
           disabled={!asset}
           onClick={() => asset && onDeleteAsset(asset)}
         >
-          Delete original
+          Delete
         </button>
       </div>
     </div>
@@ -673,6 +646,7 @@ function ReportPictureActions({
 interface IStoryCard {
   rootId: string
   asset: IMediaAsset
+  badge?: string
 }
 
 interface ICollectionPaneProps {
@@ -683,7 +657,6 @@ interface ICollectionPaneProps {
   emptyLabel: string
   cards: IStoryCard[]
   selectedAssetId: string | null
-  selectedRootId: string | null
   dragSource: 'pool' | 'selected'
   highlight: boolean
   showOrder?: boolean
@@ -707,7 +680,6 @@ function CollectionPane({
   emptyLabel,
   cards,
   selectedAssetId,
-  selectedRootId,
   dragSource,
   highlight,
   showOrder = false,
@@ -746,16 +718,16 @@ function CollectionPane({
         </div>
       ) : (
         <ul className="story-media-grid">
-          {cards.map(({ rootId, asset }, index) => {
-            const active = asset.id === selectedAssetId || selectedRootId === rootId
-            const hasEdits = Boolean(asset.version_of)
+          {cards.map(({ rootId, asset, badge }, index) => {
+            const active = asset.id === selectedAssetId
+            const hasEdits = false
             const isDraggingCard = draggingAssetId === asset.id
             const showInsertBefore = showOrder && dropInsertIndex === index
             const showInsertAfter =
               showOrder && dropInsertIndex === cards.length && index === cards.length - 1
             return (
               <li
-                key={`${dragSource}-${rootId}`}
+                key={`${dragSource}-${asset.id}`}
                 className="relative min-w-0"
                 data-report-index={showOrder ? String(index) : undefined}
               >
@@ -781,11 +753,9 @@ function CollectionPane({
                 >
                   <div className="relative aspect-[4/3] w-full overflow-hidden bg-brand-mist">
                     <MediaThumb asset={asset} />
-                    {showOrder && (
-                      <span className="absolute left-1.5 top-1.5 rounded bg-brand-ink/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                        {index + 1}
-                      </span>
-                    )}
+                    <span className="absolute left-1.5 top-1.5 z-10 rounded bg-brand-ink/85 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      {showOrder ? `${index + 1} · ${badge || 'Item'}` : badge || 'Item'}
+                    </span>
                     {showOrder && onRemoveCard && (
                       <button
                         type="button"
