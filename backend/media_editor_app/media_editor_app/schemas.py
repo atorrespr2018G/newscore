@@ -128,3 +128,20 @@ class VideoEditInstruction(BaseModel):
             VideoSegment(start_seconds=self.trim_start_seconds, end_seconds=self.trim_end_seconds),
         ]
         return self
+
+
+_MAX_MERGE_VIDEOS: int = 20
+
+
+class VideoMergeInstruction(BaseModel):
+    """Ordered owned video asset IDs to concatenate into one MP4."""
+
+    asset_ids: list[str] = Field(min_length=2, max_length=_MAX_MERGE_VIDEOS)
+
+    @model_validator(mode="after")
+    def validate_unique_ids(self) -> "VideoMergeInstruction":
+        """Reject duplicate IDs in the merge order."""
+
+        if len(self.asset_ids) != len(set(self.asset_ids)):
+            raise ValueError("Merge asset IDs must be unique")
+        return self

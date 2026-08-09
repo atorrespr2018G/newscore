@@ -184,6 +184,19 @@ export async function renderVideo(
   })
 }
 
+/**
+ * Merge independently edited videos into one MP4, preserving asset order.
+ * @param assetIds - Owned video asset ids in the desired output order.
+ * @returns Newly created merged video asset.
+ */
+export async function mergeVideos(assetIds: string[]): Promise<IMediaAsset> {
+  return request<IMediaAsset>('/assets/merge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ asset_ids: assetIds }),
+  })
+}
+
 /** List the authenticated reporter's story media packages. */
 export async function listStories(): Promise<IMediaStory[]> {
   return request<IMediaStory[]>('/stories')

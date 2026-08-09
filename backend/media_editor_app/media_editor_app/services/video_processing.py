@@ -99,6 +99,52 @@ def _extract_segment(
     return clip_path
 
 
+def merge_video_files(source_paths: list[Path], output_path: Path) -> None:
+    """Normalize and concatenate several source videos into one MP4.
+
+    Args:
+        source_paths: Local paths of owned source/edited videos, in output order.
+        output_path: Destination path for the merged MP4.
+
+    Raises:
+        ValueError: If fewer than two sources are provided or FFmpeg fails.
+    """
+
+    if len(source_paths) < 2:
+        raise ValueError("At least two videos are required to merge")
+    ffmpeg = _ffmpeg_module()
+    with tempfile.TemporaryDirectory(prefix="media-editor-merge-") as temp_dir:
+        temp_root = Path(temp_dir)
+        normalized = [
+            _normalize_clip(ffmpeg, source_path, temp_root / f"norm-{index:02d}.mp4", index)
+            for index, source_path in enumerate(source_paths)
+        ]
+        _concat_clips(ffmpeg, normalized, output_path)
+
+
+def _normalize_clip(ffmpeg, source_path: Path, clip_path: Path, index: int) -> Path:
+    """Re-encode one source file to a consistent H.264/AAC MP4 for concatenation."""
+
+    if not source_path.exists():
+        raise ValueError(f"Video file for merge item {index + 1} was not found on disk")
+    try:
+        (
+            ffmpeg.input(str(source_path))
+            .output(
+                str(clip_path),
+                vcodec="libx264",
+                acodec="aac",
+                avoid_negative_ts="make_zero",
+                movflags="+faststart",
+            )
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except ffmpeg.Error as exc:
+        raise ValueError(f"Failed to prepare video {index + 1} for merge") from exc
+    return clip_path
+
+
 def _concat_clips(ffmpeg, clip_paths: list[Path], output_path: Path) -> None:
     """Concatenate temporary clips into one MP4 with a fresh encode."""
 

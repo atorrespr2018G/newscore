@@ -19,6 +19,7 @@ import {
   listAssetVersions,
   listStories,
   login,
+  mergeVideos,
   removeBackground,
   updateAsset,
   updateStory,
@@ -68,6 +69,7 @@ export default function MediaLibraryPage(): JSX.Element {
   const [authenticated, setAuthenticated] = useState(false)
   const [busy, setBusy] = useState(false)
   const [removingBackground, setRemovingBackground] = useState(false)
+  const [mergingVideos, setMergingVideos] = useState(false)
 
   const assetsById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets])
   const activeStory = stories.find((story) => story.id === activeStoryId) ?? null
@@ -189,6 +191,57 @@ export default function MediaLibraryPage(): JSX.Element {
     }
   }
 
+  /**
+   * Merge report-order videos into one file and place it in the report.
+   * Edited clips stay in the originals pool; report videos are replaced by the merge.
+   */
+  async function mergeReportVideos(): Promise<void> {
+    if (!activeStory) return
+    const videoIds = activeStory.selected_asset_ids.filter(
+      (assetId) => assetsById.get(assetId)?.file_type === 'video',
+    )
+    if (videoIds.length < 2) {
+      setMessage('Add at least two videos to the report order before merging')
+      return
+    }
+    if (
+      !window.confirm(
+        `Merge ${videoIds.length} report videos (in current order) into one file? Images stay in the report; source videos remain in originals.`,
+      )
+    ) {
+      return
+    }
+    setMergingVideos(true)
+    setMessage('Merging videos… this can take a minute')
+    try {
+      const merged = await mergeVideos(videoIds)
+      const imageIds = activeStory.selected_asset_ids.filter(
+        (assetId) => assetsById.get(assetId)?.file_type === 'image',
+      )
+      const nextPool = activeStory.pool_asset_ids.includes(merged.id)
+        ? activeStory.pool_asset_ids
+        : [...activeStory.pool_asset_ids, merged.id]
+      const nextAssets = [merged, ...assets.filter((asset) => asset.id !== merged.id)]
+      const nextAssetsById = new Map(nextAssets.map((asset) => [asset.id, asset]))
+      setAssets(nextAssets)
+      await persistStory(
+        {
+          ...activeStory,
+          pool_asset_ids: nextPool,
+          selected_asset_ids: [...imageIds, merged.id],
+          status: 'draft',
+        },
+        nextAssetsById,
+      )
+      setSelected(merged)
+      setMessage('Merged video created and placed in the report')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to merge videos')
+    } finally {
+      setMergingVideos(false)
+    }
+  }
+
   if (!authenticated) return <LoginScreen onSuccess={() => setAuthenticated(true)} />
 
   return (
@@ -258,7 +311,9 @@ export default function MediaLibraryPage(): JSX.Element {
                 setSelected(asset)
                 void openMediaEditor(asset)
               }}
+              onMergeVideos={mergeReportVideos}
               removingBackground={removingBackground}
+              mergingVideos={mergingVideos}
               onRemoveBackground={(asset) => {
                 void (async () => {
                   setRemovingBackground(true)

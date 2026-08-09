@@ -35,11 +35,13 @@ interface IStoryWorkspaceProps {
   onSelectAsset: (asset: IMediaAsset) => void
   onEditImage: (asset: IMediaAsset) => void
   onEditVideo: (asset: IMediaAsset) => void
+  onMergeVideos: () => Promise<void>
   onRemoveBackground: (asset: IMediaAsset) => void
   onDeleteAsset: (asset: IMediaAsset) => void
   onStoryChange: (story: IMediaStory) => Promise<void>
   onError: (message: string) => void
   removingBackground?: boolean
+  mergingVideos?: boolean
 }
 
 /**
@@ -56,11 +58,13 @@ export function StoryWorkspace({
   onSelectAsset,
   onEditImage,
   onEditVideo,
+  onMergeVideos,
   onRemoveBackground,
   onDeleteAsset,
   onStoryChange,
   onError,
   removingBackground = false,
+  mergingVideos = false,
 }: IStoryWorkspaceProps): JSX.Element {
   const [dropHint, setDropHint] = useState<'pool' | 'selected' | null>(null)
   const [dragPayload, setDragPayload] = useState<IDragPayload | null>(null)
@@ -246,6 +250,8 @@ export function StoryWorkspace({
     })
     .filter((card): card is { rootId: string; asset: IMediaAsset } => Boolean(card))
 
+  const reportVideoCount = selectedCards.filter((card) => card.asset.file_type === 'video').length
+
   const selectedRootId = selectedAssetId
     ? (() => {
         const selected = assetsById.get(selectedAssetId)
@@ -340,9 +346,12 @@ export function StoryWorkspace({
         toolbar={
           <ReportPictureActions
             asset={reportTarget}
+            reportVideoCount={reportVideoCount}
             removingBackground={removingBackground}
+            mergingVideos={mergingVideos}
             onEditImage={onEditImage}
             onEditVideo={onEditVideo}
+            onMergeVideos={onMergeVideos}
             onRemoveBackground={onRemoveBackground}
             onRemoveFromReport={(assetId) => {
               void persist({
@@ -430,25 +439,32 @@ function PoolPictureActions({
 
 interface IReportPictureActionsProps {
   asset: IMediaAsset | null
+  reportVideoCount: number
   removingBackground: boolean
+  mergingVideos: boolean
   onEditImage: (asset: IMediaAsset) => void
   onEditVideo: (asset: IMediaAsset) => void
+  onMergeVideos: () => Promise<void>
   onRemoveBackground: (asset: IMediaAsset) => void
   onRemoveFromReport: (assetId: string) => void
 }
 
-/** Report-only actions: edit media, remove background, or remove from report. */
+/** Report-only actions: edit media, merge videos, or remove from report. */
 function ReportPictureActions({
   asset,
+  reportVideoCount,
   removingBackground,
+  mergingVideos,
   onEditImage,
   onEditVideo,
+  onMergeVideos,
   onRemoveBackground,
   onRemoveFromReport,
 }: IReportPictureActionsProps): JSX.Element {
   const enabled = Boolean(asset)
   const isImage = asset?.file_type === 'image'
   const isVideo = asset?.file_type === 'video'
+  const canMerge = reportVideoCount >= 2 && !mergingVideos
 
   return (
     <div className="mb-4 rounded-xl border border-brand-line bg-brand-paper px-3 py-3">
@@ -478,6 +494,19 @@ function ReportPictureActions({
           onClick={() => asset && onEditVideo(asset)}
         >
           Edit video
+        </button>
+        <button
+          type="button"
+          className="me-btn-primary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!canMerge}
+          title={
+            reportVideoCount < 2
+              ? 'Add at least two videos to the report order, then merge'
+              : 'Join report videos (in order) into one file'
+          }
+          onClick={() => void onMergeVideos()}
+        >
+          {mergingVideos ? 'Merging…' : `Merge videos (${reportVideoCount})`}
         </button>
         <button
           type="button"

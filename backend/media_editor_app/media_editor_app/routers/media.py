@@ -18,6 +18,7 @@ from media_editor_app.schemas import (
     MediaStoryUpdate,
     MediaVersionListOut,
     VideoEditInstruction,
+    VideoMergeInstruction,
 )
 from media_editor_app.services import media_service, story_service
 
@@ -163,6 +164,22 @@ async def render_asset_video(
     try:
         return await media_service.create_video_version(
             db, media_id=media_id, owner_id=user.sub, instruction=payload,
+        )
+    except (LookupError, ValueError) as exc:
+        raise _client_error(exc) from exc
+
+
+@router.post("/assets/merge", response_model=MediaAssetOut, status_code=status.HTTP_201_CREATED)
+async def merge_videos(
+    payload: VideoMergeInstruction,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    user: TokenPayload = _REPORTER_ACCESS,
+) -> MediaAssetOut:
+    """Concatenate independently edited videos into one library asset."""
+
+    try:
+        return await media_service.merge_video_assets(
+            db, owner_id=user.sub, instruction=payload,
         )
     except (LookupError, ValueError) as exc:
         raise _client_error(exc) from exc

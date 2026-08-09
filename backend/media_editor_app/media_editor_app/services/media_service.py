@@ -11,9 +11,9 @@ from fastapi import UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from media_editor_app.config import get_max_upload_bytes
-from media_editor_app.schemas import MediaAssetOut, MediaMetadataUpdate, VideoEditInstruction
+from media_editor_app.schemas import MediaAssetOut, MediaMetadataUpdate, VideoEditInstruction, VideoMergeInstruction
 from media_editor_app.services.image_processing import extract_dimensions, remove_background
-from media_editor_app.services.video_processing import probe_video, render_video
+from media_editor_app.services.video_processing import merge_video_files, probe_video, render_video
 from media_editor_app.storage import get_local_path, save_file
 
 MEDIA_COLLECTION = "media_assets"
@@ -273,6 +273,48 @@ async def create_video_version(
     version = _create_version(source=source, url=url, dimensions=probe_video(output_path), extension="mp4")
     await db[MEDIA_COLLECTION].insert_one(version)
     return _serialize(version)
+
+
+async def merge_video_assets(
+    db: AsyncIOMotorDatabase, *, owner_id: str, instruction: VideoMergeInstruction
+) -> MediaAssetOut:
+    """Concatenate independently edited videos into one new library asset.
+
+    Args:
+        db: Media-editor Mongo database.
+        owner_id: Authenticated uploader id.
+        instruction: Ordered unique video asset ids to merge.
+
+    Returns:
+        Newly created merged video asset (new root, not a version of one source).
+
+    Raises:
+        LookupError: If any asset is missing or not owned.
+        ValueError: If an id is not a video or merge fails.
+    """
+
+    sources: list[dict[str, Any]] = []
+    for asset_id in instruction.asset_ids:
+        document = await _get_source_document(
+            db, media_id=asset_id, owner_id=owner_id, media_type="video",
+        )
+        sources.append(document)
+    paths = [get_local_path(str(source["url"])) for source in sources]
+    output_path, url = save_file(content=b"", media_type="videos", extension="mp4")
+    merge_video_files(paths, output_path)
+    merge_id = str(uuid4())
+    document = _create_document(
+        file_type="video",
+        url=url,
+        filename=f"merged-{merge_id[:8]}.mp4",
+        uploader_id=owner_id,
+        dimensions=probe_video(output_path),
+    )
+    document["_id"] = merge_id
+    document["title"] = "Merged report video"
+    document["description"] = "Joined from independently edited videos"
+    await db[MEDIA_COLLECTION].insert_one(document)
+    return _serialize(document)
 
 
 async def _get_source_document(
