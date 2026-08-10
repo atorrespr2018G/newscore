@@ -242,6 +242,31 @@ export async function updateStory(story: IMediaStory): Promise<IMediaStory> {
   })
 }
 
+/** Result of storing a Media Desk package as a NewsCore editor draft. */
+export interface ISendToEditorResult {
+  article_id: string
+  article_title: string
+  article_status: string
+  media_count: number
+}
+
+/**
+ * Send selected report assets to NewsCore as a new editor draft article.
+ * @param storyId - Media Desk story package id.
+ * @param assetIds - Ordered subset of report assets to include.
+ * @returns Created NewsCore article summary.
+ */
+export function sendStoryToEditor(
+  storyId: string,
+  assetIds: string[],
+): Promise<ISendToEditorResult> {
+  return request<ISendToEditorResult>(`/handoff/stories/${storyId}/send-to-editor`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ asset_ids: assetIds }),
+  })
+}
+
 /**
  * Fill taxonomy defaults for stories created before placement fields existed.
  * @param story - Raw story payload from the API.

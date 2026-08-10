@@ -22,6 +22,7 @@ import {
   mergeVideos,
   normalizeStoryTaxonomy,
   removeBackground,
+  sendStoryToEditor,
   updateAsset,
   updateStory,
 } from '@/lib/media-editor-client'
@@ -91,6 +92,8 @@ export default function MediaLibraryPage(): JSX.Element {
   const [removingBackground, setRemovingBackground] = useState(false)
   const [mergingVideos, setMergingVideos] = useState(false)
   const [mergePickerOpen, setMergePickerOpen] = useState(false)
+  const [exportAssetIds, setExportAssetIds] = useState<Set<string>>(() => new Set())
+  const [sendingToEditor, setSendingToEditor] = useState(false)
 
   const assetsById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets])
   const activeStory = stories.find((story) => story.id === activeStoryId) ?? null
@@ -129,6 +132,38 @@ export default function MediaLibraryPage(): JSX.Element {
       return fallbackId ? (assetsById.get(fallbackId) ?? null) : null
     })
   }, [activeStory, assetsById])
+
+  const exportReportKeyRef = useRef('')
+
+  // Sync export checkboxes with report order without re-checking after the user clears them.
+  useEffect(() => {
+    if (!activeStory) {
+      setExportAssetIds(new Set())
+      exportReportKeyRef.current = ''
+      return
+    }
+    const nextKey = `${activeStory.id}:${activeStory.selected_asset_ids.join('\0')}`
+    const prevKey = exportReportKeyRef.current
+    exportReportKeyRef.current = nextKey
+    const prevStoryId = prevKey.split(':')[0] ?? ''
+    const prevIds = (prevKey.split(':')[1] ?? '').split('\0').filter(Boolean)
+    if (!prevKey || activeStory.id !== prevStoryId) {
+      setExportAssetIds(new Set(activeStory.selected_asset_ids))
+      return
+    }
+    const prevSet = new Set(prevIds)
+    const reportSet = new Set(activeStory.selected_asset_ids)
+    setExportAssetIds((current) => {
+      const next = new Set<string>()
+      for (const id of current) {
+        if (reportSet.has(id)) next.add(id)
+      }
+      for (const id of activeStory.selected_asset_ids) {
+        if (!prevSet.has(id)) next.add(id)
+      }
+      return next
+    })
+  }, [activeStory])
 
   async function refresh(): Promise<void> {
     setBusy(true)
@@ -356,7 +391,7 @@ export default function MediaLibraryPage(): JSX.Element {
       </header>
 
       {message && (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-brand-soft px-4 py-3 text-sm text-red-800">
+        <div className="mb-4 rounded-2xl border border-brand-line bg-white px-4 py-3 text-sm text-brand-ink shadow-sm">
           {message}
         </div>
       )}
@@ -401,7 +436,16 @@ export default function MediaLibraryPage(): JSX.Element {
               assets={assets}
               assetsById={assetsById}
               selectedAssetId={selected?.id ?? null}
+              exportAssetIds={exportAssetIds}
               onSelectAsset={setSelected}
+              onToggleExportAsset={(assetId) => {
+                setExportAssetIds((current) => {
+                  const next = new Set(current)
+                  if (next.has(assetId)) next.delete(assetId)
+                  else next.add(assetId)
+                  return next
+                })
+              }}
               onEditImage={(asset) => {
                 setSelected(asset)
                 void openMediaEditor(asset)
@@ -487,7 +531,41 @@ export default function MediaLibraryPage(): JSX.Element {
                 />
               }
             />
-            <ReadyControls story={activeStory} onPersist={persistStory} onError={setMessage} />
+            <ReadyControls
+              story={activeStory}
+              exportAssetIds={exportAssetIds}
+              sending={sendingToEditor}
+              onPersist={persistStory}
+              onError={setMessage}
+              onSendToEditor={async () => {
+                const taxonomyError = validateStoryTaxonomy(activeStory.category_slugs)
+                if (taxonomyError) {
+                  setMessage(taxonomyError)
+                  return
+                }
+                const orderedIds = activeStory.selected_asset_ids.filter((id) =>
+                  exportAssetIds.has(id),
+                )
+                if (orderedIds.length === 0) {
+                  setMessage('Check at least one picture/video in report order')
+                  return
+                }
+                setSendingToEditor(true)
+                try {
+                  const result = await sendStoryToEditor(activeStory.id, orderedIds)
+                  setMessage(
+                    `Sent “${result.article_title}” to Editor (${result.media_count} media) — shows as New`,
+                  )
+                  await refresh()
+                } catch (error) {
+                  setMessage(
+                    error instanceof Error ? error.message : 'Unable to send story to editor',
+                  )
+                } finally {
+                  setSendingToEditor(false)
+                }
+              }}
+            />
           </>
         ) : (
           <section className="me-panel px-6 py-16 text-center">
@@ -696,12 +774,24 @@ function StoryPicker({
 
 interface IReadyControlsProps {
   story: IMediaStory
+  exportAssetIds: ReadonlySet<string>
+  sending: boolean
   onPersist: (story: IMediaStory) => Promise<void>
+  onSendToEditor: () => Promise<void>
   onError: (message: string) => void
 }
 
-/** Mark the ordered report selection ready for later NewsCore handoff. */
-function ReadyControls({ story, onPersist, onError }: IReadyControlsProps): JSX.Element {
+/** Send checked report items to NewsCore Editor, or mark the package ready. */
+function ReadyControls({
+  story,
+  exportAssetIds,
+  sending,
+  onPersist,
+  onSendToEditor,
+  onError,
+}: IReadyControlsProps): JSX.Element {
+  const checkedCount = story.selected_asset_ids.filter((id) => exportAssetIds.has(id)).length
+
   async function markReady(): Promise<void> {
     const taxonomyError = validateStoryTaxonomy(story.category_slugs)
     if (taxonomyError) {
@@ -718,19 +808,30 @@ function ReadyControls({ story, onPersist, onError }: IReadyControlsProps): JSX.
   return (
     <section className="me-panel flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
       <div>
-        <p className="me-label mb-0">Handoff</p>
-        <h2 className="font-serif text-2xl text-brand-ink">Report package status</h2>
+        <p className="me-label mb-0">Send</p>
+        <h2 className="font-serif text-2xl text-brand-ink">Report package</h2>
         <p className="mt-1 text-sm text-slate-500">
-          {story.selected_asset_ids.length} picture(s) ordered for the report · currently {story.status}
+          {checkedCount} checked of {story.selected_asset_ids.length} in report order · {story.status}
         </p>
       </div>
-      <button
-        className="me-btn-primary"
-        disabled={story.selected_asset_ids.length === 0 || story.status === 'ready'}
-        onClick={() => void markReady()}
-      >
-        {story.status === 'ready' ? 'Ready for editors' : 'Mark report ready'}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="me-btn-primary"
+          disabled={sending || checkedCount === 0}
+          onClick={() => void onSendToEditor()}
+        >
+          {sending ? 'Sending…' : `Send to Editor (${checkedCount})`}
+        </button>
+        <button
+          type="button"
+          className="rounded-xl border border-brand-line bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-300 disabled:opacity-50"
+          disabled={story.selected_asset_ids.length === 0 || story.status === 'ready' || sending}
+          onClick={() => void markReady()}
+        >
+          {story.status === 'ready' ? 'Ready for editors' : 'Mark report ready'}
+        </button>
+      </div>
     </section>
   )
 }

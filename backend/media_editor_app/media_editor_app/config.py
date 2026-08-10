@@ -49,3 +49,15 @@ def get_max_upload_bytes() -> int:
 
     max_size_mb = int(os.getenv("MEDIA_EDITOR_MAX_UPLOAD_MB", "250"))
     return max_size_mb * 1024 * 1024
+
+
+def get_news_storage_api_url() -> str:
+    """Return the News Storage base URL used for editor handoff writes."""
+
+    return os.getenv("NEWS_STORAGE_API_URL", "http://localhost:5002").rstrip("/")
+
+
+def get_layout_admin_api_url() -> str:
+    """Return the Layout Admin base URL used to resolve market ids."""
+
+    return os.getenv("LAYOUT_ADMIN_API_URL", "http://localhost:5003").rstrip("/")

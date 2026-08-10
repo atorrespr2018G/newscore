@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from media_editor_app.auth import TokenPayload, require_role
@@ -18,10 +19,14 @@ from media_editor_app.schemas import (
     MediaStoryOut,
     MediaStoryUpdate,
     MediaVersionListOut,
+    SendToEditorOut,
+    SendToEditorRequest,
     VideoEditInstruction,
     VideoMergeInstruction,
 )
-from media_editor_app.services import media_service, story_service
+from media_editor_app.services import media_service, newscore_handoff_service, story_service
+
+_bearer = HTTPBearer(auto_error=False)
 
 router = APIRouter(prefix="/api/v1/media-editor", tags=["media-editor"])
 _REPORTER_ACCESS = Depends(require_role("reporter", "editor"))
@@ -256,4 +261,35 @@ async def read_ready_handoff(
     try:
         return await story_service.get_ready_story(db, story_id=story_id, owner_id=user.sub)
     except LookupError as exc:
+        raise _client_error(exc) from exc
+
+
+@router.post(
+    "/handoff/stories/{story_id}/send-to-editor",
+    response_model=SendToEditorOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def send_story_to_editor(
+    story_id: str,
+    payload: SendToEditorRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    user: TokenPayload = _REPORTER_ACCESS,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> SendToEditorOut:
+    """Store selected Media Desk report assets as a NewsCore editor draft."""
+
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing bearer token",
+        )
+    try:
+        return await newscore_handoff_service.send_story_to_editor(
+            db,
+            story_id=story_id,
+            owner_id=user.sub,
+            asset_ids=payload.asset_ids,
+            access_token=credentials.credentials,
+        )
+    except (LookupError, ValueError) as exc:
         raise _client_error(exc) from exc

@@ -74,9 +74,16 @@ services:
     environment:
       U2NET_HOME: /app/models
       MODEL_CHECKSUM_DISABLED: "1"
+      NEWS_STORAGE_API_URL: http://news_storage_app:5002
+      LAYOUT_ADMIN_API_URL: http://layout_admin_app:5003
+      MEDIA_EDITOR_PUBLIC_BASE_URL: http://localhost:5004
     depends_on:
       mongodb:
         condition: service_healthy
+      news_storage_app:
+        condition: service_started
+      layout_admin_app:
+        condition: service_started
     volumes:
       - ./backend/media_editor_app:/app
       - ./media-editor:/media-editor

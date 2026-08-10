@@ -129,6 +129,41 @@ async def add_asset_to_pool(
     return _serialize(story)
 
 
+async def update_story_status(
+    db: AsyncIOMotorDatabase,
+    *,
+    story_id: str,
+    owner_id: str,
+    status: str,
+) -> MediaStoryOut:
+    """Set story readiness after a successful NewsCore handoff.
+
+    Args:
+        db: Database connection.
+        story_id: Story package id.
+        owner_id: Authenticated owner id.
+        status: New status value (``draft`` or ``ready``).
+
+    Returns:
+        Updated story package.
+
+    Raises:
+        LookupError: If the story is missing.
+        ValueError: If status is not allowed.
+    """
+
+    if status not in {"draft", "ready"}:
+        raise ValueError("Story status must be draft or ready")
+    document = await db[STORIES].find_one_and_update(
+        {"_id": story_id, "owner_id": owner_id},
+        {"$set": {"status": status, "updated_at": _now()}},
+        return_document=True,
+    )
+    if document is None:
+        raise LookupError("Media story not found")
+    return _serialize(document)
+
+
 async def get_ready_story(
     db: AsyncIOMotorDatabase, *, story_id: str, owner_id: str
 ) -> MediaStoryOut:

@@ -46,8 +46,11 @@ interface IStoryWorkspaceProps {
   assetsById: Map<string, IMediaAsset>
   assets: IMediaAsset[]
   selectedAssetId: string | null
+  /** Asset ids checked for send-to-editor (report order only). */
+  exportAssetIds: ReadonlySet<string>
   poolUploadControl: ReactNode
   onSelectAsset: (asset: IMediaAsset) => void
+  onToggleExportAsset: (assetId: string) => void
   onEditImage: (asset: IMediaAsset) => void
   onEditVideo: (asset: IMediaAsset) => void
   onMergeVideos: () => Promise<void>
@@ -70,8 +73,10 @@ export function StoryWorkspace({
   assetsById,
   assets,
   selectedAssetId,
+  exportAssetIds,
   poolUploadControl,
   onSelectAsset,
+  onToggleExportAsset,
   onEditImage,
   onEditVideo,
   onMergeVideos,
@@ -436,10 +441,11 @@ export function StoryWorkspace({
         paneRef={reportPaneRef}
         className="min-w-0 w-full"
         title="Pictures for the report"
-        subtitle="Report order — one independent picture or video per card. Drag to reorder."
+        subtitle="Report order — check items to send to NewsCore Editor. Drag to reorder."
         emptyLabel="Drop pictures here from the pool"
         cards={selectedCards}
         selectedAssetId={selectedAssetId}
+        exportAssetIds={exportAssetIds}
         dragSource="selected"
         highlight={dropHint === 'selected'}
         showOrder
@@ -459,6 +465,7 @@ export function StoryWorkspace({
           />
         }
         onSelectAsset={handleCardClick}
+        onToggleExportAsset={onToggleExportAsset}
         onRemoveCard={removeAssetFromReport}
         onCardPointerDown={beginDrag}
         onDragOver={(event) => {
@@ -657,6 +664,7 @@ interface ICollectionPaneProps {
   emptyLabel: string
   cards: IStoryCard[]
   selectedAssetId: string | null
+  exportAssetIds?: ReadonlySet<string>
   dragSource: 'pool' | 'selected'
   highlight: boolean
   showOrder?: boolean
@@ -664,6 +672,7 @@ interface ICollectionPaneProps {
   dropInsertIndex?: number | null
   toolbar?: ReactNode
   onSelectAsset: (asset: IMediaAsset) => void
+  onToggleExportAsset?: (assetId: string) => void
   onRemoveCard?: (assetId: string) => void
   onCardPointerDown: (event: PointerEvent<HTMLElement>, payload: IDragPayload) => void
   onDragOver: (event: DragEvent<HTMLElement>) => void
@@ -680,6 +689,7 @@ function CollectionPane({
   emptyLabel,
   cards,
   selectedAssetId,
+  exportAssetIds,
   dragSource,
   highlight,
   showOrder = false,
@@ -687,6 +697,7 @@ function CollectionPane({
   dropInsertIndex = null,
   toolbar,
   onSelectAsset,
+  onToggleExportAsset,
   onRemoveCard,
   onCardPointerDown,
   onDragOver,
@@ -786,6 +797,22 @@ function CollectionPane({
                       {!hasEdits && asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}
                       {active ? ' · selected' : ''}
                     </p>
+                    {showOrder && onToggleExportAsset ? (
+                      <label
+                        className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-slate-600 sm:text-xs"
+                        onClick={(event) => event.stopPropagation()}
+                        onPointerDown={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 accent-brand"
+                          checked={exportAssetIds?.has(asset.id) ?? false}
+                          onChange={() => onToggleExportAsset(asset.id)}
+                          aria-label={`Include ${asset.title ?? asset.original_filename} when sending to Editor`}
+                        />
+                        Include
+                      </label>
+                    ) : null}
                   </div>
                 </article>
                 {showInsertAfter && (

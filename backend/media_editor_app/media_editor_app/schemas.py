@@ -111,6 +111,29 @@ class MediaStoryHandoffOut(BaseModel):
     assets: list[MediaAssetOut] = Field(default_factory=list)
 
 
+class SendToEditorRequest(BaseModel):
+    """Selected report assets to store as a NewsCore editor draft."""
+
+    asset_ids: list[str] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_unique_asset_ids(self) -> "SendToEditorRequest":
+        """Reject duplicate asset selections."""
+
+        if len(self.asset_ids) != len(set(self.asset_ids)):
+            raise ValueError("asset_ids must be unique")
+        return self
+
+
+class SendToEditorOut(BaseModel):
+    """Result of storing a Media Desk story as a NewsCore draft article."""
+
+    article_id: str
+    article_title: str
+    article_status: str
+    media_count: int
+
+
 class VideoSegment(BaseModel):
     """One included time range from a source video, in seconds."""
 
