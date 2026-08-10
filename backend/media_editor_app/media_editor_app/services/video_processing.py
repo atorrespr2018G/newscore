@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
-from media_editor_app.schemas import VideoEditInstruction, VideoSegment
+from media_editor_app.schemas import PictureReplacement, VideoEditInstruction, VideoSegment
+
+_DURATION_SLACK_SECONDS: float = 0.05
+_MIN_PIECE_SECONDS: float = 0.05
 
 
 def _ffmpeg_module():
@@ -31,6 +35,25 @@ def probe_video(file_path: Path) -> tuple[int | None, int | None, float | None]:
         raise ValueError("Uploaded file does not contain a video stream")
     duration = float(metadata["format"].get("duration", 0)) or None
     return stream.get("width"), stream.get("height"), duration
+
+
+@dataclass(frozen=True)
+class _PicturePiece:
+    """One contiguous video-only span on the composed timeline."""
+
+    source_path: Path
+    source_start: float
+    duration: float
+    from_insert: bool
+    is_still: bool
+
+
+@dataclass(frozen=True)
+class ResolvedInsertSource:
+    """Local media used as a picture insert over the base clip."""
+
+    path: Path
+    is_still: bool
 
 
 def extract_video_poster(video_path: Path) -> bytes:
@@ -118,21 +141,31 @@ def render_video(
     instruction: VideoEditInstruction,
     *,
     replace_audio_path: Path | None = None,
+    insert_sources: dict[str, ResolvedInsertSource] | None = None,
 ) -> None:
-    """Extract ordered segments, concatenate, apply overlays, then mute or replace audio.
+    """Render a cut package or picture-insert composition via FFmpeg.
 
     Args:
         source_path: Local path to the source video.
         output_path: Destination path for the rendered MP4.
-        instruction: Ordered segments plus optional burn-in and audio flags.
-        replace_audio_path: Optional soundtrack to mux over the rendered picture.
+        instruction: Segments, picture replacements, overlays, and audio flags.
+        replace_audio_path: Optional soundtrack to mux over a cut package.
+        insert_sources: Map of asset id → image/video path for picture inserts.
 
     Raises:
-        ValueError: If segments are invalid, audio options conflict, or FFmpeg fails.
+        ValueError: If the instruction is invalid or FFmpeg fails.
     """
 
     if instruction.mute_audio and replace_audio_path is not None:
         raise ValueError("Cannot mute audio and replace audio in the same render")
+    if instruction.picture_replacements:
+        _render_picture_replacements(
+            source_path,
+            output_path,
+            instruction,
+            insert_sources=insert_sources or {},
+        )
+        return
     ffmpeg = _ffmpeg_module()
     _, _, source_duration = probe_video(source_path)
     segments = _validated_segments(instruction.segments, source_duration)
@@ -155,18 +188,337 @@ def render_video(
         )
 
 
+def _render_picture_replacements(
+    source_path: Path,
+    output_path: Path,
+    instruction: VideoEditInstruction,
+    *,
+    insert_sources: dict[str, ResolvedInsertSource],
+) -> None:
+    """Punch images/videos into the picture while muxing the original full-length audio.
+
+    Args:
+        source_path: Base A-roll video path.
+        output_path: Destination MP4.
+        instruction: Must include at least one picture replacement.
+        insert_sources: Resolved local image/video paths keyed by asset id.
+
+    Raises:
+        ValueError: If replacements are invalid or FFmpeg fails.
+    """
+
+    ffmpeg = _ffmpeg_module()
+    width, height, source_duration = probe_video(source_path)
+    if source_duration is None or source_duration <= 0:
+        raise ValueError("Source video duration is unknown")
+    if width is None or height is None or width <= 0 or height <= 0:
+        raise ValueError("Source video dimensions are unknown")
+    pieces = _build_picture_pieces(
+        source_path=source_path,
+        source_duration=source_duration,
+        replacements=instruction.picture_replacements,
+        insert_sources=insert_sources,
+    )
+    with tempfile.TemporaryDirectory(prefix="media-editor-picture-") as temp_dir:
+        temp_root = Path(temp_dir)
+        clip_paths = [
+            _extract_video_only_piece(
+                ffmpeg,
+                piece=piece,
+                temp_root=temp_root,
+                index=index,
+                width=width,
+                height=height,
+            )
+            for index, piece in enumerate(pieces)
+        ]
+        silent_path = temp_root / "picture-silent.mp4"
+        _concat_video_only_clips(ffmpeg, clip_paths, silent_path)
+        pictured_path = temp_root / "pictured.mp4"
+        _apply_overlays_video_only(ffmpeg, silent_path, pictured_path, instruction)
+        _mux_source_audio(ffmpeg, pictured_path, source_path, output_path)
+
+
 def _validated_segments(segments: list[VideoSegment], source_duration: float | None) -> list[VideoSegment]:
     """Return segments after checking they fit inside the source duration."""
 
     if not segments:
         raise ValueError("At least one video segment is required")
     for index, segment in enumerate(segments):
-        if source_duration is not None and segment.end_seconds > source_duration + 0.05:
+        if source_duration is not None and segment.end_seconds > source_duration + _DURATION_SLACK_SECONDS:
             raise ValueError(
                 f"Segment {index + 1} ends at {segment.end_seconds:.2f}s but the source is only "
                 f"{source_duration:.2f}s long",
             )
     return segments
+
+
+def _build_picture_pieces(
+    *,
+    source_path: Path,
+    source_duration: float,
+    replacements: list[PictureReplacement],
+    insert_sources: dict[str, ResolvedInsertSource],
+) -> list[_PicturePiece]:
+    """Build sorted video-only pieces covering the full base timeline.
+
+    Args:
+        source_path: Base A-roll path.
+        source_duration: Probed base duration in seconds.
+        replacements: Punch-in windows from the edit instruction.
+        insert_sources: Resolved image/video inserts keyed by asset id.
+
+    Returns:
+        Contiguous pieces from 0 to source_duration.
+
+    Raises:
+        ValueError: On missing insert, overlap, out-of-range window, or short video.
+    """
+
+    if not replacements:
+        raise ValueError("At least one picture replacement is required")
+    ordered = sorted(replacements, key=lambda item: item.at_seconds)
+    validated: list[tuple[PictureReplacement, ResolvedInsertSource]] = []
+    previous_end = 0.0
+    for index, replacement in enumerate(ordered):
+        end_at = replacement.at_seconds + replacement.duration_seconds
+        if end_at > source_duration + _DURATION_SLACK_SECONDS:
+            raise ValueError(
+                f"Picture replacement {index + 1} ends at {end_at:.2f}s but the source is only "
+                f"{source_duration:.2f}s long",
+            )
+        if replacement.at_seconds + _DURATION_SLACK_SECONDS < previous_end:
+            raise ValueError(f"Picture replacement {index + 1} overlaps a previous replacement")
+        insert = insert_sources.get(replacement.source_asset_id)
+        if insert is None or not insert.path.exists():
+            raise ValueError(f"Insert media for replacement {index + 1} was not found")
+        if not insert.is_still:
+            _, _, insert_duration = probe_video(insert.path)
+            if insert_duration is None or insert_duration <= 0:
+                raise ValueError(f"Insert video duration for replacement {index + 1} is unknown")
+            if replacement.source_in_seconds >= insert_duration - _DURATION_SLACK_SECONDS:
+                raise ValueError(
+                    f"Insert video in-point for replacement {index + 1} is past the end of the clip",
+                )
+        validated.append((replacement, insert))
+        previous_end = end_at
+
+    pieces: list[_PicturePiece] = []
+    cursor = 0.0
+    for replacement, insert in validated:
+        gap = replacement.at_seconds - cursor
+        if gap > _MIN_PIECE_SECONDS:
+            pieces.append(
+                _PicturePiece(
+                    source_path=source_path,
+                    source_start=cursor,
+                    duration=gap,
+                    from_insert=False,
+                    is_still=False,
+                ),
+            )
+        pieces.append(
+            _PicturePiece(
+                source_path=insert.path,
+                source_start=0.0 if insert.is_still else replacement.source_in_seconds,
+                duration=replacement.duration_seconds,
+                from_insert=True,
+                is_still=insert.is_still,
+            ),
+        )
+        cursor = replacement.at_seconds + replacement.duration_seconds
+    tail = source_duration - cursor
+    if tail > _MIN_PIECE_SECONDS:
+        pieces.append(
+            _PicturePiece(
+                source_path=source_path,
+                source_start=cursor,
+                duration=tail,
+                from_insert=False,
+                is_still=False,
+            ),
+        )
+    if not pieces:
+        raise ValueError("Picture replacements produced an empty timeline")
+    return pieces
+
+
+def _extract_video_only_piece(
+    ffmpeg,
+    *,
+    piece: _PicturePiece,
+    temp_root: Path,
+    index: int,
+    width: int,
+    height: int,
+) -> Path:
+    """Extract one scaled video-only clip (or still hold) for composition.
+
+    Args:
+        ffmpeg: Loaded ffmpeg-python module.
+        piece: Source span to extract.
+        temp_root: Temporary directory for the clip.
+        index: Zero-based piece index for naming.
+        width: Target frame width from the base video.
+        height: Target frame height from the base video.
+
+    Returns:
+        Path to the temporary muted MP4 clip.
+
+    Raises:
+        ValueError: If FFmpeg fails.
+    """
+
+    clip_path = temp_root / f"picture-{index:02d}.mp4"
+    scale_filter = (
+        f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30"
+    )
+    try:
+        if piece.is_still:
+            stream = ffmpeg.input(str(piece.source_path), loop=1, framerate=30, t=piece.duration)
+        elif piece.from_insert:
+            # Loop short inserts so they fully cover the replaced base segment.
+            stream = ffmpeg.input(
+                str(piece.source_path),
+                ss=piece.source_start,
+                stream_loop=-1,
+                t=piece.duration,
+            )
+        else:
+            stream = ffmpeg.input(str(piece.source_path), ss=piece.source_start, t=piece.duration)
+        (
+            stream.output(
+                str(clip_path),
+                vf=scale_filter,
+                vcodec="libx264",
+                an=None,
+                avoid_negative_ts="make_zero",
+                movflags="+faststart",
+            )
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except ffmpeg.Error as exc:
+        if piece.is_still:
+            label = "still"
+        elif piece.from_insert:
+            label = "insert video"
+        else:
+            label = "base"
+        raise ValueError(f"Failed to extract {label} picture piece {index + 1}") from exc
+    return clip_path
+
+
+def _concat_video_only_clips(ffmpeg, clip_paths: list[Path], output_path: Path) -> None:
+    """Concatenate muted video clips into one video-only MP4.
+
+    Args:
+        ffmpeg: Loaded ffmpeg-python module.
+        clip_paths: Ordered temporary clips.
+        output_path: Destination path for the silent concat.
+
+    Raises:
+        ValueError: If FFmpeg fails.
+    """
+
+    if len(clip_paths) == 1:
+        output_path.write_bytes(clip_paths[0].read_bytes())
+        return
+    list_path = output_path.parent / "picture-concat.txt"
+    list_path.write_text(
+        "\n".join(f"file '{path.as_posix()}'" for path in clip_paths),
+        encoding="utf-8",
+    )
+    try:
+        (
+            ffmpeg.input(str(list_path), format="concat", safe=0)
+            .output(str(output_path), vcodec="libx264", an=None, movflags="+faststart")
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except ffmpeg.Error as exc:
+        raise ValueError("Failed to concatenate picture pieces") from exc
+
+
+def _apply_overlays_video_only(
+    ffmpeg,
+    source_path: Path,
+    output_path: Path,
+    instruction: VideoEditInstruction,
+) -> None:
+    """Burn optional overlays onto a video-only intermediate.
+
+    Args:
+        ffmpeg: Loaded ffmpeg-python module.
+        source_path: Silent composed picture.
+        output_path: Destination with overlays applied (still silent).
+        instruction: Optional title, lower third, and logo.
+
+    Raises:
+        ValueError: If overlay rendering fails.
+    """
+
+    has_overlay = bool(instruction.title or instruction.lower_third or instruction.logo_url)
+    if not has_overlay:
+        if source_path.resolve() != output_path.resolve():
+            output_path.write_bytes(source_path.read_bytes())
+        return
+    stream = ffmpeg.input(str(source_path))
+    video = stream.video
+    if instruction.logo_url:
+        logo = ffmpeg.input(str(instruction.logo_url))
+        video = ffmpeg.overlay(video, logo, x=20, y=20)
+    if instruction.title:
+        video = video.drawtext(text=instruction.title, x="(w-text_w)/2", y=40)
+    if instruction.lower_third:
+        video = video.drawtext(text=instruction.lower_third, x=40, y="h-80")
+    try:
+        (
+            ffmpeg.output(video, str(output_path), vcodec="libx264", an=None, movflags="+faststart")
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except ffmpeg.Error as exc:
+        raise ValueError("Video overlay rendering failed") from exc
+
+
+def _mux_source_audio(
+    ffmpeg,
+    picture_path: Path,
+    source_path: Path,
+    output_path: Path,
+) -> None:
+    """Mux the base clip's original audio onto a composed picture timeline.
+
+    Args:
+        ffmpeg: Loaded ffmpeg-python module.
+        picture_path: Silent composed video.
+        source_path: Base A-roll that supplies audio from t=0.
+        output_path: Final MP4 destination.
+
+    Raises:
+        ValueError: If FFmpeg fails.
+    """
+
+    picture = ffmpeg.input(str(picture_path))
+    audio = ffmpeg.input(str(source_path)).audio
+    try:
+        (
+            ffmpeg.output(
+                picture.video,
+                audio,
+                str(output_path),
+                vcodec="copy",
+                acodec="aac",
+                shortest=None,
+                movflags="+faststart",
+            )
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except ffmpeg.Error as exc:
+        raise ValueError("Failed to mux original audio onto picture inserts") from exc
 
 
 def _extract_segment(

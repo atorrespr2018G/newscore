@@ -262,10 +262,19 @@ export function StoryWorkspace({
    */
   function removeAssetFromReport(assetId: string): void {
     const currentStory = storyRef.current
+    const nextSelected = removeFromSelected(currentStory.selected_asset_ids, assetId)
+    if (nextSelected.join('\0') === currentStory.selected_asset_ids.join('\0')) return
+    // Cancel any in-progress card drag so pointer-up cannot re-apply a drop.
+    dragOrigin.current = null
+    activeDragRef.current = null
+    setDragPayload(null)
+    setDragPoint(null)
+    setDropHint(null)
+    setDropInsertIndex(null)
     void persist({
       ...currentStory,
       pool_asset_ids: poolRootIdsRef.current,
-      selected_asset_ids: removeFromSelected(currentStory.selected_asset_ids, assetId),
+      selected_asset_ids: nextSelected,
       status: 'draft',
     })
   }
@@ -770,14 +779,16 @@ function CollectionPane({
                     {showOrder && onRemoveCard && (
                       <button
                         type="button"
-                        className="absolute right-1.5 top-1.5 rounded bg-brand-ink/85 px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-brand"
+                        className="absolute right-1.5 top-1.5 z-20 rounded bg-brand-ink/85 px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-brand"
                         aria-label={`Remove ${asset.title ?? asset.original_filename} from report`}
                         onClick={(event) => {
+                          event.preventDefault()
                           event.stopPropagation()
                           onRemoveCard(asset.id)
                         }}
                         onPointerDown={(event) => {
                           // Keep card drag from starting when pressing the remove control.
+                          event.preventDefault()
                           event.stopPropagation()
                         }}
                       >

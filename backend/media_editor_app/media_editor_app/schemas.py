@@ -149,10 +149,31 @@ class VideoSegment(BaseModel):
         return self
 
 
+class PictureReplacement(BaseModel):
+    """Punch-in image or video covering a window on the base timeline (original audio kept)."""
+
+    at_seconds: float = Field(ge=0)
+    duration_seconds: float = Field(gt=0)
+    source_asset_id: str = Field(min_length=1, max_length=80)
+    source_in_seconds: float = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_window(self) -> "PictureReplacement":
+        """Ensure the replacement window has a positive duration."""
+
+        if self.duration_seconds <= 0:
+            raise ValueError("Picture replacement duration must be positive")
+        return self
+
+
 class VideoEditInstruction(BaseModel):
-    """Ordered segments (and optional overlays) for rendering one shorter MP4."""
+    """Ordered segments or picture replacements, plus optional overlays and audio flags."""
 
     segments: list[VideoSegment] = Field(default_factory=list, max_length=_MAX_VIDEO_SEGMENTS)
+    picture_replacements: list[PictureReplacement] = Field(
+        default_factory=list,
+        max_length=_MAX_VIDEO_SEGMENTS,
+    )
     # Legacy single-trim fields — used when segments is empty.
     trim_start_seconds: float = Field(default=0, ge=0)
     trim_end_seconds: float | None = Field(default=None, gt=0)
@@ -164,10 +185,16 @@ class VideoEditInstruction(BaseModel):
 
     @model_validator(mode="after")
     def ensure_segments(self) -> "VideoEditInstruction":
-        """Require at least one segment, deriving from legacy trim fields when needed."""
+        """Require segments or picture replacements; reject conflicting edit modes."""
 
         if self.mute_audio and self.replace_audio_asset_id:
             raise ValueError("Cannot mute audio and replace audio in the same render")
+        if self.picture_replacements:
+            if self.segments or self.trim_end_seconds is not None:
+                raise ValueError("Picture replacements cannot be combined with cut segments")
+            if self.mute_audio or self.replace_audio_asset_id:
+                raise ValueError("Picture replacements always keep the original audio")
+            return self
         if self.segments:
             return self
         if self.trim_end_seconds is None:

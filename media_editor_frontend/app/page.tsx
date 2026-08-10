@@ -218,11 +218,16 @@ export default function MediaLibraryPage(): JSX.Element {
     lookup: Map<string, IMediaAsset> = assetsById,
   ): Promise<void> {
     const poolIds = sanitizePoolIds(next.pool_asset_ids, lookup)
-    const cleaned = {
+    const cleaned = normalizeStoryTaxonomy({
       ...next,
       pool_asset_ids: poolIds,
       selected_asset_ids: sanitizeSelectedIds(next.selected_asset_ids, poolIds, lookup),
-    }
+    })
+    // Apply locally first so Remove/reorder/add update the UI immediately. Without this,
+    // storyAheadOfSave treats the pre-save state as "newer" and keeps the old report list.
+    setStories((current) =>
+      current.map((story) => (story.id === cleaned.id ? cleaned : story)),
+    )
     try {
       const saved = await updateStory(cleaned)
       setStories((current) =>
@@ -309,6 +314,31 @@ export default function MediaLibraryPage(): JSX.Element {
     }
     return ordered
   }, [activeStory, assetsById])
+
+  /**
+   * Report-order images and videos usable as picture inserts (base clip excluded).
+   * Pool-only media is appended after report order for anything not yet in the report.
+   */
+  const pictureInsertCandidates = useMemo(() => {
+    if (!activeStory || !videoEditorAsset) return [] as IMediaAsset[]
+    const seen = new Set<string>()
+    const ordered: IMediaAsset[] = []
+    for (const assetId of activeStory.selected_asset_ids) {
+      if (assetId === videoEditorAsset.id || seen.has(assetId)) continue
+      const asset = assetsById.get(assetId)
+      if (!asset || (asset.file_type !== 'image' && asset.file_type !== 'video')) continue
+      seen.add(asset.id)
+      ordered.push(asset)
+    }
+    for (const assetId of activeStory.pool_asset_ids) {
+      if (assetId === videoEditorAsset.id || seen.has(assetId)) continue
+      const asset = assetsById.get(assetId)
+      if (!asset || (asset.file_type !== 'image' && asset.file_type !== 'video')) continue
+      seen.add(asset.id)
+      ordered.push(asset)
+    }
+    return ordered
+  }, [activeStory, assetsById, videoEditorAsset])
 
   /**
    * Merge the user-selected videos into one file and place it in the report.
@@ -598,6 +628,7 @@ export default function MediaLibraryPage(): JSX.Element {
       {videoEditorAsset && (
         <VideoEditor
           asset={videoEditorAsset}
+          candidateMedia={pictureInsertCandidates}
           onClose={() => setVideoEditorAsset(null)}
           onSaved={async (derivative) => {
             const sourceInReport = Boolean(

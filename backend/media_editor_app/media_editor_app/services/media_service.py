@@ -11,9 +11,16 @@ from fastapi import UploadFile
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from media_editor_app.config import get_max_upload_bytes
-from media_editor_app.schemas import MediaAssetOut, MediaMetadataUpdate, VideoEditInstruction, VideoMergeInstruction
+from media_editor_app.schemas import (
+    MediaAssetOut,
+    MediaMetadataUpdate,
+    PictureReplacement,
+    VideoEditInstruction,
+    VideoMergeInstruction,
+)
 from media_editor_app.services.image_processing import extract_dimensions, remove_background
 from media_editor_app.services.video_processing import (
+    ResolvedInsertSource,
     extract_video_poster,
     merge_video_files,
     probe_audio_duration,
@@ -362,15 +369,23 @@ async def create_video_version(
         owner_id=owner_id,
         asset_id=instruction.replace_audio_asset_id,
     )
+    insert_sources = await _resolve_insert_sources(
+        db,
+        owner_id=owner_id,
+        replacements=instruction.picture_replacements,
+    )
     output_path, url = save_file(content=b"", media_type="videos", extension="mp4")
     render_video(
         get_local_path(source["url"]),
         output_path,
         instruction,
         replace_audio_path=replace_audio_path,
+        insert_sources=insert_sources,
     )
     audio_note = None
-    if instruction.mute_audio:
+    if instruction.picture_replacements:
+        audio_note = "Picture/video inserts under original audio."
+    elif instruction.mute_audio:
         audio_note = "Audio removed."
     elif replace_audio_path is not None:
         audio_note = "New narration or soundtrack applied."
@@ -434,6 +449,47 @@ async def _resolve_replace_audio_path(
     if not path.exists():
         raise ValueError("Replacement audio file was not found on disk")
     return path
+
+
+async def _resolve_insert_sources(
+    db: AsyncIOMotorDatabase,
+    *,
+    owner_id: str,
+    replacements: list[PictureReplacement],
+) -> dict[str, ResolvedInsertSource]:
+    """Resolve owned image or video assets for picture-insert rendering.
+
+    Args:
+        db: Media-editor Mongo database.
+        owner_id: Authenticated uploader id.
+        replacements: PictureReplacement entries from the render instruction.
+
+    Returns:
+        Map of asset id to resolved insert source (unique ids only).
+
+    Raises:
+        LookupError: If an asset is missing or not owned.
+        ValueError: If an asset is not image/video or is missing on disk.
+    """
+
+    sources: dict[str, ResolvedInsertSource] = {}
+    for replacement in replacements:
+        asset_id = replacement.source_asset_id
+        if asset_id in sources:
+            continue
+        document = await db[MEDIA_COLLECTION].find_one(
+            {"_id": asset_id, "uploader_id": owner_id},
+        )
+        if document is None:
+            raise LookupError("Media asset not found")
+        file_type = document.get("file_type")
+        if file_type not in {"image", "video"}:
+            raise ValueError(f"Insert asset {asset_id} must be an image or video")
+        path = get_local_path(str(document["url"]))
+        if not path.exists():
+            raise ValueError(f"Insert media {asset_id} was not found on disk")
+        sources[asset_id] = ResolvedInsertSource(path=path, is_still=file_type == "image")
+    return sources
 
 
 async def merge_video_assets(

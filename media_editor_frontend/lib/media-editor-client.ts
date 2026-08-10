@@ -173,9 +173,18 @@ export interface IVideoSegment {
   end_seconds: number
 }
 
-/** Render instruction for segment trim, overlays, and audio mute/replace. */
+/** Punch-in B-roll window on the base timeline (original audio kept). */
+export interface IPictureReplacement {
+  at_seconds: number
+  duration_seconds: number
+  source_asset_id: string
+  source_in_seconds?: number
+}
+
+/** Render instruction for cut segments or picture inserts, plus overlays/audio. */
 export interface IVideoRenderInstruction {
-  segments: IVideoSegment[]
+  segments?: IVideoSegment[]
+  picture_replacements?: IPictureReplacement[]
   title?: string
   lower_third?: string
   logo_url?: string
@@ -183,7 +192,7 @@ export interface IVideoRenderInstruction {
   replace_audio_asset_id?: string
 }
 
-/** Render a shorter MP4 from ordered segments through the backend FFmpeg path. */
+/** Render an edited MP4 through the backend FFmpeg path. */
 export async function renderVideo(
   id: string,
   instruction: IVideoRenderInstruction,
