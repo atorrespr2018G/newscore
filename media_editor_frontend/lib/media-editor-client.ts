@@ -40,6 +40,14 @@ export interface IMediaStory {
   owner_id: string
   created_at: string
   updated_at: string
+  /** NewsCore article id after a successful Send to Editor. */
+  sent_article_id?: string | null
+  sent_article_title?: string | null
+  sent_article_status?: string | null
+  sent_at?: string | null
+  sent_media_count?: number | null
+  /** Report-order asset ids included in the Send to Editor handoff. */
+  sent_asset_ids?: string[]
 }
 
 interface IMediaListResponse {
@@ -289,5 +297,20 @@ export function normalizeStoryTaxonomy(story: IMediaStory): IMediaStory {
     county_id: story.county_id ?? null,
     category_slugs: Array.isArray(story.category_slugs) ? story.category_slugs : [],
     international_potential: story.international_potential ?? null,
+    sent_article_id: story.sent_article_id ?? null,
+    sent_article_title: story.sent_article_title ?? null,
+    sent_article_status: story.sent_article_status ?? null,
+    sent_at: story.sent_at ?? null,
+    sent_media_count: story.sent_media_count ?? null,
+    sent_asset_ids: Array.isArray(story.sent_asset_ids) ? story.sent_asset_ids : [],
   }
+}
+
+/**
+ * Whether a Media Desk story belongs in the News tab (sent or marked ready).
+ * @param story - Story package row.
+ * @returns True when the package was handed off toward NewsCore.
+ */
+export function isSentToEditorStory(story: IMediaStory): boolean {
+  return Boolean(story.sent_article_id?.trim()) || story.status === 'ready'
 }

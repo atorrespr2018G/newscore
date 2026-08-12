@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -27,6 +28,7 @@ from media_editor_app.schemas import (
 from media_editor_app.services import media_service, newscore_handoff_service, story_service
 
 _bearer = HTTPBearer(auto_error=False)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/media-editor", tags=["media-editor"])
 _REPORTER_ACCESS = Depends(require_role("reporter", "editor"))
@@ -231,15 +233,56 @@ async def replace_story(
     payload: MediaStoryUpdate,
     db: AsyncIOMotorDatabase = Depends(get_database),
     user: TokenPayload = _REPORTER_ACCESS,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> MediaStoryOut:
-    """Replace story metadata, originals pool, report order, and readiness."""
+    """Replace story metadata, originals pool, report order, and readiness.
+
+    When the package was already sent to NewsCore, category/location changes are
+    synced onto the linked draft article so editors see the same taxonomy.
+    """
 
     try:
-        return await story_service.update_story(
+        existing = await story_service.get_story(db, story_id=story_id, owner_id=user.sub)
+        if existing.sent_article_id and len(payload.category_slugs) == 0:
+            raise ValueError("Select at least 1 category")
+        updated = await story_service.update_story(
             db, story_id=story_id, owner_id=user.sub, payload=payload,
         )
+        if updated.sent_article_id and _taxonomy_changed(existing, updated):
+            if credentials is None or not credentials.credentials:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Missing bearer token",
+                )
+            try:
+                await newscore_handoff_service.sync_sent_article_taxonomy(
+                    updated,
+                    access_token=credentials.credentials,
+                )
+            except ValueError as sync_error:
+                # Media Desk save already succeeded; do not block category edits on
+                # a downstream NewsCore sync failure.
+                logger.error(
+                    "Category sync to article %s failed: %s",
+                    updated.sent_article_id,
+                    sync_error,
+                    exc_info=True,
+                )
+        return updated
     except (LookupError, ValueError) as exc:
         raise _client_error(exc) from exc
+
+
+def _taxonomy_changed(before: MediaStoryOut, after: MediaStoryOut) -> bool:
+    """Return True when category/location fields differ between story versions."""
+
+    return (
+        before.category_slugs != after.category_slugs
+        or before.market_code != after.market_code
+        or before.town_id != after.town_id
+        or before.county_id != after.county_id
+        or before.international_potential != after.international_potential
+    )
 
 
 @router.get("/handoff/packages", response_model=List[MediaStoryHandoffOut])

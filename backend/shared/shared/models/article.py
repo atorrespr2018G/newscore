@@ -11,6 +11,7 @@ from shared.models.common import utc_now
 
 ArticleStatusType = Literal["draft", "review", "published", "archived"]
 RegionVisibilityMode = Literal["upward_only", "explicit_only", "custom"]
+ArticleSourceType = Literal["reporter", "media_desk"]
 
 
 class Article(BaseModel):
@@ -35,6 +36,8 @@ class Article(BaseModel):
     tags: list[str] = []
     thumbnail_url: str | None = None
     media_ids: list[str] = []
+    source: ArticleSourceType = "reporter"
+    source_package_id: str | None = None
     view_count: int = 0
     published_at: str | None = None
     created_at: str = Field(default_factory=lambda: utc_now().isoformat())

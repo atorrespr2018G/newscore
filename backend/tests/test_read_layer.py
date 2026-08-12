@@ -35,6 +35,27 @@ def test_article_out_maps_document() -> None:
     assert out.id == "abc123"
     assert out.slug == "hello"
     assert out.author_name == "Reporter"
+    assert out.source == "reporter"
+    assert out.source_package_id is None
+
+
+def test_article_out_maps_media_desk_source() -> None:
+    """article_out preserves Media Desk handoff provenance."""
+
+    doc = {
+        "_id": "desk1",
+        "title": "From desk",
+        "slug": "from-desk",
+        "status": "draft",
+        "thumbnail_url": None,
+        "source": "media_desk",
+        "source_package_id": "story-9",
+        "created_at": "2026-01-01",
+        "published_at": None,
+    }
+    out = article_out(doc, author_name="Editor")
+    assert out.source == "media_desk"
+    assert out.source_package_id == "story-9"
 
 
 def _make_article(article_id: str) -> ArticleOut:

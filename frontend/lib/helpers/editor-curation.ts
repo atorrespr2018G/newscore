@@ -71,6 +71,19 @@ export const EDITOR_POOL_PAGE_SIZE = 24
 /** Lifecycle status assigned to articles uploaded through the Reporter tool. */
 export const REPORTER_UPLOAD_STATUS = 'draft'
 
+/** ArticleCreate.source value used by Media Desk Send to Editor. */
+export const MEDIA_DESK_ARTICLE_SOURCE = 'media_desk' as const
+
+/**
+ * Decide whether an article arrived from Media Desk Send to Editor.
+ *
+ * @param article Editor story row to classify.
+ * @returns True when the article was created by a Media Desk handoff.
+ */
+export function isMediaDeskArticle(article: IEditorStoryRow): boolean {
+  return article.source === MEDIA_DESK_ARTICLE_SOURCE
+}
+
 /** Maximum allowed length for an article headline (mirrors the API schema). */
 export const MAX_TITLE_LENGTH = 200
 

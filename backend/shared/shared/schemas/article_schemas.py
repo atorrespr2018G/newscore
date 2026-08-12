@@ -9,12 +9,18 @@ from pydantic import BaseModel, Field
 
 ArticleStatusType = Literal["draft", "review", "published", "archived"]
 RegionVisibilityMode = Literal["upward_only", "explicit_only", "custom"]
+ArticleSourceType = Literal["reporter", "media_desk"]
 
 DEFAULT_MAX_IMAGE_COUNT = 5
 
-# A story must belong to at least one section but no more than three to keep
-# section feeds focused and avoid diluting category relevance.
+# Origin of a draft when created outside the Editor UI.
+ARTICLE_SOURCE_REPORTER: ArticleSourceType = "reporter"
+ARTICLE_SOURCE_MEDIA_DESK: ArticleSourceType = "media_desk"
+
+# A story must belong to at least one section.
 MIN_CATEGORY_COUNT = 1
+# Kept for NewsCore reporter UI helpers that still reference a soft guide;
+# Media Desk and article APIs do not enforce an upper bound.
 MAX_CATEGORY_COUNT = 3
 
 # International potential is an editorial 1-10 score estimating how relevant a
@@ -34,9 +40,7 @@ class ArticleCreate(BaseModel):
 
     title: str = Field(..., min_length=3, max_length=200)
     body: str = Field(..., min_length=10)
-    category_ids: list[str] = Field(
-        ..., min_length=MIN_CATEGORY_COUNT, max_length=MAX_CATEGORY_COUNT
-    )
+    category_ids: list[str] = Field(..., min_length=MIN_CATEGORY_COUNT)
     story_id: str | None = None
     international_potential: int | None = Field(
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
@@ -50,6 +54,8 @@ class ArticleCreate(BaseModel):
     media_ids: list[str] = []
     video_url: str | None = None
     max_image_count: int | None = Field(None, ge=1, le=20)
+    source: ArticleSourceType = ARTICLE_SOURCE_REPORTER
+    source_package_id: str | None = None
 
 
 class ArticleUpdate(BaseModel):
@@ -57,9 +63,7 @@ class ArticleUpdate(BaseModel):
 
     title: str | None = Field(None, min_length=3, max_length=200)
     body: str | None = Field(None, min_length=10)
-    category_ids: list[str] | None = Field(
-        None, min_length=MIN_CATEGORY_COUNT, max_length=MAX_CATEGORY_COUNT
-    )
+    category_ids: list[str] | None = Field(None, min_length=MIN_CATEGORY_COUNT)
     story_id: str | None = None
     international_potential: int | None = Field(
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
@@ -87,6 +91,8 @@ class ArticleOut(BaseModel):
     thumbnail_url: str | None
     video_url: str | None = None
     category_ids: list[str] = []
+    source: ArticleSourceType = ARTICLE_SOURCE_REPORTER
+    source_package_id: str | None = None
     created_at: str
     published_at: str | None
     review_submitted_at: str | None = None

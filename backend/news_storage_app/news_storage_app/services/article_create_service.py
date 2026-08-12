@@ -124,6 +124,8 @@ def _new_article_doc(
         "media_ids": fields.media_ids,
         "video_url": body.video_url,
         "max_image_count": fields.max_image_count,
+        "source": body.source,
+        "source_package_id": body.source_package_id,
         "view_count": 0,
         "published_at": None,
         "created_at": now,

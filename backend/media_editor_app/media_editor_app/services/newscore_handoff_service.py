@@ -18,6 +18,9 @@ from media_editor_app.helpers.region_code import to_region_code
 from media_editor_app.schemas import MediaAssetOut, MediaStoryOut, SendToEditorOut
 from media_editor_app.services import media_service, story_service
 
+# Mirror News Storage ArticleCreate.source for Media Desk handoffs.
+_ARTICLE_SOURCE_MEDIA_DESK = "media_desk"
+
 logger = logging.getLogger(__name__)
 
 _HOMEPAGE_PAGE_NAME = "homepage"
@@ -67,14 +70,25 @@ async def send_story_to_editor(
         media_rows=media_rows,
         access_token=access_token,
     )
-    await story_service.update_story_status(
-        db, story_id=story_id, owner_id=owner_id, status="ready",
+    article_id = str(article["id"])
+    article_title = str(article["title"])
+    article_status = str(article.get("status") or "draft")
+    media_count = len(media_rows)
+    await story_service.record_editor_handoff(
+        db,
+        story_id=story_id,
+        owner_id=owner_id,
+        article_id=article_id,
+        article_title=article_title,
+        article_status=article_status,
+        media_count=media_count,
+        sent_asset_ids=asset_ids,
     )
     return SendToEditorOut(
-        article_id=str(article["id"]),
-        article_title=str(article["title"]),
-        article_status=str(article.get("status") or "draft"),
-        media_count=len(media_rows),
+        article_id=article_id,
+        article_title=article_title,
+        article_status=article_status,
+        media_count=media_count,
     )
 
 
@@ -239,8 +253,9 @@ async def _create_draft_article(
         Created article payload.
     """
 
-    images = [row for row in media_rows if row.get("file_type") == "image"]
-    videos = [row for row in media_rows if row.get("file_type") == "video"]
+    # Keep Media Desk report order for media_ids (same order the user sent).
+    first_image = next((row for row in media_rows if row.get("file_type") == "image"), None)
+    first_video = next((row for row in media_rows if row.get("file_type") == "video"), None)
     region_code = to_region_code(story.market_code, story.town_id, story.county_id)
     payload = {
         "title": story.title.strip(),
@@ -251,8 +266,10 @@ async def _create_draft_article(
         "direct_region_ids": [region_code],
         "region_visibility_mode": "upward_only",
         "media_ids": [str(row["id"]) for row in media_rows],
-        "thumbnail_url": images[0].get("url") if images else None,
-        "video_url": videos[0].get("url") if videos else None,
+        "thumbnail_url": first_image.get("url") if first_image else None,
+        "video_url": first_video.get("url") if first_video else None,
+        "source": _ARTICLE_SOURCE_MEDIA_DESK,
+        "source_package_id": story.id,
     }
     return await _post_json(
         f"{get_news_storage_api_url()}/articles",
@@ -345,6 +362,82 @@ async def _post_json(
     if not isinstance(data, dict):
         raise ValueError("Unexpected response from NewsCore")
     return data
+
+
+async def _patch_json(
+    url: str,
+    *,
+    payload: dict[str, Any],
+    access_token: str,
+) -> dict[str, Any]:
+    """Perform an authenticated PATCH and return parsed JSON object.
+
+    Args:
+        url: Absolute request URL.
+        payload: JSON body.
+        access_token: Bearer token.
+
+    Returns:
+        Parsed JSON object.
+
+    Raises:
+        ValueError: When the remote API returns an error or non-object body.
+    """
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT_SECONDS) as client:
+            response = await client.patch(url, headers=headers, json=payload)
+    except httpx.HTTPError as exc:
+        logger.error("Handoff PATCH failed for %s: %s", url, exc, exc_info=True)
+        raise ValueError(f"Unable to reach NewsCore service at {url}") from exc
+    if response.status_code >= 400:
+        raise ValueError(_remote_error_message(response))
+    data = response.json()
+    if not isinstance(data, dict):
+        raise ValueError("Unexpected response from NewsCore")
+    return data
+
+
+async def sync_sent_article_taxonomy(
+    story: MediaStoryOut,
+    *,
+    access_token: str,
+) -> None:
+    """Push Media Desk category/location fields onto the linked NewsCore article.
+
+    Args:
+        story: Story package that already has ``sent_article_id``.
+        access_token: Bearer token for News Storage / Layout Admin.
+
+    Raises:
+        ValueError: When taxonomy cannot be resolved or the article update fails.
+    """
+
+    article_id = (story.sent_article_id or "").strip()
+    if not article_id:
+        return
+    if not story.category_slugs:
+        raise ValueError("Select at least 1 category")
+    market_id = await _resolve_market_id(story, access_token=access_token)
+    category_ids = await _resolve_category_ids(story, access_token=access_token)
+    region_code = to_region_code(story.market_code, story.town_id, story.county_id)
+    payload: dict[str, Any] = {
+        "category_ids": category_ids,
+        "market_ids": [market_id],
+        "direct_region_ids": [region_code],
+        "region_visibility_mode": "upward_only",
+    }
+    if story.international_potential is not None:
+        payload["international_potential"] = story.international_potential
+    await _patch_json(
+        f"{get_news_storage_api_url()}/articles/{article_id}",
+        payload=payload,
+        access_token=access_token,
+    )
 
 
 def _remote_error_message(response: httpx.Response) -> str:

@@ -20,6 +20,9 @@ export interface IEditorStoryRow {
   author_name: string
   thumbnail_url: string | null
   category_ids?: string[]
+  /** Where the draft was created; Media Desk handoffs use `media_desk`. */
+  source?: 'reporter' | 'media_desk'
+  source_package_id?: string | null
 }
 
 /** Article detail payload from the editor REST API. */

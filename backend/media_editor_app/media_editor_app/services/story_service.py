@@ -36,6 +36,12 @@ def _serialize(doc: dict[str, Any]) -> MediaStoryOut:
     data.setdefault("town_id", None)
     data.setdefault("county_id", None)
     data.setdefault("international_potential", None)
+    data.setdefault("sent_article_id", None)
+    data.setdefault("sent_article_title", None)
+    data.setdefault("sent_article_status", None)
+    data.setdefault("sent_at", None)
+    data.setdefault("sent_media_count", None)
+    data["sent_asset_ids"] = list(data.get("sent_asset_ids") or [])
     data["category_slugs"] = list(data.get("category_slugs") or [])
     return MediaStoryOut(id=doc["_id"], **data)
 
@@ -157,6 +163,58 @@ async def update_story_status(
     document = await db[STORIES].find_one_and_update(
         {"_id": story_id, "owner_id": owner_id},
         {"$set": {"status": status, "updated_at": _now()}},
+        return_document=True,
+    )
+    if document is None:
+        raise LookupError("Media story not found")
+    return _serialize(document)
+
+
+async def record_editor_handoff(
+    db: AsyncIOMotorDatabase,
+    *,
+    story_id: str,
+    owner_id: str,
+    article_id: str,
+    article_title: str,
+    article_status: str,
+    media_count: int,
+    sent_asset_ids: list[str],
+) -> MediaStoryOut:
+    """Mark a story ready and store the NewsCore article created by Send to Editor.
+
+    Args:
+        db: Database connection.
+        story_id: Story package id.
+        owner_id: Authenticated owner id.
+        article_id: Created News Storage article id.
+        article_title: Created article title.
+        article_status: Created article lifecycle status.
+        media_count: Number of media rows registered on the article.
+        sent_asset_ids: Report-order asset ids included in the handoff.
+
+    Returns:
+        Updated story package.
+
+    Raises:
+        LookupError: If the story is missing.
+    """
+
+    timestamp = _now()
+    document = await db[STORIES].find_one_and_update(
+        {"_id": story_id, "owner_id": owner_id},
+        {
+            "$set": {
+                "status": "ready",
+                "sent_article_id": article_id,
+                "sent_article_title": article_title,
+                "sent_article_status": article_status,
+                "sent_media_count": media_count,
+                "sent_asset_ids": list(sent_asset_ids),
+                "sent_at": timestamp,
+                "updated_at": timestamp,
+            },
+        },
         return_document=True,
     )
     if document is None:

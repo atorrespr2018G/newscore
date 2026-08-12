@@ -10,7 +10,6 @@ from shared.core.exceptions import ValidationError
 from shared.read.collections import CATEGORIES_COLLECTION, MARKETS_COLLECTION
 from shared.schemas.article_schemas import (
     DEFAULT_MAX_IMAGE_COUNT,
-    MAX_CATEGORY_COUNT,
     MIN_CATEGORY_COUNT,
     ArticleCreate,
 )
@@ -70,8 +69,6 @@ async def _validate_category_ids(db: AsyncIOMotorDatabase, category_ids: list[st
 
     if len(normalized) < MIN_CATEGORY_COUNT:
         raise ValidationError(f"Select at least {MIN_CATEGORY_COUNT} category")
-    if len(normalized) > MAX_CATEGORY_COUNT:
-        raise ValidationError(f"Select no more than {MAX_CATEGORY_COUNT} categories")
 
     for category_id in normalized:
         exists = await db[CATEGORIES_COLLECTION].find_one({"_id": category_id}, {"_id": 1})

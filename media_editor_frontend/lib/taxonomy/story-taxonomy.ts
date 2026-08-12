@@ -19,9 +19,8 @@ export interface ICategoryOption {
   parentSlug: string | null
 }
 
-/** Editorial rule: a story belongs to at least one and at most three sections. */
+/** At least one category is required before marking ready / sending to Editor. */
 export const MIN_CATEGORY_COUNT = 1
-export const MAX_CATEGORY_COUNT = 3
 
 /** Parent slug for per-sport subcategory chips. */
 export const SPORTS_CATEGORY_SLUG = 'sports'
@@ -97,7 +96,10 @@ export function marketHasCounty(marketCode: string, townId: string | null): bool
 }
 
 /**
- * Toggle a category slug within the current selection, enforcing the max cap.
+ * Toggle a single category slug on or off.
+ *
+ * Each category is independent: clicking only affects that slug. No selection cap.
+ *
  * @param selected - Currently selected category slugs.
  * @param slug - Category slug being toggled.
  * @returns Updated selection.
@@ -106,27 +108,7 @@ export function toggleCategorySlug(selected: string[], slug: string): string[] {
   if (selected.includes(slug)) {
     return selected.filter((item) => item !== slug)
   }
-  if (selected.length >= MAX_CATEGORY_COUNT) {
-    return selected
-  }
   return [...selected, slug]
-}
-
-/**
- * Toggle a root section; unchecking Sports also clears sport children.
- * @param selected - Currently selected category slugs.
- * @param slug - Root category slug being toggled.
- * @returns Updated selection.
- */
-export function toggleRootCategorySlug(selected: string[], slug: string): string[] {
-  if (selected.includes(slug)) {
-    const sportSlugs = new Set(SPORT_CATEGORY_OPTIONS.map((item) => item.slug))
-    if (slug === SPORTS_CATEGORY_SLUG) {
-      return selected.filter((item) => item !== slug && !sportSlugs.has(item))
-    }
-    return selected.filter((item) => item !== slug)
-  }
-  return toggleCategorySlug(selected, slug)
 }
 
 /**
@@ -137,9 +119,6 @@ export function toggleRootCategorySlug(selected: string[], slug: string): string
 export function validateStoryTaxonomy(categorySlugs: string[]): string | null {
   if (categorySlugs.length < MIN_CATEGORY_COUNT) {
     return `Select at least ${MIN_CATEGORY_COUNT} category`
-  }
-  if (categorySlugs.length > MAX_CATEGORY_COUNT) {
-    return `Select at most ${MAX_CATEGORY_COUNT} categories`
   }
   return null
 }

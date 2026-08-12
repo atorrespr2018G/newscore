@@ -184,7 +184,8 @@
       },
       "tabs": {
         "all": "All news",
-        "new": "New"
+        "new": "New",
+        "mediaDesk": "Media Desk"
       },
       "filters": {
         "all": "All",
@@ -199,7 +200,8 @@
       },
       "empty": {
         "search": "No stories match your search.",
-        "new": "No new reporter uploads waiting. Placed stories move to the All news tab.",
+        "new": "No new Reporter or Media Desk uploads waiting. Placed stories move to the All news tab.",
+        "mediaDesk": "No Media Desk report packages have been sent yet. Sent packages appear here in the same format as Reporter drafts.",
         "filters": "No stories match the current filters."
       }
     },

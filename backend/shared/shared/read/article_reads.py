@@ -48,6 +48,8 @@ def _apply_pinned_scope_filters(
 def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
     """Map a Mongo article document to ArticleOut."""
 
+    source = doc.get("source") or "reporter"
+    package_id = doc.get("source_package_id")
     return ArticleOut(
         id=str(doc["_id"]),
         title=doc["title"],
@@ -57,6 +59,8 @@ def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
         thumbnail_url=doc.get("thumbnail_url"),
         video_url=doc.get("video_url"),
         category_ids=_category_ids_from_doc(doc),
+        source=source if source in ("reporter", "media_desk") else "reporter",
+        source_package_id=str(package_id) if package_id else None,
         created_at=doc.get("created_at", ""),
         published_at=doc.get("published_at"),
         review_submitted_at=doc.get("review_submitted_at"),

@@ -6,15 +6,11 @@ import { PUERTO_RICO_TOWN_OPTIONS } from '@/lib/taxonomy/puerto-rico-towns'
 import {
   INTERNATIONAL_POTENTIAL_OPTIONS,
   MARKET_OPTIONS,
-  MAX_CATEGORY_COUNT,
   ROOT_CATEGORY_OPTIONS,
   SPORT_CATEGORY_OPTIONS,
-  SPORTS_CATEGORY_SLUG,
   marketHasCounty,
   marketHasLocality,
   storyRegionCode,
-  toggleCategorySlug,
-  toggleRootCategorySlug,
   type MarketCode,
 } from '@/lib/taxonomy/story-taxonomy'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/taxonomy/us-states'
@@ -22,12 +18,13 @@ import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/taxonomy/us-states'
 interface IStoryTaxonomyFieldsProps {
   story: IMediaStory
   onPatch: (partial: Partial<IMediaStory>) => void
+  /** Toggle one category slug on/off from the latest story state. */
+  onToggleCategory: (slug: string) => void
 }
 
 interface ICategoryChipProps {
   label: string
   checked: boolean
-  disabled: boolean
   onToggle: () => void
 }
 
@@ -38,27 +35,25 @@ interface ILocationFieldsProps {
 
 interface ICategoryFieldsProps {
   categorySlugs: string[]
-  onPatch: (partial: Partial<IMediaStory>) => void
+  onToggleCategory: (slug: string) => void
 }
 
 /**
- * One selectable category or sport chip.
+ * One selectable category chip — click to turn on, click again to turn off.
  * @param props - Label, checked state, and toggle handler.
  * @returns Accessible toggle button styled as a chip.
  */
-function CategoryChip({ label, checked, disabled, onToggle }: ICategoryChipProps): JSX.Element {
+function CategoryChip({ label, checked, onToggle }: ICategoryChipProps): JSX.Element {
   return (
     <button
       type="button"
       aria-pressed={checked}
-      disabled={disabled}
       onClick={onToggle}
       className={[
         'rounded-lg border px-2.5 py-1 text-xs font-medium transition',
         checked
           ? 'border-brand bg-brand text-white'
           : 'border-brand-line bg-white text-slate-700 hover:border-slate-300',
-        disabled ? 'cursor-not-allowed opacity-40' : '',
       ].join(' ')}
     >
       {label}
@@ -163,70 +158,58 @@ function LocalitySelect({ story, onPatch }: ILocationFieldsProps): JSX.Element {
 }
 
 /**
- * Root category chips plus Sport subcategory when Sports is selected.
- * @param props - Selected slugs and patch helper.
+ * Independent category chips — each slug toggles only itself on click.
+ * @param props - Selected slugs and per-slug toggle handler.
  * @returns Categories fieldset.
  */
-function CategoryFields({ categorySlugs, onPatch }: ICategoryFieldsProps): JSX.Element {
-  const sportsSelected = categorySlugs.includes(SPORTS_CATEGORY_SLUG)
-  const atLimit = categorySlugs.length >= MAX_CATEGORY_COUNT
+function CategoryFields({ categorySlugs, onToggleCategory }: ICategoryFieldsProps): JSX.Element {
+  const selectedCount = categorySlugs.length
   return (
     <fieldset>
-      <legend className="text-sm font-medium text-slate-700">
-        Categories <span className="font-normal text-slate-500">(choose 1–3)</span>
-      </legend>
+      <legend className="text-sm font-medium text-slate-700">Categories</legend>
       <p className="mt-1 text-xs text-slate-500">
-        Selected {categorySlugs.length}/{MAX_CATEGORY_COUNT}
-        {atLimit ? ' · uncheck one to pick another' : ''}
+        Click a category to turn it on or off
+        {selectedCount > 0 ? ` · selected ${selectedCount}` : ''}
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {ROOT_CATEGORY_OPTIONS.map((category) => {
-          const checked = categorySlugs.includes(category.slug)
-          return (
-            <CategoryChip
-              key={category.slug}
-              label={category.label}
-              checked={checked}
-              disabled={!checked && atLimit}
-              onToggle={() =>
-                onPatch({ category_slugs: toggleRootCategorySlug(categorySlugs, category.slug) })
-              }
-            />
-          )
-        })}
+        {ROOT_CATEGORY_OPTIONS.map((category) => (
+          <CategoryChip
+            key={category.slug}
+            label={category.label}
+            checked={categorySlugs.includes(category.slug)}
+            onToggle={() => onToggleCategory(category.slug)}
+          />
+        ))}
       </div>
-      {sportsSelected ? (
-        <div className="mt-3">
-          <p className="text-xs font-medium text-slate-600">Sport</p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {SPORT_CATEGORY_OPTIONS.map((sport) => {
-              const checked = categorySlugs.includes(sport.slug)
-              return (
-                <CategoryChip
-                  key={sport.slug}
-                  label={sport.label}
-                  checked={checked}
-                  disabled={!checked && atLimit}
-                  onToggle={() =>
-                    onPatch({ category_slugs: toggleCategorySlug(categorySlugs, sport.slug) })
-                  }
-                />
-              )
-            })}
-          </div>
+      <div className="mt-3">
+        <p className="text-xs font-medium text-slate-600">Sport</p>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {SPORT_CATEGORY_OPTIONS.map((sport) => (
+            <CategoryChip
+              key={sport.slug}
+              label={sport.label}
+              checked={categorySlugs.includes(sport.slug)}
+              onToggle={() => onToggleCategory(sport.slug)}
+            />
+          ))}
         </div>
-      ) : null}
+      </div>
     </fieldset>
   )
 }
 
 /**
  * Reporter-parity location, category, and international-potential controls.
- * @param props - Active story and patch handler that merges against latest state.
+ * @param props - Active story, patch handler, and independent category toggler.
  * @returns Story location + categories fieldset panel.
  */
-export function StoryTaxonomyFields({ story, onPatch }: IStoryTaxonomyFieldsProps): JSX.Element {
+export function StoryTaxonomyFields({
+  story,
+  onPatch,
+  onToggleCategory,
+}: IStoryTaxonomyFieldsProps): JSX.Element {
   const regionCode = storyRegionCode(story.market_code, story.town_id, story.county_id)
+  const alreadySent = Boolean(story.sent_article_id?.trim())
 
   return (
     <section className="me-panel space-y-5 p-5 md:p-6">
@@ -237,9 +220,18 @@ export function StoryTaxonomyFields({ story, onPatch }: IStoryTaxonomyFieldsProp
           Same options as the reporter desk · region{' '}
           <span className="font-medium text-slate-700">{regionCode}</span>
         </p>
+        {alreadySent ? (
+          <p className="mt-2 rounded-lg border border-brand-line bg-brand-paper px-3 py-2 text-xs text-slate-600">
+            Already sent to Editor — category and location changes stay editable and sync to the
+            NewsCore draft.
+          </p>
+        ) : null}
       </div>
       <LocationFields story={story} onPatch={onPatch} />
-      <CategoryFields categorySlugs={story.category_slugs} onPatch={onPatch} />
+      <CategoryFields
+        categorySlugs={story.category_slugs}
+        onToggleCategory={onToggleCategory}
+      />
       <label className="block text-sm font-medium text-slate-700">
         International potential{' '}
         <span className="font-normal text-slate-500">(optional, 1–10)</span>

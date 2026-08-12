@@ -12,7 +12,6 @@ StoryStatus = Literal["draft", "ready"]
 MarketCode = Literal["us", "pr", "co"]
 
 _MAX_VIDEO_SEGMENTS: int = 20
-_MAX_STORY_CATEGORIES: int = 3
 
 
 class MediaMetadataUpdate(BaseModel):
@@ -57,7 +56,7 @@ class MediaStoryCreate(BaseModel):
     market_code: MarketCode = "us"
     town_id: str | None = Field(default=None, max_length=80)
     county_id: str | None = Field(default=None, max_length=80)
-    category_slugs: list[str] = Field(default_factory=list, max_length=_MAX_STORY_CATEGORIES)
+    category_slugs: list[str] = Field(default_factory=list)
     international_potential: int | None = Field(default=None, ge=1, le=10)
 
 
@@ -72,7 +71,7 @@ class MediaStoryUpdate(BaseModel):
     market_code: MarketCode = "us"
     town_id: str | None = Field(default=None, max_length=80)
     county_id: str | None = Field(default=None, max_length=80)
-    category_slugs: list[str] = Field(default_factory=list, max_length=_MAX_STORY_CATEGORIES)
+    category_slugs: list[str] = Field(default_factory=list)
     international_potential: int | None = Field(default=None, ge=1, le=10)
 
     @model_validator(mode="after")
@@ -102,6 +101,14 @@ class MediaStoryOut(MediaStoryUpdate):
     owner_id: str
     created_at: str
     updated_at: str
+    # Populated when Send to Editor creates a NewsCore draft article.
+    sent_article_id: str | None = None
+    sent_article_title: str | None = None
+    sent_article_status: str | None = None
+    sent_at: str | None = None
+    sent_media_count: int | None = None
+    # Report-order asset ids that were included in the NewsCore handoff.
+    sent_asset_ids: list[str] = Field(default_factory=list)
 
 
 class MediaStoryHandoffOut(BaseModel):

@@ -19,6 +19,7 @@ import {
 import {
   EMPTY_EDITOR_SEARCH_FILTERS,
   hasActiveSearchFilters,
+  isMediaDeskArticle,
   isNewReporterArticle,
   type IEditorSearchFilters,
 } from '@/lib/helpers/editor-curation'
@@ -44,7 +45,7 @@ const EDITOR_SEARCH_DEBOUNCE_MS = 300
 type PlacementFilterType = 'all' | 'unplaced' | 'homepage'
 
 /** Which source list of stories the editor is currently viewing. */
-type NewsTabType = 'all' | 'new'
+type NewsTabType = 'all' | 'new' | 'mediaDesk'
 
 /**
  * Decide whether an article passes the active placement quick filter.
@@ -207,13 +208,22 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     [articles, placementMap],
   )
 
+  const mediaDeskCount = useMemo(
+    () => articles.filter((article) => isMediaDeskArticle(article)).length,
+    [articles],
+  )
+
   const visibleArticles = useMemo(() => {
     return sourceArticles.filter((article) => {
       const placements = placementMap.get(article.id) ?? []
-      // The "New" tab only surfaces freshly uploaded reporter stories; once
-      // placed on the canvas they drop out here and reappear in the All tab.
+      // The "New" tab only surfaces freshly uploaded reporter/Media Desk stories;
+      // once placed on the canvas they drop out here and reappear in All.
       if (activeTab === 'new') {
         return isNewReporterArticle(article, placements)
+      }
+      // Media Desk tab keeps every handoff article (same storage shape as Reporter).
+      if (activeTab === 'mediaDesk') {
+        return isMediaDeskArticle(article)
       }
       return matchesPlacementFilter(placements, placementFilter)
     })
@@ -221,7 +231,12 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
 
   return (
     <div className="flex flex-col">
-      <NewsTabBar activeTab={activeTab} newCount={newCount} onTabChange={setActiveTab} />
+      <NewsTabBar
+        activeTab={activeTab}
+        newCount={newCount}
+        mediaDeskCount={mediaDeskCount}
+        onTabChange={setActiveTab}
+      />
 
       <PoolFilterBar
         filters={filters}
@@ -415,28 +430,32 @@ function resolveEmptyMessageKey(activeTab: NewsTabType, searchActive: boolean): 
   if (activeTab === 'new') {
     return 'editor.pool.empty.new'
   }
+  if (activeTab === 'mediaDesk') {
+    return 'editor.pool.empty.mediaDesk'
+  }
   return 'editor.pool.empty.filters'
 }
 
 interface INewsTabBarProps {
   activeTab: NewsTabType
   newCount: number
+  mediaDeskCount: number
   onTabChange: (tab: NewsTabType) => void
 }
 
 const TAB_BASE_CLASS = 'border-b-2 px-1 pb-2 text-sm font-medium transition-colors'
 
 /**
- * Tab switcher between the full article pool and new reporter uploads.
+ * Tab switcher for the article pool, new uploads, and Media Desk handoffs.
  *
  * @param props Component props.
  * @returns Tab bar UI.
  */
 function NewsTabBar(props: INewsTabBarProps): JSX.Element {
-  const { activeTab, newCount, onTabChange } = props
+  const { activeTab, newCount, mediaDeskCount, onTabChange } = props
   const t = useTranslations('admin')
   return (
-    <div className="mb-4 flex gap-4 border-b border-neutral-200" role="tablist">
+    <div className="mb-4 flex flex-wrap gap-4 border-b border-neutral-200" role="tablist">
       <button
         type="button"
         role="tab"
@@ -457,6 +476,20 @@ function NewsTabBar(props: INewsTabBarProps): JSX.Element {
         {newCount > 0 ? (
           <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">
             {newCount}
+          </span>
+        ) : null}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === 'mediaDesk'}
+        onClick={() => onTabChange('mediaDesk')}
+        className={`${TAB_BASE_CLASS} ${activeTab === 'mediaDesk' ? 'border-brand text-brand' : 'border-transparent text-neutral-600 hover:text-neutral-900'}`}
+      >
+        {t('editor.pool.tabs.mediaDesk')}
+        {mediaDeskCount > 0 ? (
+          <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">
+            {mediaDeskCount}
           </span>
         ) : null}
       </button>

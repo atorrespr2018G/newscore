@@ -7,6 +7,7 @@ import { RichTextEditor, type IRichTextEditorHandle } from '@/components/rich-te
 import { StoryTaxonomyFields } from '@/components/story-taxonomy-fields'
 import { StoryUploadControl } from '@/components/story-upload-control'
 import { StoryWorkspace } from '@/components/story-workspace'
+import { SentNewsPool } from '@/components/sent-news-pool'
 import { VideoEditor } from '@/components/video-editor'
 import { VideoMergePicker } from '@/components/video-merge-picker'
 import {
@@ -16,6 +17,7 @@ import {
   getAccessToken,
   IMediaAsset,
   IMediaStory,
+  isSentToEditorStory,
   listAssets,
   listStories,
   login,
@@ -26,7 +28,10 @@ import {
   updateAsset,
   updateStory,
 } from '@/lib/media-editor-client'
-import { validateStoryTaxonomy } from '@/lib/taxonomy/story-taxonomy'
+import {
+  toggleCategorySlug,
+  validateStoryTaxonomy,
+} from '@/lib/taxonomy/story-taxonomy'
 import {
   MAX_TITLE_LENGTH,
   toDescriptionHtml,
@@ -94,9 +99,14 @@ export default function MediaLibraryPage(): JSX.Element {
   const [mergePickerOpen, setMergePickerOpen] = useState(false)
   const [exportAssetIds, setExportAssetIds] = useState<Set<string>>(() => new Set())
   const [sendingToEditor, setSendingToEditor] = useState(false)
+  const [deskTab, setDeskTab] = useState<'workspace' | 'news'>('workspace')
 
   const assetsById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets])
   const activeStory = stories.find((story) => story.id === activeStoryId) ?? null
+  const sentNewsCount = useMemo(
+    () => stories.filter(isSentToEditorStory).length,
+    [stories],
+  )
 
   useEffect(() => setAuthenticated(Boolean(getAccessToken())), [])
   useEffect(() => {
@@ -134,6 +144,14 @@ export default function MediaLibraryPage(): JSX.Element {
   }, [activeStory, assetsById])
 
   const exportReportKeyRef = useRef('')
+  // Source of truth for click handlers. Do not assign from `stories` during render —
+  // a concurrent re-render with stale state would wipe an optimistic toggle.
+  const storiesRef = useRef(stories)
+  const storySaveGenRef = useRef<Map<string, number>>(new Map())
+
+  useEffect(() => {
+    storiesRef.current = stories
+  }, [stories])
 
   // Sync export checkboxes with report order without re-checking after the user clears them.
   useEffect(() => {
@@ -223,13 +241,18 @@ export default function MediaLibraryPage(): JSX.Element {
       pool_asset_ids: poolIds,
       selected_asset_ids: sanitizeSelectedIds(next.selected_asset_ids, poolIds, lookup),
     })
+    const saveGen = (storySaveGenRef.current.get(cleaned.id) ?? 0) + 1
+    storySaveGenRef.current.set(cleaned.id, saveGen)
     // Apply locally first so Remove/reorder/add update the UI immediately. Without this,
     // storyAheadOfSave treats the pre-save state as "newer" and keeps the old report list.
-    setStories((current) =>
-      current.map((story) => (story.id === cleaned.id ? cleaned : story)),
+    storiesRef.current = storiesRef.current.map((story) =>
+      story.id === cleaned.id ? cleaned : story,
     )
+    setStories(storiesRef.current)
     try {
       const saved = await updateStory(cleaned)
+      // Drop stale responses from an older in-flight save for this story.
+      if (storySaveGenRef.current.get(cleaned.id) !== saveGen) return
       setStories((current) =>
         current.map((story) => {
           if (story.id !== saved.id) return story
@@ -246,6 +269,46 @@ export default function MediaLibraryPage(): JSX.Element {
       }
       throw error
     }
+  }
+
+  /**
+   * Toggle one category on the active story and persist. Uses storiesRef so rapid
+   * clicks always flip from the latest selection, not a stale React closure.
+   * @param slug - Category slug to turn on or off.
+   */
+  function handleToggleCategory(slug: string): void {
+    if (!activeStoryId) return
+    const base = storiesRef.current.find((story) => story.id === activeStoryId)
+    if (!base) return
+    const nextSlugs = toggleCategorySlug(base.category_slugs ?? [], slug)
+    const keepReady = Boolean(base.sent_article_id) || base.status === 'ready'
+    const nextStory: IMediaStory = {
+      ...base,
+      category_slugs: nextSlugs,
+      status: keepReady ? 'ready' : 'draft',
+    }
+    void persistStory(nextStory).catch((error: unknown) => {
+      setMessage(error instanceof Error ? error.message : 'Unable to save categories')
+    })
+  }
+
+  /**
+   * Patch location / international fields on the active story and persist.
+   * @param partial - Fields to merge onto the latest story snapshot.
+   */
+  function handleTaxonomyPatch(partial: Partial<IMediaStory>): void {
+    if (!activeStoryId) return
+    const base = storiesRef.current.find((story) => story.id === activeStoryId)
+    if (!base) return
+    const keepReady = Boolean(base.sent_article_id) || base.status === 'ready'
+    const nextStory: IMediaStory = {
+      ...base,
+      ...partial,
+      status: keepReady ? 'ready' : 'draft',
+    }
+    void persistStory(nextStory).catch((error: unknown) => {
+      setMessage(error instanceof Error ? error.message : 'Unable to save placement')
+    })
   }
 
   async function handleEditedDerivative(source: IMediaAsset, derivative: IMediaAsset): Promise<void> {
@@ -426,6 +489,22 @@ export default function MediaLibraryPage(): JSX.Element {
         </div>
       )}
 
+      <DeskTabBar
+        activeTab={deskTab}
+        sentCount={sentNewsCount}
+        onTabChange={setDeskTab}
+      />
+
+      {deskTab === 'news' ? (
+        <SentNewsPool
+          stories={stories}
+          assetsById={assetsById}
+          onOpenWorkspace={(storyId) => {
+            setActiveStoryId(storyId)
+            setDeskTab('workspace')
+          }}
+        />
+      ) : (
       <div className="space-y-6">
         <StoryPicker
           stories={stories}
@@ -443,22 +522,8 @@ export default function MediaLibraryPage(): JSX.Element {
           <>
             <StoryTaxonomyFields
               story={activeStory}
-              onPatch={(partial) => {
-                // Merge against latest story state so rapid chip/select edits do not clobber each other.
-                setStories((current) => {
-                  const index = current.findIndex((story) => story.id === activeStory.id)
-                  if (index < 0) return current
-                  const next = { ...current[index], ...partial, status: 'draft' as const }
-                  void persistStory(next).catch((error: unknown) => {
-                    setMessage(
-                      error instanceof Error ? error.message : 'Unable to save placement',
-                    )
-                  })
-                  return current.map((story, storyIndex) =>
-                    storyIndex === index ? next : story,
-                  )
-                })
-              }}
+              onPatch={handleTaxonomyPatch}
+              onToggleCategory={handleToggleCategory}
             />
             <AssetInspector asset={selected} onUpdated={refresh} onError={setMessage} />
             <StoryWorkspace
@@ -584,9 +649,11 @@ export default function MediaLibraryPage(): JSX.Element {
                 try {
                   const result = await sendStoryToEditor(activeStory.id, orderedIds)
                   setMessage(
-                    `Sent “${result.article_title}” to Editor (${result.media_count} media) — shows as New`,
+                    `Sent “${result.article_title}” — stored under News. Categories stay editable here and sync to the Editor draft.`,
                   )
                   await refresh()
+                  // Stay on Workspace so markets/categories remain editable after send.
+                  setDeskTab('workspace')
                 } catch (error) {
                   setMessage(
                     error instanceof Error ? error.message : 'Unable to send story to editor',
@@ -606,6 +673,7 @@ export default function MediaLibraryPage(): JSX.Element {
           </section>
         )}
       </div>
+      )}
 
       {imageEditorAsset && (
         <ImageEditor
@@ -660,6 +728,61 @@ export default function MediaLibraryPage(): JSX.Element {
 
 interface ILoginScreenProps {
   onSuccess: () => void
+}
+
+type DeskTabType = 'workspace' | 'news'
+
+interface IDeskTabBarProps {
+  activeTab: DeskTabType
+  sentCount: number
+  onTabChange: (tab: DeskTabType) => void
+}
+
+const DESK_TAB_CLASS = 'border-b-2 px-1 pb-2 text-sm font-medium transition-colors'
+
+/**
+ * Top-level Media Desk switcher between the report workspace and stored news.
+ *
+ * @param props Active tab, sent-news badge count, and change handler.
+ * @returns Tab bar UI.
+ */
+function DeskTabBar(props: IDeskTabBarProps): JSX.Element {
+  const { activeTab, sentCount, onTabChange } = props
+  return (
+    <div className="mb-6 flex gap-6 border-b border-brand-line" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === 'workspace'}
+        onClick={() => onTabChange('workspace')}
+        className={`${DESK_TAB_CLASS} ${
+          activeTab === 'workspace'
+            ? 'border-brand text-brand'
+            : 'border-transparent text-slate-500 hover:text-brand-ink'
+        }`}
+      >
+        Workspace
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === 'news'}
+        onClick={() => onTabChange('news')}
+        className={`${DESK_TAB_CLASS} ${
+          activeTab === 'news'
+            ? 'border-brand text-brand'
+            : 'border-transparent text-slate-500 hover:text-brand-ink'
+        }`}
+      >
+        News
+        {sentCount > 0 ? (
+          <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">
+            {sentCount}
+          </span>
+        ) : null}
+      </button>
+    </div>
+  )
 }
 
 /** Authenticate the independent application against NewsCore's auth API. */

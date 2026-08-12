@@ -184,7 +184,8 @@
       },
       "tabs": {
         "all": "Todas las noticias",
-        "new": "Nuevas"
+        "new": "Nuevas",
+        "mediaDesk": "Media Desk"
       },
       "filters": {
         "all": "Todas",
@@ -199,7 +200,8 @@
       },
       "empty": {
         "search": "Ninguna noticia coincide con tu búsqueda.",
-        "new": "No hay nuevas subidas de reporteros pendientes. Las noticias ubicadas pasan a la pestaña Todas las noticias.",
+        "new": "No hay nuevas subidas de Reporter o Media Desk pendientes. Las noticias ubicadas pasan a la pestaña Todas las noticias.",
+        "mediaDesk": "Aún no se ha enviado ningún paquete de Media Desk. Los envíos aparecen aquí en el mismo formato que los borradores de Reporter.",
         "filters": "Ninguna noticia coincide con los filtros actuales."
       }
     },
