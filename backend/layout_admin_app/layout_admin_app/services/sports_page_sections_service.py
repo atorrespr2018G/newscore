@@ -137,7 +137,10 @@ def _normalize_items(items: list[SportsPageSectionItemIn]) -> list[dict[str, str
                 )
 
         if slug in seen_slugs:
-            raise ValidationError(f"Duplicate section slug: {slug}")
+            # Prefer auto-renumbering over failing so clients can add + reorder
+            # empty-slug rows (e.g. new ribbon ads) before save.
+            preferred = PREFERRED_SLUG_PREFIX_BY_TYPE.get(section_type)
+            slug = _unique_preferred_slug(preferred or slug, seen_slugs)
 
         seen_slugs.add(slug)
         resolved.append(

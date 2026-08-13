@@ -10,6 +10,11 @@ import {
   type IEditableAdRow,
 } from '@/components/features/page-ads-editor'
 import {
+  SortableConfigRow,
+  SortableDragPreview,
+} from '@/components/ui/sortable-config-row'
+import { useSortableListDrag } from '@/hooks/use-sortable-list-drag'
+import {
   getWorldPageSections,
   putWorldPageSections,
   type IWorldPageSectionItem,
@@ -21,6 +26,8 @@ import {
   FLORIDA_STATE_CODE,
 } from '@/lib/florida-counties'
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
+import { allocateSectionSlug } from '@/lib/helpers/allocate-section-slug'
+import { moveListItem } from '@/lib/helpers/move-list-item'
 import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
 import { toRegionCode } from '@/lib/region-code'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
@@ -60,6 +67,13 @@ const CANONICAL_SLUG_BY_TYPE: Partial<Record<WorldPageSectionType, string>> = {
   hero: 'hero',
   top_stories: 'us-featured',
   live: 'health',
+}
+
+const PREFERRED_SLUG_PREFIX_BY_TYPE: Partial<Record<WorldPageSectionType, string>> = {
+  more_top_stories: 'more-top-stories',
+  spotlight: 'world-spotlight',
+  rail: 'editorial-rail',
+  ribbon_ad: 'ad-ribbon',
 }
 
 interface IEditableSectionRow {
@@ -335,6 +349,15 @@ function WorldRowsEditor({
 }): JSX.Element {
   const t = useTranslations('admin')
   const hasHero = rows.some((row) => row.sectionType === 'hero')
+  const {
+    dragIndex,
+    overIndex,
+    preview,
+    beginDrag,
+    updatePointer,
+    setHoverIndex,
+    completeDrop,
+  } = useSortableListDrag({ items: rows, onReorder: onChange })
 
   function updateRow(index: number, patch: Partial<IEditableSectionRow>): void {
     onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)))
@@ -345,10 +368,7 @@ function WorldRowsEditor({
     if (nextIndex < 0 || nextIndex >= rows.length) {
       return
     }
-    const next = [...rows]
-    const [removed] = next.splice(index, 1)
-    next.splice(nextIndex, 0, removed)
-    onChange(next)
+    onChange(moveListItem(rows, index, nextIndex))
   }
 
   function removeRow(index: number): void {
@@ -359,9 +379,14 @@ function WorldRowsEditor({
     if (sectionType === 'hero' && hasHero) {
       return
     }
-    const usedSlugs = new Set(rows.map((row) => row.slug))
-    const canonical = CANONICAL_SLUG_BY_TYPE[sectionType]
-    const slug = canonical && !usedSlugs.has(canonical) ? canonical : ''
+    const usedSlugs = new Set(rows.map((row) => row.slug).filter(Boolean))
+    const slug = allocateSectionSlug({
+      sectionType,
+      label: DEFAULT_LABEL_BY_TYPE[sectionType],
+      usedSlugs,
+      canonicalByType: CANONICAL_SLUG_BY_TYPE,
+      preferredPrefixByType: PREFERRED_SLUG_PREFIX_BY_TYPE,
+    })
     onChange([
       ...rows,
       {
@@ -373,59 +398,40 @@ function WorldRowsEditor({
     ])
   }
 
+  const previewRow = preview ? rows[preview.index] : null
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-neutral-600">{t('worldPage.listHint')}</p>
       <ul className="space-y-2">
         {rows.map((row, index) => (
-          <li
+          <SortableConfigRow
             key={row.key}
-            className="flex flex-wrap items-center gap-2 rounded border border-neutral-200 bg-white p-3"
+            index={index}
+            isDragging={dragIndex === index}
+            isDropTarget={overIndex === index}
+            dragHandleLabel={t('worldPage.dragHandle')}
+            onDragStart={beginDrag}
+            onDrag={updatePointer}
+            onDragOver={setHoverIndex}
+            onDrop={completeDrop}
           >
-            <span className="w-8 text-xs font-semibold text-neutral-500">{index + 1}</span>
-            <span className="rounded bg-neutral-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700">
-              {t(`worldPage.types.${row.sectionType}`)}
-            </span>
-            <input
-              value={row.label}
-              onChange={(event) =>
-                updateRow(index, {
-                  label: event.target.value,
-                  slug: row.slug ? row.slug : '',
-                })
-              }
-              placeholder={t('worldPage.labelPlaceholder')}
-              className={`${INPUT_CLASS} min-w-[12rem] flex-1`}
-              aria-label={t('worldPage.labelPlaceholder')}
+            <WorldRowFields
+              row={row}
+              index={index}
+              rowCount={rows.length}
+              onUpdate={updateRow}
+              onMove={moveRow}
+              onRemove={removeRow}
             />
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => moveRow(index, -1)}
-                disabled={index === 0}
-                className="rounded border border-neutral-300 px-2 py-1 text-xs disabled:opacity-40"
-              >
-                {t('worldPage.moveUp')}
-              </button>
-              <button
-                type="button"
-                onClick={() => moveRow(index, 1)}
-                disabled={index === rows.length - 1}
-                className="rounded border border-neutral-300 px-2 py-1 text-xs disabled:opacity-40"
-              >
-                {t('worldPage.moveDown')}
-              </button>
-              <button
-                type="button"
-                onClick={() => removeRow(index)}
-                className="rounded border border-neutral-300 px-2 py-1 text-xs text-red-700"
-              >
-                {t('worldPage.remove')}
-              </button>
-            </div>
-          </li>
+          </SortableConfigRow>
         ))}
       </ul>
+      {preview && previewRow ? (
+        <SortableDragPreview preview={preview}>
+          <WorldRowPreview row={previewRow} index={preview.index} />
+        </SortableDragPreview>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {SECTION_TYPES.map((sectionType) => {
           const disabled = sectionType === 'hero' && hasHero
@@ -443,5 +449,92 @@ function WorldRowsEditor({
         })}
       </div>
     </div>
+  )
+}
+
+interface IWorldRowFieldsProps {
+  row: IEditableSectionRow
+  index: number
+  rowCount: number
+  onUpdate: (index: number, patch: Partial<IEditableSectionRow>) => void
+  onMove: (index: number, delta: number) => void
+  onRemove: (index: number) => void
+}
+
+/**
+ * Inline editors and move/remove controls for one world section row.
+ */
+function WorldRowFields(props: IWorldRowFieldsProps): JSX.Element {
+  const { row, index, rowCount, onUpdate, onMove, onRemove } = props
+  const t = useTranslations('admin')
+
+  return (
+    <>
+      <span className="w-8 text-xs font-semibold text-neutral-500">{index + 1}</span>
+      <span className="rounded bg-neutral-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700">
+        {t(`worldPage.types.${row.sectionType}`)}
+      </span>
+      <input
+        value={row.label}
+        onChange={(event) =>
+          onUpdate(index, {
+            label: event.target.value,
+            slug: row.slug ? row.slug : '',
+          })
+        }
+        placeholder={t('worldPage.labelPlaceholder')}
+        className={`${INPUT_CLASS} min-w-[12rem] flex-1`}
+        aria-label={t('worldPage.labelPlaceholder')}
+      />
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={() => onMove(index, -1)}
+          disabled={index === 0}
+          className="rounded border border-neutral-300 px-2 py-1 text-xs disabled:opacity-40"
+        >
+          {t('worldPage.moveUp')}
+        </button>
+        <button
+          type="button"
+          onClick={() => onMove(index, 1)}
+          disabled={index === rowCount - 1}
+          className="rounded border border-neutral-300 px-2 py-1 text-xs disabled:opacity-40"
+        >
+          {t('worldPage.moveDown')}
+        </button>
+        <button
+          type="button"
+          onClick={() => onRemove(index)}
+          className="rounded border border-neutral-300 px-2 py-1 text-xs text-red-700"
+        >
+          {t('worldPage.remove')}
+        </button>
+      </div>
+    </>
+  )
+}
+
+/**
+ * Compact floating preview content for a dragged world row.
+ */
+function WorldRowPreview({
+  row,
+  index,
+}: {
+  row: IEditableSectionRow
+  index: number
+}): JSX.Element {
+  const t = useTranslations('admin')
+  return (
+    <>
+      <span className="w-8 text-xs font-semibold text-neutral-500">{index + 1}</span>
+      <span className="rounded bg-neutral-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700">
+        {t(`worldPage.types.${row.sectionType}`)}
+      </span>
+      <span className="min-w-[12rem] flex-1 truncate text-sm font-medium text-neutral-900">
+        {row.label || t('worldPage.labelPlaceholder')}
+      </span>
+    </>
   )
 }

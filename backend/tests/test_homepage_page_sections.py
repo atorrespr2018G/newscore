@@ -11,6 +11,9 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT / "shared") not in sys.path:
     sys.path.insert(0, str(_ROOT / "shared"))
+_LAYOUT = _ROOT / "layout_admin_app"
+if str(_LAYOUT) not in sys.path:
+    sys.path.insert(0, str(_LAYOUT))
 
 from shared.core.homepage_page_sections_sync import (
     DEFAULT_HOMEPAGE_SECTION_ITEMS,
@@ -125,6 +128,36 @@ def test_expand_homepage_section_items_keeps_ribbon_ad() -> None:
         },
         {"section_type": "live", "slug": "health", "label": "Live"},
     ]
+
+
+def test_normalize_items_renumbers_duplicate_ribbon_slugs() -> None:
+    """Empty/new ribbon rows dragged above numbered ones do not fail save."""
+
+    from shared.schemas.homepage_page_sections_schemas import HomepagePageSectionItemIn
+    from layout_admin_app.services.homepage_page_sections_service import _normalize_items
+
+    items = [
+        HomepagePageSectionItemIn(section_type="hero", label="Hero", slug="hero"),
+        HomepagePageSectionItemIn(
+            section_type="ribbon_ad",
+            label="Ribbon Advertisement",
+            slug=None,
+        ),
+        HomepagePageSectionItemIn(
+            section_type="ribbon_ad",
+            label="Ribbon Advertisement",
+            slug="ad-ribbon",
+        ),
+        HomepagePageSectionItemIn(
+            section_type="ribbon_ad",
+            label="Ribbon Advertisement",
+            slug="ad-ribbon-2",
+        ),
+    ]
+    resolved = _normalize_items(items)
+    slugs = [row["slug"] for row in resolved]
+    assert slugs == ["hero", "ad-ribbon", "ad-ribbon-2", "ad-ribbon-3"]
+    assert len(slugs) == len(set(slugs))
 
 
 @pytest.mark.asyncio

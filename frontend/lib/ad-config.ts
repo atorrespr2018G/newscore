@@ -49,11 +49,11 @@ export const AD_VARIANT_SHELL_CLASS: Record<AdSlotVariant, string> = {
   rail: 'min-h-[250px] w-full',
   tall: 'min-h-[280px] w-full',
   square: 'aspect-[4/3] w-full min-h-[180px]',
-  sticky: 'min-h-[90px] max-h-[90px] w-full overflow-hidden',
+  sticky: 'min-h-[108px] max-h-[108px] w-full overflow-hidden',
 }
 
-/** Sticky footer ribbon height in px (matches AD_VARIANT_SHELL_CLASS.sticky). */
-export const STICKY_RIBBON_AD_HEIGHT_PX = 90
+/** Sticky footer ribbon height in px (20% taller than the 90px baseline). */
+export const STICKY_RIBBON_AD_HEIGHT_PX = 108
 
 /** Default ribbon min-height in px (matches AD_VARIANT_SHELL_CLASS.ribbon). */
 export const RIBBON_AD_MIN_HEIGHT_PX = 192

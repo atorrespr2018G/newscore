@@ -380,6 +380,7 @@
     "remove": "Remove",
     "moveUp": "Up",
     "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
     "save": "Save list",
     "saving": "Saving…",
     "loading": "Loading sports list…",
@@ -421,7 +422,7 @@
   "mainPage": {
     "heading": "Main Page sections",
     "subtitle": "Manage the ordered list of Main Page sections (hero, Top Stories, Live, Extra Stories, Politics, Sports, Entertainment, and more) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → homepage.",
-    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows. Saving updates Placement → homepage for the same market, state, county, or town. The public landing page follows this order.",
+    "listHint": "Drag rows by the ⋮⋮ handle to reorder, or use Up/Down. Add, remove, or rename any section—including Ribbon Advertisement rows. Saving updates Placement → homepage for the same market, state, county, or town. The public landing page follows this order.",
     "labelPlaceholder": "Section name",
     "addType": {
       "hero": "Add hero",
@@ -446,6 +447,7 @@
     "remove": "Remove",
     "moveUp": "Up",
     "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
     "save": "Save list",
     "saving": "Saving…",
     "loading": "Loading Main Page list…",
@@ -481,6 +483,7 @@
     "remove": "Remove",
     "moveUp": "Up",
     "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
     "save": "Save list",
     "saving": "Saving…",
     "loading": "Loading World list…",

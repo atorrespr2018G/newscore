@@ -380,6 +380,7 @@
     "remove": "Quitar",
     "moveUp": "Subir",
     "moveDown": "Bajar",
+    "dragHandle": "Arrastrar para reordenar",
     "save": "Guardar lista",
     "saving": "Guardando…",
     "loading": "Cargando lista de deportes…",
@@ -421,7 +422,7 @@
   "mainPage": {
     "heading": "Secciones de la página principal",
     "subtitle": "Administra la lista ordenada de secciones de la página principal (héroe, Principales, En vivo, Historias extra, Política, Deportes, Entretenimiento y más) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → homepage.",
-    "listHint": "Agrega, quita, renombra o reordena cualquier sección, incluidas las filas de cinta publicitaria. Al guardar se actualiza Placement → homepage para el mismo mercado, estado, condado o pueblo. La página pública sigue este orden.",
+    "listHint": "Arrastra las filas con el control ⋮⋮ para reordenar, o usa Subir/Bajar. Agrega, quita o renombra cualquier sección, incluidas las filas de cinta publicitaria. Al guardar se actualiza Placement → homepage para el mismo mercado, estado, condado o pueblo. La página pública sigue este orden.",
     "labelPlaceholder": "Nombre de la sección",
     "addType": {
       "hero": "Agregar héroe",
@@ -446,6 +447,7 @@
     "remove": "Quitar",
     "moveUp": "Subir",
     "moveDown": "Bajar",
+    "dragHandle": "Arrastrar para reordenar",
     "save": "Guardar lista",
     "saving": "Guardando…",
     "loading": "Cargando lista de la página principal…",
@@ -481,6 +483,7 @@
     "remove": "Quitar",
     "moveUp": "Subir",
     "moveDown": "Bajar",
+    "dragHandle": "Arrastrar para reordenar",
     "save": "Guardar lista",
     "saving": "Guardando…",
     "loading": "Cargando lista de Mundo…",
