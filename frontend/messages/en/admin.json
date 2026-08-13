@@ -390,7 +390,7 @@
   },
   "pageAds": {
     "heading": "Advertisements",
-    "hint": "Configure ad type and location for this page. Disabled placements are hidden on the public site.",
+    "hint": "Configure masthead, rail, and in-module ads. Add in-feed ribbons in the section list above. Disabled placements are hidden on the public site.",
     "empty": "No advertisements configured. Add one or save to keep defaults from the server.",
     "type": "Ad type",
     "location": "Location",

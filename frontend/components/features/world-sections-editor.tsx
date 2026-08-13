@@ -39,7 +39,6 @@ const SELECT_CLASS =
   'mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm capitalize'
 const INPUT_CLASS =
   'w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm'
-const DEFAULT_US_STATE_CODE = 'fl'
 
 const SECTION_TYPES: WorldPageSectionType[] = [
   'hero',
@@ -217,17 +216,12 @@ export function WorldSectionsEditor(): JSX.Element {
   }
 
   /**
-   * Switch market and reset locality/county to market defaults.
+   * Switch market and reset to the market-level scope (USA or Puerto Rico).
    *
    * @param nextMarket Newly selected market code.
    */
   function handleMarketChange(nextMarket: string): void {
     setMarketCode(nextMarket)
-    if (nextMarket === US_MARKET_CODE) {
-      setLocalityId(DEFAULT_US_STATE_CODE)
-      setCountyId(null)
-      return
-    }
     setLocalityId(null)
     setCountyId(null)
   }
@@ -315,11 +309,7 @@ export function WorldSectionsEditor(): JSX.Element {
       ) : (
         <>
           <WorldRowsEditor rows={rows} onChange={setRows} />
-          <PageAdsEditor
-            rows={adRows}
-            sectionSlugs={rows.map((row) => row.slug).filter(Boolean)}
-            onChange={setAdRows}
-          />
+          <PageAdsEditor rows={adRows} onChange={setAdRows} />
         </>
       )}
 

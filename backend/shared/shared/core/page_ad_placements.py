@@ -37,6 +37,9 @@ AD_LOCATIONS: frozenset[str] = frozenset(
 SECTION_ANCHORED_LOCATIONS: frozenset[str] = frozenset(
     {"before_section", "after_section"},
 )
+STACKING_AD_LOCATIONS: frozenset[str] = frozenset(
+    {"after_hero", "before_section", "after_section"},
+)
 
 PAGE_NAME_HOMEPAGE = "homepage"
 PAGE_NAME_WORLD = "world"
@@ -60,12 +63,9 @@ def _placement(
     }
 
 
+# In-feed ribbons belong in the section list (ribbon_ad rows), not this inventory.
 DEFAULT_HOMEPAGE_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
-    _placement(ad_type="ribbon", location="after_hero"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="politics"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="world"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="technology"),
     _placement(ad_type="square", location="us_band"),
     _placement(ad_type="ribbon", location="editorial_band"),
     _placement(ad_type="square", location="health_carousel"),
@@ -73,20 +73,12 @@ DEFAULT_HOMEPAGE_ADS: list[dict[str, Any]] = [
 
 DEFAULT_WORLD_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
-    _placement(ad_type="ribbon", location="after_hero"),
     _placement(ad_type="rail", location="hero_rail"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="europe"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="asia"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="middle-east"),
-    _placement(ad_type="ribbon", location="after_section", anchor_slug="africa"),
     _placement(ad_type="ribbon", location="editorial_band"),
 ]
 
 DEFAULT_SPORTS_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
-    _placement(ad_type="ribbon", location="after_hero"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="nba"),
-    _placement(ad_type="ribbon", location="before_section", anchor_slug="mlb"),
 ]
 
 

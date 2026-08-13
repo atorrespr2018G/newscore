@@ -1,4 +1,6 @@
 import {
+  EDITOR_AD_LOCATIONS,
+  STACKING_AD_LOCATIONS,
   findAdPlacement,
   isAdEnabled,
   mapPageAdPlacement,
@@ -89,5 +91,16 @@ describe('findAdPlacement and resolveAdVariant', () => {
     expect(match?.adType).toBe('ribbon')
     expect(resolveAdVariant(match, 'square')).toBe('ribbon')
     expect(resolveAdVariant(null, 'square')).toBe('square')
+  })
+})
+
+describe('EDITOR_AD_LOCATIONS', () => {
+  it('excludes stacking in-feed ribbon locations', () => {
+    expect(STACKING_AD_LOCATIONS.has('after_hero')).toBe(true)
+    expect(STACKING_AD_LOCATIONS.has('before_section')).toBe(true)
+    expect(STACKING_AD_LOCATIONS.has('after_section')).toBe(true)
+    for (const location of EDITOR_AD_LOCATIONS) {
+      expect(STACKING_AD_LOCATIONS.has(location)).toBe(false)
+    }
   })
 })

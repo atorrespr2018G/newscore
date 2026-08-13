@@ -23,7 +23,7 @@ AdLocation = Literal[
 class PageAdPlacementIn(BaseModel):
     """Incoming page ad placement from Configuration."""
 
-    ad_type: AdType = "ribbon"
+    ad_type: AdType = "leaderboard"
     location: AdLocation
     enabled: bool = True
     anchor_slug: str | None = Field(default=None, max_length=80)

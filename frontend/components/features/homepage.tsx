@@ -71,24 +71,21 @@ function RightPromo(): JSX.Element {
 
 /**
  * Homepage section ribbon backed by the shared AdSlot mock/GAM unit.
+ *
+ * Presence is owned by ribbon_ad section rows or leftover heuristics, not
+ * the Advertisements panel.
  */
 function AdRibbon({
   index = 0,
   location = 'before_section',
   anchorSlug,
-  force = false,
 }: {
   index?: number
   location?: PageAdLocation
   anchorSlug?: string | null
-  /** Configuration-driven ribbon_ad slots always render. */
-  force?: boolean
-}): JSX.Element | null {
+}): JSX.Element {
   const t = useTranslations('common')
-  const { shouldRender, variantFor } = usePageAds()
-  if (!force && !shouldRender(location, anchorSlug)) {
-    return null
-  }
+  const { variantFor } = usePageAds()
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
@@ -103,13 +100,12 @@ function AdRibbon({
 
 /**
  * Post-hero homepage ribbon.
+ *
+ * Shown only when the section list has no ribbon_ad rows.
  */
-function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element | null {
+function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element {
   const t = useTranslations('common')
-  const { shouldRender, variantFor } = usePageAds()
-  if (!shouldRender('after_hero')) {
-    return null
-  }
+  const { variantFor } = usePageAds()
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
@@ -413,7 +409,7 @@ function HomepagePageSlotBlock({
   adIndex?: number
 }): JSX.Element | null {
   if (kind === 'ribbon_ad') {
-    return <AdRibbon index={adIndex} force />
+    return <AdRibbon index={adIndex} />
   }
   if (kind === 'hero') {
     return (
@@ -613,7 +609,7 @@ function SportsPageSlotBlock({
   adIndex?: number
 }): JSX.Element | null {
   if (kind === 'ribbon_ad') {
-    return <AdRibbon index={adIndex} force />
+    return <AdRibbon index={adIndex} />
   }
   if (kind === 'hero') {
     return (

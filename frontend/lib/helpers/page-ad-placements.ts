@@ -22,6 +22,22 @@ export interface IPageAdPlacement {
   anchorSlug: string | null
 }
 
+/** In-feed ribbon locations owned by section-list ribbon_ad rows. */
+export const STACKING_AD_LOCATIONS: ReadonlySet<PageAdLocation> = new Set([
+  'after_hero',
+  'before_section',
+  'after_section',
+])
+
+/** Masthead, rail, and in-module locations edited in Advertisements. */
+export const EDITOR_AD_LOCATIONS: readonly PageAdLocation[] = [
+  'masthead',
+  'hero_rail',
+  'us_band',
+  'editorial_band',
+  'health_carousel',
+]
+
 const AD_TYPES = new Set<PageAdType>([
   'leaderboard',
   'ribbon',

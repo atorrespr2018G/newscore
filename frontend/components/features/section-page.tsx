@@ -54,24 +54,21 @@ const HomepageSection = dynamic(
 
 /**
  * Section-page grid ribbon backed by AdSlot.
+ *
+ * Presence is owned by ribbon_ad section rows or leftover heuristics, not
+ * the Advertisements panel.
  */
 function AdRibbon({
   index = 0,
   location = 'before_section',
   anchorSlug,
-  force = false,
 }: {
   index?: number
   location?: 'after_hero' | 'before_section' | 'after_section'
   anchorSlug?: string | null
-  /** Configuration-driven ribbon_ad slots always render. */
-  force?: boolean
-}): JSX.Element | null {
+}): JSX.Element {
   const t = useTranslations('common')
-  const { shouldRender, variantFor } = usePageAds()
-  if (!force && !shouldRender(location, anchorSlug)) {
-    return null
-  }
+  const { variantFor } = usePageAds()
 
   return (
     <section aria-label={t('advertisement')} className="py-4">
@@ -582,7 +579,7 @@ export function SectionPage({
       const ribbonIndex = adIndex++
       bodyBlocks.push(
         <div key={slot.id} className="space-y-2">
-          <AdRibbon index={ribbonIndex} location="before_section" force />
+          <AdRibbon index={ribbonIndex} location="before_section" />
         </div>,
       )
       continue

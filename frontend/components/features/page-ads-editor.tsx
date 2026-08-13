@@ -3,45 +3,43 @@
 import { useTranslations } from 'next-intl'
 
 import type { IPageAdPlacementApi } from '@/lib/api/layout-client'
-import type { PageAdLocation, PageAdType } from '@/lib/helpers/page-ad-placements'
+import {
+  EDITOR_AD_LOCATIONS,
+  STACKING_AD_LOCATIONS,
+  type PageAdLocation,
+  type PageAdType,
+} from '@/lib/helpers/page-ad-placements'
 
 const SELECT_CLASS =
   'mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm'
 const AD_TYPES: PageAdType[] = ['leaderboard', 'ribbon', 'rail', 'tall', 'square']
-const AD_LOCATIONS: PageAdLocation[] = [
-  'masthead',
-  'after_hero',
-  'before_section',
-  'after_section',
-  'hero_rail',
-  'us_band',
-  'editorial_band',
-  'health_carousel',
-]
-const ANCHOR_LOCATIONS = new Set<PageAdLocation>(['before_section', 'after_section'])
+const DEFAULT_NEW_AD_TYPE: PageAdType = 'leaderboard'
+const DEFAULT_NEW_AD_LOCATION: PageAdLocation = 'masthead'
 
 export interface IEditableAdRow {
   key: string
   adType: PageAdType
   location: PageAdLocation
   enabled: boolean
-  anchorSlug: string
 }
 
 /**
  * Map API ad rows into editable local rows.
  *
+ * Stacking in-feed ribbons are omitted; those belong in the section list.
+ *
  * @param ads - Saved page ad placements.
  * @returns Editable ad rows with stable keys.
  */
 export function toEditableAdRows(ads: IPageAdPlacementApi[] | undefined): IEditableAdRow[] {
-  return (ads ?? []).map((ad, index) => ({
-    key: `${ad.location}-${ad.anchor_slug ?? 'none'}-${index}`,
-    adType: ad.ad_type,
-    location: ad.location,
-    enabled: ad.enabled !== false,
-    anchorSlug: ad.anchor_slug ?? '',
-  }))
+  return (ads ?? [])
+    .filter((ad) => !STACKING_AD_LOCATIONS.has(ad.location))
+    .map((ad, index) => ({
+      key: `${ad.location}-${index}`,
+      adType: ad.ad_type,
+      location: ad.location,
+      enabled: ad.enabled !== false,
+    }))
 }
 
 /**
@@ -55,20 +53,19 @@ export function toApiAdRows(rows: IEditableAdRow[]): IPageAdPlacementApi[] {
     ad_type: row.adType,
     location: row.location,
     enabled: row.enabled,
-    anchor_slug: ANCHOR_LOCATIONS.has(row.location) ? row.anchorSlug.trim() || null : null,
+    anchor_slug: null,
   }))
 }
 
 interface IPageAdsEditorProps {
   rows: IEditableAdRow[]
-  sectionSlugs: string[]
   onChange: (rows: IEditableAdRow[]) => void
 }
 
 /**
- * Configuration editor for page-level ad type and location list.
+ * Configuration editor for masthead, rail, and in-module page ads.
  */
-export function PageAdsEditor({ rows, sectionSlugs, onChange }: IPageAdsEditorProps): JSX.Element {
+export function PageAdsEditor({ rows, onChange }: IPageAdsEditorProps): JSX.Element {
   const t = useTranslations('admin.pageAds')
 
   function updateRow(index: number, patch: Partial<IEditableAdRow>): void {
@@ -91,10 +88,9 @@ export function PageAdsEditor({ rows, sectionSlugs, onChange }: IPageAdsEditorPr
       ...rows,
       {
         key: `new-${Date.now()}`,
-        adType: 'ribbon',
-        location: 'after_hero',
+        adType: DEFAULT_NEW_AD_TYPE,
+        location: DEFAULT_NEW_AD_LOCATION,
         enabled: true,
-        anchorSlug: sectionSlugs[0] ?? '',
       },
     ])
   }
@@ -139,31 +135,13 @@ export function PageAdsEditor({ rows, sectionSlugs, onChange }: IPageAdsEditorPr
                     updateRow(index, { location: event.target.value as PageAdLocation })
                   }
                 >
-                  {AD_LOCATIONS.map((location) => (
+                  {EDITOR_AD_LOCATIONS.map((location) => (
                     <option key={location} value={location}>
                       {t(`locations.${location}`)}
                     </option>
                   ))}
                 </select>
               </label>
-
-              {ANCHOR_LOCATIONS.has(row.location) ? (
-                <label className="block text-xs font-medium text-neutral-700 md:col-span-2">
-                  {t('anchor')}
-                  <select
-                    className={SELECT_CLASS}
-                    value={row.anchorSlug}
-                    onChange={(event) => updateRow(index, { anchorSlug: event.target.value })}
-                  >
-                    <option value="">{t('anchorPlaceholder')}</option>
-                    {sectionSlugs.map((slug) => (
-                      <option key={slug} value={slug}>
-                        {slug}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
 
               <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
                 <input

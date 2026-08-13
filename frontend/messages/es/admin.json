@@ -390,7 +390,7 @@
   },
   "pageAds": {
     "heading": "Publicidad",
-    "hint": "Configure el tipo y la ubicación de los anuncios de esta página. Las ubicaciones desactivadas no se muestran en el sitio público.",
+    "hint": "Configure anuncios del mástil, carril y módulos. Agregue las cintas entre secciones en la lista de arriba. Las ubicaciones desactivadas no se muestran en el sitio público.",
     "empty": "No hay anuncios configurados. Agregue uno o guarde para conservar los valores predeterminados del servidor.",
     "type": "Tipo de anuncio",
     "location": "Ubicación",

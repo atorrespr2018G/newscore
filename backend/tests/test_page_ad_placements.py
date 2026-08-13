@@ -16,6 +16,7 @@ from shared.core.page_ad_placements import (
     DEFAULT_HOMEPAGE_ADS,
     DEFAULT_SPORTS_ADS,
     DEFAULT_WORLD_ADS,
+    STACKING_AD_LOCATIONS,
     default_ads_for_page,
     normalize_ads,
     resolve_ads_list,
@@ -31,16 +32,22 @@ def test_default_ads_for_page_returns_page_specific_lists() -> None:
     assert default_ads_for_page("unknown") == [dict(row) for row in DEFAULT_HOMEPAGE_ADS]
 
 
-def test_default_homepage_ads_cover_legacy_locations() -> None:
-    """Homepage defaults preserve masthead, hero, bands, and section ribbons."""
+def test_default_homepage_ads_cover_shell_locations() -> None:
+    """Homepage defaults cover masthead and in-module ads, not in-feed ribbons."""
 
     locations = {(row["location"], row.get("anchor_slug")) for row in DEFAULT_HOMEPAGE_ADS}
     assert ("masthead", None) in locations
-    assert ("after_hero", None) in locations
     assert ("us_band", None) in locations
     assert ("editorial_band", None) in locations
     assert ("health_carousel", None) in locations
-    assert ("before_section", "politics") in locations
+
+
+def test_default_ads_omit_stacking_ribbon_locations() -> None:
+    """Page defaults leave in-feed ribbons to the section list."""
+
+    for page_name in ("homepage", "world", "sports"):
+        for row in default_ads_for_page(page_name):
+            assert row["location"] not in STACKING_AD_LOCATIONS
 
 
 def test_resolve_ads_list_falls_back_when_missing_or_empty() -> None:
