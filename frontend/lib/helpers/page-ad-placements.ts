@@ -22,7 +22,14 @@ export interface IPageAdPlacement {
   anchorSlug: string | null
 }
 
-const AD_TYPES = new Set<PageAdType>(['leaderboard', 'ribbon', 'rail', 'tall', 'square'])
+const AD_TYPES = new Set<PageAdType>([
+  'leaderboard',
+  'ribbon',
+  'rail',
+  'tall',
+  'square',
+  'sticky',
+])
 
 /**
  * Normalize a raw feed/API ad placement into the frontend shape.

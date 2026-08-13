@@ -1,5 +1,6 @@
 {
   "loading": "Loading advertisement",
+  "closeAdvertisement": "Close advertisement",
   "creatives": {
     "sponsoredBriefing": {
       "title": "Sponsored briefing",

@@ -86,8 +86,10 @@ interface IAdSlotFrameProps {
  */
 function AdSlotFrame({ variant, className, renderState, creative }: IAdSlotFrameProps): JSX.Element {
   const tCommon = useTranslations('common')
+  const isCompact = variant === 'sticky'
   const shellClass = [
-    'flex items-center justify-center rounded border px-4',
+    'flex items-center justify-center border px-4',
+    isCompact ? 'rounded-sm' : 'rounded',
     AD_VARIANT_SHELL_CLASS[variant],
     className ?? '',
   ]
@@ -95,7 +97,7 @@ function AdSlotFrame({ variant, className, renderState, creative }: IAdSlotFrame
     .join(' ')
 
   if (renderState === 'filled' && creative) {
-    return <MockCreativeView creative={creative} shellClass={shellClass} />
+    return <MockCreativeView creative={creative} shellClass={shellClass} compact={isCompact} />
   }
 
   const isLoading = renderState === 'loading'
@@ -129,29 +131,103 @@ function AdSlotStatusLabel({ isLoading }: { isLoading: boolean }): JSX.Element {
 interface IMockCreativeViewProps {
   creative: IMockCreativeDefinition
   shellClass: string
+  compact?: boolean
+}
+
+interface ICreativeCopy {
+  title: string
+  subtitle: string
 }
 
 /**
  * Render a filled mock sponsored creative.
  */
-function MockCreativeView({ creative, shellClass }: IMockCreativeViewProps): JSX.Element {
+function MockCreativeView({ creative, shellClass, compact = false }: IMockCreativeViewProps): JSX.Element {
   const tCommon = useTranslations('common')
   const copy = useCreativeCopy(creative.id)
+  const adLabel = tCommon('advertisement')
+
+  if (compact) {
+    return (
+      <CompactMockCreative
+        shellClass={shellClass}
+        accentClass={creative.accentClass}
+        adLabel={adLabel}
+        copy={copy}
+        cta={tCommon('learnMore')}
+      />
+    )
+  }
 
   return (
+    <DefaultMockCreative
+      shellClass={shellClass}
+      accentClass={creative.accentClass}
+      adLabel={adLabel}
+      copy={copy}
+      cta={tCommon('learnMore')}
+    />
+  )
+}
+
+interface IFilledCreativeProps {
+  shellClass: string
+  accentClass: string
+  adLabel: string
+  copy: ICreativeCopy
+  cta: string
+}
+
+/**
+ * Compact horizontal creative for sticky footer ribbons.
+ *
+ * @param props - Shell classes, copy, and CTA label.
+ */
+function CompactMockCreative(props: IFilledCreativeProps): JSX.Element {
+  const { shellClass, accentClass, adLabel, copy, cta } = props
+  return (
     <div
-      className={`${shellClass} border-neutral-200 ${creative.accentClass}`}
+      className={`${shellClass} border-neutral-200 ${accentClass}`}
       role="img"
-      aria-label={tCommon('advertisement')}
+      aria-label={adLabel}
+    >
+      <div className="flex w-full max-w-5xl items-center justify-between gap-4 px-2">
+        <div className="min-w-0 text-left">
+          <p className="text-[10px] font-black tracking-[0.24em] opacity-70">
+            {adLabel.toUpperCase()}
+          </p>
+          <p className="truncate text-base font-black leading-tight">{copy.title}</p>
+          <p className="truncate text-xs opacity-80">{copy.subtitle}</p>
+        </div>
+        <p className="shrink-0 border border-current px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em]">
+          {cta}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Standard centered creative for in-page ad shells.
+ *
+ * @param props - Shell classes, copy, and CTA label.
+ */
+function DefaultMockCreative(props: IFilledCreativeProps): JSX.Element {
+  const { shellClass, accentClass, adLabel, copy, cta } = props
+  return (
+    <div
+      className={`${shellClass} border-neutral-200 ${accentClass}`}
+      role="img"
+      aria-label={adLabel}
     >
       <div className="max-w-xl text-center">
         <p className="text-[11px] font-black tracking-[0.28em] opacity-70">
-          {tCommon('advertisement').toUpperCase()}
+          {adLabel.toUpperCase()}
         </p>
         <p className="mt-3 text-2xl font-black leading-tight">{copy.title}</p>
         <p className="mt-2 text-sm leading-6 opacity-80">{copy.subtitle}</p>
         <p className="mt-4 inline-block border border-current px-4 py-2 text-xs font-bold uppercase tracking-[0.16em]">
-          {tCommon('learnMore')}
+          {cta}
         </p>
       </div>
     </div>

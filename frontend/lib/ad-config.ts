@@ -6,7 +6,7 @@ export const ADS_MODE_ENV_KEY = 'NEXT_PUBLIC_ADS_MODE'
 export const DEFAULT_ADS_MODE: AdsMode = 'mock'
 
 export type AdsMode = 'mock' | 'off' | 'gam'
-export type AdSlotVariant = 'leaderboard' | 'ribbon' | 'rail' | 'tall' | 'square'
+export type AdSlotVariant = 'leaderboard' | 'ribbon' | 'rail' | 'tall' | 'square' | 'sticky'
 
 export type AdSlotKey =
   | 'masthead-leaderboard'
@@ -16,6 +16,7 @@ export type AdSlotKey =
   | 'section-grid-ribbon'
   | 'article-rail'
   | 'article-in-content'
+  | 'article-sticky-ribbon'
   | 'homepage-us-band'
   | 'homepage-editorial-band'
   | 'homepage-health-carousel'
@@ -35,6 +36,7 @@ export const AD_SLOT_REGISTRY: Record<AdSlotKey, IAdSlotDefinition> = {
   'section-grid-ribbon': { key: 'section-grid-ribbon', variant: 'ribbon' },
   'article-rail': { key: 'article-rail', variant: 'tall' },
   'article-in-content': { key: 'article-in-content', variant: 'ribbon' },
+  'article-sticky-ribbon': { key: 'article-sticky-ribbon', variant: 'sticky' },
   'homepage-us-band': { key: 'homepage-us-band', variant: 'square' },
   'homepage-editorial-band': { key: 'homepage-editorial-band', variant: 'ribbon' },
   'homepage-health-carousel': { key: 'homepage-health-carousel', variant: 'square' },
@@ -47,7 +49,11 @@ export const AD_VARIANT_SHELL_CLASS: Record<AdSlotVariant, string> = {
   rail: 'min-h-[250px] w-full',
   tall: 'min-h-[280px] w-full',
   square: 'aspect-[4/3] w-full min-h-[180px]',
+  sticky: 'min-h-[90px] max-h-[90px] w-full overflow-hidden',
 }
+
+/** Sticky footer ribbon height in px (matches AD_VARIANT_SHELL_CLASS.sticky). */
+export const STICKY_RIBBON_AD_HEIGHT_PX = 90
 
 /** Default ribbon min-height in px (matches AD_VARIANT_SHELL_CLASS.ribbon). */
 export const RIBBON_AD_MIN_HEIGHT_PX = 192

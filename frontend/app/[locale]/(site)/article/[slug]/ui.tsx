@@ -5,6 +5,7 @@ import { useArticle } from '@/hooks/use-article'
 import { StoryFollowups } from '@/components/features/story-followups'
 import { ArticleBodyLayout, ArticleHeader } from '@/components/features/article-reading-view'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/feed-state'
+import { StickyAdRibbon } from '@/components/ui/sticky-ad-ribbon'
 import { useTranslations } from 'next-intl'
 
 interface IArticleClientProps {
@@ -34,10 +35,13 @@ export function ArticleClient({ slug, initialArticle }: IArticleClientProps): JS
   }
 
   return (
-    <article>
-      <ArticleHeader article={article} />
-      <ArticleBodyLayout article={article} />
-      <StoryFollowups updates={article.storyUpdates} />
-    </article>
+    <>
+      <article>
+        <ArticleHeader article={article} />
+        <ArticleBodyLayout article={article} />
+        <StoryFollowups updates={article.storyUpdates} />
+      </article>
+      <StickyAdRibbon />
+    </>
   )
 }
