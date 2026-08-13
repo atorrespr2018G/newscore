@@ -96,15 +96,47 @@ export function marketHasCounty(marketCode: string, townId: string | null): bool
 }
 
 /**
- * Toggle a single category slug on or off.
+ * Whether a slug is a per-sport subcategory under Sports.
+ * @param slug - Category slug to check.
+ * @returns True when the slug is one of the sport chips.
+ */
+export function isSportCategorySlug(slug: string): boolean {
+  return SPORT_CATEGORY_OPTIONS.some((sport) => sport.slug === slug)
+}
+
+/**
+ * Toggle a category slug on or off.
  *
- * Each category is independent: clicking only affects that slug. No selection cap.
+ * Root categories are independent. Sport chips require Sports to already be
+ * selected; turning Sports off also clears every selected sport.
  *
  * @param selected - Currently selected category slugs.
  * @param slug - Category slug being toggled.
- * @returns Updated selection.
+ * @returns Updated selection (same array when a sport add is blocked).
  */
 export function toggleCategorySlug(selected: string[], slug: string): string[] {
+  const sportsSelected = selected.includes(SPORTS_CATEGORY_SLUG)
+
+  if (slug === SPORTS_CATEGORY_SLUG) {
+    if (sportsSelected) {
+      const sportSlugs = new Set(SPORT_CATEGORY_OPTIONS.map((sport) => sport.slug))
+      return selected.filter(
+        (item) => item !== SPORTS_CATEGORY_SLUG && !sportSlugs.has(item),
+      )
+    }
+    return [...selected, SPORTS_CATEGORY_SLUG]
+  }
+
+  if (isSportCategorySlug(slug)) {
+    if (!sportsSelected) {
+      return selected
+    }
+    if (selected.includes(slug)) {
+      return selected.filter((item) => item !== slug)
+    }
+    return [...selected, slug]
+  }
+
   if (selected.includes(slug)) {
     return selected.filter((item) => item !== slug)
   }

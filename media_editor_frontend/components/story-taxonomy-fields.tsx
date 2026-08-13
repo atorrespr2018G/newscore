@@ -8,6 +8,7 @@ import {
   MARKET_OPTIONS,
   ROOT_CATEGORY_OPTIONS,
   SPORT_CATEGORY_OPTIONS,
+  SPORTS_CATEGORY_SLUG,
   marketHasCounty,
   marketHasLocality,
   storyRegionCode,
@@ -158,12 +159,14 @@ function LocalitySelect({ story, onPatch }: ILocationFieldsProps): JSX.Element {
 }
 
 /**
- * Independent category chips — each slug toggles only itself on click.
+ * Category chips — root sections are independent; sport chips appear only when
+ * Sports is selected.
  * @param props - Selected slugs and per-slug toggle handler.
  * @returns Categories fieldset.
  */
 function CategoryFields({ categorySlugs, onToggleCategory }: ICategoryFieldsProps): JSX.Element {
   const selectedCount = categorySlugs.length
+  const sportsSelected = categorySlugs.includes(SPORTS_CATEGORY_SLUG)
   return (
     <fieldset>
       <legend className="text-sm font-medium text-slate-700">Categories</legend>
@@ -181,19 +184,21 @@ function CategoryFields({ categorySlugs, onToggleCategory }: ICategoryFieldsProp
           />
         ))}
       </div>
-      <div className="mt-3">
-        <p className="text-xs font-medium text-slate-600">Sport</p>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {SPORT_CATEGORY_OPTIONS.map((sport) => (
-            <CategoryChip
-              key={sport.slug}
-              label={sport.label}
-              checked={categorySlugs.includes(sport.slug)}
-              onToggle={() => onToggleCategory(sport.slug)}
-            />
-          ))}
+      {sportsSelected ? (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-slate-600">Sport</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {SPORT_CATEGORY_OPTIONS.map((sport) => (
+              <CategoryChip
+                key={sport.slug}
+                label={sport.label}
+                checked={categorySlugs.includes(sport.slug)}
+                onToggle={() => onToggleCategory(sport.slug)}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </fieldset>
   )
 }
