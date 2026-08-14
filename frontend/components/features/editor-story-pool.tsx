@@ -1,6 +1,6 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
@@ -65,6 +65,27 @@ function matchesPlacementFilter(
     return placements.some((placement) => placement.pageName === 'homepage')
   }
   return true
+}
+
+/** Date/time style used when showing a story's created timestamp. */
+const POOL_CREATED_AT_FORMAT = { dateStyle: 'medium', timeStyle: 'short' } as const
+
+/**
+ * Format a story created-at timestamp for the editor pool cards.
+ *
+ * @param createdAt ISO-8601 timestamp from the articles API.
+ * @param formatDateTime Locale-aware next-intl date formatter.
+ * @returns Localized date-time, or an empty string when the value is invalid.
+ */
+function formatPoolCreatedAt(
+  createdAt: string,
+  formatDateTime: (value: number, options: typeof POOL_CREATED_AT_FORMAT) => string,
+): string {
+  const timestamp = Date.parse(createdAt)
+  if (Number.isNaN(timestamp)) {
+    return ''
+  }
+  return formatDateTime(timestamp, POOL_CREATED_AT_FORMAT)
 }
 
 interface IEditorStoryPoolProps {
@@ -146,6 +167,7 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     onLoadMore,
   } = props
   const t = useTranslations('admin')
+  const format = useFormatter()
   const [isModalOpen, setModalOpen] = useState(false)
   const [filters, setFilters] = useState<IEditorSearchFilters>(EMPTY_EDITOR_SEARCH_FILTERS)
   const [debouncedFilters, setDebouncedFilters] = useState<IEditorSearchFilters>(
@@ -285,6 +307,14 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
                   {article.title}
                 </h3>
                 <dl className="space-y-1 text-xs text-neutral-600">
+                  <div>
+                    <dt className="inline font-medium text-neutral-500">
+                      {t('editor.pool.row.created')}{' '}
+                    </dt>
+                    <dd className="inline">
+                      {formatPoolCreatedAt(article.created_at, format.dateTime)}
+                    </dd>
+                  </div>
                   <div>
                     <dt className="inline font-medium text-neutral-500">
                       {t('editor.pool.row.id')}{' '}

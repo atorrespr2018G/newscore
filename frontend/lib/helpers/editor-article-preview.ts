@@ -8,6 +8,7 @@ export interface IEditorArticleRow {
   status: string
   author_name: string
   thumbnail_url: string | null
+  created_at?: string
 }
 
 /**
@@ -26,7 +27,7 @@ export function editorArticleRowToPreview(article: IEditorArticleRow): IArticle 
     authorName: article.author_name,
     thumbnailUrl: article.thumbnail_url,
     videoUrl: null,
-    createdAt: '',
+    createdAt: article.created_at ?? '',
     publishedAt: null,
   }
 }

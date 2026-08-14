@@ -19,6 +19,8 @@ export interface IEditorStoryRow {
   status: string
   author_name: string
   thumbnail_url: string | null
+  /** ISO-8601 timestamp when the story was created. */
+  created_at: string
   category_ids?: string[]
   /** Where the draft was created; Media Desk handoffs use `media_desk`. */
   source?: 'reporter' | 'media_desk'

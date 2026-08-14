@@ -194,6 +194,7 @@
       },
       "row": {
         "id": "ID:",
+        "created": "Creado:",
         "status": "Estado:",
         "author": "Autor:",
         "location": "Ubicación:"
