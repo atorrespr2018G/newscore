@@ -759,7 +759,7 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     )
   }
 
-  const sections = (
+  return (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
       <MainPageOrderedSections
         slots={slots}
@@ -768,10 +768,6 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
       />
     </div>
   )
-  if (pageName !== HOMEPAGE_PAGE_NAME) {
-    return sections
-  }
-  return <HeroVideoAdScope>{sections}</HeroVideoAdScope>
 }
 
 /**

@@ -6,6 +6,7 @@ import { StoryFollowups } from '@/components/features/story-followups'
 import { ArticleBodyLayout, ArticleHeader } from '@/components/features/article-reading-view'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/feed-state'
 import { StickyAdRibbon } from '@/components/ui/sticky-ad-ribbon'
+import { HeroVideoAdOverlay } from '@/components/ui/hero-video-ad-overlay'
 import { useTranslations } from 'next-intl'
 
 interface IArticleClientProps {
@@ -41,6 +42,7 @@ export function ArticleClient({ slug, initialArticle }: IArticleClientProps): JS
         <ArticleBodyLayout article={article} />
         <StoryFollowups updates={article.storyUpdates} />
       </article>
+      <HeroVideoAdOverlay articleSlug={article.slug || slug} />
       <StickyAdRibbon />
     </>
   )

@@ -1,25 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
 import { useAds } from '@/context/ad-provider'
 import { shouldServeMockAds, type AdSlotKey } from '@/lib/ad-config'
 import {
+  clearHeroVideoAdPending,
   HERO_VIDEO_AD_MAX_WIDTH_PX,
   HERO_VIDEO_AD_SKIP_AFTER_MS,
+  peekHeroVideoAdPending,
   remainingSkipSeconds,
+  shouldShowHeroVideoAd,
 } from '@/lib/helpers/hero-video-ad'
 import { MOCK_VIDEO_AD_SRC } from '@/lib/mock-ads'
-import { useHeroVideoAd } from '@/context/hero-video-ad-context'
 
 const HERO_CLICK_VIDEO_SLOT_KEY: AdSlotKey = 'hero-click-video'
-
-interface IHeroVideoAdCloseButtonProps {
-  label: string
-  onClose: () => void
-}
 
 interface IHeroVideoAdSkipButtonProps {
   remaining: number
@@ -30,36 +27,52 @@ interface IHeroVideoAdSkipButtonProps {
 }
 
 /**
- * Centered video advertisement shown when a homepage story is selected.
+ * Open the overlay after the article has painted, if this view was a hero click.
  *
- * Matches the El Vocero high-impact pattern: the video occupies the middle
- * of the viewport until skipped or closed, then the article opens.
- *
- * @returns The overlay portal, or null when no hero-click ad is open.
+ * @param articleSlug Route slug of the rendered article.
+ * @returns Open state and a dismiss handler.
  */
-export function HeroVideoAdOverlay(): JSX.Element | null {
-  const videoAd = useHeroVideoAd()
+function useHeroVideoAdOpen(articleSlug: string): [boolean, () => void] {
+  const { mode } = useAds()
+  const [open, setOpen] = useState(false)
+  const close = useCallback(() => {
+    clearHeroVideoAdPending()
+    setOpen(false)
+  }, [])
+
+  useEffect(() => {
+    const pendingSlug = peekHeroVideoAdPending()
+    if (!shouldShowHeroVideoAd({ pendingSlug, articleSlug, mode })) {
+      return
+    }
+    const frame = window.requestAnimationFrame(() => setOpen(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [articleSlug, mode])
+
+  return [open, close]
+}
+
+/**
+ * Centered video advertisement shown on a rendered article opened from the hero.
+ *
+ * The article is fetched and painted first; this overlay then pops over it.
+ *
+ * @param props Route slug of the article that just rendered.
+ * @returns The overlay portal, or null when this view should not show the ad.
+ */
+export function HeroVideoAdOverlay({ articleSlug }: { articleSlug: string }): JSX.Element | null {
+  const [open, close] = useHeroVideoAdOpen(articleSlug)
   const [mounted, setMounted] = useState(false)
-  const open = Boolean(videoAd?.destinationSlug)
-  const onClose = videoAd?.close ?? noopClose
 
   useEffect(() => {
     setMounted(true)
   }, [])
   useBodyScrollLock(open)
-  useEscapeToClose(open, onClose)
 
   if (!mounted || !open) {
     return null
   }
-  return createPortal(<HeroVideoAdDialog onClose={onClose} />, document.body)
-}
-
-/**
- * No-op used before the site video-ad provider is mounted.
- */
-function noopClose(): void {
-  return
+  return createPortal(<HeroVideoAdDialog onClose={close} />, document.body)
 }
 
 /**
@@ -103,27 +116,6 @@ function useBodyScrollLock(locked: boolean): void {
 }
 
 /**
- * Close the overlay when the user presses Escape.
- *
- * @param active Whether the overlay is visible.
- * @param onClose Close handler.
- */
-function useEscapeToClose(active: boolean, onClose: () => void): void {
-  useEffect(() => {
-    if (!active) {
-      return
-    }
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [active, onClose])
-}
-
-/**
  * Dialog chrome: dimmed backdrop and centered 16:9 player.
  *
  * @param props Close handler.
@@ -143,7 +135,6 @@ function HeroVideoAdDialog({ onClose }: { onClose: () => void }): JSX.Element {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
     >
       <div className="relative w-full" style={{ maxWidth: HERO_VIDEO_AD_MAX_WIDTH_PX }}>
-        <HeroVideoAdCloseButton label={tAds('closeAdvertisement')} onClose={onClose} />
         <HeroVideoAdPlayer onEnded={onClose} />
         <HeroVideoAdSkipButton
           remaining={skip.remaining}
@@ -185,28 +176,6 @@ function HeroVideoAdPlayer({ onEnded }: { onEnded: () => void }): JSX.Element {
       playsInline
       onEnded={onEnded}
     />
-  )
-}
-
-/**
- * Top-right close control for the video ad dialog.
- *
- * @param props Accessible label and close handler.
- * @returns The close button.
- */
-function HeroVideoAdCloseButton({
-  label,
-  onClose,
-}: IHeroVideoAdCloseButtonProps): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClose}
-      aria-label={label}
-      className="absolute -top-3 right-0 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg leading-none text-neutral-900 shadow hover:bg-neutral-100"
-    >
-      ×
-    </button>
   )
 }
 

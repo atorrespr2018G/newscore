@@ -1,15 +1,11 @@
 'use client'
 
-import type { CSSProperties, MouseEvent, ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import Link from 'next/link'
 import type { IArticle } from '@/interfaces/article'
 import { useAds } from '@/context/ad-provider'
 import { useEditorialArticlePreview } from '@/context/editorial-article-preview-context'
-import {
-  isUnmodifiedPrimaryClick,
-  useHeroVideoAd,
-  useHeroVideoAdScope,
-} from '@/context/hero-video-ad-context'
+import { useHeroVideoAdScope } from '@/context/hero-video-ad-context'
 import { markHeroVideoAdPending } from '@/lib/helpers/hero-video-ad'
 
 interface IEditorialArticleLinkProps {
@@ -29,7 +25,8 @@ interface IEditorialArticleLinkProps {
  * open the read overlay instead of navigating to the public article page. That
  * matters for draft and review stories, which have no public article route.
  *
- * On the public homepage, a primary click opens the centered video ad first.
+ * On the public homepage hero, a click still navigates to the article; the
+ * video ad opens after that article has rendered.
  *
  * @param props Article, styling, optional click handler, and child content.
  * @returns A link on the public site or a button in editorial preview surfaces.
@@ -44,7 +41,7 @@ export function EditorialArticleLink({
 }: IEditorialArticleLinkProps): JSX.Element {
   const preview = useEditorialArticlePreview()
   const clickHandler = onArticleClick ?? preview?.openPreview
-  const onPublicClick = usePublicHeroVideoAdClick(article.slug)
+  const onHeroNavigate = useHeroVideoAdArm(article.slug)
 
   if (clickHandler) {
     return (
@@ -66,7 +63,7 @@ export function EditorialArticleLink({
       className={className}
       style={style}
       aria-label={ariaLabel}
-      onClick={onPublicClick}
+      onClick={onHeroNavigate}
     >
       {children}
     </Link>
@@ -74,28 +71,22 @@ export function EditorialArticleLink({
 }
 
 /**
- * Intercept homepage story clicks so the video ad can play before navigation.
+ * Arm the article-page video ad when a homepage hero story is opened.
  *
- * @param slug Article slug to open after the overlay.
- * @returns Click handler for the public article link, or undefined off-homepage.
+ * Navigation is not blocked; the overlay waits until the article has rendered.
+ *
+ * @param slug Article slug being opened.
+ * @returns Click handler, or undefined outside the homepage hero.
  */
-function usePublicHeroVideoAdClick(
-  slug: string,
-): ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined {
+function useHeroVideoAdArm(slug: string): (() => void) | undefined {
   const intercept = useHeroVideoAdScope()
-  const videoAd = useHeroVideoAd()
   const { mode } = useAds()
 
-  if (!intercept || !videoAd || mode === 'off') {
+  if (!intercept || mode === 'off') {
     return undefined
   }
 
-  return (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!isUnmodifiedPrimaryClick(event)) {
-      markHeroVideoAdPending(slug)
-      return
-    }
-    event.preventDefault()
-    videoAd.open(slug)
+  return () => {
+    markHeroVideoAdPending(slug)
   }
 }
