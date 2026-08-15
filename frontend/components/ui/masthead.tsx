@@ -74,9 +74,12 @@ function useMounted(): boolean {
   return isMounted
 }
 
-/** Keep the leaderboard in view until the lock window ends. */
-function useMastheadAdLock(): boolean {
+/** Keep the leaderboard in view after navigation or a market/locale selection change. */
+function useMastheadAdLock(): { lockActive: boolean; impressionKey: string } {
   const pathname = usePathname()
+  const { locale } = useLocale()
+  const { marketCode, town, county } = useMarket()
+  const impressionKey = `${pathname}:${locale}:${marketCode}:${town ?? ''}:${county ?? ''}`
   const [lockActive, setLockActive] = useState(true)
 
   useEffect(() => {
@@ -85,9 +88,9 @@ function useMastheadAdLock(): boolean {
       setLockActive(false)
     }, MASTHEAD_AD_LOCK_MS)
     return () => window.clearTimeout(timer)
-  }, [pathname])
+  }, [impressionKey])
 
-  return lockActive
+  return { lockActive, impressionKey }
 }
 
 /** Track leaderboard height so the nav can sit below it while locked. */
@@ -591,13 +594,13 @@ function MastheadNavBar({
 export function Masthead({ activeSection, showAdRibbon = true }: IMastheadProps): JSX.Element {
   const isMounted = useMounted()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const lockActive = useMastheadAdLock()
+  const { lockActive, impressionKey } = useMastheadAdLock()
   const { setElement: setRibbonElement, height: ribbonHeight } = useMeasuredHeight()
 
   return (
     <>
       {showAdRibbon ? (
-        <MastheadAdRibbon ribbonRef={setRibbonElement} lockActive={lockActive} />
+        <MastheadAdRibbon key={impressionKey} ribbonRef={setRibbonElement} lockActive={lockActive} />
       ) : null}
       <header
         className={MASTHEAD_NAV_LAYER_CLASS}
