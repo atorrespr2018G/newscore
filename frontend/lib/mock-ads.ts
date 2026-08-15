@@ -3,6 +3,10 @@ import type { AdSlotKey } from '@/lib/ad-config'
 /** Simulated network latency before a mock creative is "received". */
 export const MOCK_AD_LATENCY_MS = 300
 
+/** Public sample used as the mock hero-click video advertisement. */
+export const MOCK_VIDEO_AD_SRC =
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
+
 export type MockCreativeId =
   | 'sponsoredBriefing'
   | 'brandSpotlight'

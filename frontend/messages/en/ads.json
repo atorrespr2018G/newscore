@@ -1,6 +1,9 @@
 {
   "loading": "Loading advertisement",
   "closeAdvertisement": "Close advertisement",
+  "skipAd": "Skip ad",
+  "skipAdIn": "Skip in {seconds}",
+  "videoAdvertisement": "Video advertisement",
   "creatives": {
     "sponsoredBriefing": {
       "title": "Sponsored briefing",

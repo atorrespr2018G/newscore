@@ -25,6 +25,7 @@ import { shouldRenderHomepageGridAd } from '@/lib/helpers/homepage-ad-placement'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
+import { HeroVideoAdScope } from '@/context/hero-video-ad-context'
 import { usePageAds, useSyncPageAdPlacements } from '@/context/page-ads-context'
 import type { PageAdLocation } from '@/lib/helpers/page-ad-placements'
 import { EmptyState, ErrorState, LoadingState, SectionSkeleton } from '@/components/ui/feed-state'
@@ -120,6 +121,8 @@ function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element {
 
 interface IHeroBlockProps {
   articles: IArticle[]
+  /** Arm the centered video ad when a public homepage hero story is opened. */
+  enableVideoAd?: boolean
 }
 
 function HeroLeftRail({ articles }: { articles: IArticle[] }): JSX.Element {
@@ -234,18 +237,12 @@ function HeroRightRail({ articles }: { articles: IArticle[] }): JSX.Element {
   )
 }
 
-function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
+function HeroBlockLayout({ articles }: { articles: IArticle[] }): JSX.Element {
   const hero = articles[0]
   if (!hero) {
-    return (
-      <div className="rounded border border-dashed border-neutral-300 bg-neutral-50 p-4">
-        <PlacementSectionDropZone />
-      </div>
-    )
+    throw new Error('HeroBlockLayout requires a lead article')
   }
-
   const { left, relatedLinks, strip, rightCards } = splitDefaultHeroArticles(articles)
-
   return (
     <div>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -258,11 +255,28 @@ function HeroBlock({ articles }: IHeroBlockProps): JSX.Element | null {
   )
 }
 
+function HeroBlock({ articles, enableVideoAd = false }: IHeroBlockProps): JSX.Element | null {
+  if (!articles[0]) {
+    return (
+      <div className="rounded border border-dashed border-neutral-300 bg-neutral-50 p-4">
+        <PlacementSectionDropZone />
+      </div>
+    )
+  }
+
+  const layout = <HeroBlockLayout articles={articles} />
+  if (!enableVideoAd) {
+    return layout
+  }
+  return <HeroVideoAdScope>{layout}</HeroVideoAdScope>
+}
+
 /** Post-politics section keys preceded by an ad ribbon on the homepage. */
 const POST_POLITICS_AD_SECTION_KEYS = ['health', 'finance', 'technology', 'world'] as const
 
 const POLITICS_POSITION_KEY = 'politics'
 const SPORTS_POSITION_KEY = 'sports'
+const HOMEPAGE_PAGE_NAME = 'homepage'
 const SPORTS_PAGE_NAME = 'sports'
 const SPORTS_SECTION_PAIR_SIZE = 2
 const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
@@ -402,11 +416,13 @@ function HomepagePageSlotBlock({
   kind,
   title,
   adIndex = 0,
+  pageName,
 }: {
   slot: IFeedSlot
   kind: HomepagePageSlotKind
   title: string
   adIndex?: number
+  pageName?: string
 }): JSX.Element | null {
   if (kind === 'ribbon_ad') {
     return <AdRibbon index={adIndex} />
@@ -414,7 +430,10 @@ function HomepagePageSlotBlock({
   if (kind === 'hero') {
     return (
       <PlacementSlotScope slotId={slot.id}>
-        <HeroBlock articles={slot.articles} />
+        <HeroBlock
+          articles={slot.articles}
+          enableVideoAd={pageName === HOMEPAGE_PAGE_NAME}
+        />
       </PlacementSlotScope>
     )
   }
@@ -527,7 +546,13 @@ function MainPageOrderedSections({
       const ribbonIndex = adIndex++
       blocks.push(
         <div key={slot.id} className="space-y-2">
-          <HomepagePageSlotBlock slot={slot} kind={kind} title={title} adIndex={ribbonIndex} />
+          <HomepagePageSlotBlock
+            slot={slot}
+            kind={kind}
+            title={title}
+            adIndex={ribbonIndex}
+            pageName={pageName}
+          />
         </div>,
       )
       previousSlot = slot
@@ -549,7 +574,7 @@ function MainPageOrderedSections({
             anchorSlug={normalizedPositionKey(slot)}
           />
         ) : null}
-        <HomepagePageSlotBlock slot={slot} kind={kind} title={title} />
+        <HomepagePageSlotBlock slot={slot} kind={kind} title={title} pageName={pageName} />
         {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} /> : null}
       </div>,
     )
@@ -734,7 +759,7 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     )
   }
 
-  return (
+  const sections = (
     <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
       <MainPageOrderedSections
         slots={slots}
@@ -743,6 +768,10 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
       />
     </div>
   )
+  if (pageName !== HOMEPAGE_PAGE_NAME) {
+    return sections
+  }
+  return <HeroVideoAdScope>{sections}</HeroVideoAdScope>
 }
 
 /**

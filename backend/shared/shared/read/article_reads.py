@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Mapping, Sequence, cast
+from urllib.parse import unquote
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -127,6 +128,48 @@ async def get_article_by_id(
     return article_detail_out(doc, author_name=author)
 
 
+def _normalized_article_slug(slug: str) -> str:
+    """Decode and trim a public article slug.
+
+    Args:
+        slug: Raw slug from GraphQL or the article route.
+
+    Returns:
+        URL-decoded slug used to look up the article document.
+    """
+
+    return unquote((slug or "").strip())
+
+
+async def _published_doc_by_slug(
+    db: AsyncIOMotorDatabase,
+    *,
+    slug: str,
+    market_id: str | None,
+) -> dict[str, Any] | None:
+    """Find a published article by slug, preferring a market match.
+
+    Slugs are globally unique. Homepage pins resolve with ``require_market=False``,
+    so a story placed on PR can belong to another market. Prefer the active
+    market, then fall back to any published document with this slug.
+
+    Args:
+        db: Database connection.
+        slug: Normalized article slug.
+        market_id: Preferred market document id, or None.
+
+    Returns:
+        The article document, or None when no published slug match exists.
+    """
+
+    query: dict[str, Any] = {"slug": slug, "status": "published"}
+    if market_id:
+        scoped = await db[ARTICLES_COLLECTION].find_one({**query, "market_ids": market_id})
+        if scoped is not None:
+            return scoped
+    return await db[ARTICLES_COLLECTION].find_one(query)
+
+
 async def get_article_by_slug(
     db: AsyncIOMotorDatabase,
     *,
@@ -134,12 +177,29 @@ async def get_article_by_slug(
     market_id: str | None = None,
     loader: AuthorNameLoader | None = None,
 ) -> ArticleDetailOut:
-    """Load a published article by slug, optionally scoped to a market."""
+    """Load a published article by its globally unique slug.
 
-    q: dict[str, Any] = {"slug": slug, "status": "published"}
-    if market_id:
-        q["market_ids"] = market_id
-    doc = await db[ARTICLES_COLLECTION].find_one(q)
+    ``market_id`` is a preference only. Editors may pin a story onto another
+    market's homepage; readers clicking that card must still reach the article.
+
+    Args:
+        db: Database connection.
+        slug: Article slug from the public article URL.
+        market_id: Preferred market document id.
+        loader: Optional author name loader.
+
+    Returns:
+        Published article detail.
+
+    Raises:
+        NotFoundError: If no published article has this slug.
+    """
+
+    doc = await _published_doc_by_slug(
+        db,
+        slug=_normalized_article_slug(slug),
+        market_id=market_id,
+    )
     if doc is None:
         raise NotFoundError("Article not found")
     names = loader or AuthorNameLoader(db)

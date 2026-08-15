@@ -43,6 +43,7 @@ describe('getSlotVariant', () => {
     expect(getSlotVariant('masthead-leaderboard')).toBe('leaderboard')
     expect(getSlotVariant('article-rail')).toBe('tall')
     expect(getSlotVariant('homepage-us-band')).toBe('square')
+    expect(getSlotVariant('hero-click-video')).toBe('video')
   })
 
   it('covers every registry entry', () => {

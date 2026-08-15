@@ -12,7 +12,7 @@ _ROOT = Path(__file__).resolve().parents[1] / "shared"
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from shared.read.article_reads import article_out
+from shared.read.article_reads import article_out, get_article_by_slug
 from shared.read.placement_reads import _article_ids_for_slot
 from shared.read.site_reads import _resolve_slot_articles, _resolve_slot_articles_preview
 from shared.read.slot_pinned_ids import effective_pinned_ids_for_preview, slot_with_preview_pins
@@ -460,3 +460,70 @@ async def test_published_slot_resolution_ignores_draft_pins() -> None:
             )
 
     assert [article.id for article in resolved] == ["live-1"]
+
+
+def _slug_lookup_doc() -> dict:
+    """Published article tagged to Colombia, not Puerto Rico."""
+
+    return {
+        "_id": "art-ve-1",
+        "title": "Edificio colapsan tras terremotos en Venezuela",
+        "slug": "edificio-colapsan-tras-terremotos-en-venezuela",
+        "status": "published",
+        "author_id": "user-1",
+        "thumbnail_url": None,
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "published_at": "2026-01-01T00:00:00+00:00",
+        "body": "<p>Los edificios colapsaron.</p>",
+        "tags": [],
+        "market_ids": ["mkt-co"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_article_by_slug_falls_back_without_market() -> None:
+    """A story pinned on another market remains readable by its unique slug."""
+
+    doc = _slug_lookup_doc()
+    collection = MagicMock()
+    collection.find_one = AsyncMock(side_effect=[None, doc])
+    db = MagicMock()
+    db.__getitem__.return_value = collection
+    loader = MagicMock()
+    loader.load = AsyncMock(return_value="Reporter")
+
+    result = await get_article_by_slug(
+        db,
+        slug=doc["slug"],
+        market_id="mkt-pr",
+        loader=loader,
+    )
+
+    assert result.id == "art-ve-1"
+    assert result.slug == doc["slug"]
+    assert collection.find_one.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_get_article_by_slug_prefers_active_market() -> None:
+    """When the slug exists in the reader's market, that document is used."""
+
+    doc = _slug_lookup_doc()
+    collection = MagicMock()
+    collection.find_one = AsyncMock(return_value=doc)
+    db = MagicMock()
+    db.__getitem__.return_value = collection
+    loader = MagicMock()
+    loader.load = AsyncMock(return_value="Reporter")
+
+    result = await get_article_by_slug(
+        db,
+        slug=doc["slug"],
+        market_id="mkt-co",
+        loader=loader,
+    )
+
+    assert result.id == "art-ve-1"
+    assert collection.find_one.await_count == 1
+    query = collection.find_one.await_args.args[0]
+    assert query["market_ids"] == "mkt-co"

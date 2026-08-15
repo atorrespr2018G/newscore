@@ -189,7 +189,12 @@ class ContentQuery:
         market: str = DEFAULT_MARKET_CODE,
         region_code: str | None = None,
     ) -> Article | None:
-        """Load a published article by slug for a market."""
+        """Load a published article by slug.
+
+        ``market`` prefers the reader's edition. If the slug belongs to a
+        story pinned from another market, that published article is still
+        returned so homepage clicks do not 404.
+        """
 
         requested_market = (
             _market_from_region(region_code, market) if geo_graphql_region_args() else market

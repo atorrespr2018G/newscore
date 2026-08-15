@@ -6,7 +6,14 @@ export const ADS_MODE_ENV_KEY = 'NEXT_PUBLIC_ADS_MODE'
 export const DEFAULT_ADS_MODE: AdsMode = 'mock'
 
 export type AdsMode = 'mock' | 'off' | 'gam'
-export type AdSlotVariant = 'leaderboard' | 'ribbon' | 'rail' | 'tall' | 'square' | 'sticky'
+export type AdSlotVariant =
+  | 'leaderboard'
+  | 'ribbon'
+  | 'rail'
+  | 'tall'
+  | 'square'
+  | 'sticky'
+  | 'video'
 
 export type AdSlotKey =
   | 'masthead-leaderboard'
@@ -20,6 +27,7 @@ export type AdSlotKey =
   | 'homepage-us-band'
   | 'homepage-editorial-band'
   | 'homepage-health-carousel'
+  | 'hero-click-video'
 
 export interface IAdSlotDefinition {
   key: AdSlotKey
@@ -40,6 +48,7 @@ export const AD_SLOT_REGISTRY: Record<AdSlotKey, IAdSlotDefinition> = {
   'homepage-us-band': { key: 'homepage-us-band', variant: 'square' },
   'homepage-editorial-band': { key: 'homepage-editorial-band', variant: 'ribbon' },
   'homepage-health-carousel': { key: 'homepage-health-carousel', variant: 'square' },
+  'hero-click-video': { key: 'hero-click-video', variant: 'video' },
 }
 
 /** Reserved shell classes that match current placeholder min-heights. */
@@ -50,6 +59,7 @@ export const AD_VARIANT_SHELL_CLASS: Record<AdSlotVariant, string> = {
   tall: 'min-h-[280px] w-full',
   square: 'aspect-[4/3] w-full min-h-[180px]',
   sticky: 'min-h-[108px] max-h-[108px] w-full overflow-hidden',
+  video: 'aspect-video w-full min-h-[200px]',
 }
 
 /** Sticky footer ribbon height in px (20% taller than the 90px baseline). */

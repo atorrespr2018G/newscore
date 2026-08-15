@@ -1,6 +1,9 @@
 {
   "loading": "Cargando publicidad",
   "closeAdvertisement": "Cerrar publicidad",
+  "skipAd": "Saltar anuncio",
+  "skipAdIn": "Saltar en {seconds}",
+  "videoAdvertisement": "Anuncio de video",
   "creatives": {
     "sponsoredBriefing": {
       "title": "Informe patrocinado",

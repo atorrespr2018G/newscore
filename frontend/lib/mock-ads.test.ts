@@ -2,6 +2,7 @@ import {
   hashAdPlacement,
   MOCK_AD_LATENCY_MS,
   MOCK_CREATIVE_CATALOG,
+  MOCK_VIDEO_AD_SRC,
   selectMockCreative,
 } from '@/lib/mock-ads'
 
@@ -41,5 +42,11 @@ describe('selectMockCreative', () => {
     )
     const uniqueIds = new Set(creatives.map((creative) => creative.id))
     expect(uniqueIds.size).toBeGreaterThan(1)
+  })
+})
+
+describe('MOCK_VIDEO_AD_SRC', () => {
+  it('points at a hosted mp4 for the hero-click unit', () => {
+    expect(MOCK_VIDEO_AD_SRC).toMatch(/^https:\/\/.+\.mp4$/)
   })
 })
