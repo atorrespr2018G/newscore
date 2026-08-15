@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { SportCategoryPage } from '@/components/features/sport-category-page'
+import { StickyAdRibbon } from '@/components/ui/sticky-ad-ribbon'
 import type { IArticleConnection } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { fetchCategoryArticles, fetchPageFeed } from '@/lib/graphql/server-fetch'
@@ -109,8 +110,11 @@ export default async function SportArchiveRoutePage({
   const sportTitle = sportArchiveTitle(slug, archive.slot.displayName, tNav)
 
   return (
-    <main id="main-content" className="site-container py-8">
-      <SportCategoryPage slug={slug} sportTitle={sportTitle} connection={archive.connection} />
-    </main>
+    <>
+      <main id="main-content" className="site-container py-8">
+        <SportCategoryPage slug={slug} sportTitle={sportTitle} connection={archive.connection} />
+      </main>
+      <StickyAdRibbon />
+    </>
   )
 }
