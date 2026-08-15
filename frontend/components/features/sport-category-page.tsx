@@ -122,11 +122,7 @@ function SportArchiveBody({
     <>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SportArchiveFeaturedCard article={layout.featured} />
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          {layout.rail.map((article) => (
-            <SportArchiveRailCard key={article.id} article={article} />
-          ))}
-        </div>
+        <SportArchiveRail articles={layout.rail} />
       </div>
       <SportArchiveGrid articles={layout.grid} />
     </>
@@ -207,6 +203,51 @@ function SportArchiveFeaturedCard({ article }: { article: IArticle }): JSX.Eleme
         </div>
       </article>
     </Link>
+  )
+}
+
+/**
+ * Two-row rail: first story plus square ad, a rule, then the remaining stories.
+ *
+ * @param props Rail articles after the featured lead.
+ * @returns Featured-band side rail.
+ */
+function SportArchiveRail({ articles }: { articles: IArticle[] }): JSX.Element {
+  const firstStory = articles[0]
+  const secondRow = articles.slice(1)
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        {firstStory ? <SportArchiveRailCard article={firstStory} /> : null}
+        <SportArchiveRailAd />
+      </div>
+      {secondRow.length > 0 ? (
+        <>
+          <div className="my-6 border-t border-neutral-200" />
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            {secondRow.map((article) => (
+              <SportArchiveRailCard key={article.id} article={article} />
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Square advertisement occupying the top-right rail cell.
+ *
+ * @returns Rail square ad unit.
+ */
+function SportArchiveRailAd(): JSX.Element {
+  const t = useTranslations('common')
+
+  return (
+    <section aria-label={t('advertisement')} className="h-full">
+      <AdSlot slotKey="sport-archive-rail" variant="square" className="h-full rounded-xl" />
+    </section>
   )
 }
 

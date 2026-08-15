@@ -28,6 +28,7 @@ export type AdSlotKey =
   | 'homepage-editorial-band'
   | 'homepage-health-carousel'
   | 'hero-click-video'
+  | 'sport-archive-rail'
 
 export interface IAdSlotDefinition {
   key: AdSlotKey
@@ -49,6 +50,7 @@ export const AD_SLOT_REGISTRY: Record<AdSlotKey, IAdSlotDefinition> = {
   'homepage-editorial-band': { key: 'homepage-editorial-band', variant: 'ribbon' },
   'homepage-health-carousel': { key: 'homepage-health-carousel', variant: 'square' },
   'hero-click-video': { key: 'hero-click-video', variant: 'video' },
+  'sport-archive-rail': { key: 'sport-archive-rail', variant: 'square' },
 }
 
 /** Reserved shell classes that match current placeholder min-heights. */

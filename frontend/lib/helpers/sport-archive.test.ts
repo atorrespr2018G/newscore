@@ -105,7 +105,7 @@ describe('findSportArchiveSlot', () => {
 })
 
 describe('splitSportArchiveLayout', () => {
-  it('places the newest story as featured, then four rail stories, then the grid', () => {
+  it('places the newest story as featured, then rail stories around the ad cell, then the grid', () => {
     const articles = Array.from({ length: 8 }, (_, index) => ({
       id: `a-${index}`,
       title: `Story ${index}`,
@@ -121,8 +121,8 @@ describe('splitSportArchiveLayout', () => {
     const layout = splitSportArchiveLayout(articles)
 
     expect(layout.featured?.id).toBe('a-0')
-    expect(layout.rail.map((item) => item.id)).toEqual(['a-1', 'a-2', 'a-3', 'a-4'])
-    expect(layout.grid.map((item) => item.id)).toEqual(['a-5', 'a-6', 'a-7'])
+    expect(layout.rail.map((item) => item.id)).toEqual(['a-1', 'a-3', 'a-4'])
+    expect(layout.grid.map((item) => item.id)).toEqual(['a-2', 'a-5', 'a-6', 'a-7'])
   })
 
   it('returns an empty layout when there are no stories', () => {

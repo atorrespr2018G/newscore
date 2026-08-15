@@ -9,8 +9,11 @@ export const SPORTS_PAGE_NAME = 'sports'
 /** Articles fetched per sport archive page (server skip/limit). */
 export const SPORT_CATEGORY_PAGE_SIZE = 16
 
-/** Compact rail stories stacked beside the featured card. */
+/** Compact rail stories beside the featured card, including the cell replaced by an ad. */
 export const SPORT_ARCHIVE_RAIL_COUNT = 4
+
+/** 0-based rail cell that renders a square advertisement instead of a story. */
+export const SPORT_ARCHIVE_RAIL_AD_INDEX = 1
 
 /** Desktop grid columns on the sport archive. */
 export const SPORT_ARCHIVE_GRID_COLUMNS = 4
@@ -102,7 +105,9 @@ export function findSportArchiveSlot(
 }
 
 /**
- * Split a newest-first list into Metro's featured + rail + 3-column grid.
+ * Split a newest-first list into Metro's featured + rail + grid.
+ *
+ * The rail ad cell displaces one story into the start of the grid.
  *
  * @param articles Category articles already sorted by published date.
  * @returns Featured lead, side rail, and remaining grid stories.
@@ -112,11 +117,31 @@ export function splitSportArchiveLayout(articles: IArticle[]): ISportArchiveLayo
     return { featured: null, rail: [], grid: [] }
   }
   const featured = articles[0]
-  const railEnd = 1 + SPORT_ARCHIVE_RAIL_COUNT
+  const rest = articles.slice(1)
+  const { rail, displaced } = splitRailAroundAd(rest)
+  const gridTail = rest.slice(SPORT_ARCHIVE_RAIL_COUNT)
   return {
     featured,
-    rail: articles.slice(1, railEnd),
-    grid: articles.slice(railEnd),
+    rail,
+    grid: displaced ? [displaced, ...gridTail] : gridTail,
+  }
+}
+
+/**
+ * Take rail stories and pull out the cell that becomes a square ad.
+ *
+ * @param stories Articles after the featured lead.
+ * @returns Remaining rail cards and the displaced story, if any.
+ */
+function splitRailAroundAd(stories: IArticle[]): {
+  rail: IArticle[]
+  displaced: IArticle | undefined
+} {
+  const railPool = stories.slice(0, SPORT_ARCHIVE_RAIL_COUNT)
+  const displaced = railPool[SPORT_ARCHIVE_RAIL_AD_INDEX]
+  return {
+    rail: railPool.filter((_, index) => index !== SPORT_ARCHIVE_RAIL_AD_INDEX),
+    displaced,
   }
 }
 
