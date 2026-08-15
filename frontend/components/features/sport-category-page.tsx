@@ -193,8 +193,11 @@ function SportArchiveRailCard({
   const href = `/article/${encodeURIComponent(article.slug)}`
 
   return (
-    <Link href={href} className="group block text-neutral-950 hover:text-neutral-950">
-      <article className="flex items-stretch gap-4 py-3 first:pt-0 last:pb-0">
+    <Link
+      href={href}
+      className="group block py-8 first:pt-0 last:pb-0 text-neutral-950 hover:text-neutral-950"
+    >
+      <article className="flex items-stretch gap-4">
         <SportArchiveCardImage
           article={article}
           sizes="140px"
