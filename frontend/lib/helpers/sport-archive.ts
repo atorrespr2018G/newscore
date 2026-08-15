@@ -6,19 +6,19 @@ import { sportPagePath } from '@/lib/helpers/section-labels'
 /** CMS page name for the Sports landing page. */
 export const SPORTS_PAGE_NAME = 'sports'
 
-/** Articles shown on one sport archive page (matches backend DEFAULT_PAGE_SIZE). */
-export const SPORT_CATEGORY_PAGE_SIZE = 20
+/** Articles fetched per sport archive page (server skip/limit). */
+export const SPORT_CATEGORY_PAGE_SIZE = 16
 
 /** Compact rail stories stacked beside the featured card. */
 export const SPORT_ARCHIVE_RAIL_COUNT = 4
 
 /** Desktop grid columns on the sport archive. */
-export const SPORT_ARCHIVE_GRID_COLUMNS = 3
+export const SPORT_ARCHIVE_GRID_COLUMNS = 4
 
 /** Insert a ribbon after this many grid rows. */
 export const SPORT_ARCHIVE_GRID_ROWS_PER_RIBBON = 2
 
-/** Cards in one grid block between horizontal ribbons (3 columns × 2 rows). */
+/** Cards in one grid block between horizontal ribbons (4 columns × 2 rows). */
 export const SPORT_ARCHIVE_GRID_CHUNK_SIZE =
   SPORT_ARCHIVE_GRID_COLUMNS * SPORT_ARCHIVE_GRID_ROWS_PER_RIBBON
 

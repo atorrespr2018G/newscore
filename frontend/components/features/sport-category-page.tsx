@@ -183,7 +183,7 @@ function SportArchiveGrid({
       {chunkSportArchiveGrid(articles).map((chunk, chunkIndex) => (
         <div key={chunk[0]?.id ?? `grid-chunk-${chunkIndex}`}>
           {chunkIndex > 0 ? <SportArchiveAdRibbon index={chunkIndex} /> : null}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {chunk.map((article) => (
               <SportArchiveFeaturedCard key={article.id} article={article} sportLabel={sportLabel} />
             ))}

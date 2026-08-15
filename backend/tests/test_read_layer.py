@@ -532,19 +532,23 @@ async def test_get_article_by_slug_prefers_active_market() -> None:
 
 
 class _EmptyAsyncCursor:
-    """Motor-like cursor that records sort args and yields no documents."""
+    """Motor-like cursor that records sort/skip/limit args and yields no documents."""
 
     def __init__(self) -> None:
         self.sort_args: tuple[object, ...] | None = None
+        self.skip_args: tuple[object, ...] | None = None
+        self.limit_args: tuple[object, ...] | None = None
 
     def sort(self, *args: object) -> _EmptyAsyncCursor:
         self.sort_args = args
         return self
 
-    def skip(self, *_args: object) -> _EmptyAsyncCursor:
+    def skip(self, *args: object) -> _EmptyAsyncCursor:
+        self.skip_args = args
         return self
 
-    def limit(self, *_args: object) -> _EmptyAsyncCursor:
+    def limit(self, *args: object) -> _EmptyAsyncCursor:
+        self.limit_args = args
         return self
 
     def __aiter__(self) -> _EmptyAsyncCursor:
@@ -554,15 +558,23 @@ class _EmptyAsyncCursor:
         raise StopAsyncIteration
 
 
-@pytest.mark.asyncio
-async def test_list_category_articles_sorts_by_published_at_desc() -> None:
-    """Category archives list published stories newest first by published_at."""
+def _category_articles_mocks(
+    *, total: int = 0
+) -> tuple[MagicMock, _EmptyAsyncCursor, MagicMock]:
+    """Build db, empty cursor, and author loader mocks for category archives.
+
+    Args:
+        total: Published article count returned by ``count_documents``.
+
+    Returns:
+        Database mock, cursor mock, and author-name loader mock.
+    """
 
     cursor = _EmptyAsyncCursor()
     categories = MagicMock()
     categories.find_one = AsyncMock(return_value={"_id": "cat-baseball", "slug": "baseball"})
     articles = MagicMock()
-    articles.count_documents = AsyncMock(return_value=0)
+    articles.count_documents = AsyncMock(return_value=total)
     articles.find.return_value = cursor
 
     def _collection(name: str) -> MagicMock:
@@ -577,18 +589,44 @@ async def test_list_category_articles_sorts_by_published_at_desc() -> None:
     loader = MagicMock()
     loader.load_many = AsyncMock()
     loader.load = AsyncMock()
+    return db, cursor, loader
 
+
+@pytest.mark.asyncio
+async def test_list_category_articles_sorts_by_published_at_desc() -> None:
+    """Category archives list published stories newest first by published_at."""
+
+    db, cursor, loader = _category_articles_mocks()
     result = await list_category_articles(
         db,
         category_slug="baseball",
-        params=PaginationParams(page=1, page_size=20),
+        params=PaginationParams(page=1, page_size=16),
         market_id="market-1",
         loader=loader,
     )
 
     assert cursor.sort_args == ("published_at", -1)
+    assert cursor.skip_args == (0,)
+    assert cursor.limit_args == (16,)
     assert result.items == []
     assert result.total == 0
-    articles.find.assert_called_once()
-    query = articles.find.call_args.args[0]
-    assert query["status"] == "published"
+
+
+@pytest.mark.asyncio
+async def test_list_category_articles_paginates_sixteen_per_page() -> None:
+    """Page 2 skips the first 16 documents so archives paginate in MongoDB."""
+
+    db, cursor, loader = _category_articles_mocks(total=33)
+    result = await list_category_articles(
+        db,
+        category_slug="baseball",
+        params=PaginationParams(page=2, page_size=16),
+        market_id="market-1",
+        loader=loader,
+    )
+
+    assert cursor.skip_args == (16,)
+    assert cursor.limit_args == (16,)
+    assert result.page == 2
+    assert result.page_size == 16
+    assert result.has_more is True

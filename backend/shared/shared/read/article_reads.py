@@ -253,7 +253,7 @@ async def list_category_articles(
         db[ARTICLES_COLLECTION]
         .find(query)
         .sort("published_at", -1)
-        .skip((params.page - 1) * params.page_size)
+        .skip(params.skip)
         .limit(params.page_size)
     )
     docs = [d async for d in cursor]

@@ -4,12 +4,14 @@ import {
   sectionKeyFromPathname,
   sportPagePath,
 } from '@/lib/helpers/section-labels'
+import { totalPagesFor } from '@/lib/helpers/pagination'
 import {
   archivePageHref,
   authorInitial,
   chunkSportArchiveGrid,
   findSportArchiveSlot,
   parseArchivePage,
+  SPORT_CATEGORY_PAGE_SIZE,
   splitSportArchiveLayout,
   sportArchiveHref,
 } from '@/lib/helpers/sport-archive'
@@ -58,6 +60,16 @@ describe('sportArchiveHref', () => {
     expect(sportArchiveHref('homepage', 'sports')).toBeNull()
     expect(sportArchiveHref('world', 'baseball')).toBeNull()
     expect(sportArchiveHref(undefined, 'baseball')).toBeNull()
+  })
+})
+
+describe('SPORT_CATEGORY_PAGE_SIZE', () => {
+  it('starts a new archive page every sixteen stories', () => {
+    expect(SPORT_CATEGORY_PAGE_SIZE).toBe(16)
+    expect(totalPagesFor(16, SPORT_CATEGORY_PAGE_SIZE)).toBe(1)
+    expect(totalPagesFor(17, SPORT_CATEGORY_PAGE_SIZE)).toBe(2)
+    expect(totalPagesFor(32, SPORT_CATEGORY_PAGE_SIZE)).toBe(2)
+    expect(totalPagesFor(33, SPORT_CATEGORY_PAGE_SIZE)).toBe(3)
   })
 })
 
@@ -119,14 +131,14 @@ describe('splitSportArchiveLayout', () => {
 })
 
 describe('chunkSportArchiveGrid', () => {
-  it('splits grid stories into two-row chunks of six', () => {
-    const ids = Array.from({ length: 13 }, (_, index) => `g-${index}`)
+  it('splits grid stories into two-row chunks of eight', () => {
+    const ids = Array.from({ length: 17 }, (_, index) => `g-${index}`)
     const chunks = chunkSportArchiveGrid(ids)
 
     expect(chunks).toEqual([
-      ['g-0', 'g-1', 'g-2', 'g-3', 'g-4', 'g-5'],
-      ['g-6', 'g-7', 'g-8', 'g-9', 'g-10', 'g-11'],
-      ['g-12'],
+      ['g-0', 'g-1', 'g-2', 'g-3', 'g-4', 'g-5', 'g-6', 'g-7'],
+      ['g-8', 'g-9', 'g-10', 'g-11', 'g-12', 'g-13', 'g-14', 'g-15'],
+      ['g-16'],
     ])
   })
 })
