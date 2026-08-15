@@ -37,13 +37,15 @@ export default function AdminLayout({ children }: IAdminLayoutProps): JSX.Elemen
       <EditorScopeProvider>
         <EditorialPreviewSyncProvider>
           <ToastProvider>
-            <Masthead showAdRibbon={false} />
-            <main id="main-content" className="site-container pt-10 pb-8">
-              <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-                <AdminWorkflowSideNav />
-                <div className="min-w-0 flex-1">{children}</div>
-              </div>
-            </main>
+            <div>
+              <Masthead showAdRibbon={false} />
+              <main id="main-content" className="site-container pt-10 pb-8">
+                <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+                  <AdminWorkflowSideNav />
+                  <div className="min-w-0 flex-1">{children}</div>
+                </div>
+              </main>
+            </div>
           </ToastProvider>
         </EditorialPreviewSyncProvider>
       </EditorScopeProvider>

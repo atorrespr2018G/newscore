@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocale } from '@/context/locale-context'
 import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
 import { FLORIDA_COUNTY_OPTIONS, FLORIDA_STATE_CODE } from '@/lib/florida-counties'
@@ -42,8 +42,11 @@ interface ISectionNavigationProps {
   activeSection?: string
 }
 
-const MASTHEAD_UNLOCK_DELAY_MS = 2000
-const MASTHEAD_UNLOCK_TRANSITION_RESET_MS = 2200
+/** Pinned leaderboard sits behind page chrome so content can cover it on scroll. */
+const MASTHEAD_AD_LAYER_CLASS = 'sticky top-0 z-0'
+
+/** Section nav paints over the pinned leaderboard, then stays at the top. */
+const MASTHEAD_NAV_LAYER_CLASS = 'sticky top-0 z-40 bg-white'
 
 const DEFAULT_MASTHEAD_SECTION_KEYS = [
   'politics',
@@ -63,85 +66,6 @@ function useMounted(): boolean {
   }, [])
 
   return isMounted
-}
-
-function useScrollY(): number {
-  const [scrollY, setScrollY] = useState(0)
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const onScroll = (): void => {
-      setScrollY(window.scrollY)
-    }
-
-    setScrollY(window.scrollY)
-    window.addEventListener('scroll', onScroll, { passive: true })
-
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-    }
-  }, [])
-
-  return scrollY
-}
-
-function useMastheadUnlock(pathname: string): { lockActive: boolean; unlockTransitionActive: boolean } {
-  const [lockActive, setLockActive] = useState(true)
-  const [unlockTransitionActive, setUnlockTransitionActive] = useState(false)
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    setLockActive(true)
-    setUnlockTransitionActive(false)
-
-    const lockTimer = window.setTimeout(() => {
-      setUnlockTransitionActive(true)
-      setLockActive(false)
-    }, MASTHEAD_UNLOCK_DELAY_MS)
-    const transitionTimer = window.setTimeout(() => {
-      setUnlockTransitionActive(false)
-    }, MASTHEAD_UNLOCK_TRANSITION_RESET_MS)
-
-    return () => {
-      window.clearTimeout(lockTimer)
-      window.clearTimeout(transitionTimer)
-    }
-  }, [pathname])
-
-  return { lockActive, unlockTransitionActive }
-}
-
-function useMeasuredHeights(
-  ribbonRef: RefObject<HTMLElement>,
-  navRef: RefObject<HTMLDivElement>,
-  deps: readonly unknown[],
-): { ribbonHeight: number; navHeight: number } {
-  const [ribbonHeight, setRibbonHeight] = useState(0)
-  const [navHeight, setNavHeight] = useState(0)
-
-  useEffect(() => {
-    const navEl = navRef.current
-    if (!navEl) return
-
-    const updateHeights = (): void => {
-      setRibbonHeight(ribbonRef.current?.offsetHeight ?? 0)
-      setNavHeight(navEl.offsetHeight)
-    }
-
-    updateHeights()
-    const observer = new ResizeObserver(updateHeights)
-    observer.observe(navEl)
-    const ribbonEl = ribbonRef.current
-    if (ribbonEl) {
-      observer.observe(ribbonEl)
-    }
-    return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
-
-  return { ribbonHeight, navHeight }
 }
 
 function MastheadDesktopSectionNav({
@@ -324,9 +248,9 @@ function MastheadMobileSectionNavigationFallback({
 }
 
 /**
- * Sticky masthead leaderboard slot; keeps a measured section for scroll locking.
+ * Masthead leaderboard that stays pinned while page chrome scrolls over it.
  */
-function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }): JSX.Element | null {
+function MastheadAdRibbon(): JSX.Element | null {
   const tCommon = useTranslations('common')
   const { shouldRender, variantFor } = usePageAds()
   if (!shouldRender('masthead')) {
@@ -334,18 +258,19 @@ function MastheadAdRibbon({ ribbonRef }: { ribbonRef: RefObject<HTMLElement> }):
   }
 
   return (
-    <section
-      ref={ribbonRef}
-      aria-label={tCommon('advertisement')}
-      className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
-    >
-      <div className="site-container py-4">
-        <AdSlot
-          slotKey="masthead-leaderboard"
-          variant={variantFor('masthead', 'leaderboard')}
-        />
-      </div>
-    </section>
+    <div className={MASTHEAD_AD_LAYER_CLASS}>
+      <section
+        aria-label={tCommon('advertisement')}
+        className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
+      >
+        <div className="site-container py-4">
+          <AdSlot
+            slotKey="masthead-leaderboard"
+            variant={variantFor('masthead', 'leaderboard')}
+          />
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -550,14 +475,12 @@ function MastheadActions({ pathname }: { pathname: string }): JSX.Element {
 }
 
 function MastheadNavBar({
-  navRef,
   activeSection,
   isMounted,
   mobileOpen,
   onToggleMobile,
   onCloseMobile,
 }: {
-  navRef: RefObject<HTMLDivElement>
   activeSection?: string
   isMounted: boolean
   mobileOpen: boolean
@@ -567,7 +490,7 @@ function MastheadNavBar({
   const pathname = usePathname()
 
   return (
-    <div ref={navRef} className="relative z-40 shrink-0 border-b border-neutral-200 bg-white shadow-sm">
+    <div className="shrink-0 border-b border-neutral-200 bg-white shadow-sm">
       <div className="site-container flex items-center gap-4 py-2">
         <MastheadBrandLink />
         <MastheadMobileToggle mobileOpen={mobileOpen} onToggle={onToggleMobile} />
@@ -600,39 +523,21 @@ function MastheadNavBar({
  * Newsroom masthead with market selector, mobile nav, and section links from the active feed.
  */
 export function Masthead({ activeSection, showAdRibbon = true }: IMastheadProps): JSX.Element {
-  const pathname = usePathname()
   const isMounted = useMounted()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const scrollY = useScrollY()
-  const { lockActive, unlockTransitionActive } = useMastheadUnlock(pathname)
-  const ribbonRef = useRef<HTMLElement>(null)
-  const navRef = useRef<HTMLDivElement>(null)
-  const { ribbonHeight, navHeight } = useMeasuredHeights(ribbonRef, navRef, [mobileOpen, isMounted])
-
-  const ribbonOffset = lockActive ? 0 : Math.min(ribbonHeight, Math.max(scrollY, 0))
-  const stackHeight = ribbonHeight + navHeight
 
   return (
-    <header className="relative z-40">
-      {stackHeight > 0 ? <div aria-hidden="true" className="pointer-events-none" style={{ height: stackHeight }} /> : null}
-
-      <div
-        className={[
-          'fixed inset-x-0 top-0 z-50',
-          unlockTransitionActive ? 'transition-transform duration-200 ease-out' : '',
-        ].join(' ')}
-        style={{ transform: `translateY(-${ribbonOffset}px)` }}
-      >
-        {showAdRibbon ? <MastheadAdRibbon ribbonRef={ribbonRef} /> : null}
+    <>
+      {showAdRibbon ? <MastheadAdRibbon /> : null}
+      <header className={MASTHEAD_NAV_LAYER_CLASS}>
         <MastheadNavBar
-          navRef={navRef}
           activeSection={activeSection}
           isMounted={isMounted}
           mobileOpen={mobileOpen}
           onToggleMobile={() => setMobileOpen((open) => !open)}
           onCloseMobile={() => setMobileOpen(false)}
         />
-      </div>
-    </header>
+      </header>
+    </>
   )
 }

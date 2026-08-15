@@ -17,6 +17,9 @@ interface ISiteLayoutProps {
   children: ReactNode
 }
 
+/** Opaque layer that scrolls over the pinned masthead leaderboard. */
+const SITE_PAGE_OVERLAY_CLASS = 'relative z-10 bg-white'
+
 /**
  * Shared public-site chrome: masthead, breaking ticker, and footer on all pages.
  */
@@ -24,10 +27,14 @@ export default function SiteLayout({ children }: ISiteLayoutProps): JSX.Element 
   return (
     <AdProvider>
       <PageAdsProvider>
-        <Masthead />
-        <BreakingTicker />
-        {children}
-        <Footer />
+        <div>
+          <Masthead />
+          <div className={SITE_PAGE_OVERLAY_CLASS}>
+            <BreakingTicker />
+            {children}
+            <Footer />
+          </div>
+        </div>
       </PageAdsProvider>
     </AdProvider>
   )
