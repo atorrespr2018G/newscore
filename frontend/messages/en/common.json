@@ -29,6 +29,9 @@
   "photoCounter": "{current} of {total}",
   "goToPhoto": "Go to photo {position}",
   "latest": "Latest",
+  "sportArchiveEmpty": "No stories in this sport yet.",
+  "paginationNav": "Pagination",
+  "goToPage": "Go to page {page}",
   "section": "Section",
   "readTime": "{minutes} min",
   "copyright": "© {year} NewsCore Media Group. All rights reserved.",
@@ -56,6 +59,7 @@
     "homeDescription": "Top stories and latest updates.",
     "worldDescription": "World news and latest updates.",
     "politicsDescription": "Politics news, policy, elections, and government updates.",
-    "sportsDescription": "Sports news, scores, and latest updates."
+    "sportsDescription": "Sports news, scores, and latest updates.",
+    "sportDescription": "Latest {sport} news, scores, and updates."
   }
 }

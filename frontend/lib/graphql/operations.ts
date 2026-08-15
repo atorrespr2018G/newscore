@@ -93,5 +93,45 @@ export const BREAKING_NEWS_QUERY = gql`
   }
 `
 
+export const CATEGORY_ARTICLES_QUERY = gql`
+  query CategoryArticles(
+    $slug: String!
+    $page: Int!
+    $pageSize: Int!
+    $market: String
+    $regionCode: String
+  ) {
+    categoryArticles(
+      slug: $slug
+      page: $page
+      pageSize: $pageSize
+      market: $market
+      regionCode: $regionCode
+    ) {
+      items {
+        id
+        slug
+        title
+        body
+        status
+        authorName
+        thumbnailUrl
+        videoUrl
+        createdAt
+        publishedAt
+      }
+      total
+      page
+      pageSize
+      hasMore
+    }
+  }
+`
+
 /** Typed document nodes generated from lib/graphql/operations/*.graphql — run npm run codegen. */
-export type { HomepageFeedQuery, ArticleBySlugQuery, BreakingNewsQuery } from './generated/graphql'
+export type {
+  HomepageFeedQuery,
+  ArticleBySlugQuery,
+  BreakingNewsQuery,
+  CategoryArticlesQuery,
+} from './generated/graphql'

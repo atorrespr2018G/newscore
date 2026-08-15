@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { PlacementSlotScope, useEditorPlacement } from '@/context/editor-placement-context'
@@ -8,6 +9,7 @@ import { PlacementSectionDropZone } from '@/components/features/placement-overla
 import { useMarket } from '@/context/market-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { COMPACT_SIX_BAND_ARTICLE_LIMIT, sectionAnchorId } from '@/lib/helpers/section-labels'
+import { sportArchiveHref } from '@/lib/helpers/sport-archive'
 import { toRegionCode } from '@/lib/region-code'
 import { useTranslations } from 'next-intl'
 
@@ -75,14 +77,12 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
 
   const title = homepageSectionTitle(slot.positionKey, slot.displayName)
   const anchorId = sectionAnchorId(slot.positionKey)
+  const archiveHref = sportArchiveHref(pageName, slot.positionKey)
 
   return (
     <PlacementSlotScope slotId={slot.id}>
       <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
-        <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
-          <h2 className="text-2xl font-normal tracking-tight text-neutral-950">{title}</h2>
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
-        </div>
+        <CompactSixBandHeading title={title} latestLabel={t('latest')} href={archiveHref} />
 
         {allArticles.length === 0 ? null : isPaginated ? (
           <div className="group/row relative">
@@ -147,6 +147,44 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
         <PlacementSectionDropZone />
       </section>
     </PlacementSlotScope>
+  )
+}
+
+interface ICompactSixBandHeadingProps {
+  title: string
+  latestLabel: string
+  href: string | null
+}
+
+/**
+ * Compact-band section title. On the Sports page the title links to the sport archive.
+ *
+ * @param props Heading copy, latest label, and optional archive href.
+ * @returns Section heading row.
+ */
+function CompactSixBandHeading({ title, latestLabel, href }: ICompactSixBandHeadingProps): JSX.Element {
+  const latestClassName = 'text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500'
+  const titleClassName = 'text-2xl font-normal tracking-tight text-neutral-950'
+
+  return (
+    <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
+      <h2 className={titleClassName}>
+        {href ? (
+          <Link href={href} className="hover:underline">
+            {title}
+          </Link>
+        ) : (
+          title
+        )}
+      </h2>
+      {href ? (
+        <Link href={href} className={`${latestClassName} hover:underline`}>
+          {latestLabel}
+        </Link>
+      ) : (
+        <span className={latestClassName}>{latestLabel}</span>
+      )}
+    </div>
   )
 }
 

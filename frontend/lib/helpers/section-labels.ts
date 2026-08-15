@@ -465,6 +465,18 @@ export function sectionPagePath(positionKey: string): string | null {
 
 
 /**
+ * Dedicated archive path for a sport slug on the Sports page.
+ *
+ * @param slug Sport section slug such as `baseball`.
+ * @returns Path like `/sports/baseball`.
+ */
+export function sportPagePath(slug: string): string {
+  const normalized = slug.trim().toLowerCase()
+  return `/sports/${encodeURIComponent(normalized)}`
+}
+
+
+/**
  * Section key for a dedicated page route pathname, if one matches.
  *
  * @param pathname Current app pathname (locale prefix already stripped).
@@ -472,12 +484,32 @@ export function sectionPagePath(positionKey: string): string | null {
  */
 export function sectionKeyFromPathname(pathname: string): string | null {
   const normalized = pathname.replace(/\/+$/, '') || '/'
+  const sportsPath = SECTION_PAGE_ROUTES.sports
+  if (normalized === sportsPath || normalized.startsWith(`${sportsPath}/`)) {
+    return 'sports'
+  }
   for (const [key, path] of Object.entries(SECTION_PAGE_ROUTES)) {
     if (normalized === path) {
       return key
     }
   }
   return null
+}
+
+/**
+ * Whether the current pathname is a section page or a nested archive under it.
+ *
+ * @param pathname Current app pathname (locale prefix already stripped).
+ * @param positionKey Section position key such as `sports`.
+ * @returns True when the masthead item should render as active.
+ */
+export function isSectionPageActive(pathname: string, positionKey: string): boolean {
+  const pagePath = sectionPagePath(positionKey)
+  if (!pagePath) {
+    return false
+  }
+  const normalized = pathname.replace(/\/+$/, '') || '/'
+  return normalized === pagePath || normalized.startsWith(`${pagePath}/`)
 }
 
 

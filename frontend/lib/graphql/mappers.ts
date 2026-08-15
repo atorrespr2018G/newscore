@@ -1,4 +1,4 @@
-import type { IArticle, IArticleDetail, IArticleMedia } from '@/interfaces/article'
+import type { IArticle, IArticleConnection, IArticleDetail, IArticleMedia } from '@/interfaces/article'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import { htmlToPlainText } from '@/lib/helpers/article-body-html'
 import { mapPageAdPlacement } from '@/lib/helpers/page-ad-placements'
@@ -174,5 +174,30 @@ export function mapHomepageFeed(data: {
       contentType: slot.contentType,
       articles: slot.articles.map(mapArticle),
     })),
+  }
+}
+
+interface IGraphqlArticleConnection {
+  items?: IGraphqlArticle[] | null
+  total?: number | null
+  page?: number | null
+  pageSize?: number | null
+  hasMore?: boolean | null
+}
+
+/**
+ * Map a GraphQL category article connection to the frontend list interface.
+ *
+ * @param connection Raw GraphQL connection payload.
+ * @returns Paginated article list with normalized items.
+ */
+export function mapArticleConnection(connection: IGraphqlArticleConnection): IArticleConnection {
+  const items = Array.isArray(connection.items) ? connection.items : []
+  return {
+    items: items.map(mapArticle),
+    total: typeof connection.total === 'number' ? connection.total : 0,
+    page: typeof connection.page === 'number' ? connection.page : 1,
+    pageSize: typeof connection.pageSize === 'number' ? connection.pageSize : items.length,
+    hasMore: Boolean(connection.hasMore),
   }
 }

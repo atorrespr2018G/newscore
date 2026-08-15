@@ -2,6 +2,21 @@ type Query {
   homepageFeed(market: String!, town: String, regionCode: String, pageName: String): HomepageFeed!
   articleBySlug(slug: String!, market: String!): Article
   breakingNews(market: String!): JSON
+  categoryArticles(
+    slug: String!
+    page: Int!
+    pageSize: Int!
+    market: String
+    regionCode: String
+  ): ArticleConnection!
+}
+
+type ArticleConnection {
+  items: [Article!]!
+  total: Int!
+  page: Int!
+  pageSize: Int!
+  hasMore: Boolean!
 }
 
 type AdPlacement {

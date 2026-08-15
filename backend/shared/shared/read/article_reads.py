@@ -215,7 +215,25 @@ async def list_category_articles(
     market_id: str | None = None,
     loader: AuthorNameLoader | None = None,
 ) -> PaginatedResponse:
-    """List published articles for a category slug."""
+    """List published articles for a category slug, newest first.
+
+    Results are ordered by ``published_at`` descending so category archives
+    show the latest stories first. Each item is a full ``ArticleDetailOut``
+    so list views can render a body excerpt.
+
+    Args:
+        db: Database connection.
+        category_slug: Public category slug (for example ``baseball``).
+        params: 1-indexed pagination parameters.
+        market_id: Optional market document id to scope results.
+        loader: Optional author name loader.
+
+    Returns:
+        Paginated article details for the category.
+
+    Raises:
+        NotFoundError: If no category has this slug.
+    """
 
     category = await db[CATEGORIES_COLLECTION].find_one({"slug": category_slug})
     if category is None:
@@ -243,10 +261,10 @@ async def list_category_articles(
     author_ids = [str(d["author_id"]) for d in docs]
     await names.load_many(author_ids)
 
-    items: list[ArticleOut] = []
+    items: list[ArticleDetailOut] = []
     for doc in docs:
         author = await names.load(str(doc["author_id"]))
-        items.append(article_out(doc, author_name=author))
+        items.append(article_detail_out(doc, author_name=author))
 
     return PaginatedResponse(
         items=[i.model_dump() for i in items],

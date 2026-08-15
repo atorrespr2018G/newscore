@@ -15,10 +15,10 @@ import { useSectionLabels } from '@/hooks/use-section-labels'
 import { ADMINISTRATOR_ROUTE } from '@/lib/api/admin-routes'
 import {
   isHomepageSectionVisible,
+  isSectionPageActive,
   sectionAnchorId,
   sectionKeyFromPathname,
   sectionNavHref,
-  sectionPagePath,
 } from '@/lib/helpers/section-labels'
 import { PRESENTATION_GRID_4 } from '@/lib/presentation-types'
 import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-band'
@@ -223,15 +223,13 @@ function buildFallbackNavLinks(
   sectionLabel: (positionKey: string) => string,
 ): IMastheadNavLink[] {
   return DEFAULT_MASTHEAD_SECTION_KEYS.map((positionKey) => {
-    const pagePath = sectionPagePath(positionKey)
     const href = sectionNavHref(positionKey)
-    const isPageRouteMatch = pagePath !== null && pathname === pagePath
 
     return {
       key: `fallback-${positionKey}`,
       href,
       label: sectionLabel(positionKey),
-      active: activeSection?.toLowerCase() === positionKey || isPageRouteMatch,
+      active: activeSection?.toLowerCase() === positionKey || isSectionPageActive(pathname, positionKey),
     }
   })
 }
@@ -252,15 +250,13 @@ function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
 
   const dynamicNavLinks = navSlots.map((s) => {
     const positionKey = s.positionKey.toLowerCase()
-    const pagePath = sectionPagePath(s.positionKey)
 
     return {
       key: s.id,
       href: sectionNavHref(s.positionKey),
       label: homepageSectionTitle(s.positionKey, s.displayName),
       active:
-        activeSection?.toLowerCase() === positionKey ||
-        (pagePath !== null && pathname === pagePath),
+        activeSection?.toLowerCase() === positionKey || isSectionPageActive(pathname, positionKey),
     }
   })
 

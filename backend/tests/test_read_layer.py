@@ -12,7 +12,9 @@ _ROOT = Path(__file__).resolve().parents[1] / "shared"
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from shared.read.article_reads import article_out, get_article_by_slug
+from shared.core.pagination import PaginationParams
+from shared.read.article_reads import article_out, get_article_by_slug, list_category_articles
+from shared.read.collections import ARTICLES_COLLECTION, CATEGORIES_COLLECTION
 from shared.read.placement_reads import _article_ids_for_slot
 from shared.read.site_reads import _resolve_slot_articles, _resolve_slot_articles_preview
 from shared.read.slot_pinned_ids import effective_pinned_ids_for_preview, slot_with_preview_pins
@@ -527,3 +529,66 @@ async def test_get_article_by_slug_prefers_active_market() -> None:
     assert collection.find_one.await_count == 1
     query = collection.find_one.await_args.args[0]
     assert query["market_ids"] == "mkt-co"
+
+
+class _EmptyAsyncCursor:
+    """Motor-like cursor that records sort args and yields no documents."""
+
+    def __init__(self) -> None:
+        self.sort_args: tuple[object, ...] | None = None
+
+    def sort(self, *args: object) -> _EmptyAsyncCursor:
+        self.sort_args = args
+        return self
+
+    def skip(self, *_args: object) -> _EmptyAsyncCursor:
+        return self
+
+    def limit(self, *_args: object) -> _EmptyAsyncCursor:
+        return self
+
+    def __aiter__(self) -> _EmptyAsyncCursor:
+        return self
+
+    async def __anext__(self) -> dict:
+        raise StopAsyncIteration
+
+
+@pytest.mark.asyncio
+async def test_list_category_articles_sorts_by_published_at_desc() -> None:
+    """Category archives list published stories newest first by published_at."""
+
+    cursor = _EmptyAsyncCursor()
+    categories = MagicMock()
+    categories.find_one = AsyncMock(return_value={"_id": "cat-baseball", "slug": "baseball"})
+    articles = MagicMock()
+    articles.count_documents = AsyncMock(return_value=0)
+    articles.find.return_value = cursor
+
+    def _collection(name: str) -> MagicMock:
+        if name == CATEGORIES_COLLECTION:
+            return categories
+        if name == ARTICLES_COLLECTION:
+            return articles
+        raise AssertionError(name)
+
+    db = MagicMock()
+    db.__getitem__.side_effect = _collection
+    loader = MagicMock()
+    loader.load_many = AsyncMock()
+    loader.load = AsyncMock()
+
+    result = await list_category_articles(
+        db,
+        category_slug="baseball",
+        params=PaginationParams(page=1, page_size=20),
+        market_id="market-1",
+        loader=loader,
+    )
+
+    assert cursor.sort_args == ("published_at", -1)
+    assert result.items == []
+    assert result.total == 0
+    articles.find.assert_called_once()
+    query = articles.find.call_args.args[0]
+    assert query["status"] == "published"

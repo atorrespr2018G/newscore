@@ -1,0 +1,32 @@
+query CategoryArticles(
+  $slug: String!
+  $page: Int!
+  $pageSize: Int!
+  $market: String
+  $regionCode: String
+) {
+  categoryArticles(
+    slug: $slug
+    page: $page
+    pageSize: $pageSize
+    market: $market
+    regionCode: $regionCode
+  ) {
+    items {
+      id
+      slug
+      title
+      body
+      status
+      authorName
+      thumbnailUrl
+      videoUrl
+      createdAt
+      publishedAt
+    }
+    total
+    page
+    pageSize
+    hasMore
+  }
+}

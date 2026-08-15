@@ -145,6 +145,26 @@ def article_from_detail(detail: ArticleDetailOut) -> Article:
     )
 
 
+def _empty_article_connection(page: int, page_size: int) -> ArticleConnection:
+    """Build an empty paginated article list for unknown categories.
+
+    Args:
+        page: Requested 1-indexed page.
+        page_size: Requested page size.
+
+    Returns:
+        Empty article connection echoing the requested pagination.
+    """
+
+    return ArticleConnection(
+        items=[],
+        total=0,
+        page=page,
+        page_size=page_size,
+        has_more=False,
+    )
+
+
 def article_from_out(out: ArticleOut) -> Article:
     """Map ArticleOut to GraphQL Article."""
 
@@ -245,21 +265,28 @@ class ContentQuery:
         market: str = DEFAULT_MARKET_CODE,
         region_code: str | None = None,
     ) -> ArticleConnection:
-        """List published articles for a category in a market."""
+        """List published articles for a category in a market.
+
+        Unknown category slugs return an empty connection instead of an error
+        so archive pages can 404 from layout validation rather than GraphQL.
+        """
 
         requested_market = (
             _market_from_region(region_code, market) if geo_graphql_region_args() else market
         )
         market_doc = await market_reads.get_market_by_code(info.context.db, requested_market)
         market_id = str(market_doc["_id"]) if market_doc else None
-        result = await article_reads.list_category_articles(
-            info.context.db,
-            category_slug=slug,
-            params=PaginationParams(page=page, page_size=page_size),
-            market_id=market_id,
-            loader=info.context.authors,
-        )
-        items = [article_from_out(ArticleOut(**raw)) for raw in result.items]
+        try:
+            result = await article_reads.list_category_articles(
+                info.context.db,
+                category_slug=slug,
+                params=PaginationParams(page=page, page_size=page_size),
+                market_id=market_id,
+                loader=info.context.authors,
+            )
+        except NotFoundError:
+            return _empty_article_connection(page, page_size)
+        items = [article_from_detail(ArticleDetailOut(**raw)) for raw in result.items]
         return ArticleConnection(
             items=items,
             total=result.total,

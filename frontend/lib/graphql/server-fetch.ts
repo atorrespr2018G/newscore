@@ -1,10 +1,14 @@
 import { print } from 'graphql'
 
-import type { IArticleDetail } from '@/interfaces/article'
+import type { IArticleConnection, IArticleDetail } from '@/interfaces/article'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import { graphqlUrl } from '@/lib/graphql/apollo-client'
-import { mapArticleDetail, mapHomepageFeed } from '@/lib/graphql/mappers'
-import { ARTICLE_BY_SLUG_QUERY, HOMEPAGE_FEED_QUERY } from '@/lib/graphql/operations'
+import { mapArticleConnection, mapArticleDetail, mapHomepageFeed } from '@/lib/graphql/mappers'
+import {
+  ARTICLE_BY_SLUG_QUERY,
+  CATEGORY_ARTICLES_QUERY,
+  HOMEPAGE_FEED_QUERY,
+} from '@/lib/graphql/operations'
 import { toRegionCode } from '@/lib/region-code'
 
 interface IGraphqlResponse<T> {
@@ -96,6 +100,47 @@ export async function fetchArticleBySlug(
     return mapArticleDetail(data.articleBySlug)
   } catch (error) {
     console.error('Failed to fetch article by slug', { slug, market, error })
+    throw error
+  }
+}
+
+interface IFetchCategoryArticlesOptions {
+  slug: string
+  market: string
+  page: number
+  pageSize: number
+  town?: string | null
+  county?: string | null
+}
+
+/**
+ * Fetch a paginated published-article list for a category slug.
+ *
+ * @param options Category slug, market scope, and 1-indexed pagination.
+ * @returns Normalized article connection for the requested page.
+ */
+export async function fetchCategoryArticles(
+  options: IFetchCategoryArticlesOptions,
+): Promise<IArticleConnection> {
+  const regionCode = toRegionCode(options.market, options.town, options.county)
+  try {
+    const data = await fetchGraphql<{
+      categoryArticles: Parameters<typeof mapArticleConnection>[0]
+    }>(print(CATEGORY_ARTICLES_QUERY), {
+      slug: options.slug,
+      page: options.page,
+      pageSize: options.pageSize,
+      market: options.market,
+      regionCode,
+    })
+    return mapArticleConnection(data.categoryArticles)
+  } catch (error) {
+    console.error('Failed to fetch category articles', {
+      slug: options.slug,
+      market: options.market,
+      page: options.page,
+      error,
+    })
     throw error
   }
 }

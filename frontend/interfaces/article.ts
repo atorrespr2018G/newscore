@@ -33,6 +33,15 @@ export interface IArticleDetail extends IArticle {
   storyUpdates: IArticleDetail[]
 }
 
+/** Paginated published-article list for a category archive. */
+export interface IArticleConnection {
+  items: IArticle[]
+  total: number
+  page: number
+  pageSize: number
+  hasMore: boolean
+}
+
 /** Possible publication lifecycle states. */
 export type ArticleStatusType = 'draft' | 'review' | 'published' | 'archived'
 
