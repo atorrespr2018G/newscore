@@ -42,8 +42,14 @@ interface ISectionNavigationProps {
   activeSection?: string
 }
 
+/** Viewability window before page chrome is allowed to cover the leaderboard. */
+const MASTHEAD_AD_LOCK_MS = 4000
+
 /** Pinned leaderboard sits behind page chrome so content can cover it on scroll. */
 const MASTHEAD_AD_LAYER_CLASS = 'sticky top-0 z-0'
+
+/** During the lock the leaderboard stays above scrolling page chrome. */
+const MASTHEAD_AD_LAYER_LOCKED_CLASS = 'sticky top-0 z-50'
 
 /** Section nav paints over the pinned leaderboard, then stays at the top. */
 const MASTHEAD_NAV_LAYER_CLASS = 'sticky top-0 z-40 bg-white'
@@ -66,6 +72,54 @@ function useMounted(): boolean {
   }, [])
 
   return isMounted
+}
+
+/** Keep the leaderboard in view until the lock window ends. */
+function useMastheadAdLock(): boolean {
+  const pathname = usePathname()
+  const [lockActive, setLockActive] = useState(true)
+
+  useEffect(() => {
+    setLockActive(true)
+    const timer = window.setTimeout(() => {
+      setLockActive(false)
+    }, MASTHEAD_AD_LOCK_MS)
+    return () => window.clearTimeout(timer)
+  }, [pathname])
+
+  return lockActive
+}
+
+/** Track leaderboard height so the nav can sit below it while locked. */
+function useMeasuredHeight(): {
+  setElement: (element: HTMLElement | null) => void
+  height: number
+} {
+  const [element, setElement] = useState<HTMLElement | null>(null)
+  const [height, setHeight] = useState(0)
+
+  useEffect(() => {
+    if (!element) {
+      setHeight(0)
+      return
+    }
+
+    const updateHeight = (): void => {
+      setHeight(element.offsetHeight)
+    }
+
+    updateHeight()
+    const observer = new ResizeObserver(updateHeight)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [element])
+
+  return { setElement, height }
+}
+
+/** Offset the sticky nav below the leaderboard while the lock is active. */
+function mastheadNavLockTop(lockActive: boolean, ribbonHeight: number): number | undefined {
+  return lockActive ? ribbonHeight : undefined
 }
 
 function MastheadDesktopSectionNav({
@@ -247,10 +301,19 @@ function MastheadMobileSectionNavigationFallback({
   )
 }
 
+interface IMastheadAdRibbonProps {
+  ribbonRef: (element: HTMLElement | null) => void
+  lockActive: boolean
+}
+
 /**
  * Masthead leaderboard that stays pinned while page chrome scrolls over it.
+ *
+ * @param props.ribbonRef - Callback ref used to measure the locked leaderboard.
+ * @param props.lockActive - When true, the leaderboard stays above scrolling chrome.
+ * @returns The leaderboard slot, or null when masthead ads are disabled.
  */
-function MastheadAdRibbon(): JSX.Element | null {
+function MastheadAdRibbon({ ribbonRef, lockActive }: IMastheadAdRibbonProps): JSX.Element | null {
   const tCommon = useTranslations('common')
   const { shouldRender, variantFor } = usePageAds()
   if (!shouldRender('masthead')) {
@@ -258,7 +321,10 @@ function MastheadAdRibbon(): JSX.Element | null {
   }
 
   return (
-    <div className={MASTHEAD_AD_LAYER_CLASS}>
+    <div
+      ref={ribbonRef}
+      className={lockActive ? MASTHEAD_AD_LAYER_LOCKED_CLASS : MASTHEAD_AD_LAYER_CLASS}
+    >
       <section
         aria-label={tCommon('advertisement')}
         className="border-b border-neutral-200 bg-neutral-100 text-neutral-900"
@@ -525,11 +591,18 @@ function MastheadNavBar({
 export function Masthead({ activeSection, showAdRibbon = true }: IMastheadProps): JSX.Element {
   const isMounted = useMounted()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const lockActive = useMastheadAdLock()
+  const { setElement: setRibbonElement, height: ribbonHeight } = useMeasuredHeight()
 
   return (
     <>
-      {showAdRibbon ? <MastheadAdRibbon /> : null}
-      <header className={MASTHEAD_NAV_LAYER_CLASS}>
+      {showAdRibbon ? (
+        <MastheadAdRibbon ribbonRef={setRibbonElement} lockActive={lockActive} />
+      ) : null}
+      <header
+        className={MASTHEAD_NAV_LAYER_CLASS}
+        style={{ top: mastheadNavLockTop(lockActive && showAdRibbon, ribbonHeight) }}
+      >
         <MastheadNavBar
           activeSection={activeSection}
           isMounted={isMounted}
