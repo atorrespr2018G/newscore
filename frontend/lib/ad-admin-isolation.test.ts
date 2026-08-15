@@ -18,6 +18,17 @@ describe('ad admin isolation', () => {
     expect(adminLayout).not.toContain('AdProvider')
   })
 
+  it('reserves masthead ad space before the client masthead chunk mounts', () => {
+    const siteLayout = readFileSync(
+      path.join(FRONTEND_ROOT, 'app', '[locale]', '(site)', 'layout.tsx'),
+      'utf8',
+    )
+    const mastheadImport = siteLayout.match(/const Masthead = dynamic\([\s\S]*?\n\}\)/)?.[0]
+
+    expect(mastheadImport).toContain('MastheadLoadingChrome')
+    expect(mastheadImport).not.toContain('ssr: false')
+  })
+
   it('disables the masthead ad ribbon in admin', () => {
     const adminLayout = readFileSync(
       path.join(FRONTEND_ROOT, 'app', '(admin)', 'admin', 'layout.tsx'),

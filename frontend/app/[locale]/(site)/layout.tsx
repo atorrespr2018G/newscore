@@ -3,9 +3,10 @@ import dynamic from 'next/dynamic'
 import { AdProvider } from '@/context/ad-provider'
 import { PageAdsProvider } from '@/context/page-ads-context'
 import { Footer } from '@/components/ui/footer'
+import { MastheadLoadingChrome } from '@/components/ui/masthead-loading-chrome'
 
 const Masthead = dynamic(() => import('@/components/ui/masthead').then((mod) => mod.Masthead), {
-  ssr: false,
+  loading: () => <MastheadLoadingChrome />,
 })
 
 const BreakingTicker = dynamic(
