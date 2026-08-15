@@ -9,6 +9,9 @@ export const HERO_VIDEO_AD_SKIP_AFTER_MS = 5000
 /** Centered player max width, matched to a 16:9 high-impact unit. */
 export const HERO_VIDEO_AD_MAX_WIDTH_PX = 896
 
+/** Stack above masthead and sticky ads so the dimmed page sits behind the player. */
+export const HERO_VIDEO_AD_OVERLAY_Z_INDEX = 200
+
 export interface IShouldShowHeroVideoAdOptions {
   pendingSlug: string | null
   articleSlug: string

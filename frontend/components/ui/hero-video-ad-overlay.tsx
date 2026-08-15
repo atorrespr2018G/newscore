@@ -9,6 +9,7 @@ import { shouldServeMockAds, type AdSlotKey } from '@/lib/ad-config'
 import {
   clearHeroVideoAdPending,
   HERO_VIDEO_AD_MAX_WIDTH_PX,
+  HERO_VIDEO_AD_OVERLAY_Z_INDEX,
   HERO_VIDEO_AD_SKIP_AFTER_MS,
   peekHeroVideoAdPending,
   remainingSkipSeconds,
@@ -132,8 +133,10 @@ function HeroVideoAdDialog({ onClose }: { onClose: () => void }): JSX.Element {
       aria-modal="true"
       aria-label={tAds('videoAdvertisement')}
       data-ad-slot={HERO_CLICK_VIDEO_SLOT_KEY}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: HERO_VIDEO_AD_OVERLAY_Z_INDEX }}
     >
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-[2px]" aria-hidden="true" />
       <div className="relative w-full" style={{ maxWidth: HERO_VIDEO_AD_MAX_WIDTH_PX }}>
         <HeroVideoAdPlayer onEnded={onClose} />
         <HeroVideoAdSkipButton
