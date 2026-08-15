@@ -45,11 +45,7 @@ export function SportCategoryPage({
   return (
     <div>
       <SportArchiveHeader sportsLabel={sportsLabel} sportTitle={sportTitle} />
-      <SportArchiveBody
-        layout={layout}
-        sportLabel={sportTitle}
-        emptyLabel={t('sportArchiveEmpty')}
-      />
+      <SportArchiveBody layout={layout} emptyLabel={t('sportArchiveEmpty')} />
       <SitePagination
         page={connection.page}
         pageSize={connection.pageSize || SPORT_CATEGORY_PAGE_SIZE}
@@ -104,16 +100,14 @@ function SportArchiveHeader({
 /**
  * Featured lead, compact rail, and remaining 3-column cards — or an empty state.
  *
- * @param props Split layout, sport chip label, and empty copy.
+ * @param props Split layout and empty copy.
  * @returns Archive body.
  */
 function SportArchiveBody({
   layout,
-  sportLabel,
   emptyLabel,
 }: {
   layout: ReturnType<typeof splitSportArchiveLayout>
-  sportLabel: string
   emptyLabel: string
 }): JSX.Element {
   if (!layout.featured) {
@@ -127,14 +121,14 @@ function SportArchiveBody({
   return (
     <>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SportArchiveFeaturedCard article={layout.featured} sportLabel={sportLabel} />
-        <div className="divide-y divide-neutral-200">
+        <SportArchiveFeaturedCard article={layout.featured} />
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           {layout.rail.map((article) => (
-            <SportArchiveRailCard key={article.id} article={article} sportLabel={sportLabel} />
+            <SportArchiveRailCard key={article.id} article={article} />
           ))}
         </div>
       </div>
-      <SportArchiveGrid articles={layout.grid} sportLabel={sportLabel} />
+      <SportArchiveGrid articles={layout.grid} />
     </>
   )
 }
@@ -163,16 +157,10 @@ function SportArchiveAdRibbon({ index }: { index: number }): JSX.Element {
 /**
  * Grid stories with a ribbon after the featured band and after every two rows.
  *
- * @param props Remaining articles and sport chip label.
+ * @param props Remaining articles.
  * @returns Grid chunks separated by ribbons, or null when empty.
  */
-function SportArchiveGrid({
-  articles,
-  sportLabel,
-}: {
-  articles: IArticle[]
-  sportLabel: string
-}): JSX.Element | null {
+function SportArchiveGrid({ articles }: { articles: IArticle[] }): JSX.Element | null {
   if (articles.length === 0) {
     return null
   }
@@ -185,7 +173,7 @@ function SportArchiveGrid({
           {chunkIndex > 0 ? <SportArchiveAdRibbon index={chunkIndex} /> : null}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {chunk.map((article) => (
-              <SportArchiveFeaturedCard key={article.id} article={article} sportLabel={sportLabel} />
+              <SportArchiveFeaturedCard key={article.id} article={article} />
             ))}
           </div>
         </div>
@@ -197,16 +185,10 @@ function SportArchiveGrid({
 /**
  * Large image card used for the featured lead and the 3-column grid.
  *
- * @param props Article and sport chip label.
+ * @param props Article to render.
  * @returns Metro-style image story card.
  */
-function SportArchiveFeaturedCard({
-  article,
-  sportLabel,
-}: {
-  article: IArticle
-  sportLabel: string
-}): JSX.Element {
+function SportArchiveFeaturedCard({ article }: { article: IArticle }): JSX.Element {
   const href = `/article/${encodeURIComponent(article.slug)}`
   const excerpt = deckBelowTitle(article.title, article.summary, SPORT_ARCHIVE_EXCERPT_MAX_CHARS)
 
@@ -215,8 +197,7 @@ function SportArchiveFeaturedCard({
       <article className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md">
         <SportArchiveCardImage article={article} sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
         <div className="p-4">
-          <SportArchiveChip label={sportLabel} variant="filled" />
-          <h2 className="mt-2 font-sans text-lg font-semibold leading-tight text-neutral-950 group-hover:text-[color:var(--brand-red)] sm:text-xl">
+          <h2 className="font-sans text-lg font-semibold leading-tight text-neutral-950 group-hover:text-[color:var(--brand-red)] sm:text-xl">
             {article.title}
           </h2>
           {excerpt ? (
@@ -230,34 +211,23 @@ function SportArchiveFeaturedCard({
 }
 
 /**
- * Compact horizontal card for the featured-band side rail.
+ * Compact picture card for the featured-band side rail, with copy under the image.
  *
- * @param props Article and sport chip label.
- * @returns Metro-style rail story row.
+ * @param props Article to render.
+ * @returns Rail story card with headline and byline below the news screen.
  */
-function SportArchiveRailCard({
-  article,
-  sportLabel,
-}: {
-  article: IArticle
-  sportLabel: string
-}): JSX.Element {
+function SportArchiveRailCard({ article }: { article: IArticle }): JSX.Element {
   const href = `/article/${encodeURIComponent(article.slug)}`
 
   return (
-    <Link
-      href={href}
-      className="group block py-8 first:pt-0 last:pb-0 text-neutral-950 hover:text-neutral-950"
-    >
-      <article className="flex items-stretch gap-4">
+    <Link href={href} className="group block text-neutral-950 hover:text-neutral-950">
+      <article className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md">
         <SportArchiveCardImage
           article={article}
-          sizes="140px"
-          className="relative w-[120px] shrink-0 self-stretch overflow-hidden rounded-xl sm:w-[140px]"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
-        <div className="min-w-0 flex-1">
-          <SportArchiveChip label={sportLabel} variant="soft" />
-          <h2 className="mt-2 font-sans text-[15px] font-semibold leading-tight text-neutral-950 group-hover:text-[color:var(--brand-red)] sm:text-base">
+        <div className="p-3">
+          <h2 className="font-sans text-[15px] font-semibold leading-tight text-neutral-950 group-hover:text-[color:var(--brand-red)] sm:text-base">
             {article.title}
           </h2>
           <SportArchiveByline article={article} showAvatar={false} />
@@ -297,33 +267,6 @@ function SportArchiveCardImage({
         />
       </div>
     </div>
-  )
-}
-
-/**
- * Uppercase sport category pill.
- *
- * @param props Chip label and filled vs soft variant.
- * @returns Category chip.
- */
-function SportArchiveChip({
-  label,
-  variant,
-}: {
-  label: string
-  variant: 'filled' | 'soft'
-}): JSX.Element {
-  const className =
-    variant === 'filled'
-      ? 'bg-[color:var(--brand-red)] text-white'
-      : 'bg-[color:var(--brand-red)]/10 text-[color:var(--brand-red)]'
-
-  return (
-    <span
-      className={`mb-2 inline-block rounded-full px-2.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider ${className}`}
-    >
-      {label}
-    </span>
   )
 }
 
