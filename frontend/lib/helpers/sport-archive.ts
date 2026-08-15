@@ -12,6 +12,16 @@ export const SPORT_CATEGORY_PAGE_SIZE = 20
 /** Compact rail stories stacked beside the featured card. */
 export const SPORT_ARCHIVE_RAIL_COUNT = 4
 
+/** Desktop grid columns on the sport archive. */
+export const SPORT_ARCHIVE_GRID_COLUMNS = 3
+
+/** Insert a ribbon after this many grid rows. */
+export const SPORT_ARCHIVE_GRID_ROWS_PER_RIBBON = 2
+
+/** Cards in one grid block between horizontal ribbons (3 columns × 2 rows). */
+export const SPORT_ARCHIVE_GRID_CHUNK_SIZE =
+  SPORT_ARCHIVE_GRID_COLUMNS * SPORT_ARCHIVE_GRID_ROWS_PER_RIBBON
+
 /** Maximum characters for a sport-archive excerpt under the headline. */
 export const SPORT_ARCHIVE_EXCERPT_MAX_CHARS = 180
 
@@ -108,6 +118,20 @@ export function splitSportArchiveLayout(articles: IArticle[]): ISportArchiveLayo
     rail: articles.slice(1, railEnd),
     grid: articles.slice(railEnd),
   }
+}
+
+/**
+ * Split grid stories into 2-row chunks so a ribbon can sit between them.
+ *
+ * @param articles Remaining archive stories after the featured band.
+ * @returns Ordered chunks of at most `SPORT_ARCHIVE_GRID_CHUNK_SIZE` stories.
+ */
+export function chunkSportArchiveGrid<T>(articles: T[]): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < articles.length; index += SPORT_ARCHIVE_GRID_CHUNK_SIZE) {
+    chunks.push(articles.slice(index, index + SPORT_ARCHIVE_GRID_CHUNK_SIZE))
+  }
+  return chunks
 }
 
 /**

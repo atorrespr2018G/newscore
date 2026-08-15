@@ -7,6 +7,7 @@ import {
 import {
   archivePageHref,
   authorInitial,
+  chunkSportArchiveGrid,
   findSportArchiveSlot,
   parseArchivePage,
   splitSportArchiveLayout,
@@ -114,6 +115,19 @@ describe('splitSportArchiveLayout', () => {
 
   it('returns an empty layout when there are no stories', () => {
     expect(splitSportArchiveLayout([])).toEqual({ featured: null, rail: [], grid: [] })
+  })
+})
+
+describe('chunkSportArchiveGrid', () => {
+  it('splits grid stories into two-row chunks of six', () => {
+    const ids = Array.from({ length: 13 }, (_, index) => `g-${index}`)
+    const chunks = chunkSportArchiveGrid(ids)
+
+    expect(chunks).toEqual([
+      ['g-0', 'g-1', 'g-2', 'g-3', 'g-4', 'g-5'],
+      ['g-6', 'g-7', 'g-8', 'g-9', 'g-10', 'g-11'],
+      ['g-12'],
+    ])
   })
 })
 

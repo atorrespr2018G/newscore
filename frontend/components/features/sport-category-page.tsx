@@ -4,13 +4,16 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useFormatter, useTranslations } from 'next-intl'
 
+import { AdSlot } from '@/components/ui/ad-slot'
 import { EmptyState } from '@/components/ui/feed-state'
 import { SitePagination } from '@/components/ui/site-pagination'
+import { usePageAds } from '@/context/page-ads-context'
 import type { IArticle, IArticleConnection } from '@/interfaces/article'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
 import { sportPagePath } from '@/lib/helpers/section-labels'
 import {
   authorInitial,
+  chunkSportArchiveGrid,
   SPORT_ARCHIVE_EXCERPT_MAX_CHARS,
   SPORT_CATEGORY_PAGE_SIZE,
   splitSportArchiveLayout,
@@ -123,7 +126,7 @@ function SportArchiveBody({
 
   return (
     <>
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SportArchiveFeaturedCard article={layout.featured} sportLabel={sportLabel} />
         <div className="divide-y divide-neutral-200">
           {layout.rail.map((article) => (
@@ -131,13 +134,62 @@ function SportArchiveBody({
           ))}
         </div>
       </div>
-      {layout.grid.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {layout.grid.map((article) => (
-            <SportArchiveFeaturedCard key={article.id} article={article} sportLabel={sportLabel} />
-          ))}
+      <SportArchiveGrid articles={layout.grid} sportLabel={sportLabel} />
+    </>
+  )
+}
+
+/**
+ * Horizontal archive ribbon using the shared section-grid ad slot.
+ *
+ * @param props Zero-based ribbon index for distinct mock creatives.
+ * @returns Advertisement ribbon section.
+ */
+function SportArchiveAdRibbon({ index }: { index: number }): JSX.Element {
+  const t = useTranslations('common')
+  const { variantFor } = usePageAds()
+
+  return (
+    <section aria-label={t('advertisement')} className="py-6">
+      <AdSlot
+        slotKey="section-grid-ribbon"
+        index={index}
+        variant={variantFor('before_section', 'ribbon')}
+      />
+    </section>
+  )
+}
+
+/**
+ * Grid stories with a ribbon after the featured band and after every two rows.
+ *
+ * @param props Remaining articles and sport chip label.
+ * @returns Grid chunks separated by ribbons, or null when empty.
+ */
+function SportArchiveGrid({
+  articles,
+  sportLabel,
+}: {
+  articles: IArticle[]
+  sportLabel: string
+}): JSX.Element | null {
+  if (articles.length === 0) {
+    return null
+  }
+
+  return (
+    <>
+      <SportArchiveAdRibbon index={0} />
+      {chunkSportArchiveGrid(articles).map((chunk, chunkIndex) => (
+        <div key={chunk[0]?.id ?? `grid-chunk-${chunkIndex}`}>
+          {chunkIndex > 0 ? <SportArchiveAdRibbon index={chunkIndex} /> : null}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {chunk.map((article) => (
+              <SportArchiveFeaturedCard key={article.id} article={article} sportLabel={sportLabel} />
+            ))}
+          </div>
         </div>
-      ) : null}
+      ))}
     </>
   )
 }
