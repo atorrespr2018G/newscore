@@ -5,6 +5,9 @@ export const MAX_CATEGORY_COUNT = 3
 /** Parent slug for per-sport subcategory chips in the editor/reporter. */
 export const SPORTS_CATEGORY_SLUG = 'sports'
 
+/** Parent slug for Government topic chips in the editor/reporter. */
+export const GOVERNMENT_CATEGORY_SLUG = 'government'
+
 /** Parent slug for per-region subcategory chips in the editor/reporter. */
 export const WORLD_CATEGORY_SLUG = 'world'
 

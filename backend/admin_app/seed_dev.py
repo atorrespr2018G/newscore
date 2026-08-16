@@ -39,6 +39,11 @@ CNN_CATEGORIES: list[dict[str, str]] = [
         "slug": "sports-page-world",
         "description": "World news curated for the Sports page only.",
     },
+    {
+        "name": "World",
+        "slug": "government-page-world",
+        "description": "World news curated for the Government page only.",
+    },
     {"name": "Politics", "slug": "politics", "description": "Policy, elections, and government."},
     {"name": "Health", "slug": "finance", "description": "Wellness, medicine, and public health."},
     {"name": "Technology", "slug": "technology", "description": "Tech industry, products, and innovation."},
@@ -48,6 +53,7 @@ CNN_CATEGORIES: list[dict[str, str]] = [
     {"name": "Style", "slug": "style", "description": "Fashion, design, and living."},
     {"name": "Travel", "slug": "travel", "description": "Destinations, tips, and aviation."},
     {"name": "Sports", "slug": "sports", "description": "Scores, leagues, and athletes."},
+    {"name": "Government", "slug": "government", "description": "Executive, legislature, judiciary, agencies, and defense."},
 ]
 
 
@@ -632,6 +638,13 @@ PR_TOWN_LABELS: dict[str, str] = {
 PUERTO_RICO_TOWN_IDS: tuple[str, ...] = tuple(
     sorted(PR_TOWN_LABELS.keys(), key=lambda town_id: PR_TOWN_LABELS[town_id].casefold()),
 )
+PR_TOWN_CATEGORY_SLUGS: tuple[str, ...] = (
+    "politics",
+    "business",
+    "sports",
+    "entertainment",
+    "government",
+)
 
 PR_TOWN_HEADLINES: dict[str, str] = {
     "san-juan": "San Juan council approves harbor modernization plan",
@@ -799,7 +812,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "category_slug": "politics",
         "limit": 4,
         "presentation_type": "editorial_spotlight",
-        "display_name_us": "Government",
+        "display_name_us": "Elections",
         "display_name_co": "Elecciones",
     },
     {
@@ -829,8 +842,17 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "display_name_co": "Deportes",
     },
     {
-        "position_key": "health",
+        "position_key": "government",
         "order_index": 7,
+        "category_slug": "government",
+        "limit": 12,
+        "presentation_type": "grid_4",
+        "display_name_us": "Government",
+        "display_name_co": "Gobierno",
+    },
+    {
+        "position_key": "health",
+        "order_index": 8,
         "category_slug": "health",
         "limit": 20,
         "presentation_type": "live_carousel",
@@ -839,7 +861,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "finance",
-        "order_index": 8,
+        "order_index": 9,
         "category_slug": "finance",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -848,7 +870,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "entertainment",
-        "order_index": 9,
+        "order_index": 10,
         "category_slug": "entertainment",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -857,7 +879,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "world",
-        "order_index": 10,
+        "order_index": 11,
         "category_slug": "world",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -866,7 +888,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "technology",
-        "order_index": 11,
+        "order_index": 12,
         "category_slug": "technology",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -875,7 +897,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "business",
-        "order_index": 12,
+        "order_index": 13,
         "category_slug": "business",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -884,7 +906,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "more-top-stories-2",
-        "order_index": 13,
+        "order_index": 14,
         "pinned": True,
         "pin_offset": 31,
         "limit": 7,
@@ -894,7 +916,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "midterm-elections-2",
-        "order_index": 14,
+        "order_index": 15,
         "category_slug": "world",
         "limit": 4,
         "presentation_type": "editorial_spotlight",
@@ -903,7 +925,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "editorial-rail-2",
-        "order_index": 15,
+        "order_index": 16,
         "limit": 4,
         "presentation_type": "rail_compact",
         "display_name_us": "Featured",
@@ -911,7 +933,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "us",
-        "order_index": 16,
+        "order_index": 17,
         "category_slug": "us",
         "limit": 7,
         "presentation_type": "grid_4",
@@ -920,7 +942,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "style",
-        "order_index": 17,
+        "order_index": 18,
         "category_slug": "style",
         "limit": 4,
         "presentation_type": "grid_4",
@@ -929,7 +951,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "travel",
-        "order_index": 18,
+        "order_index": 19,
         "category_slug": "travel",
         "limit": 4,
         "presentation_type": "grid_4",
@@ -1426,6 +1448,171 @@ PR_SPORT_SECTION_STORIES: dict[str, list[str]] = {
     ],
 }
 
+# Government page topics (USA + international), same compact-row count as Sports.
+GOVERNMENT_SECTION_LABELS: list[str] = [
+    "Executive",
+    "Legislature",
+    "Judiciary",
+    "Agencies",
+    "Services",
+    "Emergency",
+    "Defense",
+]
+
+GOVERNMENT_CHILD_CATEGORIES: list[dict[str, str]] = [
+    {
+        "name": "Executive",
+        "slug": "executive",
+        "description": "Presidents, prime ministers, cabinets, and executive orders.",
+    },
+    {
+        "name": "Legislature",
+        "slug": "legislature",
+        "description": "Congress, parliaments, and lawmaking.",
+    },
+    {
+        "name": "Judiciary",
+        "slug": "judiciary",
+        "description": "Courts, rulings, and constitutional challenges.",
+    },
+    {
+        "name": "Agencies",
+        "slug": "agencies",
+        "description": "Regulators and standing government bodies.",
+    },
+    {
+        "name": "Services",
+        "slug": "services",
+        "description": "Public benefits, health systems, and civic services.",
+    },
+    {
+        "name": "Emergency",
+        "slug": "emergency",
+        "description": "Disasters, civil defense, and emergency response.",
+    },
+    {
+        "name": "Defense",
+        "slug": "defense",
+        "description": "Armed forces, alliances, and military policy.",
+    },
+]
+
+GOVERNMENT_TOPIC_STORIES: dict[str, list[str]] = {
+    "executive": [
+        "White House issues executive order on federal AI procurement",
+        "Cabinet secretaries brief governors on border coordination",
+        "President meets G7 leaders on coordinated sanctions package",
+        "Prime minister survives confidence vote after budget fight",
+        "Executive branch names special envoy for Caribbean climate talks",
+        "Oval Office sets timeline for infrastructure permitting overhaul",
+        "French president hosts emergency summit on energy security",
+        "Mexican executive branch expands federal police oversight",
+        "UK Downing Street publishes civil-service reform white paper",
+        "Brazilian presidency unveils Amazon conservation decree",
+        "Canadian cabinet reshuffle elevates defense and health posts",
+        "Colombian presidency launches rural development executive plan",
+    ],
+    "legislature": [
+        "Senate advances stopgap funding as shutdown deadline nears",
+        "House committee subpoenas agency records on disaster spending",
+        "European Parliament votes on new migration screening rules",
+        "Lawmakers revive bipartisan intelligence-oversight package",
+        "Parliament debates emergency powers after storm season",
+        "Congress schedules hearings on veterans benefits delays",
+        "German Bundestag passes defense-spending authorization",
+        "Mexican Congress reviews judicial-reform implementing bills",
+        "UK Commons votes on public-service staffing caps",
+        "Japanese Diet extends disaster-recovery appropriations",
+        "Australian parliament probes intelligence-sharing gaps",
+        "Colombian Congress debates rural land-titling overhaul",
+    ],
+    "judiciary": [
+        "Supreme Court agrees to hear challenge to agency rulemaking",
+        "Federal appeals court blocks detention-expansion order",
+        "International Criminal Court opens new crimes-against-humanity docket",
+        "High court reviews emergency-powers statute after floods",
+        "Judges halt deportation flights pending asylum-screen review",
+        "Constitutional court strikes down surveillance-data retention law",
+        "State supreme court upholds voting-access expansion",
+        "War-crimes tribunal schedules first hearings of the year",
+        "Federal judge orders release of disaster-contract records",
+        "European Court of Human Rights rules on protest restrictions",
+        "National high court limits military courts over civilians",
+        "Appeals panel restores whistleblower protections at a regulator",
+    ],
+    "agencies": [
+        "EPA finalizes stricter drinking-water limits for utilities",
+        "FDA recalls imported food after contamination findings",
+        "IRS issues guidance on disaster-loss tax relief",
+        "CDC updates respiratory-virus surveillance for the season",
+        "WHO issues new pandemic-preparedness reporting rules",
+        "Securities regulator fines firms over sanctions-evasion gaps",
+        "Competition agency opens probe into port logistics fees",
+        "Nuclear watchdog inspects power plants after seismic alerts",
+        "Aviation authority tightens drone rules near airports",
+        "Central bank supervisor warns lenders on climate risk",
+        "Customs agency modernizes cargo screening at major ports",
+        "Data-protection agency fines a ministry over leak response",
+    ],
+    "services": [
+        "Social Security offices extend hours for benefit applications",
+        "VA hospitals add mental-health clinics in three states",
+        "Postal service restores delayed routes after storm damage",
+        "National health service cuts wait times for specialist care",
+        "Unemployment offices launch digital claims for disaster areas",
+        "Public housing authority opens waitlist in coastal cities",
+        "Veterans benefits backlog falls after staffing surge",
+        "Transit agency expands reduced-fare program for seniors",
+        "Education department accelerates student-aid disbursements",
+        "Water utility restores service after treatment-plant outage",
+        "Passport offices add weekend appointments before summer travel",
+        "Pension service publishes new retirement-estimator tools",
+    ],
+    "emergency": [
+        "FEMA pre-stages supplies as hurricane season peaks",
+        "Civil defense issues flood warnings for coastal municipalities",
+        "UN disaster office coordinates aid after earthquake",
+        "National Guard deploys for wildfire containment in the west",
+        "Emergency managers test tsunami sirens on the Pacific coast",
+        "Red Cross and civil protection open cooling centers in heat wave",
+        "Coast Guard leads search after ferry incident offshore",
+        "Interior ministry activates volcano-evacuation routes",
+        "Storm surge maps updated for Atlantic hurricane corridor",
+        "Emergency broadcast system runs nationwide readiness test",
+        "Field hospitals stand up after tropical storm landfall",
+        "Disaster-recovery loans open for small businesses in the path",
+    ],
+    "defense": [
+        "Pentagon requests supplemental funding for allied air defense",
+        "NATO ministers raise readiness targets after security review",
+        "Defense ministry announces Caribbean patrol rotation",
+        "Joint exercises begin with partners in the Indo-Pacific",
+        "Army modernizes hurricane-response engineering units",
+        "Navy expands shipyard work to reduce maintenance backlog",
+        "Air force tests new early-warning radar in the north",
+        "Defense contractors face audit over spare-parts delays",
+        "Peacekeeping contingent prepares for UN rotation",
+        "Cyber command warns ministries of infrastructure probes",
+        "Allied defense chiefs meet on ammunition stockpiles",
+        "Military academies expand scholarships for technical officers",
+    ],
+}
+
+GOVERNMENT_WORLD_STORIES: list[str] = [
+    "UN Security Council schedules emergency session on regional ceasefire",
+    "G20 ministers debate shared rules for cross-border disaster aid",
+    "European Commission publishes new sanctions-compliance guidance",
+    "OAS observers arrive for Caribbean election-integrity mission",
+    "IMF and island finance ministers review hurricane-recovery facilities",
+    "World Bank expands climate-resilience grants for coastal capitals",
+    "International Court of Justice lists new maritime-boundary arguments",
+    "NATO and partner governments coordinate hurricane-response airlift",
+    "WHO member states vote on pandemic-treaty reporting deadlines",
+    "UNHCR updates shelter standards after displacement in the region",
+    "Interpol issues notice on sanctions-evasion networks in shipping",
+    "Summit of the Americas draft communique focuses on energy security",
+]
+
 MARKET_DEFS: list[dict[str, Any]] = [
     {
         "code": "us",
@@ -1724,6 +1911,24 @@ async def _ensure_business_child_categories(
         )
 
 
+async def _ensure_government_child_categories(
+    db: AsyncIOMotorDatabase,
+    slug_to_id: dict[str, str],
+) -> None:
+    """Ensure Government topic categories sit under the government parent."""
+
+    parent_id = slug_to_id.get("government")
+    if parent_id is None:
+        raise RuntimeError("Missing government category before Government children")
+    for category in GOVERNMENT_CHILD_CATEGORIES:
+        await _upsert_business_child_category(
+            db,
+            slug_to_id,
+            parent_id=parent_id,
+            category=category,
+        )
+
+
 def _market_article_fields(
     story: SeedStory,
     *,
@@ -1793,6 +1998,92 @@ def _new_market_article_doc(
     }
 
 
+def _seed_article_category_ids(
+    slug_to_category_id: dict[str, str],
+    *,
+    category_slug: str,
+    category_id: str,
+) -> list[str]:
+    """Return category ids for a seeded article, including Government parent.
+
+    Topic stories are stored on child slugs (executive, legislature, ...). Homepage
+    and Government hero slots query the parent ``government`` category, so those
+    stories must also carry the parent id.
+    """
+
+    ids = [category_id]
+    if category_slug in GOVERNMENT_TOPIC_STORIES:
+        parent_id = slug_to_category_id.get("government")
+        if parent_id and parent_id not in ids:
+            ids.insert(0, parent_id)
+    return ids
+
+
+def _government_slot_category_slug(position_key: str) -> str | None:
+    """Map a government-page slot key to the category slug that should fill it."""
+
+    preserved = {
+        "hero": "government",
+        "us-featured": "government",
+        "health": "health",
+        "world": "government-page-world",
+    }
+    if position_key in preserved:
+        return preserved[position_key]
+    child_slugs = {row["slug"] for row in GOVERNMENT_CHILD_CATEGORIES}
+    if position_key in child_slugs:
+        return position_key
+    return None
+
+
+async def _set_slot_query_category_id(
+    db: AsyncIOMotorDatabase,
+    slot_id: str,
+    category_id: str,
+) -> None:
+    """Attach ``category_id`` to a slot query rule without clearing pins or limit."""
+
+    slot = await db[SLOTS_COLLECTION].find_one({"_id": slot_id}, {"query_rule": 1})
+    if slot is None:
+        return
+    query_rule = dict(slot.get("query_rule") or {})
+    query_rule["category_id"] = category_id
+    query_rule.setdefault("limit", 12)
+    await db[SLOTS_COLLECTION].update_one(
+        {"_id": slot_id},
+        {"$set": {"query_rule": query_rule}},
+    )
+
+
+async def _stamp_government_page_category_fill(
+    db: AsyncIOMotorDatabase,
+    slug_to_category_id: dict[str, str],
+) -> None:
+    """Write category auto-fill onto government page slots so seeded stories appear."""
+
+    cursor = db[LAYOUTS_COLLECTION].find({"page_name": "government"}, {"_id": 1})
+    async for layout in cursor:
+        slots = db[SLOTS_COLLECTION].find({"layout_id": layout["_id"]}, {"_id": 1, "position_key": 1})
+        async for slot in slots:
+            slug = _government_slot_category_slug(str(slot.get("position_key") or ""))
+            category_id = slug_to_category_id.get(slug) if slug else None
+            if not category_id:
+                continue
+            await _set_slot_query_category_id(db, str(slot["_id"]), category_id)
+
+
+async def _stamp_homepage_government_category_fill(
+    db: AsyncIOMotorDatabase,
+    slug_to_category_id: dict[str, str],
+) -> None:
+    """Write parent Government category fill onto homepage government slots."""
+
+    category_id = slug_to_category_id["government"]
+    cursor = db[SLOTS_COLLECTION].find({"position_key": "government"}, {"_id": 1})
+    async for slot in cursor:
+        await _set_slot_query_category_id(db, str(slot["_id"]), category_id)
+
+
 async def _ensure_market_articles(
     db: AsyncIOMotorDatabase,
     *,
@@ -1831,6 +2122,11 @@ async def _ensure_market_articles(
                 video_url=video_url,
                 now=now,
             )
+            fields["category_ids"] = _seed_article_category_ids(
+                slug_to_category_id,
+                category_slug=category_slug,
+                category_id=category_id,
+            )
             if existing is not None:
                 await db[ARTICLES_COLLECTION].update_one(
                     {"_id": existing["_id"]},
@@ -1852,11 +2148,61 @@ async def _ensure_market_articles(
                 video_url=video_url,
                 now=now,
             )
+            doc["category_ids"] = fields["category_ids"]
             await db[ARTICLES_COLLECTION].insert_one(doc)
             article_ids.append(article_id)
 
     logger.info("Ensured %d articles for market %s", len(article_ids), market_code)
     return article_ids
+
+
+async def _ensure_pr_town_category_article(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    market_id: str,
+    town_id: str,
+    category_slug: str,
+    category_id: str,
+    now: str,
+) -> None:
+    """Create or refresh one town-scoped article for a homepage category."""
+
+    title = f"{PR_TOWN_LABELS[town_id]} {category_slug} update"
+    existing = await db[ARTICLES_COLLECTION].find_one(
+        {
+            "category_id": category_id,
+            "market_ids": market_id,
+            "town_id": town_id,
+            "title": title,
+        },
+    )
+    fields = _market_article_fields(
+        title,
+        title=title,
+        market_code="pr",
+        category_slug=category_slug,
+        video_url=None,
+        now=now,
+    )
+    if existing is not None:
+        await db[ARTICLES_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
+        return
+    await db[ARTICLES_COLLECTION].insert_one(
+        {
+            "_id": str(uuid4()),
+            "slug": f"pr-{town_id}-{category_slug}-{uuid4().hex[:8]}",
+            "status": "published",
+            "author_id": author_id,
+            "category_id": category_id,
+            "market_ids": [market_id],
+            "town_id": town_id,
+            "media_ids": [],
+            "view_count": 0,
+            "created_at": now,
+            **fields,
+        },
+    )
 
 
 async def _ensure_puerto_rico_town_articles(
@@ -1893,49 +2239,33 @@ async def _ensure_puerto_rico_town_articles(
                 {"_id": existing["_id"]},
                 {"$set": fields},
             )
-            continue
-
-        article_id = str(uuid4())
-        doc = {
-            "_id": article_id,
-            "slug": f"pr-{town_id}-local-{article_id[:8]}",
-            "status": "published",
-            "author_id": author_id,
-            "category_id": us_category_id,
-            "market_ids": [market_id],
-            "town_id": town_id,
-            "media_ids": [],
-            "view_count": 0,
-            "created_at": now,
-            **fields,
-        }
-        await db[ARTICLES_COLLECTION].insert_one(doc)
-
-        for category_slug in ("politics", "business", "sports", "entertainment"):
-            category_id = slug_to_category_id[category_slug]
-            category_title = f"{PR_TOWN_LABELS[town_id]} {category_slug} update"
-            category_fields = _market_article_fields(
-                category_title,
-                title=category_title,
-                market_code="pr",
-                category_slug=category_slug,
-                video_url=None,
-                now=now,
-            )
-            category_doc = {
-                "_id": str(uuid4()),
-                "slug": f"pr-{town_id}-{category_slug}-{uuid4().hex[:8]}",
+        else:
+            article_id = str(uuid4())
+            doc = {
+                "_id": article_id,
+                "slug": f"pr-{town_id}-local-{article_id[:8]}",
                 "status": "published",
                 "author_id": author_id,
-                "category_id": category_id,
+                "category_id": us_category_id,
                 "market_ids": [market_id],
                 "town_id": town_id,
                 "media_ids": [],
                 "view_count": 0,
                 "created_at": now,
-                **category_fields,
+                **fields,
             }
-            await db[ARTICLES_COLLECTION].insert_one(category_doc)
+            await db[ARTICLES_COLLECTION].insert_one(doc)
+
+        for category_slug in PR_TOWN_CATEGORY_SLUGS:
+            await _ensure_pr_town_category_article(
+                db,
+                author_id=author_id,
+                market_id=market_id,
+                town_id=town_id,
+                category_slug=category_slug,
+                category_id=slug_to_category_id[category_slug],
+                now=now,
+            )
 
     logger.info("Ensured Puerto Rico town articles for market pr")
 
@@ -2193,6 +2523,61 @@ async def _ensure_us_state_sports_sections(db: AsyncIOMotorDatabase) -> None:
     logger.info("Seeded geo sports sections: %s", result)
 
 
+async def _ensure_market_government_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+) -> None:
+    """Seed per-market government section config and sync the government layout."""
+
+    from shared.core.government_page_sections_sync import (
+        default_government_page_section_items,
+        sync_government_layout_slots,
+    )
+    from shared.read.collections import GOVERNMENT_PAGE_SECTIONS_COLLECTION
+
+    items = default_government_page_section_items(GOVERNMENT_SECTION_LABELS)
+    now = _utc_now_iso()
+    existing = await db[GOVERNMENT_PAGE_SECTIONS_COLLECTION].find_one(
+        {
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        },
+        {"_id": 1},
+    )
+    if existing is not None:
+        await db[GOVERNMENT_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"items": items, "updated_at": now, "region_id": None}},
+        )
+    else:
+        await db[GOVERNMENT_PAGE_SECTIONS_COLLECTION].insert_one(
+            {
+                "_id": str(uuid4()),
+                "market_id": market_id,
+                "region_id": None,
+                "items": items,
+                "updated_at": now,
+            },
+        )
+    await sync_government_layout_slots(db, market_id=market_id, items=items, region_id=None)
+    logger.info(
+        "Seeded government sections for market %s (%d items)",
+        market_code,
+        len(items),
+    )
+
+
+async def _ensure_us_state_government_sections(db: AsyncIOMotorDatabase) -> None:
+    """Seed government lists for US states, Florida counties, and PR towns."""
+
+    from shared.core.government_page_sections_sync import ensure_geo_government_sections
+
+    result = await ensure_geo_government_sections(db, labels=GOVERNMENT_SECTION_LABELS)
+    logger.info("Seeded geo government sections: %s", result)
+
+
 async def _ensure_pr_sport_section_articles(
     db: AsyncIOMotorDatabase,
     *,
@@ -2301,6 +2686,7 @@ async def seed_dev() -> None:
         market_code_to_id = await _ensure_markets(db)
         slug_to_category_id = await _ensure_categories(db)
         await _ensure_business_child_categories(db, slug_to_category_id)
+        await _ensure_government_child_categories(db, slug_to_category_id)
 
         for market in MARKET_DEFS:
             code = str(market["code"])
@@ -2310,7 +2696,12 @@ async def seed_dev() -> None:
                 author_id=str(admin["_id"]),
                 market_id=market_id,
                 market_code=code,
-                article_stories={**market["article_stories"], **BUSINESS_BEAT_STORIES},
+                article_stories={
+                    **market["article_stories"],
+                    **BUSINESS_BEAT_STORIES,
+                    **GOVERNMENT_TOPIC_STORIES,
+                    "government-page-world": GOVERNMENT_WORLD_STORIES,
+                },
                 slug_to_category_id=slug_to_category_id,
             )
             if code == "pr":
@@ -2357,6 +2748,11 @@ async def seed_dev() -> None:
                 market_id=market_id,
                 market_code=code,
             )
+            await _ensure_market_government_sections(
+                db,
+                market_id=market_id,
+                market_code=code,
+            )
             if code == "pr":
                 await _ensure_pr_sport_section_articles(
                     db,
@@ -2367,6 +2763,9 @@ async def seed_dev() -> None:
         await _ensure_breaking_widgets(db)
         await _ensure_geo_regions_and_backfill()
         await _ensure_us_state_sports_sections(db)
+        await _ensure_us_state_government_sections(db)
+        await _stamp_government_page_category_fill(db, slug_to_category_id)
+        await _stamp_homepage_government_category_fill(db, slug_to_category_id)
         await _invalidate_homepage_feed_cache()
     finally:
         client.close()

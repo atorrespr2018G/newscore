@@ -14,6 +14,7 @@ if str(_ROOT / "shared") not in sys.path:
 from shared.core.exceptions import ValidationError
 from shared.core.page_ad_placements import (
     DEFAULT_BUSINESS_ADS,
+    DEFAULT_GOVERNMENT_ADS,
     DEFAULT_HOMEPAGE_ADS,
     DEFAULT_SPORTS_ADS,
     DEFAULT_WORLD_ADS,
@@ -30,6 +31,7 @@ def test_default_ads_for_page_returns_page_specific_lists() -> None:
     assert default_ads_for_page("homepage") == [dict(row) for row in DEFAULT_HOMEPAGE_ADS]
     assert default_ads_for_page("world") == [dict(row) for row in DEFAULT_WORLD_ADS]
     assert default_ads_for_page("sports") == [dict(row) for row in DEFAULT_SPORTS_ADS]
+    assert default_ads_for_page("government") == [dict(row) for row in DEFAULT_GOVERNMENT_ADS]
     assert default_ads_for_page("business") == [dict(row) for row in DEFAULT_BUSINESS_ADS]
     assert default_ads_for_page("unknown") == [dict(row) for row in DEFAULT_HOMEPAGE_ADS]
 
@@ -47,7 +49,7 @@ def test_default_homepage_ads_cover_shell_locations() -> None:
 def test_default_ads_omit_stacking_ribbon_locations() -> None:
     """Page defaults leave in-feed ribbons to the section list."""
 
-    for page_name in ("homepage", "world", "sports", "business"):
+    for page_name in ("homepage", "world", "sports", "government", "business"):
         for row in default_ads_for_page(page_name):
             assert row["location"] not in STACKING_AD_LOCATIONS
 

@@ -73,6 +73,7 @@ describe('homepageSectionLandingHref', () => {
     expect(homepageSectionLandingHref('homepage', 'sports')).toBe('/sports')
     expect(homepageSectionLandingHref('homepage', 'world')).toBe('/world')
     expect(homepageSectionLandingHref('homepage', 'business')).toBe('/business')
+    expect(homepageSectionLandingHref('homepage', 'government')).toBe('/government')
     expect(homepageSectionLandingHref(undefined, 'sports')).toBe('/sports')
   })
 

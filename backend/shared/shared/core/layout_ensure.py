@@ -12,6 +12,7 @@ from shared.core.geo_catalog import (
     CURATED_LAYOUT_PAGE_NAMES,
     FLORIDA_COUNTY_OPTIONS,
     PUERTO_RICO_TOWN_OPTIONS,
+    STATE_GOVERNMENT_LAYOUT_PAGE_NAME,
     STATE_SPORTS_LAYOUT_PAGE_NAME,
     US_STATE_OPTIONS,
     sports_curated_region_codes,
@@ -410,6 +411,15 @@ async def ensure_us_pr_geo_layouts(db: AsyncIOMotorDatabase) -> dict[str, Any]:
             page_name=STATE_SPORTS_LAYOUT_PAGE_NAME,
         )
     layouts_by_page[STATE_SPORTS_LAYOUT_PAGE_NAME] = sports_layouts
+
+    government_layouts: dict[str, str | None] = {}
+    for code in sports_curated_region_codes():
+        government_layouts[code] = await ensure_exact_page_layout_by_code(
+            db,
+            region_code=code,
+            page_name=STATE_GOVERNMENT_LAYOUT_PAGE_NAME,
+        )
+    layouts_by_page[STATE_GOVERNMENT_LAYOUT_PAGE_NAME] = government_layouts
 
     return {
         "status": "ok",

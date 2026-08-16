@@ -367,6 +367,80 @@ export function putSportsPageSections(
   )
 }
 
+/** Government page section template used for layout and Placement slots. */
+export type GovernmentPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'world'
+  | 'topic'
+  | 'ribbon_ad'
+
+/** One ordered section on a government page. */
+export interface IGovernmentPageSectionItem {
+  section_type: GovernmentPageSectionType
+  slug: string
+  label: string
+}
+
+/** Government page section list for a market or state region. */
+export interface IGovernmentPageSectionsOut {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: IGovernmentPageSectionItem[]
+  ads: IPageAdPlacementApi[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered government section list for a market or region.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @returns Government section list payload.
+ */
+export function getGovernmentPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<IGovernmentPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IGovernmentPageSectionsOut>(
+    `${apiConfig.layout}/government-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered government section list and sync layout slots.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered typed sections (label required; slug optional).
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @returns Updated government section list payload.
+ */
+export function putGovernmentPageSections(
+  marketCode: string,
+  items: Array<{ section_type: GovernmentPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
+): Promise<IGovernmentPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IGovernmentPageSectionsOut>(
+    `${apiConfig.layout}/government-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items, ads }),
+    },
+  )
+}
+
 /** Main landing page section template used for layout and Placement slots. */
 export type MainPageSectionType =
   | 'hero'

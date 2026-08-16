@@ -44,6 +44,7 @@ STACKING_AD_LOCATIONS: frozenset[str] = frozenset(
 PAGE_NAME_HOMEPAGE = "homepage"
 PAGE_NAME_WORLD = "world"
 PAGE_NAME_SPORTS = "sports"
+PAGE_NAME_GOVERNMENT = "government"
 PAGE_NAME_BUSINESS = "business"
 
 
@@ -82,6 +83,10 @@ DEFAULT_SPORTS_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
 ]
 
+DEFAULT_GOVERNMENT_ADS: list[dict[str, Any]] = [
+    _placement(ad_type="leaderboard", location="masthead"),
+]
+
 DEFAULT_BUSINESS_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
 ]
@@ -91,7 +96,7 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
     """Return default ad placements for a configured page name.
 
     Args:
-        page_name: ``homepage``, ``world``, ``sports``, or ``business``.
+        page_name: ``homepage``, ``world``, ``sports``, ``government``, or ``business``.
 
     Returns:
         A deep-copied default ads list for that page.
@@ -102,6 +107,8 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
         return [dict(row) for row in DEFAULT_WORLD_ADS]
     if normalized == PAGE_NAME_SPORTS:
         return [dict(row) for row in DEFAULT_SPORTS_ADS]
+    if normalized == PAGE_NAME_GOVERNMENT:
+        return [dict(row) for row in DEFAULT_GOVERNMENT_ADS]
     if normalized == PAGE_NAME_BUSINESS:
         return [dict(row) for row in DEFAULT_BUSINESS_ADS]
     return [dict(row) for row in DEFAULT_HOMEPAGE_ADS]

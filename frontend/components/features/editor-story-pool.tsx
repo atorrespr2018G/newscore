@@ -25,10 +25,15 @@ import {
 } from '@/lib/helpers/editor-curation'
 import {
   BUSINESS_CATEGORY_SLUG,
+  GOVERNMENT_CATEGORY_SLUG,
   SPORTS_CATEGORY_SLUG,
   findCategoryBySlug,
 } from '@/lib/helpers/category-selection'
 import { resolveBusinessSubcategories } from '@/lib/helpers/business-category-options'
+import {
+  loadGovernmentTopicSlugs,
+  resolveGovernmentSubcategories,
+} from '@/lib/helpers/government-category-options'
 import {
   loadSportSlugs,
   resolveSportSubcategories,
@@ -642,14 +647,23 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
     queryKey: ['editor', 'world-page-section-slugs', 'all'],
     queryFn: () => loadWorldRegionSlugs(),
   })
+  const governmentSectionsQuery = useQuery({
+    queryKey: ['editor', 'government-page-section-slugs', 'all'],
+    queryFn: () => loadGovernmentTopicSlugs(),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
   const worldRegionSlugs = worldSectionsQuery.data ?? []
+  const governmentTopicSlugs = governmentSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
+  const governmentParent = findCategoryBySlug(categories, GOVERNMENT_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && filters.categoryId === sportsParent.id
   const businessSelected = businessParent != null && filters.categoryId === businessParent.id
+  const governmentSelected =
+    governmentParent != null && filters.categoryId === governmentParent.id
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
   const businessChildren = resolveBusinessSubcategories(categories)
+  const governmentChildren = resolveGovernmentSubcategories(categories, governmentTopicSlugs)
   const sectionCategories = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
 
   return (
@@ -711,6 +725,23 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
           >
             <option value="">{t('editor.pool.filterBar.businessBeatAll')}</option>
             {businessChildren.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      ) : null}
+      {governmentSelected ? (
+        <FilterField label={t('editor.pool.filterBar.governmentTopicLabel')}>
+          <select
+            value={filters.sportCategoryId}
+            disabled={disabled || governmentSectionsQuery.isLoading}
+            onChange={(event) => onUpdate({ sportCategoryId: event.target.value })}
+            className={filterControlClass(disabled)}
+          >
+            <option value="">{t('editor.pool.filterBar.governmentTopicAll')}</option>
+            {governmentChildren.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>

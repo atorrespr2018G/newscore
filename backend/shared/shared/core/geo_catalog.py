@@ -215,6 +215,9 @@ CURATED_LAYOUT_PAGE_NAMES: tuple[str, ...] = ("homepage", "world")
 STATE_SPORTS_LAYOUT_PAGE_NAME = "sports"
 """Sports page boards are curated per US state, Florida county, and PR town."""
 
+STATE_GOVERNMENT_LAYOUT_PAGE_NAME = "government"
+"""Government page boards are curated per US state, Florida county, and PR town."""
+
 
 def us_state_region_codes() -> tuple[str, ...]:
     """Return region codes for every US state (e.g. ``us-fl``)."""

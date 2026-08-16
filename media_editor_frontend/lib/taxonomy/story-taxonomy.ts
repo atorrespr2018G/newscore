@@ -28,6 +28,9 @@ export const SPORTS_CATEGORY_SLUG = 'sports'
 /** Parent slug for Economía beat chips. */
 export const BUSINESS_CATEGORY_SLUG = 'business'
 
+/** Parent slug for Government topic chips. */
+export const GOVERNMENT_CATEGORY_SLUG = 'government'
+
 /** Optional 1–10 international relevance score. */
 export const INTERNATIONAL_POTENTIAL_OPTIONS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
@@ -54,6 +57,7 @@ export const ROOT_CATEGORY_OPTIONS: ICategoryOption[] = [
   { slug: 'style', label: 'Style', parentSlug: null },
   { slug: 'travel', label: 'Travel', parentSlug: null },
   { slug: 'sports', label: 'Sports', parentSlug: null },
+  { slug: 'government', label: 'Government', parentSlug: null },
 ]
 
 /** Sport subcategory chips shown when Sports is selected. */
@@ -68,6 +72,17 @@ export const SPORT_CATEGORY_OPTIONS: ICategoryOption[] = [
   { slug: 'tennis', label: 'Tennis', parentSlug: SPORTS_CATEGORY_SLUG },
   { slug: 'golf', label: 'Golf', parentSlug: SPORTS_CATEGORY_SLUG },
   { slug: 'horse-racing', label: 'Horse Racing', parentSlug: SPORTS_CATEGORY_SLUG },
+]
+
+/** Government topic chips shown when Government is selected. */
+export const GOVERNMENT_CATEGORY_OPTIONS: ICategoryOption[] = [
+  { slug: 'executive', label: 'Executive', parentSlug: GOVERNMENT_CATEGORY_SLUG },
+  { slug: 'legislature', label: 'Legislature', parentSlug: GOVERNMENT_CATEGORY_SLUG },
+  { slug: 'judiciary', label: 'Judiciary', parentSlug: GOVERNMENT_CATEGORY_SLUG },
+  { slug: 'agencies', label: 'Agencies', parentSlug: GOVERNMENT_CATEGORY_SLUG },
+  { slug: 'services', label: 'Services', parentSlug: GOVERNMENT_CATEGORY_SLUG },
+  { slug: 'emergency', label: 'Emergency', parentSlug: GOVERNMENT_CATEGORY_SLUG },
+  { slug: 'defense', label: 'Defense', parentSlug: GOVERNMENT_CATEGORY_SLUG },
 ]
 
 /** Economía beat chips shown when Economy is selected. */
@@ -129,6 +144,16 @@ export function isBusinessBeatSlug(slug: string): boolean {
 }
 
 /**
+ * Whether a slug is a Government topic under Government.
+ *
+ * @param slug - Category slug to check.
+ * @returns True when the slug is one of the Government topic chips.
+ */
+export function isGovernmentTopicSlug(slug: string): boolean {
+  return GOVERNMENT_CATEGORY_OPTIONS.some((topic) => topic.slug === slug)
+}
+
+/**
  * Toggle a category slug on or off.
  *
  * Root categories are independent. Sport chips require Sports to already be
@@ -140,7 +165,7 @@ export function isBusinessBeatSlug(slug: string): boolean {
  * @returns Updated selection (same array when a child add is blocked).
  */
 export function toggleCategorySlug(selected: string[], slug: string): string[] {
-  if (slug === SPORTS_CATEGORY_SLUG || slug === BUSINESS_CATEGORY_SLUG) {
+  if (slug === SPORTS_CATEGORY_SLUG || slug === BUSINESS_CATEGORY_SLUG || slug === GOVERNMENT_CATEGORY_SLUG) {
     return toggleParentSlug(selected, slug)
   }
   if (isSportCategorySlug(slug)) {
@@ -148,6 +173,9 @@ export function toggleCategorySlug(selected: string[], slug: string): string[] {
   }
   if (isBusinessBeatSlug(slug)) {
     return toggleChildSlug(selected, slug, BUSINESS_CATEGORY_SLUG)
+  }
+  if (isGovernmentTopicSlug(slug)) {
+    return toggleChildSlug(selected, slug, GOVERNMENT_CATEGORY_SLUG)
   }
   if (selected.includes(slug)) {
     return selected.filter((item) => item !== slug)
@@ -200,6 +228,9 @@ function childSlugsForParent(parentSlug: string): Set<string> {
   }
   if (parentSlug === BUSINESS_CATEGORY_SLUG) {
     return new Set(BUSINESS_CATEGORY_OPTIONS.map((beat) => beat.slug))
+  }
+  if (parentSlug === GOVERNMENT_CATEGORY_SLUG) {
+    return new Set(GOVERNMENT_CATEGORY_OPTIONS.map((topic) => topic.slug))
   }
   return new Set()
 }

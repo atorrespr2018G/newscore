@@ -279,6 +279,7 @@ const SPORTS_POSITION_KEY = 'sports'
 const HOMEPAGE_PAGE_NAME = 'homepage'
 const SPORTS_PAGE_NAME = 'sports'
 const BUSINESS_PAGE_NAME = 'business'
+const GOVERNMENT_PAGE_NAME = 'government'
 const SPORTS_SECTION_PAIR_SIZE = 2
 const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
@@ -770,7 +771,8 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
   const useSportsSectionRows =
     options?.useSportsSectionRows === true ||
     pageName === SPORTS_PAGE_NAME ||
-    pageName === BUSINESS_PAGE_NAME
+    pageName === BUSINESS_PAGE_NAME ||
+    pageName === GOVERNMENT_PAGE_NAME
 
   if (useSportsSectionRows) {
     return (
@@ -865,6 +867,23 @@ export function SportsPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JS
  */
 export function BusinessPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { data, loading, error } = usePageFeed(BUSINESS_PAGE_NAME)
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
+ * Government landing using the sports-page hero plus compact topic rows.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Government page component.
+ */
+export function GovernmentPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = usePageFeed(GOVERNMENT_PAGE_NAME)
   const feedData = data ?? initialFeed
 
   return (

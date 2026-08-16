@@ -95,7 +95,7 @@ DEFAULT_LABEL_BY_TYPE = {
     SECTION_TYPE_TOP_STORIES: "Top Stories",
     SECTION_TYPE_LIVE: "Live",
     SECTION_TYPE_MORE_TOP_STORIES: "More Top Stories",
-    SECTION_TYPE_SPOTLIGHT: "Government",
+    SECTION_TYPE_SPOTLIGHT: "Elections",
     SECTION_TYPE_RAIL: "Sports",
     SECTION_TYPE_RIBBON_AD: "Ribbon Advertisement",
 }
@@ -192,11 +192,12 @@ DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_homepage_ri
         {
             "section_type": SECTION_TYPE_SPOTLIGHT,
             "slug": SPOTLIGHT_POSITION_KEY,
-            "label": "Government",
+            "label": "Elections",
         },
         {"section_type": SECTION_TYPE_RAIL, "slug": RAIL_POSITION_KEY, "label": "Sports"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "politics", "label": "Politics"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "sports", "label": "Sports"},
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "government", "label": "Government"},
         {"section_type": SECTION_TYPE_LIVE, "slug": LIVE_POSITION_KEY, "label": "Live"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "finance", "label": "Health"},
         {

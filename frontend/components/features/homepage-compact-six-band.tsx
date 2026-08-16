@@ -14,6 +14,7 @@ import {
   sectionAnchorId,
 } from '@/lib/helpers/section-labels'
 import { businessArchiveHref } from '@/lib/helpers/business-archive'
+import { governmentArchiveHref } from '@/lib/helpers/government-archive'
 import { sportArchiveHref } from '@/lib/helpers/sport-archive'
 import { worldArchiveHref } from '@/lib/helpers/world-archive'
 import { toRegionCode } from '@/lib/region-code'
@@ -87,6 +88,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
     sportArchiveHref(pageName, slot.positionKey) ??
     worldArchiveHref(pageName, slot.positionKey) ??
     businessArchiveHref(pageName, slot.positionKey) ??
+    governmentArchiveHref(pageName, slot.positionKey) ??
     homepageSectionLandingHref(pageName, slot.positionKey)
 
   return (

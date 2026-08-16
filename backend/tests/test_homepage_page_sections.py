@@ -52,6 +52,7 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert slugs[1] == "ad-ribbon"
     assert "politics" in slugs
     assert "sports" in slugs
+    assert "government" in slugs
     assert "health" in slugs
     assert "entertainment" in slugs
     assert "technology" in slugs

@@ -32,6 +32,7 @@
   "sportArchiveEmpty": "Aún no hay noticias en este deporte.",
   "worldArchiveEmpty": "Aún no hay noticias en esta región.",
   "businessArchiveEmpty": "Aún no hay noticias en esta sección.",
+  "governmentArchiveEmpty": "Aún no hay noticias en este tema de gobierno.",
   "paginationNav": "Paginación",
   "goToPage": "Ir a la página {page}",
   "section": "Sección",
@@ -65,6 +66,8 @@
     "sportDescription": "Últimas noticias, marcadores y actualizaciones de {sport}.",
     "worldRegionDescription": "Últimas noticias y actualizaciones de {region}.",
     "businessDescription": "Economía, empresas, banca, autos, turismo, construcción y agricultura.",
-    "businessBeatDescription": "Últimas noticias y actualizaciones de {beat}."
+    "businessBeatDescription": "Últimas noticias y actualizaciones de {beat}.",
+    "governmentDescription": "Ejecutivo, legislativo, judicial, agencias, servicios, emergencia y defensa.",
+    "governmentTopicDescription": "Últimas noticias y actualizaciones de {topic}."
   }
 }

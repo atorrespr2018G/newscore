@@ -100,6 +100,22 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
   'agriculture',
 
+  'government',
+
+  'executive',
+
+  'legislature',
+
+  'judiciary',
+
+  'agencies',
+
+  'services',
+
+  'emergency',
+
+  'defense',
+
 ])
 
 
@@ -113,6 +129,8 @@ const HIDDEN_HOMEPAGE_SECTION_KEYS = new Set(['sport', 'travel', 'style', 'us', 
 export const HOMEPAGE_POST_POLITICS_SECTION_KEYS = [
 
   'sports',
+
+  'government',
 
   'health',
 
@@ -201,6 +219,22 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
 
   'agriculture',
 
+  'government',
+
+  'executive',
+
+  'legislature',
+
+  'judiciary',
+
+  'agencies',
+
+  'services',
+
+  'emergency',
+
+  'defense',
+
 ])
 
 /** Slots on the Sports page that are not compact sport rows. */
@@ -239,6 +273,9 @@ export function isCompactSixBandPositionKey(positionKey: string, pageName?: stri
   }
   // Admin-added Sports page rows reuse the same carousel as landing/world.
   if (pageName?.trim().toLowerCase() === 'sports' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
+    return true
+  }
+  if (pageName?.trim().toLowerCase() === 'government' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
     return true
   }
   if (pageName?.trim().toLowerCase() === 'business' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
@@ -314,6 +351,22 @@ const POSITION_KEY_OVERRIDES_DISPLAY_NAME = new Set([
   'construction',
 
   'agriculture',
+
+  'government',
+
+  'executive',
+
+  'legislature',
+
+  'judiciary',
+
+  'agencies',
+
+  'services',
+
+  'emergency',
+
+  'defense',
 
 ])
 
@@ -459,7 +512,7 @@ export function homepageSectionTitle(
 
   // Sports / Economía pages: prefer i18n labels; CMS names for custom rows only.
   const page = pageName?.trim().toLowerCase()
-  if (page === 'sports' || page === 'business') {
+  if (page === 'sports' || page === 'business' || page === 'government') {
     if (SECTION_TRANSLATION_KEYS.has(normalized) && translate) {
       return translate(`sectionLabels.${normalized}` as `sectionLabels.${string}`)
     }
@@ -490,6 +543,8 @@ const SECTION_PAGE_ROUTES: Record<string, string> = {
 
   sports: '/sports',
 
+  government: '/government',
+
   business: '/business',
 
 }
@@ -505,6 +560,8 @@ const SECTION_PAGE_NAMES: Record<string, string> = {
   world: 'world',
 
   sports: 'sports',
+
+  government: 'government',
 
   business: 'business',
 
@@ -537,6 +594,18 @@ export function sectionPagePath(positionKey: string): string | null {
 export function sportPagePath(slug: string): string {
   const normalized = slug.trim().toLowerCase()
   return `/sports/${encodeURIComponent(normalized)}`
+}
+
+
+/**
+ * Dedicated archive path for a Government topic slug.
+ *
+ * @param slug Topic section slug such as `executive`.
+ * @returns Path like `/government/executive`.
+ */
+export function governmentPagePath(slug: string): string {
+  const normalized = slug.trim().toLowerCase()
+  return `/government/${encodeURIComponent(normalized)}`
 }
 
 

@@ -13,6 +13,7 @@ const PAGE_LABELS: Record<string, string> = {
   homepage: 'Homepage',
   world: 'World',
   sports: 'Sports',
+  government: 'Government',
 }
 
 /**

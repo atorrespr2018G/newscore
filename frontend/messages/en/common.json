@@ -32,6 +32,7 @@
   "sportArchiveEmpty": "No stories in this sport yet.",
   "worldArchiveEmpty": "No stories in this region yet.",
   "businessArchiveEmpty": "No stories in this section yet.",
+  "governmentArchiveEmpty": "No stories in this government topic yet.",
   "paginationNav": "Pagination",
   "goToPage": "Go to page {page}",
   "section": "Section",
@@ -65,6 +66,8 @@
     "sportDescription": "Latest {sport} news, scores, and updates.",
     "worldRegionDescription": "Latest {region} news and updates.",
     "businessDescription": "Economy, companies, banking, autos, tourism, construction, and agriculture.",
-    "businessBeatDescription": "Latest {beat} news and updates."
+    "businessBeatDescription": "Latest {beat} news and updates.",
+    "governmentDescription": "Executive, legislature, judiciary, agencies, services, emergency, and defense.",
+    "governmentTopicDescription": "Latest {topic} government news and updates."
   }
 }
