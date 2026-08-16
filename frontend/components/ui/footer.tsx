@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { DocumentNavLink } from '@/components/ui/document-nav-link'
 import { getTranslations } from '@/lib/locale-server'
 import { sectionNavHref } from '@/lib/helpers/section-labels'
 
@@ -6,6 +7,7 @@ const FOOTER_SECTION_KEYS = [
   'politics',
   'world',
   'technology',
+  'business',
   'health',
   'finance',
   'entertainment',
@@ -41,11 +43,11 @@ export async function Footer(): Promise<JSX.Element> {
       <div className="site-container py-12 md:py-14">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <Link href="/" className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--brand-navy)]">
+            <DocumentNavLink href="/" className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--brand-navy)]">
               <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
                 NEWSCORE
               </span>
-            </Link>
+            </DocumentNavLink>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/75">
               {tCommon('tagline')}
             </p>
@@ -56,12 +58,12 @@ export async function Footer(): Promise<JSX.Element> {
             <ul className="mt-4 space-y-2">
               {FOOTER_SECTION_KEYS.map((key) => (
                 <li key={key}>
-                  <Link
+                  <DocumentNavLink
                     href={sectionNavHref(key)}
                     className="text-sm text-white/75 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--brand-navy)]"
                   >
                     {sectionLabel(key)}
-                  </Link>
+                  </DocumentNavLink>
                 </li>
               ))}
             </ul>

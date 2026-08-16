@@ -86,6 +86,20 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
   'africa',
 
+  'economy',
+
+  'companies',
+
+  'banking',
+
+  'autos',
+
+  'tourism',
+
+  'construction',
+
+  'agriculture',
+
 ])
 
 
@@ -173,6 +187,20 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
 
   'horse-racing',
 
+  'economy',
+
+  'companies',
+
+  'banking',
+
+  'autos',
+
+  'tourism',
+
+  'construction',
+
+  'agriculture',
+
 ])
 
 /** Slots on the Sports page that are not compact sport rows. */
@@ -211,6 +239,9 @@ export function isCompactSixBandPositionKey(positionKey: string, pageName?: stri
   }
   // Admin-added Sports page rows reuse the same carousel as landing/world.
   if (pageName?.trim().toLowerCase() === 'sports' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
+    return true
+  }
+  if (pageName?.trim().toLowerCase() === 'business' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
     return true
   }
   return false
@@ -269,6 +300,20 @@ const POSITION_KEY_OVERRIDES_DISPLAY_NAME = new Set([
   'world-middle-east',
 
   'world-africa',
+
+  'economy',
+
+  'companies',
+
+  'banking',
+
+  'autos',
+
+  'tourism',
+
+  'construction',
+
+  'agriculture',
 
 ])
 
@@ -412,8 +457,9 @@ export function homepageSectionTitle(
 
   }
 
-  // Sports page: prefer i18n labels when available; CMS names for custom sports only.
-  if (pageName?.trim().toLowerCase() === 'sports') {
+  // Sports / Economía pages: prefer i18n labels; CMS names for custom rows only.
+  const page = pageName?.trim().toLowerCase()
+  if (page === 'sports' || page === 'business') {
     if (SECTION_TRANSLATION_KEYS.has(normalized) && translate) {
       return translate(`sectionLabels.${normalized}` as `sectionLabels.${string}`)
     }
@@ -444,6 +490,8 @@ const SECTION_PAGE_ROUTES: Record<string, string> = {
 
   sports: '/sports',
 
+  business: '/business',
+
 }
 
 
@@ -457,6 +505,8 @@ const SECTION_PAGE_NAMES: Record<string, string> = {
   world: 'world',
 
   sports: 'sports',
+
+  business: 'business',
 
 }
 
@@ -499,6 +549,18 @@ export function sportPagePath(slug: string): string {
 export function worldPagePath(slug: string): string {
   const normalized = slug.trim().toLowerCase()
   return `/world/${encodeURIComponent(normalized)}`
+}
+
+
+/**
+ * Dedicated archive path for an Economía beat slug.
+ *
+ * @param slug Beat section slug such as `autos`.
+ * @returns Path like `/business/autos`.
+ */
+export function businessPagePath(slug: string): string {
+  const normalized = slug.trim().toLowerCase()
+  return `/business/${encodeURIComponent(normalized)}`
 }
 
 

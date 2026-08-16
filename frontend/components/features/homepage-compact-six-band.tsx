@@ -9,6 +9,7 @@ import { PlacementSectionDropZone } from '@/components/features/placement-overla
 import { useMarket } from '@/context/market-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { COMPACT_SIX_BAND_ARTICLE_LIMIT, sectionAnchorId } from '@/lib/helpers/section-labels'
+import { businessArchiveHref } from '@/lib/helpers/business-archive'
 import { sportArchiveHref } from '@/lib/helpers/sport-archive'
 import { worldArchiveHref } from '@/lib/helpers/world-archive'
 import { toRegionCode } from '@/lib/region-code'
@@ -79,7 +80,9 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
   const title = homepageSectionTitle(slot.positionKey, slot.displayName)
   const anchorId = sectionAnchorId(slot.positionKey)
   const archiveHref =
-    sportArchiveHref(pageName, slot.positionKey) ?? worldArchiveHref(pageName, slot.positionKey)
+    sportArchiveHref(pageName, slot.positionKey) ??
+    worldArchiveHref(pageName, slot.positionKey) ??
+    businessArchiveHref(pageName, slot.positionKey)
 
   return (
     <PlacementSlotScope slotId={slot.id}>

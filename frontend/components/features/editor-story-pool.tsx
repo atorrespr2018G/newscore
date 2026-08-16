@@ -24,9 +24,11 @@ import {
   type IEditorSearchFilters,
 } from '@/lib/helpers/editor-curation'
 import {
+  BUSINESS_CATEGORY_SLUG,
   SPORTS_CATEGORY_SLUG,
   findCategoryBySlug,
 } from '@/lib/helpers/category-selection'
+import { resolveBusinessSubcategories } from '@/lib/helpers/business-category-options'
 import {
   loadSportSlugs,
   resolveSportSubcategories,
@@ -643,8 +645,11 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
   const sportSlugs = sportsSectionsQuery.data ?? []
   const worldRegionSlugs = worldSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
+  const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && filters.categoryId === sportsParent.id
+  const businessSelected = businessParent != null && filters.categoryId === businessParent.id
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
+  const businessChildren = resolveBusinessSubcategories(categories)
   const sectionCategories = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
 
   return (
@@ -689,6 +694,23 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
           >
             <option value="">{t('editor.pool.filterBar.sportAll')}</option>
             {sportsChildren.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      ) : null}
+      {businessSelected ? (
+        <FilterField label={t('editor.pool.filterBar.businessBeatLabel')}>
+          <select
+            value={filters.sportCategoryId}
+            disabled={disabled}
+            onChange={(event) => onUpdate({ sportCategoryId: event.target.value })}
+            className={filterControlClass(disabled)}
+          >
+            <option value="">{t('editor.pool.filterBar.businessBeatAll')}</option>
+            {businessChildren.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>

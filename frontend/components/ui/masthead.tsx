@@ -1,9 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
+import { DocumentNavLink } from '@/components/ui/document-nav-link'
 import { useLocale } from '@/context/locale-context'
 import { useMarket, MARKET_OPTIONS } from '@/context/market-context'
 import { FLORIDA_COUNTY_OPTIONS, FLORIDA_STATE_CODE } from '@/lib/florida-counties'
@@ -135,7 +135,7 @@ function MastheadDesktopSectionNav({
   return (
     <nav className="hidden flex-1 items-center gap-4 md:ml-4 md:flex" aria-label={sectionsLabel}>
       {navLinks.map((link) => (
-        <Link
+        <DocumentNavLink
           key={link.key}
           href={link.href}
           className={[
@@ -144,7 +144,7 @@ function MastheadDesktopSectionNav({
           ].join(' ')}
         >
           {link.label}
-        </Link>
+        </DocumentNavLink>
       ))}
     </nav>
   )
@@ -172,13 +172,13 @@ function MastheadMobileSectionNav({
       <ul className="space-y-2">
         {navLinks.map((link) => (
           <li key={link.key}>
-            <Link
+            <DocumentNavLink
               href={link.href}
               className="block py-2 text-sm font-semibold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]"
               onClick={onNavigate}
             >
               {link.label}
-            </Link>
+            </DocumentNavLink>
           </li>
         ))}
       </ul>
@@ -351,11 +351,11 @@ function MastheadBrandLink(): JSX.Element {
 
   return (
     <div className="flex items-center gap-2">
-      <Link href="/" className="flex items-center">
+      <DocumentNavLink href="/" className="flex items-center">
         <span className="inline-flex rounded-sm bg-[color:var(--brand-red)] px-2 py-1 text-xs font-black tracking-[0.28em] text-white">
           NEWSCORE
         </span>
-      </Link>
+      </DocumentNavLink>
       {pageTitle ? (
         <span className="text-[1.05rem] font-semibold leading-none tracking-tight text-neutral-800">
           {pageTitle}
@@ -517,7 +517,7 @@ function MastheadAdministratorLink({ pathname }: { pathname: string }): JSX.Elem
   const tNav = useTranslations('navigation')
 
   return (
-    <Link
+    <DocumentNavLink
       href={ADMINISTRATOR_ROUTE}
       className={[
         'inline-flex items-center rounded-sm border px-2 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)]',
@@ -527,7 +527,7 @@ function MastheadAdministratorLink({ pathname }: { pathname: string }): JSX.Elem
       ].join(' ')}
     >
       {tNav('administrator')}
-    </Link>
+    </DocumentNavLink>
   )
 }
 

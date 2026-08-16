@@ -7,12 +7,14 @@ import { useSectionLabels } from '@/hooks/use-section-labels'
 import { useQuery } from '@tanstack/react-query'
 import {
   MAX_CATEGORY_COUNT,
+  BUSINESS_CATEGORY_SLUG,
   SPORTS_CATEGORY_SLUG,
   WORLD_CATEGORY_SLUG,
   findCategoryBySlug,
   toggleCategory,
   toggleRootCategory,
 } from '@/lib/helpers/category-selection'
+import { resolveBusinessSubcategories } from '@/lib/helpers/business-category-options'
 import {
   loadSportSlugs,
   resolveSportSubcategories,
@@ -34,6 +36,35 @@ interface ICategoryChipGroupProps {
   messagePrefix: 'editor.taxonomy' | 'reporter.fields'
   /** Market whose Sports list drives the subcategory (defaults to all editor markets). */
   marketCode?: string
+}
+
+interface IRootChildIdMap {
+  sportsParentId?: string
+  sportsChildIds: string[]
+  worldParentId?: string
+  worldChildIds: string[]
+  businessParentId?: string
+  businessChildIds: string[]
+}
+
+/**
+ * Child ids to clear when unchecking a parent section chip.
+ *
+ * @param categoryId Root category being toggled.
+ * @param childIds Parent-to-child id map for Sports, World, and Economy.
+ * @returns Child ids belonging to that parent, or an empty list.
+ */
+function extraChildIdsForRoot(categoryId: string, childIds: IRootChildIdMap): string[] {
+  if (categoryId === childIds.sportsParentId) {
+    return childIds.sportsChildIds
+  }
+  if (categoryId === childIds.worldParentId) {
+    return childIds.worldChildIds
+  }
+  if (categoryId === childIds.businessParentId) {
+    return childIds.businessChildIds
+  }
+  return []
 }
 
 /**
@@ -63,10 +94,14 @@ export function CategoryChipGroup({
   const worldRegionSlugs = worldSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const worldParent = findCategoryBySlug(categories, WORLD_CATEGORY_SLUG)
+  const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && selectedCategoryIds.includes(sportsParent.id)
   const worldSelected = worldParent != null && selectedCategoryIds.includes(worldParent.id)
+  const businessSelected =
+    businessParent != null && selectedCategoryIds.includes(businessParent.id)
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
   const worldChildren = resolveWorldRegionSubcategories(categories, worldRegionSlugs)
+  const businessChildren = resolveBusinessSubcategories(categories)
   const roots = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
   const atLimit = selectedCategoryIds.length >= MAX_CATEGORY_COUNT
 
@@ -103,11 +138,14 @@ export function CategoryChipGroup({
                         current,
                         category.id,
                         categories,
-                        sportsParent && category.id === sportsParent.id
-                          ? sportsChildren.map((sport) => sport.id)
-                          : worldParent && category.id === worldParent.id
-                            ? worldChildren.map((region) => region.id)
-                            : [],
+                        extraChildIdsForRoot(category.id, {
+                          sportsParentId: sportsParent?.id,
+                          sportsChildIds: sportsChildren.map((sport) => sport.id),
+                          worldParentId: worldParent?.id,
+                          worldChildIds: worldChildren.map((region) => region.id),
+                          businessParentId: businessParent?.id,
+                          businessChildIds: businessChildren.map((beat) => beat.id),
+                        }),
                       ),
                     )
                   }
@@ -136,6 +174,19 @@ export function CategoryChipGroup({
               atLimit={atLimit}
               isLoading={worldSectionsQuery.isLoading}
               emptyLabel={t(`${messagePrefix}.worldRegionSubcategoryEmpty`)}
+              loadingLabel={t(`${messagePrefix}.loadingCategories`)}
+              categoryLabel={categoryLabel}
+              setSelectedCategoryIds={setSelectedCategoryIds}
+            />
+          ) : null}
+          {businessSelected ? (
+            <SubcategoryChipRow
+              title={t(`${messagePrefix}.businessBeatSubcategory`)}
+              categories={businessChildren}
+              selectedCategoryIds={selectedCategoryIds}
+              atLimit={atLimit}
+              isLoading={false}
+              emptyLabel={t(`${messagePrefix}.businessBeatSubcategoryEmpty`)}
               loadingLabel={t(`${messagePrefix}.loadingCategories`)}
               categoryLabel={categoryLabel}
               setSelectedCategoryIds={setSelectedCategoryIds}

@@ -31,6 +31,7 @@
   "latest": "Latest",
   "sportArchiveEmpty": "No stories in this sport yet.",
   "worldArchiveEmpty": "No stories in this region yet.",
+  "businessArchiveEmpty": "No stories in this section yet.",
   "paginationNav": "Pagination",
   "goToPage": "Go to page {page}",
   "section": "Section",
@@ -62,6 +63,8 @@
     "politicsDescription": "Politics news, policy, elections, and government updates.",
     "sportsDescription": "Sports news, scores, and latest updates.",
     "sportDescription": "Latest {sport} news, scores, and updates.",
-    "worldRegionDescription": "Latest {region} news and updates."
+    "worldRegionDescription": "Latest {region} news and updates.",
+    "businessDescription": "Economy, companies, banking, autos, tourism, construction, and agriculture.",
+    "businessBeatDescription": "Latest {beat} news and updates."
   }
 }

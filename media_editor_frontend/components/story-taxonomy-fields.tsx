@@ -8,7 +8,9 @@ import {
   MARKET_OPTIONS,
   ROOT_CATEGORY_OPTIONS,
   SPORT_CATEGORY_OPTIONS,
+  BUSINESS_CATEGORY_OPTIONS,
   SPORTS_CATEGORY_SLUG,
+  BUSINESS_CATEGORY_SLUG,
   marketHasCounty,
   marketHasLocality,
   storyRegionCode,
@@ -160,13 +162,14 @@ function LocalitySelect({ story, onPatch }: ILocationFieldsProps): JSX.Element {
 
 /**
  * Category chips — root sections are independent; sport chips appear only when
- * Sports is selected.
+ * Sports is selected, and Economía beats appear only when Economy is selected.
  * @param props - Selected slugs and per-slug toggle handler.
  * @returns Categories fieldset.
  */
 function CategoryFields({ categorySlugs, onToggleCategory }: ICategoryFieldsProps): JSX.Element {
   const selectedCount = categorySlugs.length
   const sportsSelected = categorySlugs.includes(SPORTS_CATEGORY_SLUG)
+  const businessSelected = categorySlugs.includes(BUSINESS_CATEGORY_SLUG)
   return (
     <fieldset>
       <legend className="text-sm font-medium text-slate-700">Categories</legend>
@@ -194,6 +197,21 @@ function CategoryFields({ categorySlugs, onToggleCategory }: ICategoryFieldsProp
                 label={sport.label}
                 checked={categorySlugs.includes(sport.slug)}
                 onToggle={() => onToggleCategory(sport.slug)}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {businessSelected ? (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-slate-600">Beat</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {BUSINESS_CATEGORY_OPTIONS.map((beat) => (
+              <CategoryChip
+                key={beat.slug}
+                label={beat.label}
+                checked={categorySlugs.includes(beat.slug)}
+                onToggle={() => onToggleCategory(beat.slug)}
               />
             ))}
           </div>

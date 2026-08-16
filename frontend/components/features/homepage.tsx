@@ -278,6 +278,7 @@ const POLITICS_POSITION_KEY = 'politics'
 const SPORTS_POSITION_KEY = 'sports'
 const HOMEPAGE_PAGE_NAME = 'homepage'
 const SPORTS_PAGE_NAME = 'sports'
+const BUSINESS_PAGE_NAME = 'business'
 const SPORTS_SECTION_PAIR_SIZE = 2
 const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
@@ -626,11 +627,13 @@ function SportsPageSlotBlock({
   slot,
   kind,
   title,
+  pageName,
   adIndex = 0,
 }: {
   slot: IFeedSlot
   kind: ReturnType<typeof resolveSportsPageSlotKind>
   title: string
+  pageName: string
   adIndex?: number
 }): JSX.Element | null {
   if (kind === 'ribbon_ad') {
@@ -661,7 +664,7 @@ function SportsPageSlotBlock({
   }
   return (
     <Suspense fallback={<SectionSkeleton />}>
-      <HomepageSection slot={slot} pageName={SPORTS_PAGE_NAME} />
+      <HomepageSection slot={slot} pageName={pageName} />
     </Suspense>
   )
 }
@@ -672,9 +675,11 @@ function SportsPageSlotBlock({
 function SportsPageSections({
   slots,
   sectionLabel,
+  pageName,
 }: {
   slots: IFeedSlot[]
   sectionLabel: (positionKey: string) => string
+  pageName: string
 }): JSX.Element {
   const useConfiguredRibbons = slots.some(
     (slot) => resolveSportsPageSlotKind(slot) === 'ribbon_ad',
@@ -691,7 +696,13 @@ function SportsPageSections({
       const ribbonIndex = adIndex++
       blocks.push(
         <div key={slot.id} className="space-y-2">
-          <SportsPageSlotBlock slot={slot} kind={kind} title={title} adIndex={ribbonIndex} />
+          <SportsPageSlotBlock
+            slot={slot}
+            kind={kind}
+            title={title}
+            pageName={pageName}
+            adIndex={ribbonIndex}
+          />
         </div>,
       )
       previousKind = kind
@@ -710,7 +721,7 @@ function SportsPageSections({
             anchorSlug={normalizedPositionKey(slot)}
           />
         ) : null}
-        <SportsPageSlotBlock slot={slot} kind={kind} title={title} />
+        <SportsPageSlotBlock slot={slot} kind={kind} title={title} pageName={pageName} />
         {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} /> : null}
       </div>,
     )
@@ -749,12 +760,14 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
   }
 
   const useSportsSectionRows =
-    options?.useSportsSectionRows === true || pageName === SPORTS_PAGE_NAME
+    options?.useSportsSectionRows === true ||
+    pageName === SPORTS_PAGE_NAME ||
+    pageName === BUSINESS_PAGE_NAME
 
   if (useSportsSectionRows) {
     return (
       <div className="space-y-2 [&_a:hover]:text-neutral-950 [&_a:hover]:underline [&_button:hover]:text-neutral-950 [&_button:hover]:underline">
-        <SportsPageSections slots={slots} sectionLabel={sectionLabel} />
+        <SportsPageSections slots={slots} sectionLabel={sectionLabel} pageName={pageName} />
       </div>
     )
   }
@@ -827,6 +840,23 @@ export function Homepage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.
  */
 export function SportsPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { data, loading, error } = usePageFeed('sports')
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
+ * Economía landing using the sports-page hero plus compact beat rows.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Economía page component.
+ */
+export function BusinessPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = usePageFeed(BUSINESS_PAGE_NAME)
   const feedData = data ?? initialFeed
 
   return (

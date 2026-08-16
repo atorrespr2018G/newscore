@@ -25,6 +25,9 @@ export const MIN_CATEGORY_COUNT = 1
 /** Parent slug for per-sport subcategory chips. */
 export const SPORTS_CATEGORY_SLUG = 'sports'
 
+/** Parent slug for Economía beat chips. */
+export const BUSINESS_CATEGORY_SLUG = 'business'
+
 /** Optional 1–10 international relevance score. */
 export const INTERNATIONAL_POTENTIAL_OPTIONS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
@@ -67,6 +70,17 @@ export const SPORT_CATEGORY_OPTIONS: ICategoryOption[] = [
   { slug: 'horse-racing', label: 'Horse Racing', parentSlug: SPORTS_CATEGORY_SLUG },
 ]
 
+/** Economía beat chips shown when Economy is selected. */
+export const BUSINESS_CATEGORY_OPTIONS: ICategoryOption[] = [
+  { slug: 'economy', label: 'Economy', parentSlug: BUSINESS_CATEGORY_SLUG },
+  { slug: 'companies', label: 'Companies', parentSlug: BUSINESS_CATEGORY_SLUG },
+  { slug: 'banking', label: 'Banking', parentSlug: BUSINESS_CATEGORY_SLUG },
+  { slug: 'autos', label: 'Autos', parentSlug: BUSINESS_CATEGORY_SLUG },
+  { slug: 'tourism', label: 'Tourism', parentSlug: BUSINESS_CATEGORY_SLUG },
+  { slug: 'construction', label: 'Construction', parentSlug: BUSINESS_CATEGORY_SLUG },
+  { slug: 'agriculture', label: 'Agriculture', parentSlug: BUSINESS_CATEGORY_SLUG },
+]
+
 /** Default taxonomy values for a new or legacy story package. */
 export const DEFAULT_STORY_TAXONOMY = {
   market_code: 'us' as MarketCode,
@@ -105,42 +119,89 @@ export function isSportCategorySlug(slug: string): boolean {
 }
 
 /**
+ * Whether a slug is an Economía beat under Economy.
+ *
+ * @param slug - Category slug to check.
+ * @returns True when the slug is one of the Economía beat chips.
+ */
+export function isBusinessBeatSlug(slug: string): boolean {
+  return BUSINESS_CATEGORY_OPTIONS.some((beat) => beat.slug === slug)
+}
+
+/**
  * Toggle a category slug on or off.
  *
  * Root categories are independent. Sport chips require Sports to already be
- * selected; turning Sports off also clears every selected sport.
+ * selected; turning Sports off also clears every selected sport. Economía
+ * beats follow the same rule under Economy.
  *
  * @param selected - Currently selected category slugs.
  * @param slug - Category slug being toggled.
- * @returns Updated selection (same array when a sport add is blocked).
+ * @returns Updated selection (same array when a child add is blocked).
  */
 export function toggleCategorySlug(selected: string[], slug: string): string[] {
-  const sportsSelected = selected.includes(SPORTS_CATEGORY_SLUG)
-
-  if (slug === SPORTS_CATEGORY_SLUG) {
-    if (sportsSelected) {
-      const sportSlugs = new Set(SPORT_CATEGORY_OPTIONS.map((sport) => sport.slug))
-      return selected.filter(
-        (item) => item !== SPORTS_CATEGORY_SLUG && !sportSlugs.has(item),
-      )
-    }
-    return [...selected, SPORTS_CATEGORY_SLUG]
+  if (slug === SPORTS_CATEGORY_SLUG || slug === BUSINESS_CATEGORY_SLUG) {
+    return toggleParentSlug(selected, slug)
   }
-
   if (isSportCategorySlug(slug)) {
-    if (!sportsSelected) {
-      return selected
-    }
-    if (selected.includes(slug)) {
-      return selected.filter((item) => item !== slug)
-    }
-    return [...selected, slug]
+    return toggleChildSlug(selected, slug, SPORTS_CATEGORY_SLUG)
   }
-
+  if (isBusinessBeatSlug(slug)) {
+    return toggleChildSlug(selected, slug, BUSINESS_CATEGORY_SLUG)
+  }
   if (selected.includes(slug)) {
     return selected.filter((item) => item !== slug)
   }
   return [...selected, slug]
+}
+
+/**
+ * Toggle a parent section and clear its children when turning it off.
+ *
+ * @param selected - Currently selected slugs.
+ * @param parentSlug - Sports or Economy parent slug.
+ * @returns Updated selection.
+ */
+function toggleParentSlug(selected: string[], parentSlug: string): string[] {
+  const childSlugs = childSlugsForParent(parentSlug)
+  if (selected.includes(parentSlug)) {
+    return selected.filter((item) => item !== parentSlug && !childSlugs.has(item))
+  }
+  return [...selected, parentSlug]
+}
+
+/**
+ * Toggle a child beat/sport only when its parent section is already selected.
+ *
+ * @param selected - Currently selected slugs.
+ * @param slug - Child category slug.
+ * @param parentSlug - Required parent slug.
+ * @returns Updated selection, unchanged when the parent is off.
+ */
+function toggleChildSlug(selected: string[], slug: string, parentSlug: string): string[] {
+  if (!selected.includes(parentSlug)) {
+    return selected
+  }
+  if (selected.includes(slug)) {
+    return selected.filter((item) => item !== slug)
+  }
+  return [...selected, slug]
+}
+
+/**
+ * Child slugs that belong to a parent section chip.
+ *
+ * @param parentSlug - Sports or Economy.
+ * @returns Child slug set for that parent.
+ */
+function childSlugsForParent(parentSlug: string): Set<string> {
+  if (parentSlug === SPORTS_CATEGORY_SLUG) {
+    return new Set(SPORT_CATEGORY_OPTIONS.map((sport) => sport.slug))
+  }
+  if (parentSlug === BUSINESS_CATEGORY_SLUG) {
+    return new Set(BUSINESS_CATEGORY_OPTIONS.map((beat) => beat.slug))
+  }
+  return new Set()
 }
 
 /**

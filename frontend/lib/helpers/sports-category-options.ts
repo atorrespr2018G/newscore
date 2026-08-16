@@ -1,6 +1,7 @@
 import type { ICategoryOut } from '@/lib/api/category-client'
 import { getSportsPageSections } from '@/lib/api/layout-client'
 import { EDITOR_MARKET_OPTIONS } from '@/lib/editor/editor-scope'
+import { isBusinessBeatCategory } from '@/lib/helpers/business-category-options'
 import {
   SPORTS_CATEGORY_SLUG,
   findCategoryBySlug,
@@ -99,6 +100,9 @@ export function rootSectionCategories(
   const sportSlugSet = new Set(sportSlugs.map((slug) => slug.trim().toLowerCase()))
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   return rootCategories(categories).filter((category) => {
+    if (isBusinessBeatCategory(categories, category)) {
+      return false
+    }
     if (category.slug.trim().toLowerCase() === SPORTS_CATEGORY_SLUG) {
       return true
     }

@@ -21,6 +21,7 @@ from shared.core.regions import (
 from shared.read.article_query import article_query_with_category
 from shared.read.article_reads import article_out, list_by_ids_for_preview, list_published_by_ids
 from shared.core.page_ad_placements import (
+    PAGE_NAME_BUSINESS,
     PAGE_NAME_HOMEPAGE,
     PAGE_NAME_SPORTS,
     PAGE_NAME_WORLD,
@@ -200,6 +201,8 @@ async def load_page_ad_placements(
 
     collection = _page_sections_collection(page_name)
     if collection is None:
+        if page_name == PAGE_NAME_BUSINESS:
+            return default_ads_for_page(page_name)
         # Politics and other non-configured pages keep hard-coded frontend ads.
         return []
 

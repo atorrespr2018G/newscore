@@ -68,6 +68,13 @@
     "asia": "Asia",
     "oceania": "Oceanía",
     "middle-east": "Medio Oriente",
-    "africa": "África"
+    "africa": "África",
+    "economy": "Economía",
+    "companies": "Empresas",
+    "banking": "Banca y finanzas",
+    "autos": "Autos",
+    "tourism": "Turismo",
+    "construction": "Construcción",
+    "agriculture": "Agricultura"
   }
 }

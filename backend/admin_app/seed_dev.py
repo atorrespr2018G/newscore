@@ -1088,6 +1088,186 @@ POLITICS_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
 ]
 
+# Economía beats under parent slug `business` (public labels via i18n).
+BUSINESS_CHILD_CATEGORIES: list[dict[str, str]] = [
+    {
+        "name": "Economy",
+        "slug": "economy",
+        "name_es": "Economía",
+        "description": "Macroeconomy, prices, wages, and public finance.",
+    },
+    {
+        "name": "Companies",
+        "slug": "companies",
+        "name_es": "Empresas",
+        "description": "Companies, commerce, and corporate news.",
+    },
+    {
+        "name": "Banking",
+        "slug": "banking",
+        "name_es": "Banca y finanzas",
+        "description": "Banks, credit, and financial services.",
+    },
+    {
+        "name": "Autos",
+        "slug": "autos",
+        "name_es": "Autos",
+        "description": "Auto sales, dealers, and the vehicle industry.",
+    },
+    {
+        "name": "Tourism",
+        "slug": "tourism",
+        "name_es": "Turismo",
+        "description": "Hotels, airlines, and the visitor economy.",
+    },
+    {
+        "name": "Construction",
+        "slug": "construction",
+        "name_es": "Construcción",
+        "description": "Building, housing, and infrastructure projects.",
+    },
+    {
+        "name": "Agriculture",
+        "slug": "agriculture",
+        "name_es": "Agricultura",
+        "description": "Farms, food production, and rural markets.",
+    },
+]
+
+
+def _business_page_slot_specs() -> list[dict[str, Any]]:
+    """Build the Economía landing: hero plus compact beat rows."""
+
+    specs: list[dict[str, Any]] = [
+        {
+            "position_key": "hero",
+            "order_index": 0,
+            "category_slug": "business",
+            "limit": 30,
+            "presentation_type": "hero",
+            "display_name_us": "Economy",
+            "display_name_co": "Economía",
+        },
+    ]
+    for index, category in enumerate(BUSINESS_CHILD_CATEGORIES, start=1):
+        specs.append(
+            {
+                "position_key": category["slug"],
+                "order_index": index,
+                "category_slug": category["slug"],
+                "limit": 12,
+                "presentation_type": "grid_4",
+                "display_name_us": category["name"],
+                "display_name_co": category["name_es"],
+            },
+        )
+    return specs
+
+
+BUSINESS_PAGE_SLOT_SPECS = _business_page_slot_specs()
+
+# Twelve stories per beat so compact carousels paginate (6 + 6).
+BUSINESS_BEAT_STORIES: dict[str, list[str]] = {
+    "economy": [
+        "Treasury revises growth forecast after inflation cools",
+        "Consumer prices ease for a third consecutive month",
+        "Central bank holds rates as labor market cools",
+        "Public debt debate shapes next fiscal year budget",
+        "Wage growth outpaces inflation for first time this year",
+        "Economists warn of slowdown if credit tightens further",
+        "Household spending holds steady despite higher rents",
+        "Trade deficit narrows as exports rebound",
+        "Fuel prices drop after global supply outlook improves",
+        "Unemployment stays near historic lows",
+        "Small businesses report mixed outlook in quarterly survey",
+        "Currency firms as investors return to emerging markets",
+    ],
+    "companies": [
+        "Island retailer posts record quarterly sales",
+        "Pharmaceutical plant announces second-shift hiring",
+        "Local chain expands into three new municipalities",
+        "Startup closes funding round to scale logistics software",
+        "Family-owned manufacturer wins export contract",
+        "Corporate merger draws regulator review",
+        "Franchise group opens flagship store in San Juan",
+        "Tech services firm relocates headquarters to Guaynabo",
+        "Restaurant group reports rebound in weekend traffic",
+        "Construction supplier lists shares on local exchange",
+        "Beverage company invests in new bottling line",
+        "Retailers cut prices ahead of back-to-school season",
+    ],
+    "banking": [
+        "Island banks report growth in small-business lending",
+        "Credit unions expand mortgage products for first-time buyers",
+        "Regulators tighten capital rules for regional lenders",
+        "ATM network outage prompts weekend customer alerts",
+        "New digital bank opens branches in Bayamón and Ponce",
+        "Interest on savings accounts rises after rate hold",
+        "Commercial lenders compete for hotel refinancing deals",
+        "Fraud alerts rise as check-washing scams spread",
+        "Central bank reviews fees on international transfers",
+        "Community banks launch farm-credit partnership",
+        "Mortgage originations rebound as rates ease slightly",
+        "Card networks cut interchange fees for local grocers",
+    ],
+    "autos": [
+        "Dealers report surge in hybrid vehicle reservations",
+        "Used-car prices ease after two years of spikes",
+        "EV charging corridor planned along island highways",
+        "Auto parts plant adds overnight production shift",
+        "New pickup lineup arrives at San Juan dealerships",
+        "Insurers raise premiums after parts-cost increases",
+        "Ride-hail fleets shift toward compact hybrids",
+        "Import tariffs debate hits luxury vehicle market",
+        "Mechanics warn of delayed parts for older models",
+        "Car-share service expands to airport and cruise docks",
+        "Safety recall covers popular compact SUVs",
+        "Dealership group opens certified pre-owned lot in Caguas",
+    ],
+    "tourism": [
+        "Cruise season bookings top pre-pandemic levels",
+        "Hotel occupancy rebounds in San Juan and Rincón",
+        "Airlines add weekend flights for holiday travel",
+        "Tour operators launch agro-tourism weekend packages",
+        "Airport expansion aims to cut arrival wait times",
+        "Beach towns report record July visitor spending",
+        "Convention center books three international events",
+        "Short-term rental rules reshape coastal inventory",
+        "Hospitality workers ratify new wage agreement",
+        "Eco-lodges report waitlists for winter season",
+        "Port authority upgrades cruise terminal facilities",
+        "Travel agencies push shoulder-season island packages",
+    ],
+    "construction": [
+        "Housing starts rise as permit backlog clears",
+        "Public works awards contracts for coastal road repairs",
+        "Cement prices ease after import bottleneck lifts",
+        "New mixed-use tower breaks ground in Hato Rey",
+        "Contractors hire apprentices for school rebuilds",
+        "Affordable-housing project adds 240 units in Bayamón",
+        "Bridge retrofit timeline extended after inspection",
+        "Developers pitch industrial park near port facilities",
+        "Building-code update tightens hurricane standards",
+        "Crane shortage delays two San Juan high-rises",
+        "Municipality opens bids for water-main replacement",
+        "Prefab housing plant scales production for rural towns",
+    ],
+    "agriculture": [
+        "Coffee growers report stronger harvest after dry spell",
+        "Plantain prices ease as local supply recovers",
+        "Farmers market network expands to six new towns",
+        "Drought aid reaches livestock producers in the south",
+        "Hydroponic greenhouse opens near Caguas food hub",
+        "Dairy cooperative invests in cold-storage upgrades",
+        "Organic growers win supermarket shelf contracts",
+        "Agricultural bank expands loans for irrigation systems",
+        "Hurricane-resistant crop trials begin in the west",
+        "Honey producers report rebound after hive losses",
+        "School lunch program increases local produce orders",
+        "Fisheries report stronger yellowtail landings this month",
+    ],
+}
+
 # Default Puerto Rico Sports page section list (Horse Racing as one item).
 PR_SPORT_SECTION_LABELS: list[str] = [
     "Baseball",
@@ -1493,6 +1673,57 @@ async def _ensure_categories(db: AsyncIOMotorDatabase) -> dict[str, str]:
     return slug_to_id
 
 
+async def _upsert_business_child_category(
+    db: AsyncIOMotorDatabase,
+    slug_to_id: dict[str, str],
+    *,
+    parent_id: str,
+    category: dict[str, str],
+) -> None:
+    """Create or reparent one Economía beat category under business."""
+
+    slug = category["slug"]
+    fields = {
+        "name": category["name"],
+        "description": category["description"],
+        "parent_id": parent_id,
+    }
+    existing = await db[CATEGORIES_COLLECTION].find_one({"slug": slug})
+    if existing is not None:
+        await db[CATEGORIES_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
+        slug_to_id[slug] = str(existing["_id"])
+        return
+    category_id = str(uuid4())
+    await db[CATEGORIES_COLLECTION].insert_one(
+        {
+            "_id": category_id,
+            "slug": slug,
+            "created_at": _utc_now_iso(),
+            **fields,
+        },
+    )
+    slug_to_id[slug] = category_id
+    logger.info("Created Economía beat category: %s", slug)
+
+
+async def _ensure_business_child_categories(
+    db: AsyncIOMotorDatabase,
+    slug_to_id: dict[str, str],
+) -> None:
+    """Ensure Economía beat categories sit under the business parent."""
+
+    parent_id = slug_to_id.get("business")
+    if parent_id is None:
+        raise RuntimeError("Missing business category before Economía children")
+    for category in BUSINESS_CHILD_CATEGORIES:
+        await _upsert_business_child_category(
+            db,
+            slug_to_id,
+            parent_id=parent_id,
+            category=category,
+        )
+
+
 def _market_article_fields(
     story: SeedStory,
     *,
@@ -1891,6 +2122,28 @@ async def _ensure_market_politics_page(
     )
 
 
+async def _ensure_market_business_page(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+    display_name_key: str,
+    slug_to_category_id: dict[str, str],
+    pinned_article_ids: list[str],
+) -> None:
+    """Seed the Economía section page layout and slots for a market."""
+    await _ensure_market_page(
+        db,
+        page_name="business",
+        slot_specs=BUSINESS_PAGE_SLOT_SPECS,
+        market_id=market_id,
+        market_code=market_code,
+        display_name_key=display_name_key,
+        slug_to_category_id=slug_to_category_id,
+        pinned_article_ids=pinned_article_ids,
+    )
+
+
 async def _ensure_market_sports_sections(
     db: AsyncIOMotorDatabase,
     *,
@@ -2047,6 +2300,7 @@ async def seed_dev() -> None:
         await _ensure_editorial_users(db)
         market_code_to_id = await _ensure_markets(db)
         slug_to_category_id = await _ensure_categories(db)
+        await _ensure_business_child_categories(db, slug_to_category_id)
 
         for market in MARKET_DEFS:
             code = str(market["code"])
@@ -2056,7 +2310,7 @@ async def seed_dev() -> None:
                 author_id=str(admin["_id"]),
                 market_id=market_id,
                 market_code=code,
-                article_stories=market["article_stories"],
+                article_stories={**market["article_stories"], **BUSINESS_BEAT_STORIES},
                 slug_to_category_id=slug_to_category_id,
             )
             if code == "pr":
@@ -2083,6 +2337,14 @@ async def seed_dev() -> None:
                 pinned_article_ids=article_ids,
             )
             await _ensure_market_politics_page(
+                db,
+                market_id=market_id,
+                market_code=code,
+                display_name_key=str(market["display_name_key"]),
+                slug_to_category_id=slug_to_category_id,
+                pinned_article_ids=article_ids,
+            )
+            await _ensure_market_business_page(
                 db,
                 market_id=market_id,
                 market_code=code,

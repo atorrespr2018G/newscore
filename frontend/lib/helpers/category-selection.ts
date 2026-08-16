@@ -8,6 +8,9 @@ export const SPORTS_CATEGORY_SLUG = 'sports'
 /** Parent slug for per-region subcategory chips in the editor/reporter. */
 export const WORLD_CATEGORY_SLUG = 'world'
 
+/** Parent slug for Economía beat chips in the editor/reporter. */
+export const BUSINESS_CATEGORY_SLUG = 'business'
+
 /** International potential is an optional 1-10 editorial relevance score. */
 export const INTERNATIONAL_POTENTIAL_OPTIONS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
