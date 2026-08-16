@@ -19,6 +19,8 @@ import {
   sectionAnchorId,
 } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
+import { worldArchiveHref } from '@/lib/helpers/world-archive'
+import { ArchiveSectionLink } from '@/components/ui/archive-section-link'
 
 interface IHomepageSectionProps {
   slot: IFeedSlot
@@ -134,6 +136,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
 
   const usesFeaturedColumns = usesFeaturedColumnLayout(slot.positionKey)
   const title = homepageSectionTitle(slot.positionKey, slot.displayName)
+  const archiveHref = worldArchiveHref(pageName, slot.positionKey)
   const anchorId = sectionAnchorId(slot.positionKey)
   const variant = cardVariantForPresentation(slot.presentationType)
   const desktopGridColumnsClass = gridColumnsClass(slot.positionKey)
@@ -142,17 +145,12 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   return (
     <PlacementSlotScope slotId={slot.id}>
       <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
-        <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
-          <h2
-            className={[
-              'text-2xl tracking-tight text-neutral-950',
-              pageName === 'world' ? 'font-normal' : 'font-black',
-            ].join(' ')}
-          >
-            {title}
-          </h2>
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
-        </div>
+        <SectionGridHeading
+          title={title}
+          latestLabel={t('latest')}
+          href={archiveHref}
+          plainTitle={pageName === 'world'}
+        />
         {articles.length > 0 ? (
           <div className={`grid grid-cols-1 gap-6 sm:grid-cols-2 ${desktopGridColumnsClass}`}>
             {usesFeaturedColumns
@@ -193,5 +191,50 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
         <PlacementSectionDropZone />
       </section>
     </PlacementSlotScope>
+  )
+}
+
+/**
+ * Grid-section heading. On World, the title and Latest link to the region archive.
+ *
+ * @param props Heading copy, latest label, optional archive href, and title weight.
+ * @returns Section heading row.
+ */
+function SectionGridHeading({
+  title,
+  latestLabel,
+  href,
+  plainTitle,
+}: {
+  title: string
+  latestLabel: string
+  href: string | null
+  plainTitle: boolean
+}): JSX.Element {
+  const latestClassName = 'text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500'
+  const titleClassName = [
+    'text-2xl tracking-tight text-neutral-950',
+    plainTitle ? 'font-normal' : 'font-black',
+  ].join(' ')
+
+  return (
+    <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
+      <h2 className={titleClassName}>
+        {href ? (
+          <ArchiveSectionLink href={href} className="hover:underline">
+            {title}
+          </ArchiveSectionLink>
+        ) : (
+          title
+        )}
+      </h2>
+      {href ? (
+        <ArchiveSectionLink href={href} className={`${latestClassName} hover:underline`}>
+          {latestLabel}
+        </ArchiveSectionLink>
+      ) : (
+        <span className={latestClassName}>{latestLabel}</span>
+      )}
+    </div>
   )
 }

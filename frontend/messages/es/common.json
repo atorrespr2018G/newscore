@@ -30,6 +30,7 @@
   "goToPhoto": "Ir a la foto {position}",
   "latest": "Reciente",
   "sportArchiveEmpty": "Aún no hay noticias en este deporte.",
+  "worldArchiveEmpty": "Aún no hay noticias en esta región.",
   "paginationNav": "Paginación",
   "goToPage": "Ir a la página {page}",
   "section": "Sección",
@@ -60,6 +61,7 @@
     "worldDescription": "Noticias internacionales y últimas actualizaciones.",
     "politicsDescription": "Noticias de política, elecciones y gobierno.",
     "sportsDescription": "Noticias deportivas, marcadores y últimas actualizaciones.",
-    "sportDescription": "Últimas noticias, marcadores y actualizaciones de {sport}."
+    "sportDescription": "Últimas noticias, marcadores y actualizaciones de {sport}.",
+    "worldRegionDescription": "Últimas noticias y actualizaciones de {region}."
   }
 }

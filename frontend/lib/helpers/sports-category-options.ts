@@ -6,6 +6,7 @@ import {
   findCategoryBySlug,
   rootCategories,
 } from '@/lib/helpers/category-selection'
+import { isRootWorldSectionCategory } from '@/lib/helpers/world-category-options'
 import { US_MARKET_CODE } from '@/lib/us-states'
 
 /** Default US state region used when discovering sport slugs for the US market. */
@@ -87,11 +88,13 @@ export function resolveSportSubcategories(
  *
  * @param categories Full category catalog.
  * @param sportSlugs Known sport slugs to hide from the root list.
+ * @param worldRegionSlugs Known World region slugs to hide from the root list.
  * @returns Root section categories for primary pickers.
  */
 export function rootSectionCategories(
   categories: ICategoryOut[],
   sportSlugs: string[],
+  worldRegionSlugs: string[] = [],
 ): ICategoryOut[] {
   const sportSlugSet = new Set(sportSlugs.map((slug) => slug.trim().toLowerCase()))
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
@@ -105,7 +108,7 @@ export function rootSectionCategories(
     if (sportsParent && category.parent_id === sportsParent.id) {
       return false
     }
-    return true
+    return isRootWorldSectionCategory(categories, worldRegionSlugs, category)
   })
 }
 

@@ -1,15 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
+import { ArchiveSectionLink } from '@/components/ui/archive-section-link'
 import { PlacementSlotScope, useEditorPlacement } from '@/context/editor-placement-context'
 import { PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useMarket } from '@/context/market-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { COMPACT_SIX_BAND_ARTICLE_LIMIT, sectionAnchorId } from '@/lib/helpers/section-labels'
 import { sportArchiveHref } from '@/lib/helpers/sport-archive'
+import { worldArchiveHref } from '@/lib/helpers/world-archive'
 import { toRegionCode } from '@/lib/region-code'
 import { useTranslations } from 'next-intl'
 
@@ -77,7 +78,8 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
 
   const title = homepageSectionTitle(slot.positionKey, slot.displayName)
   const anchorId = sectionAnchorId(slot.positionKey)
-  const archiveHref = sportArchiveHref(pageName, slot.positionKey)
+  const archiveHref =
+    sportArchiveHref(pageName, slot.positionKey) ?? worldArchiveHref(pageName, slot.positionKey)
 
   return (
     <PlacementSlotScope slotId={slot.id}>
@@ -157,7 +159,7 @@ interface ICompactSixBandHeadingProps {
 }
 
 /**
- * Compact-band section title. On the Sports page the title links to the sport archive.
+ * Compact-band section title. Sports and World pages link the title to an archive.
  *
  * @param props Heading copy, latest label, and optional archive href.
  * @returns Section heading row.
@@ -170,17 +172,17 @@ function CompactSixBandHeading({ title, latestLabel, href }: ICompactSixBandHead
     <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
       <h2 className={titleClassName}>
         {href ? (
-          <Link href={href} className="hover:underline">
+          <ArchiveSectionLink href={href} className="hover:underline">
             {title}
-          </Link>
+          </ArchiveSectionLink>
         ) : (
           title
         )}
       </h2>
       {href ? (
-        <Link href={href} className={`${latestClassName} hover:underline`}>
+        <ArchiveSectionLink href={href} className={`${latestClassName} hover:underline`}>
           {latestLabel}
-        </Link>
+        </ArchiveSectionLink>
       ) : (
         <span className={latestClassName}>{latestLabel}</span>
       )}

@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   MAX_CATEGORY_COUNT,
   SPORTS_CATEGORY_SLUG,
+  WORLD_CATEGORY_SLUG,
   findCategoryBySlug,
   toggleCategory,
   toggleRootCategory,
@@ -17,6 +18,10 @@ import {
   resolveSportSubcategories,
   rootSectionCategories,
 } from '@/lib/helpers/sports-category-options'
+import {
+  loadWorldRegionSlugs,
+  resolveWorldRegionSubcategories,
+} from '@/lib/helpers/world-category-options'
 
 interface ICategoryChipGroupProps {
   categories: ICategoryOut[]
@@ -50,11 +55,19 @@ export function CategoryChipGroup({
     queryKey: ['editor', 'sports-page-section-slugs', marketCode ?? 'all'],
     queryFn: () => loadSportSlugs(marketCode),
   })
+  const worldSectionsQuery = useQuery({
+    queryKey: ['editor', 'world-page-section-slugs', marketCode ?? 'all'],
+    queryFn: () => loadWorldRegionSlugs(marketCode),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
+  const worldRegionSlugs = worldSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
+  const worldParent = findCategoryBySlug(categories, WORLD_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && selectedCategoryIds.includes(sportsParent.id)
+  const worldSelected = worldParent != null && selectedCategoryIds.includes(worldParent.id)
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
-  const roots = rootSectionCategories(categories, sportSlugs)
+  const worldChildren = resolveWorldRegionSubcategories(categories, worldRegionSlugs)
+  const roots = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
   const atLimit = selectedCategoryIds.length >= MAX_CATEGORY_COUNT
 
   return (
@@ -92,7 +105,9 @@ export function CategoryChipGroup({
                         categories,
                         sportsParent && category.id === sportsParent.id
                           ? sportsChildren.map((sport) => sport.id)
-                          : [],
+                          : worldParent && category.id === worldParent.id
+                            ? worldChildren.map((region) => region.id)
+                            : [],
                       ),
                     )
                   }
@@ -101,42 +116,92 @@ export function CategoryChipGroup({
             })}
           </div>
           {sportsSelected ? (
-            <div>
-              <p className="text-xs font-medium text-neutral-600">
-                {t(`${messagePrefix}.sportSubcategory`)}
-              </p>
-              {sportsChildren.length > 0 ? (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {sportsChildren.map((category) => {
-                    const checked = selectedCategoryIds.includes(category.id)
-                    const disabled = !checked && atLimit
-                    return (
-                      <CategoryChip
-                        key={category.id}
-                        label={categoryLabel(category.slug, category.name)}
-                        checked={checked}
-                        disabled={disabled}
-                        onToggle={() =>
-                          setSelectedCategoryIds((current) => toggleCategory(current, category.id))
-                        }
-                      />
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="mt-1.5 text-xs text-neutral-500">
-                  {sportsSectionsQuery.isLoading
-                    ? t(`${messagePrefix}.loadingCategories`)
-                    : t(`${messagePrefix}.sportSubcategoryEmpty`)}
-                </p>
-              )}
-            </div>
+            <SubcategoryChipRow
+              title={t(`${messagePrefix}.sportSubcategory`)}
+              categories={sportsChildren}
+              selectedCategoryIds={selectedCategoryIds}
+              atLimit={atLimit}
+              isLoading={sportsSectionsQuery.isLoading}
+              emptyLabel={t(`${messagePrefix}.sportSubcategoryEmpty`)}
+              loadingLabel={t(`${messagePrefix}.loadingCategories`)}
+              categoryLabel={categoryLabel}
+              setSelectedCategoryIds={setSelectedCategoryIds}
+            />
+          ) : null}
+          {worldSelected ? (
+            <SubcategoryChipRow
+              title={t(`${messagePrefix}.worldRegionSubcategory`)}
+              categories={worldChildren}
+              selectedCategoryIds={selectedCategoryIds}
+              atLimit={atLimit}
+              isLoading={worldSectionsQuery.isLoading}
+              emptyLabel={t(`${messagePrefix}.worldRegionSubcategoryEmpty`)}
+              loadingLabel={t(`${messagePrefix}.loadingCategories`)}
+              categoryLabel={categoryLabel}
+              setSelectedCategoryIds={setSelectedCategoryIds}
+            />
           ) : null}
         </div>
       ) : (
         <p className="mt-2 text-sm text-neutral-500">{t(`${messagePrefix}.loadingCategories`)}</p>
       )}
     </fieldset>
+  )
+}
+
+interface ISubcategoryChipRowProps {
+  title: string
+  categories: ICategoryOut[]
+  selectedCategoryIds: string[]
+  atLimit: boolean
+  isLoading: boolean
+  emptyLabel: string
+  loadingLabel: string
+  categoryLabel: (slug: string, name: string) => string
+  setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
+}
+
+/**
+ * Nested subcategory chips shown when a parent section such as Sports or World is selected.
+ *
+ * @param props Subcategory list, selection state, and labels.
+ * @returns Subcategory chip row.
+ */
+function SubcategoryChipRow({
+  title,
+  categories,
+  selectedCategoryIds,
+  atLimit,
+  isLoading,
+  emptyLabel,
+  loadingLabel,
+  categoryLabel,
+  setSelectedCategoryIds,
+}: ISubcategoryChipRowProps): JSX.Element {
+  return (
+    <div>
+      <p className="text-xs font-medium text-neutral-600">{title}</p>
+      {categories.length > 0 ? (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {categories.map((category) => {
+            const checked = selectedCategoryIds.includes(category.id)
+            return (
+              <CategoryChip
+                key={category.id}
+                label={categoryLabel(category.slug, category.name)}
+                checked={checked}
+                disabled={!checked && atLimit}
+                onToggle={() =>
+                  setSelectedCategoryIds((current) => toggleCategory(current, category.id))
+                }
+              />
+            )
+          })}
+        </div>
+      ) : (
+        <p className="mt-1.5 text-xs text-neutral-500">{isLoading ? loadingLabel : emptyLabel}</p>
+      )}
+    </div>
   )
 }
 

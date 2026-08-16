@@ -30,6 +30,7 @@
   "goToPhoto": "Go to photo {position}",
   "latest": "Latest",
   "sportArchiveEmpty": "No stories in this sport yet.",
+  "worldArchiveEmpty": "No stories in this region yet.",
   "paginationNav": "Pagination",
   "goToPage": "Go to page {page}",
   "section": "Section",
@@ -60,6 +61,7 @@
     "worldDescription": "World news and latest updates.",
     "politicsDescription": "Politics news, policy, elections, and government updates.",
     "sportsDescription": "Sports news, scores, and latest updates.",
-    "sportDescription": "Latest {sport} news, scores, and updates."
+    "sportDescription": "Latest {sport} news, scores, and updates.",
+    "worldRegionDescription": "Latest {region} news and updates."
   }
 }

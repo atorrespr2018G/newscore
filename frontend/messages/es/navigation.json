@@ -61,6 +61,13 @@
     "world-latest": "Asia",
     "world-regions": "Oceanía",
     "world-middle-east": "Medio Oriente",
-    "world-africa": "África"
+    "world-africa": "África",
+    "usa-canada": "EE. UU./Canadá",
+    "europe": "Europa",
+    "latin-america": "América Latina",
+    "asia": "Asia",
+    "oceania": "Oceanía",
+    "middle-east": "Medio Oriente",
+    "africa": "África"
   }
 }

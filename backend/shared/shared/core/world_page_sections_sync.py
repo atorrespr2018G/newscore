@@ -200,10 +200,23 @@ DEFAULT_WORLD_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_world_ribbon_a
     ],
 )
 
-# Spotlight position keys that fill from a specific category slug.
-SPOTLIGHT_CATEGORY_BY_SLUG = {
-    SPOTLIGHT_POSITION_KEY: "world",
+# Region archives use dedicated category slugs; compact rows keep position keys.
+REGION_CATEGORY_SLUG_BY_POSITION = {
+    MORE_TOP_STORIES_POSITION_KEY: "usa-canada",
+    SPOTLIGHT_POSITION_KEY: "europe",
+    RAIL_POSITION_KEY: "latin-america",
 }
+
+WORLD_REGION_SECTION_TYPES = frozenset(
+    {
+        SECTION_TYPE_MORE_TOP_STORIES,
+        SECTION_TYPE_SPOTLIGHT,
+        SECTION_TYPE_RAIL,
+        SECTION_TYPE_CATEGORY,
+    },
+)
+
+PARENT_WORLD_CATEGORY_SLUG = "world"
 
 HERO_ARTICLE_LIMIT = 30
 TOP_STORIES_ARTICLE_LIMIT = 12
@@ -233,6 +246,22 @@ def slugify_section_label(label: str) -> str:
     if not normalized:
         raise ValidationError("Section label must contain letters or numbers")
     return normalized
+
+
+def region_category_slug_for_item(item: dict[str, str]) -> str | None:
+    """Return the article-pool category slug for a World region row.
+
+    Args:
+        item: Typed World section row with ``section_type`` and ``slug``.
+
+    Returns:
+        Category slug such as ``europe``, or None when the row is not a region.
+    """
+
+    if item["section_type"] not in WORLD_REGION_SECTION_TYPES:
+        return None
+    slug = item["slug"]
+    return REGION_CATEGORY_SLUG_BY_POSITION.get(slug) or slug
 
 
 def expand_world_section_items(items: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -278,19 +307,19 @@ def default_world_page_section_items() -> list[dict[str, str]]:
 
 
 async def _ensure_category(db: AsyncIOMotorDatabase, *, slug: str, label: str) -> str:
-    """Ensure a global category exists for a section slug."""
+    """Ensure a World region category exists under parent World."""
 
+    parent = await db[CATEGORIES_COLLECTION].find_one({"slug": PARENT_WORLD_CATEGORY_SLUG})
+    parent_id = str(parent["_id"]) if parent and slug != PARENT_WORLD_CATEGORY_SLUG else None
     existing = await db[CATEGORIES_COLLECTION].find_one({"slug": slug})
     if existing is not None:
-        await db[CATEGORIES_COLLECTION].update_one(
-            {"_id": existing["_id"]},
-            {
-                "$set": {
-                    "name": label,
-                    "description": f"{label} news.",
-                },
-            },
-        )
+        fields: dict[str, Any] = {
+            "name": label,
+            "description": f"{label} news.",
+        }
+        if parent_id:
+            fields["parent_id"] = parent_id
+        await db[CATEGORIES_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
         return str(existing["_id"])
 
     category_id = str(uuid4())
@@ -299,13 +328,30 @@ async def _ensure_category(db: AsyncIOMotorDatabase, *, slug: str, label: str) -
             "_id": category_id,
             "name": label,
             "slug": slug,
-            "parent_id": None,
+            "parent_id": parent_id,
             "description": f"{label} news.",
             "created_at": utc_now().isoformat(),
         },
     )
     logger.info("Created world section category %s", slug)
     return category_id
+
+
+async def _region_category_id(db: AsyncIOMotorDatabase, item: dict[str, str]) -> str | None:
+    """Ensure and return the category id for a World region section row.
+
+    Args:
+        db: Mongo database.
+        item: Typed World section row.
+
+    Returns:
+        Category document id, or None when the row is not a region.
+    """
+
+    slug = region_category_slug_for_item(item)
+    if not slug:
+        return None
+    return await _ensure_category(db, slug=slug, label=item["label"])
 
 
 async def _category_id_by_slug(db: AsyncIOMotorDatabase, slug: str) -> str | None:
@@ -541,18 +587,16 @@ async def _slot_spec_for_section(
             "order_index": order_index,
             "display_name": label,
             "presentation_type": PRESENTATION_EDITORIAL_LEAD,
-            "category_id": None,
+            "category_id": await _region_category_id(db, item),
             "limit": MORE_TOP_STORIES_ARTICLE_LIMIT,
         }
     if section_type == SECTION_TYPE_SPOTLIGHT:
-        category_slug = SPOTLIGHT_CATEGORY_BY_SLUG.get(slug) or slugify_section_label(label)
-        category_id = await _ensure_category(db, slug=category_slug, label=label)
         return {
             "position_key": slug,
             "order_index": order_index,
             "display_name": label,
             "presentation_type": PRESENTATION_EDITORIAL_SPOTLIGHT,
-            "category_id": category_id,
+            "category_id": await _region_category_id(db, item),
             "limit": SPOTLIGHT_ARTICLE_LIMIT,
         }
     if section_type == SECTION_TYPE_RAIL:
@@ -561,11 +605,11 @@ async def _slot_spec_for_section(
             "order_index": order_index,
             "display_name": label,
             "presentation_type": PRESENTATION_RAIL_COMPACT,
-            "category_id": None,
+            "category_id": await _region_category_id(db, item),
             "limit": RAIL_ARTICLE_LIMIT,
         }
 
-    category_id = await _ensure_category(db, slug=slug, label=label)
+    category_id = await _region_category_id(db, item)
     return {
         "position_key": slug,
         "order_index": order_index,

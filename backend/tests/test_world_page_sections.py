@@ -16,6 +16,7 @@ from shared.core.world_page_sections_sync import (
     DEFAULT_WORLD_SECTION_ITEMS,
     PRESERVED_WORLD_PAGE_KEYS,
     expand_world_section_items,
+    region_category_slug_for_item,
     slugify_section_label,
 )
 
@@ -61,6 +62,30 @@ def test_expand_world_section_items_keeps_typed_order() -> None:
         {"section_type": "rail", "slug": "editorial-rail", "label": "Latin America"},
         {"section_type": "category", "slug": "world-latest", "label": "Asia"},
     ]
+
+
+def test_region_category_slug_for_item_maps_seeded_regions() -> None:
+    """Editorial regions get friendly slugs; compact rows keep position keys."""
+
+    assert (
+        region_category_slug_for_item(
+            {"section_type": "spotlight", "slug": "world-spotlight", "label": "Europe"},
+        )
+        == "europe"
+    )
+    assert (
+        region_category_slug_for_item(
+            {"section_type": "rail", "slug": "editorial-rail", "label": "Latin America"},
+        )
+        == "latin-america"
+    )
+    assert (
+        region_category_slug_for_item(
+            {"section_type": "category", "slug": "world-latest", "label": "Asia"},
+        )
+        == "world-latest"
+    )
+    assert region_category_slug_for_item({"section_type": "hero", "slug": "hero", "label": "World"}) is None
 
 
 @pytest.mark.asyncio

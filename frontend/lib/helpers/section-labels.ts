@@ -72,6 +72,20 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
   'world-africa',
 
+  'usa-canada',
+
+  'europe',
+
+  'latin-america',
+
+  'asia',
+
+  'oceania',
+
+  'middle-east',
+
+  'africa',
+
 ])
 
 
@@ -477,6 +491,18 @@ export function sportPagePath(slug: string): string {
 
 
 /**
+ * Dedicated archive path for a World region slug.
+ *
+ * @param slug Region section slug such as `europe`.
+ * @returns Path like `/world/europe`.
+ */
+export function worldPagePath(slug: string): string {
+  const normalized = slug.trim().toLowerCase()
+  return `/world/${encodeURIComponent(normalized)}`
+}
+
+
+/**
  * Section key for a dedicated page route pathname, if one matches.
  *
  * @param pathname Current app pathname (locale prefix already stripped).
@@ -484,12 +510,8 @@ export function sportPagePath(slug: string): string {
  */
 export function sectionKeyFromPathname(pathname: string): string | null {
   const normalized = pathname.replace(/\/+$/, '') || '/'
-  const sportsPath = SECTION_PAGE_ROUTES.sports
-  if (normalized === sportsPath || normalized.startsWith(`${sportsPath}/`)) {
-    return 'sports'
-  }
   for (const [key, path] of Object.entries(SECTION_PAGE_ROUTES)) {
-    if (normalized === path) {
+    if (normalized === path || normalized.startsWith(`${path}/`)) {
       return key
     }
   }

@@ -32,6 +32,7 @@ import {
   resolveSportSubcategories,
   rootSectionCategories,
 } from '@/lib/helpers/sports-category-options'
+import { loadWorldRegionSlugs } from '@/lib/helpers/world-category-options'
 import {
   FLORIDA_COUNTY_OPTIONS,
   FLORIDA_STATE_CODE,
@@ -635,11 +636,16 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
     queryKey: ['editor', 'sports-page-section-slugs', 'all'],
     queryFn: () => loadSportSlugs(),
   })
+  const worldSectionsQuery = useQuery({
+    queryKey: ['editor', 'world-page-section-slugs', 'all'],
+    queryFn: () => loadWorldRegionSlugs(),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
+  const worldRegionSlugs = worldSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && filters.categoryId === sportsParent.id
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
-  const sectionCategories = rootSectionCategories(categories, sportSlugs)
+  const sectionCategories = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
 
   return (
     <div className="grid gap-3 md:grid-cols-2 md:items-end lg:grid-cols-4">

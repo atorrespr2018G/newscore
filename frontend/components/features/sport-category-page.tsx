@@ -20,10 +20,54 @@ import {
 } from '@/lib/helpers/sport-archive'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
 
+interface ISectionArchivePageProps {
+  title: string
+  parentHref: string
+  parentLabel: string
+  basePath: string
+  connection: IArticleConnection
+  emptyLabel: string
+}
+
 interface ISportCategoryPageProps {
   slug: string
   sportTitle: string
   connection: IArticleConnection
+}
+
+/**
+ * Metro-style section archive: uppercase header, featured+rail, then a card grid.
+ *
+ * @param props Breadcrumb, title, paginated articles, and empty copy.
+ * @returns Category archive page.
+ */
+export function SectionArchivePage({
+  title,
+  parentHref,
+  parentLabel,
+  basePath,
+  connection,
+  emptyLabel,
+}: ISectionArchivePageProps): JSX.Element {
+  const t = useTranslations('common')
+  const layout = splitSportArchiveLayout(connection.items)
+
+  return (
+    <div>
+      <SportArchiveHeader parentHref={parentHref} parentLabel={parentLabel} title={title} />
+      <SportArchiveBody layout={layout} emptyLabel={emptyLabel} />
+      <SitePagination
+        page={connection.page}
+        pageSize={connection.pageSize || SPORT_CATEGORY_PAGE_SIZE}
+        total={connection.total}
+        basePath={basePath}
+        previousLabel={t('previous')}
+        nextLabel={t('next')}
+        navLabel={t('paginationNav')}
+        goToPageLabel={(page) => t('goToPage', { page })}
+      />
+    </div>
+  )
 }
 
 /**
@@ -39,39 +83,33 @@ export function SportCategoryPage({
 }: ISportCategoryPageProps): JSX.Element {
   const t = useTranslations('common')
   const tNav = useTranslations('navigation')
-  const sportsLabel = tNav('sectionLabels.sports')
-  const layout = splitSportArchiveLayout(connection.items)
 
   return (
-    <div>
-      <SportArchiveHeader sportsLabel={sportsLabel} sportTitle={sportTitle} />
-      <SportArchiveBody layout={layout} emptyLabel={t('sportArchiveEmpty')} />
-      <SitePagination
-        page={connection.page}
-        pageSize={connection.pageSize || SPORT_CATEGORY_PAGE_SIZE}
-        total={connection.total}
-        basePath={sportPagePath(slug)}
-        previousLabel={t('previous')}
-        nextLabel={t('next')}
-        navLabel={t('paginationNav')}
-        goToPageLabel={(page) => t('goToPage', { page })}
-      />
-    </div>
+    <SectionArchivePage
+      title={sportTitle}
+      parentHref="/sports"
+      parentLabel={tNav('sectionLabels.sports')}
+      basePath={sportPagePath(slug)}
+      connection={connection}
+      emptyLabel={t('sportArchiveEmpty')}
+    />
   )
 }
 
 /**
- * Uppercase breadcrumb, sport H1, and brand rule matching Metro's subsection header.
+ * Uppercase breadcrumb, section H1, and brand rule matching Metro's subsection header.
  *
- * @param props Localized Sports and sport labels.
+ * @param props Localized parent and section labels.
  * @returns Archive page header.
  */
 function SportArchiveHeader({
-  sportsLabel,
-  sportTitle,
+  parentHref,
+  parentLabel,
+  title,
 }: {
-  sportsLabel: string
-  sportTitle: string
+  parentHref: string
+  parentLabel: string
+  title: string
 }): JSX.Element {
   const t = useTranslations('common')
 
@@ -81,16 +119,16 @@ function SportArchiveHeader({
         className="font-sans text-sm font-normal uppercase tracking-wider text-neutral-500"
         aria-label={t('breadcrumb')}
       >
-        <Link href="/sports" className="hover:underline">
-          {sportsLabel}
+        <Link href={parentHref} className="hover:underline">
+          {parentLabel}
         </Link>
         <span aria-hidden="true" className="mx-1">
           ›
         </span>
-        <span>{sportTitle}</span>
+        <span>{title}</span>
       </nav>
       <h1 className="mt-1 font-sans text-2xl font-semibold uppercase tracking-wider text-neutral-950 sm:text-3xl">
-        {sportTitle}
+        {title}
       </h1>
       <div className="mt-2 border-t-2 border-[color:var(--brand-red)]" />
     </header>

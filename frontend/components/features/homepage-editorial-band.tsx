@@ -3,6 +3,7 @@
 import type { IArticle } from '@/interfaces/article'
 import type { IFeedSlot } from '@/interfaces/feed'
 import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
+import { ArchiveSectionLink } from '@/components/ui/archive-section-link'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
 import { COMPACT_SIDE_THUMB_WIDTH } from '@/components/ui/story-card'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
@@ -16,6 +17,7 @@ import {
   splitEditorialColumnArticles,
 } from '@/lib/helpers/feed-layout'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
+import { worldArchiveHref } from '@/lib/helpers/world-archive'
 import { useTranslations } from 'next-intl'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { usePageAds } from '@/context/page-ads-context'
@@ -78,6 +80,7 @@ function EditorialBandColumns({
           <div>
             <EditorialColumn
               title={homepageSectionTitle(moreTopStoriesSlot.positionKey, moreTopStoriesSlot.displayName)}
+              href={worldArchiveHref(pageName, moreTopStoriesSlot.positionKey)}
               articles={moreArticles}
               showHeadlineLinks={!hideLeadHeadlineLinks}
               showTrailingNewsScreen={showTrailingNewsScreen}
@@ -93,6 +96,7 @@ function EditorialBandColumns({
           <div>
             <EditorialColumn
               title={homepageSectionTitle(spotlightSlot.positionKey, spotlightSlot.displayName)}
+              href={worldArchiveHref(pageName, spotlightSlot.positionKey)}
               articles={spotlightSlot.articles}
               showTrailingNewsScreen={showTrailingNewsScreen}
             />
@@ -106,6 +110,7 @@ function EditorialBandColumns({
           <div>
             <RightRailColumn
               title={homepageSectionTitle(rightRailSlot.positionKey, rightRailSlot.displayName)}
+              href={worldArchiveHref(pageName, rightRailSlot.positionKey)}
               positionKey={rightRailSlot.positionKey}
               articles={rightRailSlot.articles}
               showTrailingNewsScreen={showTrailingNewsScreen}
@@ -126,6 +131,7 @@ function EditorialBandColumns({
 
 interface IEditorialColumnProps {
   title: string
+  href?: string | null
   articles: IArticle[]
   /** Picture lead stories at the top of the column. Defaults to the editorial lead count. */
   leadImageCount?: number
@@ -138,10 +144,16 @@ interface IEditorialColumnProps {
 const COMPACT_SIDE_THUMB_WIDTH_ENLARGED = Math.round(COMPACT_SIDE_THUMB_WIDTH * 1.2)
 const EDITORIAL_STORY_CARD_PROPS = { plainTitle: true } as const
 
-function ColumnHeading({ title }: { title: string }): JSX.Element {
+function ColumnHeading({ title, href }: { title: string; href?: string | null }): JSX.Element {
   return (
     <h2 className="border-b-2 border-neutral-950 pb-2 text-xl font-normal tracking-tight text-neutral-950">
-      {title}
+      {href ? (
+        <ArchiveSectionLink href={href} className="hover:underline">
+          {title}
+        </ArchiveSectionLink>
+      ) : (
+        title
+      )}
     </h2>
   )
 }
@@ -205,6 +217,7 @@ function HeadlineList({
 
 function EditorialColumn({
   title,
+  href,
   articles,
   leadImageCount = EDITORIAL_LEAD_IMAGE_COUNT,
   showHeadlineLinks = true,
@@ -221,7 +234,7 @@ function EditorialColumn({
 
   return (
     <div className="flex flex-col">
-      <ColumnHeading title={title} />
+      <ColumnHeading title={title} href={href} />
       <LeadRailCards articles={leads} />
       {compacts.length > 0 ? (
         <CompactSideCards articles={compacts} sideThumbWidth={COMPACT_SIDE_THUMB_WIDTH_ENLARGED} />
@@ -245,6 +258,7 @@ function isTodayRailColumn(positionKey: string | undefined): boolean {
 
 interface IRightRailColumnProps {
   title?: string
+  href?: string | null
   positionKey?: string
   articles: IArticle[]
   showTrailingNewsScreen?: boolean
@@ -330,6 +344,7 @@ function EditorialBandAds({ hasTitle }: { hasTitle: boolean }): JSX.Element | nu
 
 function RightRailColumn({
   title,
+  href,
   positionKey,
   articles,
   showTrailingNewsScreen = false,
@@ -346,7 +361,7 @@ function RightRailColumn({
 
   return (
     <div className="flex flex-col" aria-label={title ?? sponsoredAndFeaturedLabel}>
-      {title ? <ColumnHeading title={title} /> : null}
+      {title ? <ColumnHeading title={title} href={href} /> : null}
       <RightRailTop usesNewsScreen={usesNewsScreen} featuredArticle={featuredArticle} hasTitle={Boolean(title)} />
       {usesNewsScreen && headlines.length > 0 ? (
         <HeadlineList articles={headlines} className="mt-4 divide-y divide-neutral-200" compact />

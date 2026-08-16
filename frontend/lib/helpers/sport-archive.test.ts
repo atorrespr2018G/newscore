@@ -40,8 +40,12 @@ describe('sectionKeyFromPathname', () => {
     expect(sectionKeyFromPathname('/sports/baseball/')).toBe('sports')
   })
 
-  it('does not treat unrelated paths as sports', () => {
+  it('treats nested world archives as the world section', () => {
     expect(sectionKeyFromPathname('/world')).toBe('world')
+    expect(sectionKeyFromPathname('/world/europe')).toBe('world')
+  })
+
+  it('does not treat unrelated paths as sports', () => {
     expect(sectionKeyFromPathname('/')).toBeNull()
   })
 })
