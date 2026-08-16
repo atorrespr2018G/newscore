@@ -14,6 +14,7 @@ import { toRegionCode } from '@/lib/region-code'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import {
   COMPACT_SIX_BAND_EXTENDED_LIMIT,
+  homepageSectionLandingHref,
   isCompactSixBandPositionKey,
   isUsBandPositionKey,
   sectionAnchorId,
@@ -112,6 +113,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
       <HomepageUsBand
         slot={slot}
         title={slot.displayName?.trim() || sectionLabel(slot.positionKey)}
+        pageName={pageName}
       />
     )
   }
@@ -127,16 +129,18 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   }
 
   if (slot.positionKey.trim().toLowerCase() === 'world') {
-    return <HomepageUsBand slot={slot} title={sectionLabel('world')} />
+    return <HomepageUsBand slot={slot} title={sectionLabel('world')} pageName={pageName} />
   }
 
   if (isUsBandPositionKey(slot.positionKey)) {
-    return <HomepageUsBand slot={slot} />
+    return <HomepageUsBand slot={slot} pageName={pageName} />
   }
 
   const usesFeaturedColumns = usesFeaturedColumnLayout(slot.positionKey)
   const title = homepageSectionTitle(slot.positionKey, slot.displayName)
-  const archiveHref = worldArchiveHref(pageName, slot.positionKey)
+  const archiveHref =
+    worldArchiveHref(pageName, slot.positionKey) ??
+    homepageSectionLandingHref(pageName, slot.positionKey)
   const anchorId = sectionAnchorId(slot.positionKey)
   const variant = cardVariantForPresentation(slot.presentationType)
   const desktopGridColumnsClass = gridColumnsClass(slot.positionKey)
@@ -195,7 +199,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
 }
 
 /**
- * Grid-section heading. On World, the title and Latest link to the region archive.
+ * Grid-section heading. Homepage landings and World region archives are clickable.
  *
  * @param props Heading copy, latest label, optional archive href, and title weight.
  * @returns Section heading row.

@@ -282,13 +282,21 @@ const BUSINESS_PAGE_NAME = 'business'
 const SPORTS_SECTION_PAIR_SIZE = 2
 const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
-function EarlyUsSection({ slot, title }: { slot: IFeedSlot | undefined; title: string }): JSX.Element | null {
+function EarlyUsSection({
+  slot,
+  title,
+  pageName,
+}: {
+  slot: IFeedSlot | undefined
+  title: string
+  pageName?: string
+}): JSX.Element | null {
   if (!slot) {
     return null
   }
   return (
     <Suspense fallback={<SectionSkeleton />}>
-      <HomepageUsBand slot={slot} title={title} />
+      <HomepageUsBand slot={slot} title={title} pageName={pageName} />
     </Suspense>
   )
 }
@@ -396,13 +404,13 @@ function PoliticsSportsSection({
             <AdRibbon index={adIndex} location="before_section" anchorSlug="politics" />
           ) : null}
           <Suspense fallback={<SectionSkeleton />}>
-            <HomepageSection slot={politicsSlot} />
+            <HomepageSection slot={politicsSlot} pageName={HOMEPAGE_PAGE_NAME} />
           </Suspense>
         </>
       ) : null}
       {sportsSlot ? (
         <Suspense fallback={<SectionSkeleton />}>
-          <HomepageSection slot={sportsSlot} />
+          <HomepageSection slot={sportsSlot} pageName={HOMEPAGE_PAGE_NAME} />
         </Suspense>
       ) : null}
     </div>
@@ -439,7 +447,7 @@ function HomepagePageSlotBlock({
     )
   }
   if (kind === 'featured_band') {
-    return <EarlyUsSection slot={slot} title={title} />
+    return <EarlyUsSection slot={slot} title={title} pageName={pageName} />
   }
   if (kind === 'live_carousel') {
     return (
@@ -452,7 +460,7 @@ function HomepagePageSlotBlock({
   }
   return (
     <Suspense fallback={<SectionSkeleton />}>
-      <HomepageSection slot={slot} />
+      <HomepageSection slot={slot} pageName={pageName} />
     </Suspense>
   )
 }
@@ -649,7 +657,7 @@ function SportsPageSlotBlock({
   if (kind === 'featured_band') {
     return (
       <Suspense fallback={<SectionSkeleton />}>
-        <HomepageUsBand slot={slot} title={title} />
+        <HomepageUsBand slot={slot} title={title} pageName={pageName} />
       </Suspense>
     )
   }

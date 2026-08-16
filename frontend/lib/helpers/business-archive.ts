@@ -11,7 +11,7 @@ export const BUSINESS_CATEGORY_PAGE_SIZE = 16
 /**
  * Build an Economía beat archive href when the compact band is on the Business page.
  *
- * Homepage compact bands keep a plain heading.
+ * Homepage Business heading uses `homepageSectionLandingHref` instead.
  *
  * @param pageName Layout page name such as `business`.
  * @param positionKey Slot position key / beat slug.

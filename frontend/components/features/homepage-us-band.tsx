@@ -8,7 +8,8 @@ import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
 import { PlacementSlotScope, useEditorPlacement } from '@/context/editor-placement-context'
 import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useSectionLabels } from '@/hooks/use-section-labels'
-import { sectionAnchorId } from '@/lib/helpers/section-labels'
+import { ArchiveSectionLink } from '@/components/ui/archive-section-link'
+import { homepageSectionLandingHref, sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
 import { splitUsFeaturedArticles } from '@/lib/helpers/feed-layout'
 import { belowMediaTextClass } from '@/lib/helpers/text-helpers'
@@ -19,18 +20,25 @@ interface IHomepageUsBandProps {
   slot: IFeedSlot
   /** When set (e.g. early homepage band), overrides slot displayName and position-key label. */
   title?: string
+  /** Layout page name so homepage World headings can open `/world`. */
+  pageName?: string
 }
 
 /**
  * Three-column US module: stacked side stories flanking a center hero with headline below media.
  */
-export function HomepageUsBand({ slot, title: titleOverride }: IHomepageUsBandProps): JSX.Element | null {
+export function HomepageUsBand({
+  slot,
+  title: titleOverride,
+  pageName,
+}: IHomepageUsBandProps): JSX.Element | null {
   const { homepageSectionTitle } = useSectionLabels()
   const t = useTranslations('common')
   const editor = useEditorPlacement()
   const { center, centerTop, left, leftLinks, right, rightLinks } = splitUsFeaturedArticles(slot.articles)
   const title = titleOverride ?? homepageSectionTitle(slot.positionKey, slot.displayName)
   const anchorId = sectionAnchorId(slot.positionKey)
+  const headingHref = homepageSectionLandingHref(pageName, slot.positionKey)
   const showEmptyPlacementShell = !center && editor != null
 
   if (!center && !showEmptyPlacementShell) {
@@ -41,12 +49,7 @@ export function HomepageUsBand({ slot, title: titleOverride }: IHomepageUsBandPr
     return (
       <PlacementSlotScope slotId={slot.id}>
         <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
-          <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
-            <h2 className="text-2xl font-normal tracking-tight text-neutral-950">{title}</h2>
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
-              {t('latest')}
-            </span>
-          </div>
+          <UsBandHeading title={title} latestLabel={t('latest')} href={headingHref} />
           <div className="rounded border border-dashed border-neutral-300 bg-neutral-50 p-4">
             <PlacementSectionDropZone />
           </div>
@@ -58,10 +61,7 @@ export function HomepageUsBand({ slot, title: titleOverride }: IHomepageUsBandPr
   return (
     <PlacementSlotScope slotId={slot.id}>
       <section id={anchorId} className="scroll-mt-24 border-t border-neutral-200 pt-10">
-        <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
-          <h2 className="text-2xl font-normal tracking-tight text-neutral-950">{title}</h2>
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{t('latest')}</span>
-        </div>
+        <UsBandHeading title={title} latestLabel={t('latest')} href={headingHref} />
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-8">
           <aside className="lg:col-span-3">
@@ -97,6 +97,45 @@ export function HomepageUsBand({ slot, title: titleOverride }: IHomepageUsBandPr
         <PlacementSectionDropZone />
       </section>
     </PlacementSlotScope>
+  )
+}
+
+/**
+ * US-band section title. Homepage World (and other dedicated pages) are clickable.
+ *
+ * @param props Heading copy, latest label, and optional landing href.
+ * @returns Section heading row.
+ */
+function UsBandHeading({
+  title,
+  latestLabel,
+  href,
+}: {
+  title: string
+  latestLabel: string
+  href: string | null
+}): JSX.Element {
+  const latestClassName = 'text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500'
+
+  return (
+    <div className="mb-5 flex items-end justify-between border-b-2 border-neutral-950 pb-2">
+      <h2 className="text-2xl font-normal tracking-tight text-neutral-950">
+        {href ? (
+          <ArchiveSectionLink href={href} className="hover:underline">
+            {title}
+          </ArchiveSectionLink>
+        ) : (
+          title
+        )}
+      </h2>
+      {href ? (
+        <ArchiveSectionLink href={href} className={`${latestClassName} hover:underline`}>
+          {latestLabel}
+        </ArchiveSectionLink>
+      ) : (
+        <span className={latestClassName}>{latestLabel}</span>
+      )}
+    </div>
   )
 }
 

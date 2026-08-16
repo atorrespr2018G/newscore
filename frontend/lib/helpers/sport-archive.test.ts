@@ -1,5 +1,6 @@
 import type { IFeedSlot } from '@/interfaces/feed'
 import {
+  homepageSectionLandingHref,
   isSectionPageActive,
   sectionKeyFromPathname,
   sportPagePath,
@@ -64,6 +65,26 @@ describe('sportArchiveHref', () => {
     expect(sportArchiveHref('homepage', 'sports')).toBeNull()
     expect(sportArchiveHref('world', 'baseball')).toBeNull()
     expect(sportArchiveHref(undefined, 'baseball')).toBeNull()
+  })
+})
+
+describe('homepageSectionLandingHref', () => {
+  it('opens Sports, World, and Business landings from the homepage', () => {
+    expect(homepageSectionLandingHref('homepage', 'sports')).toBe('/sports')
+    expect(homepageSectionLandingHref('homepage', 'world')).toBe('/world')
+    expect(homepageSectionLandingHref('homepage', 'business')).toBe('/business')
+    expect(homepageSectionLandingHref(undefined, 'sports')).toBe('/sports')
+  })
+
+  it('does not rewrite nested archive headings on section pages', () => {
+    expect(homepageSectionLandingHref('sports', 'baseball')).toBeNull()
+    expect(homepageSectionLandingHref('world', 'europe')).toBeNull()
+    expect(homepageSectionLandingHref('business', 'autos')).toBeNull()
+  })
+
+  it('leaves ordinary homepage bands as plain headings', () => {
+    expect(homepageSectionLandingHref('homepage', 'technology')).toBeNull()
+    expect(homepageSectionLandingHref('homepage', 'us-featured')).toBeNull()
   })
 })
 

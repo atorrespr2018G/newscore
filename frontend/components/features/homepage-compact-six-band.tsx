@@ -8,7 +8,11 @@ import { PlacementSlotScope, useEditorPlacement } from '@/context/editor-placeme
 import { PlacementSectionDropZone } from '@/components/features/placement-overlay'
 import { useMarket } from '@/context/market-context'
 import { useSectionLabels } from '@/hooks/use-section-labels'
-import { COMPACT_SIX_BAND_ARTICLE_LIMIT, sectionAnchorId } from '@/lib/helpers/section-labels'
+import {
+  COMPACT_SIX_BAND_ARTICLE_LIMIT,
+  homepageSectionLandingHref,
+  sectionAnchorId,
+} from '@/lib/helpers/section-labels'
 import { businessArchiveHref } from '@/lib/helpers/business-archive'
 import { sportArchiveHref } from '@/lib/helpers/sport-archive'
 import { worldArchiveHref } from '@/lib/helpers/world-archive'
@@ -82,7 +86,8 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
   const archiveHref =
     sportArchiveHref(pageName, slot.positionKey) ??
     worldArchiveHref(pageName, slot.positionKey) ??
-    businessArchiveHref(pageName, slot.positionKey)
+    businessArchiveHref(pageName, slot.positionKey) ??
+    homepageSectionLandingHref(pageName, slot.positionKey)
 
   return (
     <PlacementSlotScope slotId={slot.id}>
@@ -162,7 +167,7 @@ interface ICompactSixBandHeadingProps {
 }
 
 /**
- * Compact-band section title. Sports and World pages link the title to an archive.
+ * Compact-band section title. Homepage Sports/World/Business open those landings.
  *
  * @param props Heading copy, latest label, and optional archive href.
  * @returns Section heading row.

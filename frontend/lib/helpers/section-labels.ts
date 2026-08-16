@@ -632,6 +632,31 @@ export function sectionNavHref(positionKey: string): string {
 
 
 
+const HOMEPAGE_LAYOUT_PAGE_NAME = 'homepage'
+
+/**
+ * Dedicated landing href for a homepage section heading (Sports, World, Business).
+ *
+ * Nested archives on those landings still use sport/world/business archive helpers.
+ * Homepage bands use this so the heading opens the matching page.
+ *
+ * @param pageName Layout page name such as `homepage` or `sports`.
+ * @param positionKey Slot position key such as `sports`.
+ * @returns Path like `/sports`, or null when this heading should stay plain.
+ */
+export function homepageSectionLandingHref(
+  pageName: string | undefined,
+  positionKey: string,
+): string | null {
+  const currentPage = pageName?.trim().toLowerCase() ?? HOMEPAGE_LAYOUT_PAGE_NAME
+  if (currentPage !== HOMEPAGE_LAYOUT_PAGE_NAME) {
+    return null
+  }
+  return sectionPagePath(positionKey)
+}
+
+
+
 /**
 
  * DOM id for in-page section anchors (masthead nav).

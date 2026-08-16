@@ -38,7 +38,7 @@ export interface ISportArchiveLayout {
 /**
  * Build a sport archive href when the compact band is on the Sports page.
  *
- * Homepage compact bands keep a plain heading. World regions link separately.
+ * Homepage Sports heading uses `homepageSectionLandingHref` instead. World regions link separately.
  *
  * @param pageName Layout page name such as `sports`.
  * @param positionKey Slot position key / sport slug.
