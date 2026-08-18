@@ -9,8 +9,12 @@ from content_subgraph.context import ContentContext
 from shared.core.exceptions import NotFoundError
 from shared.core.feature_flags import geo_graphql_region_args
 from shared.core.markets import DEFAULT_MARKET_CODE
+from shared.core.page_ad_placements import (
+    PAGE_NAME_TECHNOLOGY,
+    TECHNOLOGY_ARCHIVE_POSITION_KEY,
+)
 from shared.core.pagination import PaginationParams
-from shared.read import article_reads, market_reads, media_reads
+from shared.read import article_reads, market_reads, media_reads, page_archive_reads
 from shared.schemas.article_schemas import ArticleDetailOut, ArticleOut
 
 
@@ -286,6 +290,37 @@ class ContentQuery:
             )
         except NotFoundError:
             return _empty_article_connection(page, page_size)
+        items = [article_from_detail(ArticleDetailOut(**raw)) for raw in result.items]
+        return ArticleConnection(
+            items=items,
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
+            has_more=result.has_more,
+        )
+
+    @strawberry.field
+    async def page_archive_articles(
+        self,
+        info: Info[ContentContext],
+        page: int,
+        page_size: int,
+        page_name: str = PAGE_NAME_TECHNOLOGY,
+        position_key: str = TECHNOLOGY_ARCHIVE_POSITION_KEY,
+    ) -> ArticleConnection:
+        """List stories placed on a page archive slot, newest first.
+
+        Ignores market and the homepage Technology category. Membership is the
+        placement pin list on the canonical Technology layout.
+        """
+
+        result = await page_archive_reads.list_page_archive_articles(
+            info.context.db,
+            page_name=page_name,
+            position_key=position_key,
+            params=PaginationParams(page=page, page_size=page_size),
+            loader=info.context.authors,
+        )
         items = [article_from_detail(ArticleDetailOut(**raw)) for raw in result.items]
         return ArticleConnection(
             items=items,

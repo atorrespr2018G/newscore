@@ -17,9 +17,11 @@ from shared.core.page_ad_placements import (
     DEFAULT_GOVERNMENT_ADS,
     DEFAULT_HOMEPAGE_ADS,
     DEFAULT_SPORTS_ADS,
+    DEFAULT_TECHNOLOGY_ADS,
     DEFAULT_WORLD_ADS,
     STACKING_AD_LOCATIONS,
     default_ads_for_page,
+    is_market_agnostic_page,
     normalize_ads,
     resolve_ads_list,
 )
@@ -33,7 +35,17 @@ def test_default_ads_for_page_returns_page_specific_lists() -> None:
     assert default_ads_for_page("sports") == [dict(row) for row in DEFAULT_SPORTS_ADS]
     assert default_ads_for_page("government") == [dict(row) for row in DEFAULT_GOVERNMENT_ADS]
     assert default_ads_for_page("business") == [dict(row) for row in DEFAULT_BUSINESS_ADS]
+    assert default_ads_for_page("technology") == [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
     assert default_ads_for_page("unknown") == [dict(row) for row in DEFAULT_HOMEPAGE_ADS]
+
+
+def test_technology_page_is_market_agnostic() -> None:
+    """Technology news is shared globally and is not scoped to a market."""
+
+    assert is_market_agnostic_page("technology") is True
+    assert is_market_agnostic_page("Technology") is True
+    assert is_market_agnostic_page("sports") is False
+    assert is_market_agnostic_page("homepage") is False
 
 
 def test_default_homepage_ads_cover_shell_locations() -> None:
@@ -49,7 +61,7 @@ def test_default_homepage_ads_cover_shell_locations() -> None:
 def test_default_ads_omit_stacking_ribbon_locations() -> None:
     """Page defaults leave in-feed ribbons to the section list."""
 
-    for page_name in ("homepage", "world", "sports", "government", "business"):
+    for page_name in ("homepage", "world", "sports", "government", "business", "technology"):
         for row in default_ads_for_page(page_name):
             assert row["location"] not in STACKING_AD_LOCATIONS
 

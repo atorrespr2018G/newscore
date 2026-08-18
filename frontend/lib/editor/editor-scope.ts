@@ -1,4 +1,5 @@
 import { toRegionCode } from '@/lib/region-code'
+import { TECHNOLOGY_PAGE_NAME } from '@/lib/helpers/technology-archive'
 
 /** Editor scope driving all admin workflow reads and writes. */
 export interface IEditorScope {
@@ -20,7 +21,13 @@ export const DEFAULT_EDITOR_SCOPE: IEditorScope = {
 }
 
 /** Curatable layout pages an editor can switch between. */
-export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = ['homepage', 'world', 'sports', 'government']
+export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = [
+  'homepage',
+  'world',
+  'sports',
+  'government',
+  TECHNOLOGY_PAGE_NAME,
+]
 
 /** Market codes an editor can curate from the scope switcher. */
 export const EDITOR_MARKET_OPTIONS: ReadonlyArray<string> = ['us', 'pr', 'co']
@@ -43,4 +50,23 @@ export function isEditorMarketCode(marketCode: string): boolean {
  */
 export function editorScopeRegionCode(scope: IEditorScope): string {
   return toRegionCode(scope.marketCode, scope.townId, scope.countyId)
+}
+
+/**
+ * Force Technology onto the shared US board (no market or locality).
+ *
+ * @param scope Requested editor scope.
+ * @returns Scope with Technology pinned to the canonical US layout.
+ */
+export function canonicalizeEditorScope(scope: IEditorScope): IEditorScope {
+  const pageName = scope.pageName.trim().toLowerCase()
+  if (pageName !== TECHNOLOGY_PAGE_NAME) {
+    return scope
+  }
+  return {
+    marketCode: DEFAULT_EDITOR_MARKET_CODE,
+    townId: null,
+    countyId: null,
+    pageName: TECHNOLOGY_PAGE_NAME,
+  }
 }

@@ -128,10 +128,44 @@ export const CATEGORY_ARTICLES_QUERY = gql`
   }
 `
 
+export const PAGE_ARCHIVE_ARTICLES_QUERY = gql`
+  query PageArchiveArticles(
+    $page: Int!
+    $pageSize: Int!
+    $pageName: String
+    $positionKey: String
+  ) {
+    pageArchiveArticles(
+      page: $page
+      pageSize: $pageSize
+      pageName: $pageName
+      positionKey: $positionKey
+    ) {
+      items {
+        id
+        slug
+        title
+        body
+        status
+        authorName
+        thumbnailUrl
+        videoUrl
+        createdAt
+        publishedAt
+      }
+      total
+      page
+      pageSize
+      hasMore
+    }
+  }
+`
+
 /** Typed document nodes generated from lib/graphql/operations/*.graphql — run npm run codegen. */
 export type {
   HomepageFeedQuery,
   ArticleBySlugQuery,
   BreakingNewsQuery,
   CategoryArticlesQuery,
+  PageArchiveArticlesQuery,
 } from './generated/graphql'

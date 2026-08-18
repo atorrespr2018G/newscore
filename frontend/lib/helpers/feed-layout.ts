@@ -15,6 +15,7 @@ import {
   isHomepageSectionVisible,
   isPostPoliticsSectionKey,
 } from '@/lib/helpers/section-labels'
+import { isTechnologyArchivePositionKey } from '@/lib/helpers/technology-archive'
 
 /** Maximum pinned stories in the homepage hero slot. */
 export const HERO_PINNED_LIMIT = 12
@@ -527,6 +528,7 @@ export type SportsPageSlotKind =
   | 'live_carousel'
   | 'compact_six'
   | 'ribbon_ad'
+  | 'section_archive'
 
 /**
  * Resolve the Sports page renderer for a slot (supports legacy position keys).
@@ -561,6 +563,9 @@ export function resolveSportsPageSlotKind(slot: IFeedSlot): SportsPageSlotKind {
   }
   if (key === 'ad-ribbon' || key.startsWith('ad-ribbon-')) {
     return 'ribbon_ad'
+  }
+  if (isTechnologyArchivePositionKey(key)) {
+    return 'section_archive'
   }
   return 'compact_six'
 }

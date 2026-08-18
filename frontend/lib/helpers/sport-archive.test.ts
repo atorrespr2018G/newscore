@@ -74,6 +74,7 @@ describe('homepageSectionLandingHref', () => {
     expect(homepageSectionLandingHref('homepage', 'world')).toBe('/world')
     expect(homepageSectionLandingHref('homepage', 'business')).toBe('/business')
     expect(homepageSectionLandingHref('homepage', 'government')).toBe('/government')
+    expect(homepageSectionLandingHref('homepage', 'technology')).toBe('/technology')
     expect(homepageSectionLandingHref(undefined, 'sports')).toBe('/sports')
   })
 
@@ -84,7 +85,6 @@ describe('homepageSectionLandingHref', () => {
   })
 
   it('leaves ordinary homepage bands as plain headings', () => {
-    expect(homepageSectionLandingHref('homepage', 'technology')).toBeNull()
     expect(homepageSectionLandingHref('homepage', 'us-featured')).toBeNull()
   })
 })

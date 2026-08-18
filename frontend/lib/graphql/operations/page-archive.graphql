@@ -1,0 +1,30 @@
+query PageArchiveArticles(
+  $page: Int!
+  $pageSize: Int!
+  $pageName: String
+  $positionKey: String
+) {
+  pageArchiveArticles(
+    page: $page
+    pageSize: $pageSize
+    pageName: $pageName
+    positionKey: $positionKey
+  ) {
+    items {
+      id
+      slug
+      title
+      body
+      status
+      authorName
+      thumbnailUrl
+      videoUrl
+      createdAt
+      publishedAt
+    }
+    total
+    page
+    pageSize
+    hasMore
+  }
+}

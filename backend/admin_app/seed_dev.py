@@ -18,6 +18,13 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from admin_app.helpers.password_helpers import hash_password
 from shared.core.indexes import ensure_indexes
+from shared.core.page_ad_placements import (
+    PAGE_NAME_TECHNOLOGY,
+    TECHNOLOGY_ARCHIVE_PIN_LIMIT,
+    TECHNOLOGY_HERO_ARTICLE_LIMIT,
+    TECHNOLOGY_LIVE_ARTICLE_LIMIT,
+    TECHNOLOGY_TOP_STORIES_ARTICLE_LIMIT,
+)
 from shared.read.collections import (
     ARTICLES_COLLECTION,
     CATEGORIES_COLLECTION,
@@ -320,6 +327,20 @@ US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Cloud providers cut egress fees after regulatory scrutiny",
         "Startup unveils solid-state battery breakthrough for EVs",
         "EU finalizes rules for high-risk AI system deployments",
+        "Satellite broadband reaches remote schools after spectrum deal",
+        "Cybersecurity firms warn of new ransomware targeting hospitals",
+        "Quantum computing lab reports error-correction milestone",
+        "Social platforms test age checks for teen accounts",
+        "Chip export controls reshape foundry investment plans",
+        "Robotics maker opens first US assembly plant",
+        "Researchers publish open dataset for climate-model training",
+        "Telecoms begin nationwide 5G-Advanced rollout",
+        "Browser makers agree on default tracking protections",
+        "Gaming studios adopt cloud-native build pipelines",
+        "Universities launch joint institute for AI safety",
+        "Wearable maker adds on-device translation to earbuds",
+        "Regulators probe app-store billing after developer complaints",
+        "National lab deploys supercomputer for weather forecasting",
     ],
     "business": [
         "Federal Reserve holds rates steady as inflation cools further",
@@ -498,6 +519,20 @@ CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Proveedores cloud reducen tarifas de transferencia tras escrutinio regulatorio",
         "Startup anuncia avance en baterías de estado sólido para vehículos eléctricos",
         "UE finaliza reglas para sistemas de IA de alto riesgo",
+        "Banda ancha satelital llega a escuelas remotas tras acuerdo de espectro",
+        "Firmas de ciberseguridad alertan de ransomware contra hospitales",
+        "Laboratorio cuántico reporta hito en corrección de errores",
+        "Plataformas sociales prueban verificación de edad para menores",
+        "Controles de exportación de chips reconfiguran inversión en fábricas",
+        "Fabricante de robótica abre primera planta de ensamblaje en EE. UU.",
+        "Investigadores publican dataset abierto para modelos climáticos",
+        "Operadores inician despliegue nacional de 5G-Advanced",
+        "Navegadores acuerdan protecciones de rastreo por defecto",
+        "Estudios de videojuegos adoptan pipelines de compilación en la nube",
+        "Universidades lanzan instituto conjunto de seguridad en IA",
+        "Fabricante de wearables añade traducción en el dispositivo a auriculares",
+        "Reguladores investigan cobros de tiendas de apps tras quejas",
+        "Laboratorio nacional despliega supercomputadora para pronósticos",
     ],
     "business": [
         "La Reserva Federal mantiene las tasas mientras la inflación cede",
@@ -1187,6 +1222,67 @@ def _business_page_slot_specs() -> list[dict[str, Any]]:
 
 
 BUSINESS_PAGE_SLOT_SPECS = _business_page_slot_specs()
+
+TECHNOLOGY_CATEGORY_SLUG = "technology"
+
+# Technology landing: Sports-like hero/Top Stories/Live filled from the
+# technology category. Archive is pin-only (placement), without a Technology heading.
+TECHNOLOGY_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
+    {
+        "position_key": "hero",
+        "order_index": 0,
+        "category_slug": TECHNOLOGY_CATEGORY_SLUG,
+        "limit": TECHNOLOGY_HERO_ARTICLE_LIMIT,
+        "presentation_type": "hero",
+        "display_name_us": "Technology",
+        "display_name_co": "Tecnología",
+    },
+    {
+        "position_key": "ad-ribbon",
+        "order_index": 1,
+        "limit": 0,
+        "presentation_type": "ribbon_ad",
+        "display_name_us": "Ribbon Advertisement",
+        "display_name_co": "Anuncio de cinta",
+    },
+    {
+        "position_key": "us-featured",
+        "order_index": 2,
+        "category_slug": TECHNOLOGY_CATEGORY_SLUG,
+        "limit": TECHNOLOGY_TOP_STORIES_ARTICLE_LIMIT,
+        "presentation_type": "featured_band",
+        "display_name_us": "Top Stories",
+        "display_name_co": "Noticias principales",
+    },
+    {
+        "position_key": "ad-ribbon-2",
+        "order_index": 3,
+        "limit": 0,
+        "presentation_type": "ribbon_ad",
+        "display_name_us": "Ribbon Advertisement",
+        "display_name_co": "Anuncio de cinta",
+    },
+    {
+        "position_key": "health",
+        "order_index": 4,
+        "category_slug": TECHNOLOGY_CATEGORY_SLUG,
+        "limit": TECHNOLOGY_LIVE_ARTICLE_LIMIT,
+        "presentation_type": "live_carousel",
+        "display_name_us": "Live",
+        "display_name_co": "En Vivo",
+    },
+    {
+        "position_key": "archive",
+        "order_index": 5,
+        "pinned": True,
+        "pin_offset": 0,
+        "limit": TECHNOLOGY_ARCHIVE_PIN_LIMIT,
+        "presentation_type": "grid_4",
+        "display_name_us": "Latest",
+        "display_name_co": "Lo último",
+    },
+]
+
 
 # Twelve stories per beat so compact carousels paginate (6 + 6).
 BUSINESS_BEAT_STORIES: dict[str, list[str]] = {
@@ -2282,7 +2378,7 @@ async def _upsert_slot(
     position_key = str(spec["position_key"])
     slot = await db[SLOTS_COLLECTION].find_one({"layout_id": layout_id, "position_key": position_key})
 
-    limit = int(spec.get("limit") or 4)
+    limit = int(spec["limit"]) if spec.get("limit") is not None else 4
     query_rule: dict[str, Any] | None = None
     pinned_ids: list[str] = []
 
@@ -2471,6 +2567,61 @@ async def _ensure_market_business_page(
         display_name_key=display_name_key,
         slug_to_category_id=slug_to_category_id,
         pinned_article_ids=pinned_article_ids,
+    )
+
+
+async def _published_article_ids_for_category(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    category_id: str,
+) -> list[str]:
+    """Return published article ids for one market and category.
+
+    Args:
+        db: Database connection.
+        market_id: Market document id.
+        category_id: Category document id.
+
+    Returns:
+        Article ids in the market for that category.
+    """
+
+    cursor = db[ARTICLES_COLLECTION].find(
+        {
+            "status": "published",
+            "market_ids": market_id,
+            "category_id": category_id,
+        },
+        {"_id": 1},
+    )
+    return [str(doc["_id"]) async for doc in cursor]
+
+
+async def _ensure_market_technology_page(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+    display_name_key: str,
+    slug_to_category_id: dict[str, str],
+) -> None:
+    """Seed Technology hero/Top Stories/Live plus a pin-only archive."""
+
+    technology_ids = await _published_article_ids_for_category(
+        db,
+        market_id=market_id,
+        category_id=slug_to_category_id[TECHNOLOGY_CATEGORY_SLUG],
+    )
+    await _ensure_market_page(
+        db,
+        page_name=PAGE_NAME_TECHNOLOGY,
+        slot_specs=TECHNOLOGY_PAGE_SLOT_SPECS,
+        market_id=market_id,
+        market_code=market_code,
+        display_name_key=display_name_key,
+        slug_to_category_id=slug_to_category_id,
+        pinned_article_ids=technology_ids,
     )
 
 
@@ -2742,6 +2893,13 @@ async def seed_dev() -> None:
                 display_name_key=str(market["display_name_key"]),
                 slug_to_category_id=slug_to_category_id,
                 pinned_article_ids=article_ids,
+            )
+            await _ensure_market_technology_page(
+                db,
+                market_id=market_id,
+                market_code=code,
+                display_name_key=str(market["display_name_key"]),
+                slug_to_category_id=slug_to_category_id,
             )
             await _ensure_market_sports_sections(
                 db,

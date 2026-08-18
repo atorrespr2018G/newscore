@@ -8,8 +8,13 @@ import {
   ARTICLE_BY_SLUG_QUERY,
   CATEGORY_ARTICLES_QUERY,
   HOMEPAGE_FEED_QUERY,
+  PAGE_ARCHIVE_ARTICLES_QUERY,
 } from '@/lib/graphql/operations'
 import { toRegionCode } from '@/lib/region-code'
+import {
+  TECHNOLOGY_ARCHIVE_POSITION_KEY,
+  TECHNOLOGY_PAGE_NAME,
+} from '@/lib/helpers/technology-archive'
 
 interface IGraphqlResponse<T> {
   data?: T
@@ -138,6 +143,42 @@ export async function fetchCategoryArticles(
     console.error('Failed to fetch category articles', {
       slug: options.slug,
       market: options.market,
+      page: options.page,
+      error,
+    })
+    throw error
+  }
+}
+
+interface IFetchPageArchiveArticlesOptions {
+  page: number
+  pageSize: number
+  pageName?: string
+  positionKey?: string
+}
+
+/**
+ * Fetch stories placed on a page archive slot, newest first, with no market filter.
+ *
+ * @param options 1-indexed pagination and optional page/slot identifiers.
+ * @returns Normalized article connection for the requested page.
+ */
+export async function fetchPageArchiveArticles(
+  options: IFetchPageArchiveArticlesOptions,
+): Promise<IArticleConnection> {
+  try {
+    const data = await fetchGraphql<{
+      pageArchiveArticles: Parameters<typeof mapArticleConnection>[0]
+    }>(print(PAGE_ARCHIVE_ARTICLES_QUERY), {
+      page: options.page,
+      pageSize: options.pageSize,
+      pageName: options.pageName ?? TECHNOLOGY_PAGE_NAME,
+      positionKey: options.positionKey ?? TECHNOLOGY_ARCHIVE_POSITION_KEY,
+    })
+    return mapArticleConnection(data.pageArchiveArticles)
+  } catch (error) {
+    console.error('Failed to fetch page archive articles', {
+      pageName: options.pageName ?? TECHNOLOGY_PAGE_NAME,
       page: options.page,
       error,
     })

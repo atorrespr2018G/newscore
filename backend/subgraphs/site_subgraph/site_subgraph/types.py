@@ -12,6 +12,7 @@ from strawberry.types import Info
 from shared.core.cache import get_json, get_region_feed_version, set_json
 from shared.core.feature_flags import geo_graphql_region_args
 from shared.core.markets import DEFAULT_MARKET_CODE
+from shared.core.page_ad_placements import is_market_agnostic_page
 from shared.read import site_reads
 
 from site_subgraph.constants import HOMEPAGE_FEED_TTL_SECONDS, homepage_feed_cache_key
@@ -121,14 +122,16 @@ class SiteQuery:
 
         normalized_page = page_name.strip().lower() or "homepage"
         requested_region = (region_code or "").strip().lower() or None
-        if not geo_graphql_region_args():
+        if not geo_graphql_region_args() or is_market_agnostic_page(normalized_page):
             requested_region = None
+        feed_market = DEFAULT_MARKET_CODE if is_market_agnostic_page(normalized_page) else market
+        feed_town = None if is_market_agnostic_page(normalized_page) else town
 
-        version_scope = requested_region or market
+        version_scope = requested_region or feed_market
         version = await get_region_feed_version(version_scope)
         cache_key = homepage_feed_cache_key(
-            market,
-            town,
+            feed_market,
+            feed_town,
             page_name=normalized_page,
             region_code=requested_region,
             version=version,
@@ -139,8 +142,8 @@ class SiteQuery:
 
         raw = await site_reads.get_home_feed(
             info.context.db,
-            market_code=market,
-            town=town,
+            market_code=feed_market,
+            town=feed_town,
             region_code=requested_region,
             page_name=normalized_page,
         )

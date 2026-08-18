@@ -38,6 +38,8 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
   'sports',
 
+  'archive',
+
   'baseball',
 
   'basketball',
@@ -245,6 +247,7 @@ const SPORTS_PAGE_NON_COMPACT_KEYS = new Set([
   'health',
   'world',
   'ad-ribbon',
+  'archive',
 ])
 
 
@@ -279,6 +282,9 @@ export function isCompactSixBandPositionKey(positionKey: string, pageName?: stri
     return true
   }
   if (pageName?.trim().toLowerCase() === 'business' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
+    return true
+  }
+  if (pageName?.trim().toLowerCase() === 'technology' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
     return true
   }
   return false
@@ -325,6 +331,8 @@ const POSITION_KEY_OVERRIDES_DISPLAY_NAME = new Set([
   'business',
 
   'sports',
+
+  'archive',
 
   'entertainment',
 
@@ -547,6 +555,8 @@ const SECTION_PAGE_ROUTES: Record<string, string> = {
 
   business: '/business',
 
+  technology: '/technology',
+
 }
 
 
@@ -564,6 +574,8 @@ const SECTION_PAGE_NAMES: Record<string, string> = {
   government: 'government',
 
   business: 'business',
+
+  technology: 'technology',
 
 }
 

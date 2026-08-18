@@ -65,7 +65,7 @@ async def get_layout_placements(
     db: AsyncIOMotorDatabase = Depends(get_db),
     _: TokenPayload = Depends(require_role("editor", "admin")),
 ) -> ArticlePlacementsOut:
-    """Resolve article placements across homepage, world, and sports layouts."""
+    """Resolve article placements across homepage, world, sports, and technology layouts."""
 
     return ArticlePlacementsOut(
         placements=await get_article_placements(

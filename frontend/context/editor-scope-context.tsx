@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { DEFAULT_EDITOR_SCOPE, type IEditorScope } from '@/lib/editor/editor-scope'
+import { canonicalizeEditorScope, DEFAULT_EDITOR_SCOPE, type IEditorScope } from '@/lib/editor/editor-scope'
 import {
   persistEditorScope,
   resolveEditorScopeFromToken,
@@ -55,15 +55,17 @@ export function EditorScopeProvider({
 
   // Apply persisted or token scope after mount so SSR HTML matches the client.
   useEffect(() => {
-    setScopeState(sync ? resolveInitialEditorScope() : resolveEditorScopeFromToken())
+    const loaded = sync ? resolveInitialEditorScope() : resolveEditorScopeFromToken()
+    setScopeState(canonicalizeEditorScope(loaded))
   }, [sync])
 
   // A local change persists and broadcasts so the other editor window follows.
   const setScope = useCallback(
     (nextScope: IEditorScope) => {
-      setScopeState(nextScope)
+      const canonical = canonicalizeEditorScope(nextScope)
+      setScopeState(canonical)
       if (sync) {
-        persistEditorScope(nextScope)
+        persistEditorScope(canonical)
       }
     },
     [sync],
@@ -74,7 +76,9 @@ export function EditorScopeProvider({
     if (!sync) {
       return
     }
-    return subscribeToEditorScope(setScopeState)
+    return subscribeToEditorScope((nextScope) => {
+      setScopeState(canonicalizeEditorScope(nextScope))
+    })
   }, [sync])
 
   const value = useMemo(

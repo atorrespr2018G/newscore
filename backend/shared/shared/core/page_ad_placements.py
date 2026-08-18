@@ -46,6 +46,32 @@ PAGE_NAME_WORLD = "world"
 PAGE_NAME_SPORTS = "sports"
 PAGE_NAME_GOVERNMENT = "government"
 PAGE_NAME_BUSINESS = "business"
+PAGE_NAME_TECHNOLOGY = "technology"
+
+# Pages whose public feed is shared globally (not cloned per market/region).
+MARKET_AGNOSTIC_PAGE_NAMES = frozenset({PAGE_NAME_TECHNOLOGY})
+
+# Compact Baseball-style archive on the Technology page (placement membership).
+TECHNOLOGY_ARCHIVE_POSITION_KEY = "archive"
+TECHNOLOGY_HERO_ARTICLE_LIMIT = 12
+TECHNOLOGY_TOP_STORIES_ARTICLE_LIMIT = 12
+TECHNOLOGY_LIVE_ARTICLE_LIMIT = 20
+TECHNOLOGY_ARCHIVE_PLACEMENT_LIMIT = 12
+TECHNOLOGY_ARCHIVE_PIN_LIMIT = 48
+TECHNOLOGY_ARCHIVE_PAGE_SIZE = 16
+
+
+def is_market_agnostic_page(page_name: str) -> bool:
+    """Return whether a layout page is shared across markets.
+
+    Args:
+        page_name: Layout page name such as ``technology``.
+
+    Returns:
+        True when the page must ignore market and region scope.
+    """
+
+    return (page_name or "").strip().lower() in MARKET_AGNOSTIC_PAGE_NAMES
 
 
 def _placement(
@@ -91,12 +117,17 @@ DEFAULT_BUSINESS_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
 ]
 
+DEFAULT_TECHNOLOGY_ADS: list[dict[str, Any]] = [
+    _placement(ad_type="leaderboard", location="masthead"),
+]
+
 
 def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
     """Return default ad placements for a configured page name.
 
     Args:
-        page_name: ``homepage``, ``world``, ``sports``, ``government``, or ``business``.
+        page_name: ``homepage``, ``world``, ``sports``, ``government``,
+            ``business``, or ``technology``.
 
     Returns:
         A deep-copied default ads list for that page.
@@ -111,6 +142,8 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
         return [dict(row) for row in DEFAULT_GOVERNMENT_ADS]
     if normalized == PAGE_NAME_BUSINESS:
         return [dict(row) for row in DEFAULT_BUSINESS_ADS]
+    if normalized == PAGE_NAME_TECHNOLOGY:
+        return [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
     return [dict(row) for row in DEFAULT_HOMEPAGE_ADS]
 
 

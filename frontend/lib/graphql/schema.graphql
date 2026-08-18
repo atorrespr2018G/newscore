@@ -9,6 +9,12 @@ type Query {
     market: String
     regionCode: String
   ): ArticleConnection!
+  pageArchiveArticles(
+    page: Int!
+    pageSize: Int!
+    pageName: String
+    positionKey: String
+  ): ArticleConnection!
 }
 
 type ArticleConnection {

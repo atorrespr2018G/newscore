@@ -27,6 +27,17 @@ interface ISectionArchivePageProps {
   basePath: string
   connection: IArticleConnection
   emptyLabel: string
+  /** When false, omit the parent › title breadcrumb (landing archives). */
+  showBreadcrumb?: boolean
+  /** When false, omit the section H1 (paginated landing archives). */
+  showHeading?: boolean
+  /** Stories per page. Defaults to the connection page size or sport archives. */
+  pageSize?: number
+  /**
+   * `featured` is Baseball lead+rail+grid. `grid` shows every story as a card
+   * so a page of 16 remains 16 news items.
+   */
+  bodyLayout?: 'featured' | 'grid'
 }
 
 interface ISportCategoryPageProps {
@@ -48,17 +59,32 @@ export function SectionArchivePage({
   basePath,
   connection,
   emptyLabel,
+  showBreadcrumb = true,
+  showHeading = true,
+  pageSize,
+  bodyLayout = 'featured',
 }: ISectionArchivePageProps): JSX.Element {
   const t = useTranslations('common')
-  const layout = splitSportArchiveLayout(connection.items)
+  const resolvedPageSize = pageSize || connection.pageSize || SPORT_CATEGORY_PAGE_SIZE
 
   return (
     <div>
-      <SportArchiveHeader parentHref={parentHref} parentLabel={parentLabel} title={title} />
-      <SportArchiveBody layout={layout} emptyLabel={emptyLabel} />
+      {showHeading ? (
+        <SportArchiveHeader
+          parentHref={parentHref}
+          parentLabel={parentLabel}
+          title={title}
+          showBreadcrumb={showBreadcrumb}
+        />
+      ) : null}
+      <ArchiveBody
+        articles={connection.items}
+        emptyLabel={emptyLabel}
+        bodyLayout={bodyLayout}
+      />
       <SitePagination
         page={connection.page}
-        pageSize={connection.pageSize || SPORT_CATEGORY_PAGE_SIZE}
+        pageSize={resolvedPageSize}
         total={connection.total}
         basePath={basePath}
         previousLabel={t('previous')}
@@ -106,27 +132,31 @@ function SportArchiveHeader({
   parentHref,
   parentLabel,
   title,
+  showBreadcrumb = true,
 }: {
   parentHref: string
   parentLabel: string
   title: string
+  showBreadcrumb?: boolean
 }): JSX.Element {
   const t = useTranslations('common')
 
   return (
     <header className="mb-6">
-      <nav
-        className="font-sans text-sm font-normal uppercase tracking-wider text-neutral-500"
-        aria-label={t('breadcrumb')}
-      >
-        <Link href={parentHref} className="hover:underline">
-          {parentLabel}
-        </Link>
-        <span aria-hidden="true" className="mx-1">
-          ›
-        </span>
-        <span>{title}</span>
-      </nav>
+      {showBreadcrumb ? (
+        <nav
+          className="font-sans text-sm font-normal uppercase tracking-wider text-neutral-500"
+          aria-label={t('breadcrumb')}
+        >
+          <Link href={parentHref} className="hover:underline">
+            {parentLabel}
+          </Link>
+          <span aria-hidden="true" className="mx-1">
+            ›
+          </span>
+          <span>{title}</span>
+        </nav>
+      ) : null}
       <h1 className="mt-1 font-sans text-2xl font-semibold uppercase tracking-wider text-neutral-950 sm:text-3xl">
         {title}
       </h1>
@@ -136,24 +166,46 @@ function SportArchiveHeader({
 }
 
 /**
- * Featured lead, compact rail, and remaining 3-column cards — or an empty state.
+ * Featured lead, compact rail, and remaining cards — or a full 16-card grid.
  *
- * @param props Split layout and empty copy.
- * @returns Archive body.
+ * @param props Articles, empty copy, and body layout.
+ * @returns Archive cards, or an empty state.
  */
-function SportArchiveBody({
-  layout,
+function ArchiveBody({
+  articles,
   emptyLabel,
+  bodyLayout,
 }: {
-  layout: ReturnType<typeof splitSportArchiveLayout>
+  articles: IArticle[]
   emptyLabel: string
+  bodyLayout: 'featured' | 'grid'
 }): JSX.Element {
-  if (!layout.featured) {
+  if (articles.length === 0) {
     return (
       <div className="py-10">
         <EmptyState>{emptyLabel}</EmptyState>
       </div>
     )
+  }
+  if (bodyLayout === 'grid') {
+    return <SportArchiveGrid articles={articles} />
+  }
+  return <SportArchiveFeaturedBody layout={splitSportArchiveLayout(articles)} />
+}
+
+/**
+ * Baseball featured lead plus rail, then the remaining grid.
+ *
+ * @param props Split featured/rail/grid layout.
+ * @returns Featured band and grid, or null when there is no lead.
+ */
+function SportArchiveFeaturedBody({
+  layout,
+}: {
+  layout: ReturnType<typeof splitSportArchiveLayout>
+}): JSX.Element | null {
+  if (!layout.featured) {
+    return null
   }
 
   return (

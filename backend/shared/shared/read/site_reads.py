@@ -25,8 +25,10 @@ from shared.core.page_ad_placements import (
     PAGE_NAME_GOVERNMENT,
     PAGE_NAME_HOMEPAGE,
     PAGE_NAME_SPORTS,
+    PAGE_NAME_TECHNOLOGY,
     PAGE_NAME_WORLD,
     default_ads_for_page,
+    is_market_agnostic_page,
     resolve_ads_list,
 )
 from shared.read.collections import (
@@ -205,7 +207,7 @@ async def load_page_ad_placements(
 
     collection = _page_sections_collection(page_name)
     if collection is None:
-        if page_name == PAGE_NAME_BUSINESS:
+        if page_name in {PAGE_NAME_BUSINESS, PAGE_NAME_TECHNOLOGY}:
             return default_ads_for_page(page_name)
         # Politics and other non-configured pages keep hard-coded frontend ads.
         return []
@@ -433,21 +435,35 @@ async def get_breaking(db: AsyncIOMotorDatabase, *, market_code: str = DEFAULT_M
     return await db[WIDGETS_COLLECTION].find_one({"_id": "breaking"}, {"_id": 0})
 
 
-async def get_home_feed(
+async def _resolve_page_feed_scope(
     db: AsyncIOMotorDatabase,
     *,
-    market_code: str = DEFAULT_MARKET_CODE,
-    town: str | None = None,
-    region_code: str | None = None,
-    page_name: str = "homepage",
-) -> dict[str, Any]:
-    """Assemble a page feed from active layout slots for a market."""
+    market_code: str,
+    town: str | None,
+    region_code: str | None,
+    page_name: str,
+) -> tuple[str, str | None, str | None, str | None]:
+    """Resolve market, town, region code, and region id for a page feed.
 
-    normalized_page = page_name.strip().lower() or "homepage"
-    normalized_region_code = (region_code or "").strip().lower() or None
-    requested_region_code = normalized_region_code
+    Market-agnostic pages (Technology) always use the US market layout and
+    ignore the reader's market, town, and region.
+
+    Args:
+        db: Database connection.
+        market_code: Requested market code.
+        town: Optional town slug.
+        region_code: Optional region code.
+        page_name: Normalized layout page name.
+
+    Returns:
+        Tuple of ``(market_code, town, region_code, region_id)``.
+    """
+
+    if is_market_agnostic_page(page_name):
+        return DEFAULT_MARKET_CODE, None, None, None
+
+    requested_region_code = (region_code or "").strip().lower() or None
     region_id: str | None = None
-
     if geo_read_from_regions():
         if not requested_region_code:
             requested_region_code = await resolve_region_code_from_legacy(
@@ -459,6 +475,27 @@ async def get_home_feed(
             region_doc = await get_region_by_code(db, requested_region_code)
             if region_doc is not None:
                 region_id = str(region_doc["_id"])
+    return market_code, town, requested_region_code, region_id
+
+
+async def get_home_feed(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_code: str = DEFAULT_MARKET_CODE,
+    town: str | None = None,
+    region_code: str | None = None,
+    page_name: str = "homepage",
+) -> dict[str, Any]:
+    """Assemble a page feed from active layout slots for a market."""
+
+    normalized_page = page_name.strip().lower() or "homepage"
+    market_code, town, requested_region_code, region_id = await _resolve_page_feed_scope(
+        db,
+        market_code=market_code,
+        town=town,
+        region_code=region_code,
+        page_name=normalized_page,
+    )
 
     market = await get_market_by_code(db, market_code)
     if market is None:
@@ -572,21 +609,13 @@ async def get_home_feed_preview(
     """Assemble a page feed preview with draft pins resolved (no Redis cache)."""
 
     normalized_page = page_name.strip().lower() or "homepage"
-    normalized_region_code = (region_code or "").strip().lower() or None
-    requested_region_code = normalized_region_code
-    region_id: str | None = None
-
-    if geo_read_from_regions():
-        if not requested_region_code:
-            requested_region_code = await resolve_region_code_from_legacy(
-                db,
-                market_code=market_code,
-                town=town,
-            )
-        if requested_region_code:
-            region_doc = await get_region_by_code(db, requested_region_code)
-            if region_doc is not None:
-                region_id = str(region_doc["_id"])
+    market_code, town, requested_region_code, region_id = await _resolve_page_feed_scope(
+        db,
+        market_code=market_code,
+        town=town,
+        region_code=region_code,
+        page_name=normalized_page,
+    )
 
     market = await get_market_by_code(db, market_code)
     if market is None:

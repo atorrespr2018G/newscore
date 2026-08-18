@@ -280,6 +280,7 @@ const HOMEPAGE_PAGE_NAME = 'homepage'
 const SPORTS_PAGE_NAME = 'sports'
 const BUSINESS_PAGE_NAME = 'business'
 const GOVERNMENT_PAGE_NAME = 'government'
+const TECHNOLOGY_PAGE_NAME = 'technology'
 const SPORTS_SECTION_PAIR_SIZE = 2
 const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
@@ -617,6 +618,9 @@ function shouldInsertSportsAdBefore(
   if (kind === 'ribbon_ad') {
     return false
   }
+  if (kind === 'section_archive') {
+    return false
+  }
   if (kind === 'live_carousel') {
     return true
   }
@@ -647,6 +651,9 @@ function SportsPageSlotBlock({
 }): JSX.Element | null {
   if (kind === 'ribbon_ad') {
     return <AdRibbon index={adIndex} />
+  }
+  if (kind === 'section_archive') {
+    return null
   }
   if (kind === 'hero') {
     return (
@@ -717,6 +724,10 @@ function SportsPageSections({
       previousKind = kind
       continue
     }
+    if (kind === 'section_archive') {
+      previousKind = kind
+      continue
+    }
     const showAdBefore =
       !useConfiguredRibbons && shouldInsertSportsAdBefore(kind, previousKind, compactIndex)
     const beforeAdIndex = showAdBefore ? adIndex++ : null
@@ -772,7 +783,8 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     options?.useSportsSectionRows === true ||
     pageName === SPORTS_PAGE_NAME ||
     pageName === BUSINESS_PAGE_NAME ||
-    pageName === GOVERNMENT_PAGE_NAME
+    pageName === GOVERNMENT_PAGE_NAME ||
+    pageName === TECHNOLOGY_PAGE_NAME
 
   if (useSportsSectionRows) {
     return (
@@ -884,6 +896,24 @@ export function BusinessPage({ initialFeed }: { initialFeed?: IHomepageFeed }): 
  */
 export function GovernmentPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { data, loading, error } = usePageFeed(GOVERNMENT_PAGE_NAME)
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
+ * Technology landing using the sports-page hero, Top Stories, and Live band.
+ * The paginated archive is rendered by the route without a Technology heading.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Technology page component.
+ */
+export function TechnologyPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = usePageFeed(TECHNOLOGY_PAGE_NAME)
   const feedData = data ?? initialFeed
 
   return (

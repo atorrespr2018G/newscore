@@ -33,6 +33,7 @@
   "worldArchiveEmpty": "No stories in this region yet.",
   "businessArchiveEmpty": "No stories in this section yet.",
   "governmentArchiveEmpty": "No stories in this government topic yet.",
+  "technologyArchiveEmpty": "No stories placed on this page yet.",
   "paginationNav": "Pagination",
   "goToPage": "Go to page {page}",
   "section": "Section",
@@ -68,6 +69,7 @@
     "businessDescription": "Economy, companies, banking, autos, tourism, construction, and agriculture.",
     "businessBeatDescription": "Latest {beat} news and updates.",
     "governmentDescription": "Executive, legislature, judiciary, agencies, services, emergency, and defense.",
-    "governmentTopicDescription": "Latest {topic} government news and updates."
+    "governmentTopicDescription": "Latest {topic} government news and updates.",
+    "technologyDescription": "Technology news, gadgets, and innovation."
   }
 }

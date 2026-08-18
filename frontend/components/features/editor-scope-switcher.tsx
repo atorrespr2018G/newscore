@@ -8,7 +8,9 @@ import {
 } from '@/lib/florida-counties'
 import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
+import { TECHNOLOGY_PAGE_NAME } from '@/lib/helpers/technology-archive'
 import {
+  DEFAULT_EDITOR_MARKET_CODE,
   EDITOR_MARKET_OPTIONS,
   EDITOR_PAGE_OPTIONS,
   type IEditorScope,
@@ -36,34 +38,52 @@ export function EditorScopeSwitcher(): JSX.Element {
    * @param patch Scope fields to override.
    */
   function updateScope(patch: Partial<IEditorScope>): void {
+    const nextPage = patch.pageName ?? scope.pageName
+    if (nextPage === TECHNOLOGY_PAGE_NAME) {
+      setScope({
+        ...scope,
+        ...patch,
+        pageName: TECHNOLOGY_PAGE_NAME,
+        marketCode: DEFAULT_EDITOR_MARKET_CODE,
+        townId: null,
+        countyId: null,
+      })
+      return
+    }
     setScope({ ...scope, ...patch })
   }
 
-  const showLocality = scope.marketCode === US_MARKET_CODE || scope.marketCode === PUERTO_RICO_MARKET_CODE
-  const showFloridaCounty = scope.marketCode === US_MARKET_CODE && scope.townId === FLORIDA_STATE_CODE
+  const showLocality =
+    scope.pageName !== TECHNOLOGY_PAGE_NAME &&
+    (scope.marketCode === US_MARKET_CODE || scope.marketCode === PUERTO_RICO_MARKET_CODE)
+  const showMarket = scope.pageName !== TECHNOLOGY_PAGE_NAME
+  const showFloridaCounty =
+    showLocality && scope.marketCode === US_MARKET_CODE && scope.townId === FLORIDA_STATE_CODE
 
   return (
     <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-      <label className="text-xs font-medium text-neutral-700">
-        {t('editor.scope.market')}
-        <select
-          value={scope.marketCode}
-          onChange={(event) =>
-            updateScope({
-              marketCode: event.target.value,
-              townId: null,
-              countyId: null,
-            })
-          }
-          className={SELECT_CLASS}
-        >
-          {EDITOR_MARKET_OPTIONS.map((market) => (
-            <option key={market} value={market}>
-              {market.toUpperCase()}
-            </option>
-          ))}
-        </select>
-      </label>
+      {showMarket ? (
+        <label className="text-xs font-medium text-neutral-700">
+          {t('editor.scope.market')}
+          <select
+            value={scope.marketCode}
+            onChange={(event) =>
+              updateScope({
+                marketCode: event.target.value,
+                townId: null,
+                countyId: null,
+              })
+            }
+            className={SELECT_CLASS}
+          >
+            {EDITOR_MARKET_OPTIONS.map((market) => (
+              <option key={market} value={market}>
+                {market.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <label className="text-xs font-medium text-neutral-700">
         {t('editor.scope.page')}
         <select
