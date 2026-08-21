@@ -514,6 +514,79 @@ export function putEntertainmentPageSections(
   )
 }
 
+/** Health page section template used for layout and Placement slots. */
+export type HealthPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'health'
+  | 'ribbon_ad'
+
+/** One ordered section on a health page. */
+export interface IHealthPageSectionItem {
+  section_type: HealthPageSectionType
+  slug: string
+  label: string
+}
+
+/** Health page section list for a market or state region. */
+export interface IHealthPageSectionsOut {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: IHealthPageSectionItem[]
+  ads: IPageAdPlacementApi[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered health section list for a market or region.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @returns Health section list payload.
+ */
+export function getHealthPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<IHealthPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IHealthPageSectionsOut>(
+    `${apiConfig.layout}/health-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered health section list and sync layout slots.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered typed sections (label required; slug optional).
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @returns Updated health section list payload.
+ */
+export function putHealthPageSections(
+  marketCode: string,
+  items: Array<{ section_type: HealthPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
+): Promise<IHealthPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IHealthPageSectionsOut>(
+    `${apiConfig.layout}/health-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items, ads }),
+    },
+  )
+}
+
 /** Main landing page section template used for layout and Placement slots. */
 export type MainPageSectionType =
   | 'hero'

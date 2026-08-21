@@ -9,6 +9,7 @@
     "sports": "Deportes",
     "government": "Gobierno",
     "entertainment": "Entretenimiento",
+    "health": "Salud",
     "mainPage": "Página principal",
     "world": "Mundo",
     "preview": "Vista previa"
@@ -38,6 +39,8 @@
       "governmentTopicSubcategoryEmpty": "Aún no hay temas de gobierno. Agrégalos en Admin → Configuración → Gobierno y guarda.",
       "entertainmentTopicSubcategory": "Tema",
       "entertainmentTopicSubcategoryEmpty": "Aún no hay temas de entretenimiento. Agrégalos en Admin → Configuración → Entretenimiento y guarda.",
+      "healthTopicSubcategory": "Tema",
+      "healthTopicSubcategoryEmpty": "Aún no hay temas de salud. Agrégalos en Admin → Configuración → Salud y guarda.",
       "internationalPotential": "Potencial internacional",
       "internationalPotentialHint": "(opcional, 1 a 10)",
       "notRated": "Sin calificar",
@@ -188,6 +191,8 @@
         "governmentTopicAll": "Todos los temas",
         "entertainmentTopicLabel": "Tema",
         "entertainmentTopicAll": "Todos los temas",
+        "healthTopicLabel": "Tema",
+        "healthTopicAll": "Todos los temas",
         "dateFromLabel": "Creado desde",
         "dateToLabel": "Creado hasta",
         "marketLabel": "País / mercado",
@@ -274,6 +279,8 @@
       "governmentTopicSubcategoryEmpty": "Aún no hay temas de gobierno. Agrégalos en Admin → Configuración → Gobierno y guarda.",
       "entertainmentTopicSubcategory": "Tema",
       "entertainmentTopicSubcategoryEmpty": "Aún no hay temas de entretenimiento. Agrégalos en Admin → Configuración → Entretenimiento y guarda.",
+      "healthTopicSubcategory": "Tema",
+      "healthTopicSubcategoryEmpty": "Aún no hay temas de salud. Agrégalos en Admin → Configuración → Salud y guarda.",
       "internationalPotential": "Potencial internacional",
       "internationalPotentialHint": "(opcional, 1 a 10)",
       "notRated": "Sin calificar",
@@ -474,6 +481,36 @@
     "saveSuccess": "Lista de entretenimiento guardada. Usa Placement → entertainment para fijar historias, o etiqueta artículos con la nueva categoría.",
     "saveFailed": "No se pudo guardar la lista de entretenimiento.",
     "loadFailed": "No se pudo cargar la lista de entretenimiento."
+  },
+  "healthPage": {
+    "heading": "Secciones de salud",
+    "subtitle": "Administra la lista ordenada de secciones de la página Salud (héroe, Principales, En vivo y filas temáticas) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se crean categorías y ranuras. Coloca historias en Placement → Página → health.",
+    "listHint": "Agrega, quita, renombra o reordena cualquier sección, incluidas las filas de cinta publicitaria entre temas. Al guardar se actualiza Placement → health para el mismo mercado, estado, condado o pueblo. Las filas compactas también mantienen una cinta publicitaria cada dos filas.",
+    "labelPlaceholder": "Nombre de la sección",
+    "addType": {
+      "hero": "Agregar héroe",
+      "top_stories": "Agregar Principales",
+      "live": "Agregar En vivo",
+      "health": "Agregar tema de salud",
+      "ribbon_ad": "Agregar cinta publicitaria"
+    },
+    "types": {
+      "hero": "Héroe",
+      "top_stories": "Principales",
+      "live": "En vivo",
+      "health": "Salud",
+      "ribbon_ad": "Cinta publicitaria"
+    },
+    "remove": "Quitar",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "dragHandle": "Arrastrar para reordenar",
+    "save": "Guardar lista",
+    "saving": "Guardando…",
+    "loading": "Cargando lista de salud…",
+    "saveSuccess": "Lista de salud guardada. Usa Placement → health para fijar historias, o etiqueta artículos con la nueva categoría.",
+    "saveFailed": "No se pudo guardar la lista de salud.",
+    "loadFailed": "No se pudo cargar la lista de salud."
   },
   "pageAds": {
     "heading": "Publicidad",

@@ -27,6 +27,7 @@ export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = [
   'sports',
   'government',
   'entertainment',
+  'health',
   TECHNOLOGY_PAGE_NAME,
 ]
 

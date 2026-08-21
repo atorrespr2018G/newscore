@@ -11,6 +11,9 @@ export const GOVERNMENT_CATEGORY_SLUG = 'government'
 /** Parent slug for Entertainment topic chips in the editor/reporter. */
 export const ENTERTAINMENT_CATEGORY_SLUG = 'entertainment'
 
+/** Root Health category slug (homepage Health row; labeled Health in the UI). */
+export const HEALTH_CATEGORY_SLUG = 'finance'
+
 /** Parent slug for per-region subcategory chips in the editor/reporter. */
 export const WORLD_CATEGORY_SLUG = 'world'
 

@@ -34,6 +34,9 @@ export const GOVERNMENT_CATEGORY_SLUG = 'government'
 /** Parent slug for Entertainment topic chips. */
 export const ENTERTAINMENT_CATEGORY_SLUG = 'entertainment'
 
+/** Parent slug for Health topic chips (homepage Health row). */
+export const HEALTH_CATEGORY_SLUG = 'finance'
+
 /** Optional 1–10 international relevance score. */
 export const INTERNATIONAL_POTENTIAL_OPTIONS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
@@ -52,10 +55,10 @@ export const ROOT_CATEGORY_OPTIONS: ICategoryOption[] = [
   { slug: 'us', label: 'US', parentSlug: null },
   { slug: 'world', label: 'World', parentSlug: null },
   { slug: 'politics', label: 'Politics', parentSlug: null },
-  { slug: 'finance', label: 'Finance', parentSlug: null },
+  { slug: 'finance', label: 'Health', parentSlug: null },
   { slug: 'technology', label: 'Technology', parentSlug: null },
   { slug: 'business', label: 'Business', parentSlug: null },
-  { slug: 'health', label: 'Health', parentSlug: null },
+  { slug: 'health', label: 'Live', parentSlug: null },
   { slug: 'entertainment', label: 'Entertainment', parentSlug: null },
   { slug: 'style', label: 'Style', parentSlug: null },
   { slug: 'travel', label: 'Travel', parentSlug: null },
@@ -102,6 +105,14 @@ export const ENTERTAINMENT_CATEGORY_OPTIONS: ICategoryOption[] = [
   { slug: 'gaming', label: 'Gaming', parentSlug: ENTERTAINMENT_CATEGORY_SLUG },
   { slug: 'lifestyle', label: 'Lifestyle', parentSlug: ENTERTAINMENT_CATEGORY_SLUG },
   { slug: 'horoscope', label: 'Horoscope', parentSlug: ENTERTAINMENT_CATEGORY_SLUG },
+]
+
+/** Health topic chips shown when Health is selected. */
+export const HEALTH_CATEGORY_OPTIONS: ICategoryOption[] = [
+  { slug: 'fitness', label: 'Fitness', parentSlug: HEALTH_CATEGORY_SLUG },
+  { slug: 'food', label: 'Food', parentSlug: HEALTH_CATEGORY_SLUG },
+  { slug: 'sleep', label: 'Sleep', parentSlug: HEALTH_CATEGORY_SLUG },
+  { slug: 'family', label: 'Family', parentSlug: HEALTH_CATEGORY_SLUG },
 ]
 
 /** Economía beat chips shown when Economy is selected. */
@@ -183,6 +194,16 @@ export function isEntertainmentTopicSlug(slug: string): boolean {
 }
 
 /**
+ * Whether a slug is a Health topic under Health.
+ *
+ * @param slug - Category slug to check.
+ * @returns True when the slug is one of the Health topic chips.
+ */
+export function isHealthTopicSlug(slug: string): boolean {
+  return HEALTH_CATEGORY_OPTIONS.some((topic) => topic.slug === slug)
+}
+
+/**
  * Toggle a category slug on or off.
  *
  * Root categories are independent. Sport chips require Sports to already be
@@ -194,7 +215,13 @@ export function isEntertainmentTopicSlug(slug: string): boolean {
  * @returns Updated selection (same array when a child add is blocked).
  */
 export function toggleCategorySlug(selected: string[], slug: string): string[] {
-  if (slug === SPORTS_CATEGORY_SLUG || slug === BUSINESS_CATEGORY_SLUG || slug === GOVERNMENT_CATEGORY_SLUG || slug === ENTERTAINMENT_CATEGORY_SLUG) {
+  if (
+    slug === SPORTS_CATEGORY_SLUG ||
+    slug === BUSINESS_CATEGORY_SLUG ||
+    slug === GOVERNMENT_CATEGORY_SLUG ||
+    slug === ENTERTAINMENT_CATEGORY_SLUG ||
+    slug === HEALTH_CATEGORY_SLUG
+  ) {
     return toggleParentSlug(selected, slug)
   }
   if (isSportCategorySlug(slug)) {
@@ -208,6 +235,9 @@ export function toggleCategorySlug(selected: string[], slug: string): string[] {
   }
   if (isEntertainmentTopicSlug(slug)) {
     return toggleChildSlug(selected, slug, ENTERTAINMENT_CATEGORY_SLUG)
+  }
+  if (isHealthTopicSlug(slug)) {
+    return toggleChildSlug(selected, slug, HEALTH_CATEGORY_SLUG)
   }
   if (selected.includes(slug)) {
     return selected.filter((item) => item !== slug)
@@ -266,6 +296,9 @@ function childSlugsForParent(parentSlug: string): Set<string> {
   }
   if (parentSlug === ENTERTAINMENT_CATEGORY_SLUG) {
     return new Set(ENTERTAINMENT_CATEGORY_OPTIONS.map((topic) => topic.slug))
+  }
+  if (parentSlug === HEALTH_CATEGORY_SLUG) {
+    return new Set(HEALTH_CATEGORY_OPTIONS.map((topic) => topic.slug))
   }
   return new Set()
 }

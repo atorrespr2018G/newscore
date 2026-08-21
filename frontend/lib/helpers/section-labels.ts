@@ -142,6 +142,14 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
   'horoscope',
 
+  'fitness',
+
+  'food',
+
+  'sleep',
+
+  'family',
+
 ])
 
 
@@ -285,6 +293,14 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
 
   'horoscope',
 
+  'fitness',
+
+  'food',
+
+  'sleep',
+
+  'family',
+
 ])
 
 /** Slots on the Sports page that are not compact sport rows. */
@@ -336,6 +352,9 @@ export function isCompactSixBandPositionKey(positionKey: string, pageName?: stri
     return true
   }
   if (pageName?.trim().toLowerCase() === 'entertainment' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
+    return true
+  }
+  if (pageName?.trim().toLowerCase() === 'health' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
     return true
   }
   return false
@@ -450,6 +469,14 @@ const POSITION_KEY_OVERRIDES_DISPLAY_NAME = new Set([
   'lifestyle',
 
   'horoscope',
+
+  'fitness',
+
+  'food',
+
+  'sleep',
+
+  'family',
 
 ])
 
@@ -595,7 +622,7 @@ export function homepageSectionTitle(
 
   // Sports / Economía pages: prefer i18n labels; CMS names for custom rows only.
   const page = pageName?.trim().toLowerCase()
-  if (page === 'sports' || page === 'business' || page === 'government' || page === 'entertainment') {
+  if (page === 'sports' || page === 'business' || page === 'government' || page === 'entertainment' || page === 'health') {
     if (SECTION_TRANSLATION_KEYS.has(normalized) && translate) {
       return translate(`sectionLabels.${normalized}` as `sectionLabels.${string}`)
     }
@@ -630,6 +657,8 @@ const SECTION_PAGE_ROUTES: Record<string, string> = {
 
   entertainment: '/entertainment',
 
+  finance: '/health',
+
   business: '/business',
 
   technology: '/technology',
@@ -651,6 +680,8 @@ const SECTION_PAGE_NAMES: Record<string, string> = {
   government: 'government',
 
   entertainment: 'entertainment',
+
+  finance: 'health',
 
   business: 'business',
 
@@ -709,6 +740,18 @@ export function governmentPagePath(slug: string): string {
 export function entertainmentPagePath(slug: string): string {
   const normalized = slug.trim().toLowerCase()
   return `/entertainment/${encodeURIComponent(normalized)}`
+}
+
+
+/**
+ * Dedicated archive path for a Health topic slug.
+ *
+ * @param slug Topic section slug such as `fitness`.
+ * @returns Path like `/health/fitness`.
+ */
+export function healthPagePath(slug: string): string {
+  const normalized = slug.trim().toLowerCase()
+  return `/health/${encodeURIComponent(normalized)}`
 }
 
 

@@ -281,6 +281,7 @@ const SPORTS_PAGE_NAME = 'sports'
 const BUSINESS_PAGE_NAME = 'business'
 const GOVERNMENT_PAGE_NAME = 'government'
 const ENTERTAINMENT_PAGE_NAME = 'entertainment'
+const HEALTH_PAGE_NAME = 'health'
 const TECHNOLOGY_PAGE_NAME = 'technology'
 const SPORTS_SECTION_PAIR_SIZE = 2
 const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
@@ -786,6 +787,7 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     pageName === BUSINESS_PAGE_NAME ||
     pageName === GOVERNMENT_PAGE_NAME ||
     pageName === ENTERTAINMENT_PAGE_NAME ||
+    pageName === HEALTH_PAGE_NAME ||
     pageName === TECHNOLOGY_PAGE_NAME
 
   if (useSportsSectionRows) {
@@ -915,6 +917,23 @@ export function GovernmentPage({ initialFeed }: { initialFeed?: IHomepageFeed })
  */
 export function EntertainmentPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { data, loading, error } = usePageFeed(ENTERTAINMENT_PAGE_NAME)
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
+ * Health landing using the sports-page hero plus compact topic rows.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Health page component.
+ */
+export function HealthPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = usePageFeed(HEALTH_PAGE_NAME)
   const feedData = data ?? initialFeed
 
   return (

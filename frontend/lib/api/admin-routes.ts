@@ -43,6 +43,7 @@ export const ADMIN_WORKFLOW_ROUTES = [
   '/admin/editor/sports',
   '/admin/editor/government',
   '/admin/editor/entertainment',
+  '/admin/editor/health',
   '/admin/preview',
 ] as const
 
@@ -91,6 +92,7 @@ export const ADMIN_WORKFLOW_TABS: ReadonlyArray<AdminWorkflowTabType> = [
       { href: '/admin/editor/sports', labelKey: 'sports', activePrefix: '/admin/editor/sports' },
       { href: '/admin/editor/government', labelKey: 'government', activePrefix: '/admin/editor/government' },
       { href: '/admin/editor/entertainment', labelKey: 'entertainment', activePrefix: '/admin/editor/entertainment' },
+      { href: '/admin/editor/health', labelKey: 'health', activePrefix: '/admin/editor/health' },
     ],
   },
   { href: '/admin/preview', labelKey: 'preview', activePrefix: '/admin/preview', badgeView: 'review' },

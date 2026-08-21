@@ -27,6 +27,7 @@ import {
   BUSINESS_CATEGORY_SLUG,
   GOVERNMENT_CATEGORY_SLUG,
   ENTERTAINMENT_CATEGORY_SLUG,
+  HEALTH_CATEGORY_SLUG,
   SPORTS_CATEGORY_SLUG,
   findCategoryBySlug,
 } from '@/lib/helpers/category-selection'
@@ -35,6 +36,10 @@ import {
   loadEntertainmentTopicSlugs,
   resolveEntertainmentSubcategories,
 } from '@/lib/helpers/entertainment-category-options'
+import {
+  loadHealthTopicSlugs,
+  resolveHealthSubcategories,
+} from '@/lib/helpers/health-category-options'
 import {
   loadGovernmentTopicSlugs,
   resolveGovernmentSubcategories,
@@ -660,20 +665,27 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
     queryKey: ['editor', 'entertainment-page-section-slugs', 'all'],
     queryFn: () => loadEntertainmentTopicSlugs(),
   })
+  const healthSectionsQuery = useQuery({
+    queryKey: ['editor', 'health-page-section-slugs', 'all'],
+    queryFn: () => loadHealthTopicSlugs(),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
   const worldRegionSlugs = worldSectionsQuery.data ?? []
   const governmentTopicSlugs = governmentSectionsQuery.data ?? []
   const entertainmentTopicSlugs = entertainmentSectionsQuery.data ?? []
+  const healthTopicSlugs = healthSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
   const governmentParent = findCategoryBySlug(categories, GOVERNMENT_CATEGORY_SLUG)
   const entertainmentParent = findCategoryBySlug(categories, ENTERTAINMENT_CATEGORY_SLUG)
+  const healthParent = findCategoryBySlug(categories, HEALTH_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && filters.categoryId === sportsParent.id
   const businessSelected = businessParent != null && filters.categoryId === businessParent.id
   const governmentSelected =
     governmentParent != null && filters.categoryId === governmentParent.id
   const entertainmentSelected =
     entertainmentParent != null && filters.categoryId === entertainmentParent.id
+  const healthSelected = healthParent != null && filters.categoryId === healthParent.id
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
   const businessChildren = resolveBusinessSubcategories(categories)
   const governmentChildren = resolveGovernmentSubcategories(categories, governmentTopicSlugs)
@@ -681,6 +693,7 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
     categories,
     entertainmentTopicSlugs,
   )
+  const healthChildren = resolveHealthSubcategories(categories, healthTopicSlugs)
   const sectionCategories = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
 
   return (
@@ -776,6 +789,23 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
           >
             <option value="">{t('editor.pool.filterBar.entertainmentTopicAll')}</option>
             {entertainmentChildren.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      ) : null}
+      {healthSelected ? (
+        <FilterField label={t('editor.pool.filterBar.healthTopicLabel')}>
+          <select
+            value={filters.sportCategoryId}
+            disabled={disabled || healthSectionsQuery.isLoading}
+            onChange={(event) => onUpdate({ sportCategoryId: event.target.value })}
+            className={filterControlClass(disabled)}
+          >
+            <option value="">{t('editor.pool.filterBar.healthTopicAll')}</option>
+            {healthChildren.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>

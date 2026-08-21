@@ -46,6 +46,7 @@ PAGE_NAME_WORLD = "world"
 PAGE_NAME_SPORTS = "sports"
 PAGE_NAME_GOVERNMENT = "government"
 PAGE_NAME_ENTERTAINMENT = "entertainment"
+PAGE_NAME_HEALTH = "health"
 PAGE_NAME_BUSINESS = "business"
 PAGE_NAME_TECHNOLOGY = "technology"
 
@@ -118,6 +119,10 @@ DEFAULT_ENTERTAINMENT_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
 ]
 
+DEFAULT_HEALTH_ADS: list[dict[str, Any]] = [
+    _placement(ad_type="leaderboard", location="masthead"),
+]
+
 DEFAULT_BUSINESS_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
 ]
@@ -132,7 +137,7 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
 
     Args:
         page_name: ``homepage``, ``world``, ``sports``, ``government``,
-            ``entertainment``, ``business``, or ``technology``.
+            ``entertainment``, ``health``, ``business``, or ``technology``.
 
     Returns:
         A deep-copied default ads list for that page.
@@ -147,6 +152,8 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
         return [dict(row) for row in DEFAULT_GOVERNMENT_ADS]
     if normalized == PAGE_NAME_ENTERTAINMENT:
         return [dict(row) for row in DEFAULT_ENTERTAINMENT_ADS]
+    if normalized == PAGE_NAME_HEALTH:
+        return [dict(row) for row in DEFAULT_HEALTH_ADS]
     if normalized == PAGE_NAME_BUSINESS:
         return [dict(row) for row in DEFAULT_BUSINESS_ADS]
     if normalized == PAGE_NAME_TECHNOLOGY:

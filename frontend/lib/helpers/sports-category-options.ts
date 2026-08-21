@@ -4,6 +4,7 @@ import { EDITOR_MARKET_OPTIONS } from '@/lib/editor/editor-scope'
 import { isBusinessBeatCategory } from '@/lib/helpers/business-category-options'
 import { isEntertainmentTopicCategory } from '@/lib/helpers/entertainment-category-options'
 import { isGovernmentTopicCategory } from '@/lib/helpers/government-category-options'
+import { isHealthTopicCategory } from '@/lib/helpers/health-category-options'
 import {
   SPORTS_CATEGORY_SLUG,
   findCategoryBySlug,
@@ -109,6 +110,9 @@ export function rootSectionCategories(
       return false
     }
     if (isEntertainmentTopicCategory(categories, category)) {
+      return false
+    }
+    if (isHealthTopicCategory(categories, category)) {
       return false
     }
     if (category.slug.trim().toLowerCase() === 'government-page-world') {

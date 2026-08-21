@@ -10,6 +10,7 @@ import {
   BUSINESS_CATEGORY_SLUG,
   GOVERNMENT_CATEGORY_SLUG,
   ENTERTAINMENT_CATEGORY_SLUG,
+  HEALTH_CATEGORY_SLUG,
   SPORTS_CATEGORY_SLUG,
   WORLD_CATEGORY_SLUG,
   findCategoryBySlug,
@@ -21,6 +22,10 @@ import {
   loadEntertainmentTopicSlugs,
   resolveEntertainmentSubcategories,
 } from '@/lib/helpers/entertainment-category-options'
+import {
+  loadHealthTopicSlugs,
+  resolveHealthSubcategories,
+} from '@/lib/helpers/health-category-options'
 import {
   loadGovernmentTopicSlugs,
   resolveGovernmentSubcategories,
@@ -59,6 +64,8 @@ interface IRootChildIdMap {
   governmentChildIds: string[]
   entertainmentParentId?: string
   entertainmentChildIds: string[]
+  healthParentId?: string
+  healthChildIds: string[]
 }
 
 /**
@@ -83,6 +90,9 @@ function extraChildIdsForRoot(categoryId: string, childIds: IRootChildIdMap): st
   }
   if (categoryId === childIds.entertainmentParentId) {
     return childIds.entertainmentChildIds
+  }
+  if (categoryId === childIds.healthParentId) {
+    return childIds.healthChildIds
   }
   return []
 }
@@ -118,15 +128,21 @@ export function CategoryChipGroup({
     queryKey: ['editor', 'entertainment-page-section-slugs', marketCode ?? 'all'],
     queryFn: () => loadEntertainmentTopicSlugs(marketCode),
   })
+  const healthSectionsQuery = useQuery({
+    queryKey: ['editor', 'health-page-section-slugs', marketCode ?? 'all'],
+    queryFn: () => loadHealthTopicSlugs(marketCode),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
   const worldRegionSlugs = worldSectionsQuery.data ?? []
   const governmentTopicSlugs = governmentSectionsQuery.data ?? []
   const entertainmentTopicSlugs = entertainmentSectionsQuery.data ?? []
+  const healthTopicSlugs = healthSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const worldParent = findCategoryBySlug(categories, WORLD_CATEGORY_SLUG)
   const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
   const governmentParent = findCategoryBySlug(categories, GOVERNMENT_CATEGORY_SLUG)
   const entertainmentParent = findCategoryBySlug(categories, ENTERTAINMENT_CATEGORY_SLUG)
+  const healthParent = findCategoryBySlug(categories, HEALTH_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && selectedCategoryIds.includes(sportsParent.id)
   const worldSelected = worldParent != null && selectedCategoryIds.includes(worldParent.id)
   const businessSelected =
@@ -135,6 +151,7 @@ export function CategoryChipGroup({
     governmentParent != null && selectedCategoryIds.includes(governmentParent.id)
   const entertainmentSelected =
     entertainmentParent != null && selectedCategoryIds.includes(entertainmentParent.id)
+  const healthSelected = healthParent != null && selectedCategoryIds.includes(healthParent.id)
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
   const worldChildren = resolveWorldRegionSubcategories(categories, worldRegionSlugs)
   const businessChildren = resolveBusinessSubcategories(categories)
@@ -143,6 +160,7 @@ export function CategoryChipGroup({
     categories,
     entertainmentTopicSlugs,
   )
+  const healthChildren = resolveHealthSubcategories(categories, healthTopicSlugs)
   const roots = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
   const atLimit = selectedCategoryIds.length >= MAX_CATEGORY_COUNT
 
@@ -190,6 +208,8 @@ export function CategoryChipGroup({
                           governmentChildIds: governmentChildren.map((topic) => topic.id),
                           entertainmentParentId: entertainmentParent?.id,
                           entertainmentChildIds: entertainmentChildren.map((topic) => topic.id),
+                          healthParentId: healthParent?.id,
+                          healthChildIds: healthChildren.map((topic) => topic.id),
                         }),
                       ),
                     )
@@ -258,6 +278,19 @@ export function CategoryChipGroup({
               atLimit={atLimit}
               isLoading={entertainmentSectionsQuery.isLoading}
               emptyLabel={t(`${messagePrefix}.entertainmentTopicSubcategoryEmpty`)}
+              loadingLabel={t(`${messagePrefix}.loadingCategories`)}
+              categoryLabel={categoryLabel}
+              setSelectedCategoryIds={setSelectedCategoryIds}
+            />
+          ) : null}
+          {healthSelected ? (
+            <SubcategoryChipRow
+              title={t(`${messagePrefix}.healthTopicSubcategory`)}
+              categories={healthChildren}
+              selectedCategoryIds={selectedCategoryIds}
+              atLimit={atLimit}
+              isLoading={healthSectionsQuery.isLoading}
+              emptyLabel={t(`${messagePrefix}.healthTopicSubcategoryEmpty`)}
               loadingLabel={t(`${messagePrefix}.loadingCategories`)}
               categoryLabel={categoryLabel}
               setSelectedCategoryIds={setSelectedCategoryIds}

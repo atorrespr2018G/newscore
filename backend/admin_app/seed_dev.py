@@ -18,6 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from admin_app.helpers.password_helpers import hash_password
 from shared.core.entertainment_page_sections_sync import DEFAULT_ENTERTAINMENT_TOPIC_LABELS
+from shared.core.health_page_sections_sync import DEFAULT_HEALTH_TOPIC_LABELS
 from shared.core.indexes import ensure_indexes
 from shared.core.page_ad_placements import (
     PAGE_NAME_TECHNOLOGY,
@@ -1559,6 +1560,9 @@ GOVERNMENT_SECTION_LABELS: list[str] = [
 # Entertainment page topics using the Sports landing template (no World band).
 ENTERTAINMENT_SECTION_LABELS: list[str] = list(DEFAULT_ENTERTAINMENT_TOPIC_LABELS)
 
+# Health page topics using the Entertainment landing template (no World band).
+HEALTH_SECTION_LABELS: list[str] = list(DEFAULT_HEALTH_TOPIC_LABELS)
+
 GOVERNMENT_CHILD_CATEGORIES: list[dict[str, str]] = [
     {
         "name": "Executive",
@@ -2213,6 +2217,47 @@ async def _stamp_entertainment_page_category_fill(db: AsyncIOMotorDatabase) -> N
             await _set_slot_query_category_id(db, str(slot["_id"]), str(category["_id"]))
 
 
+def _health_slot_category_slug(position_key: str) -> str | None:
+    """Map a health-page slot key to the category slug that should fill it."""
+
+    from shared.core.health_page_sections_sync import slugify_health_label
+
+    preserved = {
+        "hero": "finance",
+        "us-featured": "finance",
+        "health": "health",
+        "finance": "finance",
+    }
+    if position_key in preserved:
+        return preserved[position_key]
+    if position_key.startswith("ad-ribbon"):
+        return None
+    topic_slugs = {slugify_health_label(label) for label in HEALTH_SECTION_LABELS}
+    if position_key in topic_slugs:
+        return position_key
+    return None
+
+
+async def _stamp_health_page_category_fill(db: AsyncIOMotorDatabase) -> None:
+    """Write category auto-fill onto health page slots so seeded stories appear.
+
+    Args:
+        db: Database connection.
+    """
+
+    cursor = db[LAYOUTS_COLLECTION].find({"page_name": "health"}, {"_id": 1})
+    async for layout in cursor:
+        slots = db[SLOTS_COLLECTION].find({"layout_id": layout["_id"]}, {"_id": 1, "position_key": 1})
+        async for slot in slots:
+            slug = _health_slot_category_slug(str(slot.get("position_key") or ""))
+            if not slug:
+                continue
+            category = await db[CATEGORIES_COLLECTION].find_one({"slug": slug}, {"_id": 1})
+            if category is None:
+                continue
+            await _set_slot_query_category_id(db, str(slot["_id"]), str(category["_id"]))
+
+
 async def _stamp_homepage_government_category_fill(
     db: AsyncIOMotorDatabase,
     slug_to_category_id: dict[str, str],
@@ -2829,6 +2874,167 @@ async def _ensure_us_state_entertainment_sections(db: AsyncIOMotorDatabase) -> N
     logger.info("Seeded geo entertainment sections: %s", result)
 
 
+async def _ensure_market_health_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+) -> None:
+    """Seed per-market health section config and sync the health layout."""
+
+    from shared.core.health_page_sections_sync import (
+        default_health_page_section_items,
+        sync_health_layout_slots,
+    )
+    from shared.read.collections import HEALTH_PAGE_SECTIONS_COLLECTION
+
+    items = default_health_page_section_items(HEALTH_SECTION_LABELS)
+    now = _utc_now_iso()
+    existing = await db[HEALTH_PAGE_SECTIONS_COLLECTION].find_one(
+        {
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        },
+        {"_id": 1},
+    )
+    if existing is not None:
+        await db[HEALTH_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"items": items, "updated_at": now, "region_id": None}},
+        )
+    else:
+        await db[HEALTH_PAGE_SECTIONS_COLLECTION].insert_one(
+            {
+                "_id": str(uuid4()),
+                "market_id": market_id,
+                "region_id": None,
+                "items": items,
+                "updated_at": now,
+            },
+        )
+    await sync_health_layout_slots(db, market_id=market_id, items=items, region_id=None)
+    logger.info(
+        "Seeded health sections for market %s (%d items)",
+        market_code,
+        len(items),
+    )
+
+
+async def _ensure_us_state_health_sections(db: AsyncIOMotorDatabase) -> None:
+    """Seed health lists for US states, Florida counties, and PR towns."""
+
+    from shared.core.health_page_sections_sync import ensure_geo_health_sections
+
+    result = await ensure_geo_health_sections(db, labels=HEALTH_SECTION_LABELS)
+    logger.info("Seeded geo health sections: %s", result)
+
+
+def _health_seed_headlines(label: str) -> list[str]:
+    """Twelve headlines so compact Health rows paginate like Entertainment."""
+
+    return [
+        f"{label} clinics expand weekend hours in San Juan",
+        f"New {label} study guides island wellness programs",
+        f"Island {label} campaign launches in schools",
+        f"{label} specialists join regional hospital network",
+        f"Community centers add {label} workshops after grant",
+        f"{label} tips shared at municipal health fair",
+        f"Insurers expand coverage for {label} services",
+        f"{label} research partnership grows across Caribbean",
+        f"Families praise new wave of island {label} care",
+        f"{label} centers reopen after renovation",
+        f"Youth {label} program expands to 20 towns",
+        f"{label} awareness week returns this fall",
+    ]
+
+
+async def _ensure_pr_health_section_articles(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    market_id: str,
+) -> None:
+    """Seed Puerto Rico articles for each configured health section category."""
+
+    from shared.core.health_page_sections_sync import slugify_health_label
+
+    parent = await db[CATEGORIES_COLLECTION].find_one({"slug": "finance"}, {"_id": 1})
+    parent_id = str(parent["_id"]) if parent else None
+    for label in HEALTH_SECTION_LABELS:
+        slug = slugify_health_label(label)
+        category = await db[CATEGORIES_COLLECTION].find_one({"slug": slug})
+        if category is None:
+            raise RuntimeError(f"Missing health category after sync: {slug}")
+        category_id = str(category["_id"])
+        category_ids = [parent_id, category_id] if parent_id else [category_id]
+        for story in _health_seed_headlines(label):
+            await _upsert_pr_health_story(
+                db,
+                author_id=author_id,
+                market_id=market_id,
+                category_id=category_id,
+                category_ids=category_ids,
+                slug=slug,
+                story=story,
+            )
+    logger.info("Ensured Puerto Rico health-section articles for market pr")
+
+
+async def _upsert_pr_health_story(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    market_id: str,
+    category_id: str,
+    category_ids: list[str],
+    slug: str,
+    story: str,
+) -> None:
+    """Insert or update one Puerto Rico health topic article.
+
+    Args:
+        db: Database connection.
+        author_id: Admin user id for newly inserted articles.
+        market_id: Puerto Rico market document id.
+        category_id: Topic category document id.
+        category_ids: Category ids including the Health parent (finance).
+        slug: Topic category slug.
+        story: Headline used as the article title.
+    """
+
+    existing = await db[ARTICLES_COLLECTION].find_one(
+        {"category_id": category_id, "market_ids": market_id, "title": story},
+    )
+    now = _utc_now_iso()
+    fields = _market_article_fields(
+        story,
+        title=story,
+        market_code="pr",
+        category_slug=slug,
+        video_url=None,
+        now=now,
+    )
+    fields["category_ids"] = category_ids
+    if existing is not None:
+        await db[ARTICLES_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
+        return
+    article_id = str(uuid4())
+    doc = _new_market_article_doc(
+        article_id=article_id,
+        author_id=author_id,
+        market_id=market_id,
+        category_id=category_id,
+        market_code="pr",
+        category_slug=slug,
+        story=story,
+        title=story,
+        video_url=None,
+        now=now,
+    )
+    doc["category_ids"] = category_ids
+    await db[ARTICLES_COLLECTION].insert_one(doc)
+
+
 def _entertainment_seed_headlines(label: str) -> list[str]:
     """Twelve headlines so compact Entertainment rows paginate like Sports."""
 
@@ -3122,6 +3328,11 @@ async def seed_dev() -> None:
                 market_id=market_id,
                 market_code=code,
             )
+            await _ensure_market_health_sections(
+                db,
+                market_id=market_id,
+                market_code=code,
+            )
             if code == "pr":
                 await _ensure_pr_sport_section_articles(
                     db,
@@ -3133,15 +3344,22 @@ async def seed_dev() -> None:
                     author_id=str(admin["_id"]),
                     market_id=market_id,
                 )
+                await _ensure_pr_health_section_articles(
+                    db,
+                    author_id=str(admin["_id"]),
+                    market_id=market_id,
+                )
 
         await _ensure_breaking_widgets(db)
         await _ensure_geo_regions_and_backfill()
         await _ensure_us_state_sports_sections(db)
         await _ensure_us_state_government_sections(db)
         await _ensure_us_state_entertainment_sections(db)
+        await _ensure_us_state_health_sections(db)
         await _stamp_government_page_category_fill(db, slug_to_category_id)
         await _stamp_homepage_government_category_fill(db, slug_to_category_id)
         await _stamp_entertainment_page_category_fill(db)
+        await _stamp_health_page_category_fill(db)
         await _invalidate_homepage_feed_cache()
     finally:
         client.close()

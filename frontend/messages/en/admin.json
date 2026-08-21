@@ -9,6 +9,7 @@
     "sports": "Sports",
     "government": "Government",
     "entertainment": "Entertainment",
+    "health": "Health",
     "mainPage": "Main Page",
     "world": "World",
     "preview": "Preview"
@@ -38,6 +39,8 @@
       "governmentTopicSubcategoryEmpty": "No government topics configured yet. Add them under Admin → Configuration → Government, then save.",
       "entertainmentTopicSubcategory": "Topic",
       "entertainmentTopicSubcategoryEmpty": "No entertainment topics configured yet. Add them under Admin → Configuration → Entertainment, then save.",
+      "healthTopicSubcategory": "Topic",
+      "healthTopicSubcategoryEmpty": "No health topics configured yet. Add them under Admin → Configuration → Health, then save.",
       "internationalPotential": "International potential",
       "internationalPotentialHint": "(optional, 1–10)",
       "notRated": "Not rated",
@@ -188,6 +191,8 @@
         "governmentTopicAll": "All topics",
         "entertainmentTopicLabel": "Topic",
         "entertainmentTopicAll": "All topics",
+        "healthTopicLabel": "Topic",
+        "healthTopicAll": "All topics",
         "dateFromLabel": "Created from",
         "dateToLabel": "Created to",
         "marketLabel": "Country / market",
@@ -274,6 +279,8 @@
       "governmentTopicSubcategoryEmpty": "No government topics configured yet. Add them under Admin → Configuration → Government, then save.",
       "entertainmentTopicSubcategory": "Topic",
       "entertainmentTopicSubcategoryEmpty": "No entertainment topics configured yet. Add them under Admin → Configuration → Entertainment, then save.",
+      "healthTopicSubcategory": "Topic",
+      "healthTopicSubcategoryEmpty": "No health topics configured yet. Add them under Admin → Configuration → Health, then save.",
       "internationalPotential": "International potential",
       "internationalPotentialHint": "(optional, 1–10)",
       "notRated": "Not rated",
@@ -474,6 +481,36 @@
     "saveSuccess": "Entertainment list saved. Use Placement → entertainment to pin stories, or tag articles with the new topic category.",
     "saveFailed": "Failed to save entertainment list.",
     "loadFailed": "Failed to load entertainment list."
+  },
+  "healthPage": {
+    "heading": "Health sections",
+    "subtitle": "Manage the ordered list of Health page sections (hero, Top Stories, Live, and topic rows) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → health.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows between topics. Saving updates Placement → health for the same market, state, county, or town. Compact topic rows also keep an ad ribbon every two rows.",
+    "labelPlaceholder": "Section name",
+    "addType": {
+      "hero": "Add hero",
+      "top_stories": "Add Top Stories",
+      "live": "Add Live",
+      "health": "Add health topic",
+      "ribbon_ad": "Add Ribbon Advertisement"
+    },
+    "types": {
+      "hero": "Hero",
+      "top_stories": "Top Stories",
+      "live": "Live",
+      "health": "Health",
+      "ribbon_ad": "Ribbon Advertisement"
+    },
+    "remove": "Remove",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading health list…",
+    "saveSuccess": "Health list saved. Use Placement → health to pin stories, or tag articles with the new topic category.",
+    "saveFailed": "Failed to save health list.",
+    "loadFailed": "Failed to load health list."
   },
   "pageAds": {
     "heading": "Advertisements",

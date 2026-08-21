@@ -24,6 +24,7 @@ from shared.core.page_ad_placements import (
     PAGE_NAME_BUSINESS,
     PAGE_NAME_GOVERNMENT,
     PAGE_NAME_ENTERTAINMENT,
+    PAGE_NAME_HEALTH,
     PAGE_NAME_HOMEPAGE,
     PAGE_NAME_SPORTS,
     PAGE_NAME_TECHNOLOGY,
@@ -36,6 +37,7 @@ from shared.read.collections import (
     ARTICLES_COLLECTION,
     GOVERNMENT_PAGE_SECTIONS_COLLECTION,
     ENTERTAINMENT_PAGE_SECTIONS_COLLECTION,
+    HEALTH_PAGE_SECTIONS_COLLECTION,
     HOMEPAGE_PAGE_SECTIONS_COLLECTION,
     SPORTS_PAGE_SECTIONS_COLLECTION,
     WIDGETS_COLLECTION,
@@ -140,7 +142,7 @@ async def _region_scope_ids(
 
     if not region_id:
         return []
-    if page_name.strip().lower() in {"sports", "government", "entertainment"}:
+    if page_name.strip().lower() in {"sports", "government", "entertainment", "health"}:
         return await region_ids_self_and_descendants(db, region_id)
     return await region_ids_under_same_country(db, region_id)
 
@@ -174,6 +176,8 @@ def _page_sections_collection(page_name: str) -> str | None:
         return GOVERNMENT_PAGE_SECTIONS_COLLECTION
     if page_name == PAGE_NAME_ENTERTAINMENT:
         return ENTERTAINMENT_PAGE_SECTIONS_COLLECTION
+    if page_name == PAGE_NAME_HEALTH:
+        return HEALTH_PAGE_SECTIONS_COLLECTION
     if page_name == PAGE_NAME_HOMEPAGE:
         return HOMEPAGE_PAGE_SECTIONS_COLLECTION
     return None

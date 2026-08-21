@@ -9,6 +9,7 @@ from shared.models.entertainment_page_sections import (
     EntertainmentPageSectionItem,
     EntertainmentPageSections,
 )
+from shared.models.health_page_sections import HealthPageSectionItem, HealthPageSections
 from shared.models.government_page_sections import GovernmentPageSectionItem, GovernmentPageSections
 from shared.models.sports_page_sections import SportsPageSectionItem, SportsPageSections
 from shared.models.user import User, UserRoleType
@@ -26,6 +27,8 @@ __all__ = [
     "RegionKind",
     "EntertainmentPageSectionItem",
     "EntertainmentPageSections",
+    "HealthPageSectionItem",
+    "HealthPageSections",
     "GovernmentPageSectionItem",
     "GovernmentPageSections",
     "SportsPageSectionItem",

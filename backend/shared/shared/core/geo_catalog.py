@@ -221,6 +221,9 @@ STATE_GOVERNMENT_LAYOUT_PAGE_NAME = "government"
 STATE_ENTERTAINMENT_LAYOUT_PAGE_NAME = "entertainment"
 """Entertainment page boards are curated per US state, Florida county, and PR town."""
 
+STATE_HEALTH_LAYOUT_PAGE_NAME = "health"
+"""Health page boards are curated per US state, Florida county, and PR town."""
+
 
 def us_state_region_codes() -> tuple[str, ...]:
     """Return region codes for every US state (e.g. ``us-fl``)."""
