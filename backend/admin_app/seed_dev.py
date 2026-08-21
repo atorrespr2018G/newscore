@@ -17,6 +17,7 @@ from uuid import uuid4
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from admin_app.helpers.password_helpers import hash_password
+from shared.core.entertainment_page_sections_sync import DEFAULT_ENTERTAINMENT_TOPIC_LABELS
 from shared.core.indexes import ensure_indexes
 from shared.core.page_ad_placements import (
     PAGE_NAME_TECHNOLOGY,
@@ -1555,6 +1556,9 @@ GOVERNMENT_SECTION_LABELS: list[str] = [
     "Defense",
 ]
 
+# Entertainment page topics using the Sports landing template (no World band).
+ENTERTAINMENT_SECTION_LABELS: list[str] = list(DEFAULT_ENTERTAINMENT_TOPIC_LABELS)
+
 GOVERNMENT_CHILD_CATEGORIES: list[dict[str, str]] = [
     {
         "name": "Executive",
@@ -2168,6 +2172,47 @@ async def _stamp_government_page_category_fill(
             await _set_slot_query_category_id(db, str(slot["_id"]), category_id)
 
 
+def _entertainment_slot_category_slug(position_key: str) -> str | None:
+    """Map an entertainment-page slot key to the category slug that should fill it."""
+
+    from shared.core.entertainment_page_sections_sync import slugify_entertainment_label
+
+    preserved = {
+        "hero": "entertainment",
+        "us-featured": "entertainment",
+        "health": "health",
+        "entertainment": "entertainment",
+    }
+    if position_key in preserved:
+        return preserved[position_key]
+    if position_key.startswith("ad-ribbon"):
+        return None
+    topic_slugs = {slugify_entertainment_label(label) for label in ENTERTAINMENT_SECTION_LABELS}
+    if position_key in topic_slugs:
+        return position_key
+    return None
+
+
+async def _stamp_entertainment_page_category_fill(db: AsyncIOMotorDatabase) -> None:
+    """Write category auto-fill onto entertainment page slots so seeded stories appear.
+
+    Args:
+        db: Database connection.
+    """
+
+    cursor = db[LAYOUTS_COLLECTION].find({"page_name": "entertainment"}, {"_id": 1})
+    async for layout in cursor:
+        slots = db[SLOTS_COLLECTION].find({"layout_id": layout["_id"]}, {"_id": 1, "position_key": 1})
+        async for slot in slots:
+            slug = _entertainment_slot_category_slug(str(slot.get("position_key") or ""))
+            if not slug:
+                continue
+            category = await db[CATEGORIES_COLLECTION].find_one({"slug": slug}, {"_id": 1})
+            if category is None:
+                continue
+            await _set_slot_query_category_id(db, str(slot["_id"]), str(category["_id"]))
+
+
 async def _stamp_homepage_government_category_fill(
     db: AsyncIOMotorDatabase,
     slug_to_category_id: dict[str, str],
@@ -2729,6 +2774,167 @@ async def _ensure_us_state_government_sections(db: AsyncIOMotorDatabase) -> None
     logger.info("Seeded geo government sections: %s", result)
 
 
+async def _ensure_market_entertainment_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+) -> None:
+    """Seed per-market entertainment section config and sync the entertainment layout."""
+
+    from shared.core.entertainment_page_sections_sync import (
+        default_entertainment_page_section_items,
+        sync_entertainment_layout_slots,
+    )
+    from shared.read.collections import ENTERTAINMENT_PAGE_SECTIONS_COLLECTION
+
+    items = default_entertainment_page_section_items(ENTERTAINMENT_SECTION_LABELS)
+    now = _utc_now_iso()
+    existing = await db[ENTERTAINMENT_PAGE_SECTIONS_COLLECTION].find_one(
+        {
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        },
+        {"_id": 1},
+    )
+    if existing is not None:
+        await db[ENTERTAINMENT_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"items": items, "updated_at": now, "region_id": None}},
+        )
+    else:
+        await db[ENTERTAINMENT_PAGE_SECTIONS_COLLECTION].insert_one(
+            {
+                "_id": str(uuid4()),
+                "market_id": market_id,
+                "region_id": None,
+                "items": items,
+                "updated_at": now,
+            },
+        )
+    await sync_entertainment_layout_slots(db, market_id=market_id, items=items, region_id=None)
+    logger.info(
+        "Seeded entertainment sections for market %s (%d items)",
+        market_code,
+        len(items),
+    )
+
+
+async def _ensure_us_state_entertainment_sections(db: AsyncIOMotorDatabase) -> None:
+    """Seed entertainment lists for US states, Florida counties, and PR towns."""
+
+    from shared.core.entertainment_page_sections_sync import ensure_geo_entertainment_sections
+
+    result = await ensure_geo_entertainment_sections(db, labels=ENTERTAINMENT_SECTION_LABELS)
+    logger.info("Seeded geo entertainment sections: %s", result)
+
+
+def _entertainment_seed_headlines(label: str) -> list[str]:
+    """Twelve headlines so compact Entertainment rows paginate like Sports."""
+
+    return [
+        f"{label} festival draws crowds in San Juan",
+        f"New {label} showcase opens in Old San Juan",
+        f"Island {label} awards honor emerging talent",
+        f"{label} premiere sells out opening night",
+        f"Schools add {label} workshops after grant",
+        f"{label} exhibit tours museums across Puerto Rico",
+        f"Streaming special spotlights local {label}",
+        f"{label} producers expand Caribbean partnerships",
+        f"Critics praise new wave of island {label}",
+        f"{label} venues reopen after renovation",
+        f"Youth {label} program expands to 20 towns",
+        f"{label} week returns to Condado this fall",
+    ]
+
+
+async def _ensure_pr_entertainment_section_articles(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    market_id: str,
+) -> None:
+    """Seed Puerto Rico articles for each configured entertainment section category."""
+
+    from shared.core.entertainment_page_sections_sync import slugify_entertainment_label
+
+    parent = await db[CATEGORIES_COLLECTION].find_one({"slug": "entertainment"}, {"_id": 1})
+    parent_id = str(parent["_id"]) if parent else None
+    for label in ENTERTAINMENT_SECTION_LABELS:
+        slug = slugify_entertainment_label(label)
+        category = await db[CATEGORIES_COLLECTION].find_one({"slug": slug})
+        if category is None:
+            raise RuntimeError(f"Missing entertainment category after sync: {slug}")
+        category_id = str(category["_id"])
+        category_ids = [parent_id, category_id] if parent_id else [category_id]
+        for story in _entertainment_seed_headlines(label):
+            await _upsert_pr_entertainment_story(
+                db,
+                author_id=author_id,
+                market_id=market_id,
+                category_id=category_id,
+                category_ids=category_ids,
+                slug=slug,
+                story=story,
+            )
+    logger.info("Ensured Puerto Rico entertainment-section articles for market pr")
+
+
+async def _upsert_pr_entertainment_story(
+    db: AsyncIOMotorDatabase,
+    *,
+    author_id: str,
+    market_id: str,
+    category_id: str,
+    category_ids: list[str],
+    slug: str,
+    story: str,
+) -> None:
+    """Insert or update one Puerto Rico entertainment topic article.
+
+    Args:
+        db: Database connection.
+        author_id: Admin user id for newly inserted articles.
+        market_id: Puerto Rico market document id.
+        category_id: Topic category document id.
+        category_ids: Category ids including the Entertainment parent.
+        slug: Topic category slug.
+        story: Headline used as the article title.
+    """
+
+    existing = await db[ARTICLES_COLLECTION].find_one(
+        {"category_id": category_id, "market_ids": market_id, "title": story},
+    )
+    now = _utc_now_iso()
+    fields = _market_article_fields(
+        story,
+        title=story,
+        market_code="pr",
+        category_slug=slug,
+        video_url=None,
+        now=now,
+    )
+    fields["category_ids"] = category_ids
+    if existing is not None:
+        await db[ARTICLES_COLLECTION].update_one({"_id": existing["_id"]}, {"$set": fields})
+        return
+    article_id = str(uuid4())
+    doc = _new_market_article_doc(
+        article_id=article_id,
+        author_id=author_id,
+        market_id=market_id,
+        category_id=category_id,
+        market_code="pr",
+        category_slug=slug,
+        story=story,
+        title=story,
+        video_url=None,
+        now=now,
+    )
+    doc["category_ids"] = category_ids
+    await db[ARTICLES_COLLECTION].insert_one(doc)
+
+
 async def _ensure_pr_sport_section_articles(
     db: AsyncIOMotorDatabase,
     *,
@@ -2911,8 +3117,18 @@ async def seed_dev() -> None:
                 market_id=market_id,
                 market_code=code,
             )
+            await _ensure_market_entertainment_sections(
+                db,
+                market_id=market_id,
+                market_code=code,
+            )
             if code == "pr":
                 await _ensure_pr_sport_section_articles(
+                    db,
+                    author_id=str(admin["_id"]),
+                    market_id=market_id,
+                )
+                await _ensure_pr_entertainment_section_articles(
                     db,
                     author_id=str(admin["_id"]),
                     market_id=market_id,
@@ -2922,8 +3138,10 @@ async def seed_dev() -> None:
         await _ensure_geo_regions_and_backfill()
         await _ensure_us_state_sports_sections(db)
         await _ensure_us_state_government_sections(db)
+        await _ensure_us_state_entertainment_sections(db)
         await _stamp_government_page_category_fill(db, slug_to_category_id)
         await _stamp_homepage_government_category_fill(db, slug_to_category_id)
+        await _stamp_entertainment_page_category_fill(db)
         await _invalidate_homepage_feed_cache()
     finally:
         client.close()

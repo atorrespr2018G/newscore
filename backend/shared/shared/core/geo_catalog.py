@@ -218,6 +218,9 @@ STATE_SPORTS_LAYOUT_PAGE_NAME = "sports"
 STATE_GOVERNMENT_LAYOUT_PAGE_NAME = "government"
 """Government page boards are curated per US state, Florida county, and PR town."""
 
+STATE_ENTERTAINMENT_LAYOUT_PAGE_NAME = "entertainment"
+"""Entertainment page boards are curated per US state, Florida county, and PR town."""
+
 
 def us_state_region_codes() -> tuple[str, ...]:
     """Return region codes for every US state (e.g. ``us-fl``)."""
@@ -235,6 +238,18 @@ def puerto_rico_town_region_codes() -> tuple[str, ...]:
     """Return region codes for every Puerto Rico municipality (e.g. ``pr-san-juan``)."""
 
     return tuple(f"pr-{town_slug}" for town_slug, _ in PUERTO_RICO_TOWN_OPTIONS)
+
+
+def country_region_codes() -> tuple[str, ...]:
+    """Return US and Puerto Rico country region codes used by Configuration.
+
+    Returns:
+        ``us`` then ``pr``. The admin editors send these when no state or town
+        is selected, so country boards must exist independently of market-level
+        docs (``region_id=None``).
+    """
+
+    return ("us", "pr")
 
 
 def sports_curated_region_codes() -> tuple[str, ...]:

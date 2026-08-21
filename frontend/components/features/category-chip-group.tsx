@@ -9,6 +9,7 @@ import {
   MAX_CATEGORY_COUNT,
   BUSINESS_CATEGORY_SLUG,
   GOVERNMENT_CATEGORY_SLUG,
+  ENTERTAINMENT_CATEGORY_SLUG,
   SPORTS_CATEGORY_SLUG,
   WORLD_CATEGORY_SLUG,
   findCategoryBySlug,
@@ -16,6 +17,10 @@ import {
   toggleRootCategory,
 } from '@/lib/helpers/category-selection'
 import { resolveBusinessSubcategories } from '@/lib/helpers/business-category-options'
+import {
+  loadEntertainmentTopicSlugs,
+  resolveEntertainmentSubcategories,
+} from '@/lib/helpers/entertainment-category-options'
 import {
   loadGovernmentTopicSlugs,
   resolveGovernmentSubcategories,
@@ -52,6 +57,8 @@ interface IRootChildIdMap {
   businessChildIds: string[]
   governmentParentId?: string
   governmentChildIds: string[]
+  entertainmentParentId?: string
+  entertainmentChildIds: string[]
 }
 
 /**
@@ -73,6 +80,9 @@ function extraChildIdsForRoot(categoryId: string, childIds: IRootChildIdMap): st
   }
   if (categoryId === childIds.governmentParentId) {
     return childIds.governmentChildIds
+  }
+  if (categoryId === childIds.entertainmentParentId) {
+    return childIds.entertainmentChildIds
   }
   return []
 }
@@ -104,23 +114,35 @@ export function CategoryChipGroup({
     queryKey: ['editor', 'government-page-section-slugs', marketCode ?? 'all'],
     queryFn: () => loadGovernmentTopicSlugs(marketCode),
   })
+  const entertainmentSectionsQuery = useQuery({
+    queryKey: ['editor', 'entertainment-page-section-slugs', marketCode ?? 'all'],
+    queryFn: () => loadEntertainmentTopicSlugs(marketCode),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
   const worldRegionSlugs = worldSectionsQuery.data ?? []
   const governmentTopicSlugs = governmentSectionsQuery.data ?? []
+  const entertainmentTopicSlugs = entertainmentSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const worldParent = findCategoryBySlug(categories, WORLD_CATEGORY_SLUG)
   const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
   const governmentParent = findCategoryBySlug(categories, GOVERNMENT_CATEGORY_SLUG)
+  const entertainmentParent = findCategoryBySlug(categories, ENTERTAINMENT_CATEGORY_SLUG)
   const sportsSelected = sportsParent != null && selectedCategoryIds.includes(sportsParent.id)
   const worldSelected = worldParent != null && selectedCategoryIds.includes(worldParent.id)
   const businessSelected =
     businessParent != null && selectedCategoryIds.includes(businessParent.id)
   const governmentSelected =
     governmentParent != null && selectedCategoryIds.includes(governmentParent.id)
+  const entertainmentSelected =
+    entertainmentParent != null && selectedCategoryIds.includes(entertainmentParent.id)
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
   const worldChildren = resolveWorldRegionSubcategories(categories, worldRegionSlugs)
   const businessChildren = resolveBusinessSubcategories(categories)
   const governmentChildren = resolveGovernmentSubcategories(categories, governmentTopicSlugs)
+  const entertainmentChildren = resolveEntertainmentSubcategories(
+    categories,
+    entertainmentTopicSlugs,
+  )
   const roots = rootSectionCategories(categories, sportSlugs, worldRegionSlugs)
   const atLimit = selectedCategoryIds.length >= MAX_CATEGORY_COUNT
 
@@ -166,6 +188,8 @@ export function CategoryChipGroup({
                           businessChildIds: businessChildren.map((beat) => beat.id),
                           governmentParentId: governmentParent?.id,
                           governmentChildIds: governmentChildren.map((topic) => topic.id),
+                          entertainmentParentId: entertainmentParent?.id,
+                          entertainmentChildIds: entertainmentChildren.map((topic) => topic.id),
                         }),
                       ),
                     )
@@ -221,6 +245,19 @@ export function CategoryChipGroup({
               atLimit={atLimit}
               isLoading={governmentSectionsQuery.isLoading}
               emptyLabel={t(`${messagePrefix}.governmentTopicSubcategoryEmpty`)}
+              loadingLabel={t(`${messagePrefix}.loadingCategories`)}
+              categoryLabel={categoryLabel}
+              setSelectedCategoryIds={setSelectedCategoryIds}
+            />
+          ) : null}
+          {entertainmentSelected ? (
+            <SubcategoryChipRow
+              title={t(`${messagePrefix}.entertainmentTopicSubcategory`)}
+              categories={entertainmentChildren}
+              selectedCategoryIds={selectedCategoryIds}
+              atLimit={atLimit}
+              isLoading={entertainmentSectionsQuery.isLoading}
+              emptyLabel={t(`${messagePrefix}.entertainmentTopicSubcategoryEmpty`)}
               loadingLabel={t(`${messagePrefix}.loadingCategories`)}
               categoryLabel={categoryLabel}
               setSelectedCategoryIds={setSelectedCategoryIds}

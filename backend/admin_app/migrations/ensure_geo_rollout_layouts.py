@@ -4,9 +4,10 @@ Creates independent homepage and world placement boards for:
 - United States + all states + all Florida counties
 - Puerto Rico + all municipalities
 
-Also creates independent sports and government boards for US states,
-Florida counties, and Puerto Rico towns, and deactivates legacy market layouts
-for uk/ca/au when present.
+Also creates independent sports, government, and entertainment boards for US
+states, Florida counties, and Puerto Rico towns. Entertainment also gets US and
+Puerto Rico country boards. Deactivates legacy market layouts for uk/ca/au when
+present.
 """
 
 from __future__ import annotations
@@ -19,6 +20,10 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from shared.core.layout_ensure import ensure_us_pr_geo_layouts
+from shared.core.entertainment_page_sections_sync import (
+    DEFAULT_ENTERTAINMENT_TOPIC_LABELS,
+    ensure_geo_entertainment_sections,
+)
 from shared.core.government_page_sections_sync import ensure_geo_government_sections
 from shared.core.sports_page_sections_sync import ensure_geo_sports_sections
 
@@ -105,11 +110,16 @@ async def run() -> dict[str, Any]:
             db,
             labels=GOVERNMENT_SECTION_LABELS,
         )
+        entertainment_sections = await ensure_geo_entertainment_sections(
+            db,
+            labels=list(DEFAULT_ENTERTAINMENT_TOPIC_LABELS),
+        )
         deactivated_legacy_layouts = await _deactivate_legacy_market_layouts(db)
         return {
             **ensured,
             "geo_sports_sections": sports_sections,
             "geo_government_sections": government_sections,
+            "geo_entertainment_sections": entertainment_sections,
             "deactivated_legacy_layouts": deactivated_legacy_layouts,
         }
     finally:

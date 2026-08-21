@@ -33,6 +33,7 @@
   "worldArchiveEmpty": "No stories in this region yet.",
   "businessArchiveEmpty": "No stories in this section yet.",
   "governmentArchiveEmpty": "No stories in this government topic yet.",
+  "entertainmentArchiveEmpty": "No stories in this entertainment topic yet.",
   "technologyArchiveEmpty": "No stories placed on this page yet.",
   "paginationNav": "Pagination",
   "goToPage": "Go to page {page}",
@@ -70,6 +71,8 @@
     "businessBeatDescription": "Latest {beat} news and updates.",
     "governmentDescription": "Executive, legislature, judiciary, agencies, services, emergency, and defense.",
     "governmentTopicDescription": "Latest {topic} government news and updates.",
+    "entertainmentDescription": "Arts, music, movies, TV, celebrities, fashion, and lifestyle.",
+    "entertainmentTopicDescription": "Latest {topic} entertainment news and updates.",
     "technologyDescription": "Technology news, gadgets, and innovation."
   }
 }

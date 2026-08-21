@@ -10,9 +10,11 @@ import {
   SPORT_CATEGORY_OPTIONS,
   BUSINESS_CATEGORY_OPTIONS,
   GOVERNMENT_CATEGORY_OPTIONS,
+  ENTERTAINMENT_CATEGORY_OPTIONS,
   SPORTS_CATEGORY_SLUG,
   BUSINESS_CATEGORY_SLUG,
   GOVERNMENT_CATEGORY_SLUG,
+  ENTERTAINMENT_CATEGORY_SLUG,
   marketHasCounty,
   marketHasLocality,
   storyRegionCode,
@@ -173,6 +175,7 @@ function CategoryFields({ categorySlugs, onToggleCategory }: ICategoryFieldsProp
   const sportsSelected = categorySlugs.includes(SPORTS_CATEGORY_SLUG)
   const businessSelected = categorySlugs.includes(BUSINESS_CATEGORY_SLUG)
   const governmentSelected = categorySlugs.includes(GOVERNMENT_CATEGORY_SLUG)
+  const entertainmentSelected = categorySlugs.includes(ENTERTAINMENT_CATEGORY_SLUG)
   return (
     <fieldset>
       <legend className="text-sm font-medium text-slate-700">Categories</legend>
@@ -225,6 +228,21 @@ function CategoryFields({ categorySlugs, onToggleCategory }: ICategoryFieldsProp
           <p className="text-xs font-medium text-slate-600">Topic</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {GOVERNMENT_CATEGORY_OPTIONS.map((topic) => (
+              <CategoryChip
+                key={topic.slug}
+                label={topic.label}
+                checked={categorySlugs.includes(topic.slug)}
+                onToggle={() => onToggleCategory(topic.slug)}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {entertainmentSelected ? (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-slate-600">Entertainment</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {ENTERTAINMENT_CATEGORY_OPTIONS.map((topic) => (
               <CategoryChip
                 key={topic.slug}
                 label={topic.label}

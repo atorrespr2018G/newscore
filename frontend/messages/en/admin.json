@@ -8,6 +8,7 @@
     "configuration": "Configuration",
     "sports": "Sports",
     "government": "Government",
+    "entertainment": "Entertainment",
     "mainPage": "Main Page",
     "world": "World",
     "preview": "Preview"
@@ -35,6 +36,8 @@
       "businessBeatSubcategoryEmpty": "No Economía beats yet. Run the dev seed to create Economy, Companies, Banking, Autos, Tourism, Construction, and Agriculture.",
       "governmentTopicSubcategory": "Topic",
       "governmentTopicSubcategoryEmpty": "No government topics configured yet. Add them under Admin → Configuration → Government, then save.",
+      "entertainmentTopicSubcategory": "Topic",
+      "entertainmentTopicSubcategoryEmpty": "No entertainment topics configured yet. Add them under Admin → Configuration → Entertainment, then save.",
       "internationalPotential": "International potential",
       "internationalPotentialHint": "(optional, 1–10)",
       "notRated": "Not rated",
@@ -183,6 +186,8 @@
         "businessBeatAll": "All beats",
         "governmentTopicLabel": "Topic",
         "governmentTopicAll": "All topics",
+        "entertainmentTopicLabel": "Topic",
+        "entertainmentTopicAll": "All topics",
         "dateFromLabel": "Created from",
         "dateToLabel": "Created to",
         "marketLabel": "Country / market",
@@ -267,6 +272,8 @@
       "businessBeatSubcategoryEmpty": "No Economía beats yet. Run the dev seed to create Economy, Companies, Banking, Autos, Tourism, Construction, and Agriculture.",
       "governmentTopicSubcategory": "Topic",
       "governmentTopicSubcategoryEmpty": "No government topics configured yet. Add them under Admin → Configuration → Government, then save.",
+      "entertainmentTopicSubcategory": "Topic",
+      "entertainmentTopicSubcategoryEmpty": "No entertainment topics configured yet. Add them under Admin → Configuration → Entertainment, then save.",
       "internationalPotential": "International potential",
       "internationalPotentialHint": "(optional, 1–10)",
       "notRated": "Not rated",
@@ -437,6 +444,36 @@
     "saveSuccess": "Government list saved. Use Placement → government to pin stories, or tag articles with the new topic category.",
     "saveFailed": "Failed to save government list.",
     "loadFailed": "Failed to load government list."
+  },
+  "entertainmentPage": {
+    "heading": "Entertainment sections",
+    "subtitle": "Manage the ordered list of Entertainment page sections (hero, Top Stories, Live, and topic rows) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → entertainment.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows between topics. Saving updates Placement → entertainment for the same market, state, county, or town. Compact topic rows also keep an ad ribbon every two rows.",
+    "labelPlaceholder": "Section name",
+    "addType": {
+      "hero": "Add hero",
+      "top_stories": "Add Top Stories",
+      "live": "Add Live",
+      "entertainment": "Add entertainment",
+      "ribbon_ad": "Add Ribbon Advertisement"
+    },
+    "types": {
+      "hero": "Hero",
+      "top_stories": "Top Stories",
+      "live": "Live",
+      "entertainment": "Entertainment",
+      "ribbon_ad": "Ribbon Advertisement"
+    },
+    "remove": "Remove",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading entertainment list…",
+    "saveSuccess": "Entertainment list saved. Use Placement → entertainment to pin stories, or tag articles with the new topic category.",
+    "saveFailed": "Failed to save entertainment list.",
+    "loadFailed": "Failed to load entertainment list."
   },
   "pageAds": {
     "heading": "Advertisements",

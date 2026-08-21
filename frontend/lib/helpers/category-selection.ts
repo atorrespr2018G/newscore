@@ -8,6 +8,9 @@ export const SPORTS_CATEGORY_SLUG = 'sports'
 /** Parent slug for Government topic chips in the editor/reporter. */
 export const GOVERNMENT_CATEGORY_SLUG = 'government'
 
+/** Parent slug for Entertainment topic chips in the editor/reporter. */
+export const ENTERTAINMENT_CATEGORY_SLUG = 'entertainment'
+
 /** Parent slug for per-region subcategory chips in the editor/reporter. */
 export const WORLD_CATEGORY_SLUG = 'world'
 

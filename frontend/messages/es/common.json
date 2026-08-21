@@ -33,6 +33,7 @@
   "worldArchiveEmpty": "Aún no hay noticias en esta región.",
   "businessArchiveEmpty": "Aún no hay noticias en esta sección.",
   "governmentArchiveEmpty": "Aún no hay noticias en este tema de gobierno.",
+  "entertainmentArchiveEmpty": "Aún no hay noticias en este tema de entretenimiento.",
   "technologyArchiveEmpty": "Aún no hay noticias colocadas en esta página.",
   "paginationNav": "Paginación",
   "goToPage": "Ir a la página {page}",
@@ -70,6 +71,8 @@
     "businessBeatDescription": "Últimas noticias y actualizaciones de {beat}.",
     "governmentDescription": "Ejecutivo, legislativo, judicial, agencias, servicios, emergencia y defensa.",
     "governmentTopicDescription": "Últimas noticias y actualizaciones de {topic}.",
+    "entertainmentDescription": "Arte, música, cine, TV, celebridades, moda y estilo de vida.",
+    "entertainmentTopicDescription": "Últimas noticias y actualizaciones de {topic}.",
     "technologyDescription": "Noticias de tecnología, dispositivos e innovación."
   }
 }
