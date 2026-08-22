@@ -33,6 +33,7 @@ import {
   normalizeFloridaCountyCode,
 } from '@/lib/florida-counties'
 import { isValidUsStateCode, US_MARKET_CODE } from '@/lib/us-states'
+import { hrefAfterMarketChange } from '@/lib/helpers/custom-tab-market-nav'
 
 export { MARKET_OPTIONS, type IMarketOption }
 
@@ -216,7 +217,14 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
         clearPersistedCounty()
       }
 
-      router.refresh()
+      void (async () => {
+        const redirectHref = await hrefAfterMarketChange(window.location.pathname, normalized)
+        if (redirectHref) {
+          router.push(redirectHref)
+          return
+        }
+        router.refresh()
+      })()
     },
     [marketCode, router],
   )
