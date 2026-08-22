@@ -16,14 +16,14 @@ import { ADMINISTRATOR_ROUTE } from '@/lib/api/admin-routes'
 import {
   isHomepageSectionVisible,
   isSectionPageActive,
-  sectionAnchorId,
   sectionKeyFromPathname,
   sectionNavHref,
 } from '@/lib/helpers/section-labels'
 import { PRESENTATION_GRID_4 } from '@/lib/presentation-types'
-import { MORE_TOP_STORIES_KEY } from '@/components/features/homepage-editorial-band'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { usePageAds } from '@/context/page-ads-context'
+import { listCustomTabs, type ICustomTab } from '@/lib/api/layout-client'
+import { customTabPagePath } from '@/lib/helpers/custom-tab-archive'
 
 interface IMastheadProps {
   activeSection?: string
@@ -128,10 +128,21 @@ function mastheadNavLockTop(lockActive: boolean, ribbonHeight: number): number |
 function MastheadDesktopSectionNav({
   navLinks,
   sectionsLabel,
+  moreLabel,
+  customTabs,
+  pathname,
 }: {
   navLinks: IMastheadNavLink[]
   sectionsLabel: string
+  moreLabel: string
+  customTabs: ReadonlyArray<ICustomTab>
+  pathname: string
 }): JSX.Element {
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreActive = customTabs.some(
+    (tab) => pathname === `/${tab.slug}` || pathname.startsWith(`/${tab.slug}/`),
+  )
+
   return (
     <nav className="hidden flex-1 items-center gap-4 md:ml-4 md:flex" aria-label={sectionsLabel}>
       {navLinks.map((link) => (
@@ -146,6 +157,45 @@ function MastheadDesktopSectionNav({
           {link.label}
         </DocumentNavLink>
       ))}
+      {customTabs.length > 0 ? (
+        <div className="relative">
+          <button
+            type="button"
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
+            onClick={() => setMoreOpen((open) => !open)}
+            onBlur={(event) => {
+              if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node)) {
+                setMoreOpen(false)
+              }
+            }}
+            className={[
+              'text-[13px] font-semibold text-neutral-800 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-red)] focus-visible:ring-offset-2',
+              moreActive ? 'underline decoration-[color:var(--brand-red)] decoration-2 underline-offset-8' : '',
+            ].join(' ')}
+          >
+            {moreLabel}
+          </button>
+          {moreOpen ? (
+            <ul
+              role="menu"
+              className="absolute left-0 top-full z-50 mt-2 min-w-[10rem] border border-neutral-200 bg-white py-1 shadow-sm"
+            >
+              {customTabs.map((tab) => (
+                <li key={tab.slug} role="none">
+                  <DocumentNavLink
+                    href={customTabPagePath(tab.slug)}
+                    className="block px-3 py-2 text-[13px] font-semibold text-neutral-800 hover:bg-neutral-50"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    {tab.label}
+                  </DocumentNavLink>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
     </nav>
   )
 }
@@ -155,11 +205,15 @@ function MastheadMobileSectionNav({
   mobileOpen,
   onNavigate,
   mobileSectionsLabel,
+  moreLabel,
+  customTabs,
 }: {
   navLinks: IMastheadNavLink[]
   mobileOpen: boolean
   onNavigate: () => void
   mobileSectionsLabel: string
+  moreLabel: string
+  customTabs: ReadonlyArray<ICustomTab>
 }): JSX.Element | null {
   if (!mobileOpen) return null
 
@@ -181,21 +235,27 @@ function MastheadMobileSectionNav({
             </DocumentNavLink>
           </li>
         ))}
+        {customTabs.length > 0 ? (
+          <li>
+            <p className="pt-2 text-xs font-bold uppercase tracking-wide text-neutral-500">{moreLabel}</p>
+            <ul className="mt-1 space-y-1 pl-3">
+              {customTabs.map((tab) => (
+                <li key={tab.slug}>
+                  <DocumentNavLink
+                    href={customTabPagePath(tab.slug)}
+                    className="block py-2 text-sm font-semibold text-neutral-900"
+                    onClick={onNavigate}
+                  >
+                    {tab.label}
+                  </DocumentNavLink>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ) : null}
       </ul>
     </nav>
   )
-}
-
-function withMoreLink(navLinks: IMastheadNavLink[], moreLabel: string): IMastheadNavLink[] {
-  return [
-    ...navLinks,
-    {
-      key: 'more',
-      href: `/#${sectionAnchorId(MORE_TOP_STORIES_KEY)}`,
-      label: moreLabel,
-      active: false,
-    },
-  ]
 }
 
 function buildFallbackNavLinks(
@@ -215,11 +275,42 @@ function buildFallbackNavLinks(
   })
 }
 
+/**
+ * Load custom tabs for the masthead More menu for the active market.
+ *
+ * @returns Registered custom tabs for the current market (empty when unavailable).
+ */
+function useCustomTabs(): ReadonlyArray<ICustomTab> {
+  const { marketCode } = useMarket()
+  const [tabs, setTabs] = useState<ICustomTab[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadTabs(): Promise<void> {
+      try {
+        const items = await listCustomTabs(marketCode)
+        if (!cancelled) {
+          setTabs(items)
+        }
+      } catch {
+        if (!cancelled) {
+          setTabs([])
+        }
+      }
+    }
+    void loadTabs()
+    return () => {
+      cancelled = true
+    }
+  }, [marketCode])
+
+  return tabs
+}
+
 function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
   const pathname = usePathname()
   const { data: feed } = useFeed()
   const { sectionLabel, homepageSectionTitle } = useSectionLabels()
-  const t = useTranslations('navigation')
 
   const navSlots =
     feed?.slots.filter(
@@ -242,16 +333,24 @@ function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
   })
 
   const fallbackNavLinks = buildFallbackNavLinks(pathname, activeSection, sectionLabel)
-  const baseNavLinks = dynamicNavLinks.length > 0 ? dynamicNavLinks : fallbackNavLinks
-
-  return withMoreLink(baseNavLinks, t('more'))
+  return dynamicNavLinks.length > 0 ? dynamicNavLinks : fallbackNavLinks
 }
 
 function MastheadSectionNavigation({ activeSection }: ISectionNavigationProps): JSX.Element {
   const navLinks = useMastheadNavLinks(activeSection)
+  const customTabs = useCustomTabs()
+  const pathname = usePathname()
   const t = useTranslations('navigation')
 
-  return <MastheadDesktopSectionNav navLinks={navLinks} sectionsLabel={t('sections')} />
+  return (
+    <MastheadDesktopSectionNav
+      navLinks={navLinks}
+      sectionsLabel={t('sections')}
+      moreLabel={t('more')}
+      customTabs={customTabs}
+      pathname={pathname}
+    />
+  )
 }
 
 function MastheadMobileSectionNavigation({
@@ -260,6 +359,7 @@ function MastheadMobileSectionNavigation({
   onNavigate,
 }: ISectionNavigationProps & { mobileOpen: boolean; onNavigate: () => void }): JSX.Element | null {
   const navLinks = useMastheadNavLinks(activeSection)
+  const customTabs = useCustomTabs()
   const t = useTranslations('navigation')
 
   return (
@@ -268,6 +368,8 @@ function MastheadMobileSectionNavigation({
       mobileOpen={mobileOpen}
       onNavigate={onNavigate}
       mobileSectionsLabel={t('mobileSections')}
+      moreLabel={t('more')}
+      customTabs={customTabs}
     />
   )
 }
@@ -279,8 +381,11 @@ function MastheadSectionNavigationFallback({ activeSection }: ISectionNavigation
 
   return (
     <MastheadDesktopSectionNav
-      navLinks={withMoreLink(buildFallbackNavLinks(pathname, activeSection, sectionLabel), t('more'))}
+      navLinks={buildFallbackNavLinks(pathname, activeSection, sectionLabel)}
       sectionsLabel={t('sections')}
+      moreLabel={t('more')}
+      customTabs={[]}
+      pathname={pathname}
     />
   )
 }
@@ -296,10 +401,12 @@ function MastheadMobileSectionNavigationFallback({
 
   return (
     <MastheadMobileSectionNav
-      navLinks={withMoreLink(buildFallbackNavLinks(pathname, activeSection, sectionLabel), t('more'))}
+      navLinks={buildFallbackNavLinks(pathname, activeSection, sectionLabel)}
       mobileOpen={mobileOpen}
       onNavigate={onNavigate}
       mobileSectionsLabel={t('mobileSections')}
+      moreLabel={t('more')}
+      customTabs={[]}
     />
   )
 }

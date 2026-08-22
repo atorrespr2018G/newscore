@@ -944,6 +944,29 @@ export function HealthPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JS
 }
 
 /**
+ * Landing page for an admin-created custom tab (Entertainment/Health template).
+ *
+ * @param props Page name and optional server feed.
+ * @returns Custom tab landing page.
+ */
+export function CustomTabPage({
+  pageName,
+  initialFeed,
+}: {
+  pageName: string
+  initialFeed?: IHomepageFeed
+}): JSX.Element {
+  const { data, loading, error } = usePageFeed(pageName)
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
  * Technology landing using the sports-page hero, Top Stories, and Live band.
  * The paginated archive is rendered by the route without a Technology heading.
  *

@@ -10,6 +10,8 @@ from shared.models.entertainment_page_sections import (
     EntertainmentPageSections,
 )
 from shared.models.health_page_sections import HealthPageSectionItem, HealthPageSections
+from shared.models.custom_tabs import CustomTab
+from shared.models.custom_page_sections import CustomPageSectionItem, CustomPageSections
 from shared.models.government_page_sections import GovernmentPageSectionItem, GovernmentPageSections
 from shared.models.sports_page_sections import SportsPageSectionItem, SportsPageSections
 from shared.models.user import User, UserRoleType
@@ -29,6 +31,9 @@ __all__ = [
     "EntertainmentPageSections",
     "HealthPageSectionItem",
     "HealthPageSections",
+    "CustomTab",
+    "CustomPageSectionItem",
+    "CustomPageSections",
     "GovernmentPageSectionItem",
     "GovernmentPageSections",
     "SportsPageSectionItem",

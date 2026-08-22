@@ -357,6 +357,16 @@ export function isCompactSixBandPositionKey(positionKey: string, pageName?: stri
   if (pageName?.trim().toLowerCase() === 'health' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
     return true
   }
+  // Custom tabs use the same compact topic rows as Entertainment/Health.
+  if (
+    pageName &&
+    !['homepage', 'world', 'sports', 'government', 'business', 'technology', 'entertainment', 'health', 'politics'].includes(
+      pageName.trim().toLowerCase(),
+    ) &&
+    !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)
+  ) {
+    return true
+  }
   return false
 }
 
@@ -629,6 +639,10 @@ export function homepageSectionTitle(
     if (displayName?.trim()) {
       return displayName.trim()
     }
+  }
+  // Custom tab pages: prefer CMS display names for dynamic topic rows.
+  if (page && displayName?.trim()) {
+    return displayName.trim()
   }
 
   if (POSITION_KEY_OVERRIDES_DISPLAY_NAME.has(normalized)) {

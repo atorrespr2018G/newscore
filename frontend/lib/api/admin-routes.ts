@@ -44,6 +44,7 @@ export const ADMIN_WORKFLOW_ROUTES = [
   '/admin/editor/government',
   '/admin/editor/entertainment',
   '/admin/editor/health',
+  '/admin/editor/tabs',
   '/admin/preview',
 ] as const
 
@@ -53,8 +54,10 @@ export type AdminWorkflowBadgeViewType = 'placement' | 'review'
 
 /** Leaf workflow tab that navigates to a route. */
 export interface IAdminWorkflowLeafTab {
-  href: AdminWorkflowRouteType
-  labelKey: string
+  href: string
+  labelKey?: string
+  /** When set, shown instead of translating `labelKey` (custom tab names). */
+  label?: string
   activePrefix: string
   badgeView?: AdminWorkflowBadgeViewType
 }
@@ -93,6 +96,7 @@ export const ADMIN_WORKFLOW_TABS: ReadonlyArray<AdminWorkflowTabType> = [
       { href: '/admin/editor/government', labelKey: 'government', activePrefix: '/admin/editor/government' },
       { href: '/admin/editor/entertainment', labelKey: 'entertainment', activePrefix: '/admin/editor/entertainment' },
       { href: '/admin/editor/health', labelKey: 'health', activePrefix: '/admin/editor/health' },
+      { href: '/admin/editor/tabs', labelKey: 'createTab', activePrefix: '/admin/editor/tabs' },
     ],
   },
   { href: '/admin/preview', labelKey: 'preview', activePrefix: '/admin/preview', badgeView: 'review' },

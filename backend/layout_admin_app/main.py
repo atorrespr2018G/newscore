@@ -14,6 +14,8 @@ from layout_admin_app.routers.homepage_page_sections import router as homepage_p
 from layout_admin_app.routers.slots import router as slots_router
 from layout_admin_app.routers.entertainment_page_sections import router as entertainment_page_sections_router
 from layout_admin_app.routers.health_page_sections import router as health_page_sections_router
+from layout_admin_app.routers.custom_tabs import router as custom_tabs_router
+from layout_admin_app.routers.custom_page_sections import router as custom_page_sections_router
 from layout_admin_app.routers.government_page_sections import router as government_page_sections_router
 from layout_admin_app.routers.sports_page_sections import router as sports_page_sections_router
 from layout_admin_app.routers.world_page_sections import router as world_page_sections_router
@@ -65,6 +67,8 @@ def create_app() -> FastAPI:
     app.include_router(government_page_sections_router)
     app.include_router(entertainment_page_sections_router)
     app.include_router(health_page_sections_router)
+    app.include_router(custom_tabs_router)
+    app.include_router(custom_page_sections_router)
     app.include_router(world_page_sections_router)
     app.include_router(widgets_router)
     app.include_router(workflow_router)

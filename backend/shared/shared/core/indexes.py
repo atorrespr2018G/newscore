@@ -20,6 +20,8 @@ SPORTS_PAGE_SECTIONS_COLLECTION = "sports_page_sections"
 GOVERNMENT_PAGE_SECTIONS_COLLECTION = "government_page_sections"
 ENTERTAINMENT_PAGE_SECTIONS_COLLECTION = "entertainment_page_sections"
 HEALTH_PAGE_SECTIONS_COLLECTION = "health_page_sections"
+CUSTOM_TABS_COLLECTION = "custom_tabs"
+CUSTOM_PAGE_SECTIONS_COLLECTION = "custom_page_sections"
 HOMEPAGE_PAGE_SECTIONS_COLLECTION = "homepage_page_sections"
 WORLD_PAGE_SECTIONS_COLLECTION = "world_page_sections"
 PLACEMENT_EVENTS_COLLECTION = "placement_events"
@@ -175,6 +177,26 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         [("market_id", 1), ("region_id", 1)],
         unique=True,
         name="health_page_sections_market_region_uq",
+    )
+    await _create_index_compat(
+        db,
+        CUSTOM_TABS_COLLECTION,
+        [("slug", 1)],
+        unique=True,
+        name="custom_tabs_slug_uq",
+    )
+    await _create_index_compat(
+        db,
+        CUSTOM_TABS_COLLECTION,
+        [("market_code", 1), ("sort_order", 1)],
+        name="custom_tabs_market_sort_idx",
+    )
+    await _create_index_compat(
+        db,
+        CUSTOM_PAGE_SECTIONS_COLLECTION,
+        [("page_name", 1), ("market_id", 1), ("region_id", 1)],
+        unique=True,
+        name="custom_page_sections_page_market_region_uq",
     )
 
     # Badge query scans placement events by market scoped to a recency window.

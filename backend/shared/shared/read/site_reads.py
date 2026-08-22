@@ -35,6 +35,8 @@ from shared.core.page_ad_placements import (
 )
 from shared.read.collections import (
     ARTICLES_COLLECTION,
+    CUSTOM_PAGE_SECTIONS_COLLECTION,
+    CUSTOM_TABS_COLLECTION,
     GOVERNMENT_PAGE_SECTIONS_COLLECTION,
     ENTERTAINMENT_PAGE_SECTIONS_COLLECTION,
     HEALTH_PAGE_SECTIONS_COLLECTION,
@@ -50,6 +52,20 @@ from shared.read.slot_pinned_ids import slot_with_preview_pins
 from shared.schemas.article_schemas import ArticleOut
 
 DEFAULT_QUERY_RULE_LIMIT = 10
+
+LOCALITY_SCOPED_PAGE_NAMES = frozenset(
+    {"sports", "government", "entertainment", "health"},
+)
+
+
+async def _is_custom_tab_page(db: AsyncIOMotorDatabase, page_name: str) -> bool:
+    """Return whether ``page_name`` is a registered custom tab slug."""
+
+    normalized = page_name.strip().lower()
+    if not normalized:
+        return False
+    doc = await db[CUSTOM_TABS_COLLECTION].find_one({"slug": normalized}, {"_id": 1})
+    return doc is not None
 
 
 def _compact_pinned_ids(pinned_ids: list[str]) -> list[str]:
@@ -142,7 +158,8 @@ async def _region_scope_ids(
 
     if not region_id:
         return []
-    if page_name.strip().lower() in {"sports", "government", "entertainment", "health"}:
+    normalized = page_name.strip().lower()
+    if normalized in LOCALITY_SCOPED_PAGE_NAMES or await _is_custom_tab_page(db, normalized):
         return await region_ids_self_and_descendants(db, region_id)
     return await region_ids_under_same_country(db, region_id)
 
@@ -183,15 +200,25 @@ def _page_sections_collection(page_name: str) -> str | None:
     return None
 
 
-def _sections_scope_query(*, market_id: str, region_id: str | None) -> dict[str, Any]:
+def _sections_scope_query(
+    *,
+    market_id: str,
+    region_id: str | None,
+    page_name: str | None = None,
+) -> dict[str, Any]:
     """Unique-scope filter for a page-sections document."""
 
+    query: dict[str, Any]
     if region_id is not None:
-        return {"market_id": market_id, "region_id": region_id}
-    return {
-        "market_id": market_id,
-        "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
-    }
+        query = {"market_id": market_id, "region_id": region_id}
+    else:
+        query = {
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        }
+    if page_name:
+        query = {**query, "page_name": page_name}
+    return query
 
 
 async def load_page_ad_placements(
@@ -214,14 +241,23 @@ async def load_page_ad_placements(
     """
 
     collection = _page_sections_collection(page_name)
+    scope_page_name: str | None = None
     if collection is None:
         if page_name in {PAGE_NAME_BUSINESS, PAGE_NAME_TECHNOLOGY}:
             return default_ads_for_page(page_name)
-        # Politics and other non-configured pages keep hard-coded frontend ads.
-        return []
+        if await _is_custom_tab_page(db, page_name):
+            collection = CUSTOM_PAGE_SECTIONS_COLLECTION
+            scope_page_name = page_name.strip().lower()
+        else:
+            # Politics and other non-configured pages keep hard-coded frontend ads.
+            return []
 
     doc = await db[collection].find_one(
-        _sections_scope_query(market_id=market_id, region_id=region_id),
+        _sections_scope_query(
+            market_id=market_id,
+            region_id=region_id,
+            page_name=scope_page_name,
+        ),
         {"ads": 1},
     )
     raw_ads = None if doc is None else doc.get("ads")

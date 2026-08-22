@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useEditorScopeContext } from '@/context/editor-scope-context'
 import {
@@ -9,6 +10,7 @@ import {
 import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
 import { TECHNOLOGY_PAGE_NAME } from '@/lib/helpers/technology-archive'
+import { listCustomTabs } from '@/lib/api/layout-client'
 import {
   DEFAULT_EDITOR_MARKET_CODE,
   EDITOR_MARKET_OPTIONS,
@@ -31,6 +33,29 @@ export function EditorScopeSwitcher(): JSX.Element {
   const t = useTranslations('admin')
   const tNav = useTranslations('navigation')
   const { scope, setScope } = useEditorScopeContext()
+  const [customPageNames, setCustomPageNames] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadCustomPages(): Promise<void> {
+      try {
+        const tabs = await listCustomTabs(scope.marketCode)
+        if (!cancelled) {
+          setCustomPageNames(tabs.map((tab) => tab.slug))
+        }
+      } catch {
+        if (!cancelled) {
+          setCustomPageNames([])
+        }
+      }
+    }
+    void loadCustomPages()
+    return () => {
+      cancelled = true
+    }
+  }, [scope.marketCode])
+
+  const pageOptions = [...EDITOR_PAGE_OPTIONS, ...customPageNames]
 
   /**
    * Apply a partial scope change, resetting town when the market changes.
@@ -91,7 +116,7 @@ export function EditorScopeSwitcher(): JSX.Element {
           onChange={(event) => updateScope({ pageName: event.target.value })}
           className={SELECT_CLASS}
         >
-          {EDITOR_PAGE_OPTIONS.map((page) => (
+          {pageOptions.map((page) => (
             <option key={page} value={page}>
               {page}
             </option>

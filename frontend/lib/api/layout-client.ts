@@ -738,3 +738,150 @@ export function putWorldPageSections(
     },
   )
 }
+
+/** One registered custom tab for More and Configuration. */
+export interface ICustomTab {
+  slug: string
+  label: string
+  market_code: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+/** Custom tab page section template. */
+export type CustomPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'topic'
+  | 'ribbon_ad'
+
+/** One ordered section on a custom tab page. */
+export interface ICustomPageSectionItem {
+  section_type: CustomPageSectionType
+  slug: string
+  label: string
+}
+
+/** Custom tab section list for a market or region. */
+export interface ICustomPageSectionsOut {
+  page_name: string
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: ICustomPageSectionItem[]
+  ads: IPageAdPlacementApi[]
+  updated_at: string
+}
+
+/**
+ * List custom tabs without requiring an editorial session (public More menu).
+ *
+ * @param marketCode Optional market filter such as `us` or `pr`.
+ * @returns Ordered custom tabs for that market (or all when omitted).
+ */
+export async function listCustomTabs(marketCode?: string | null): Promise<ICustomTab[]> {
+  const params = new URLSearchParams()
+  if (marketCode?.trim()) {
+    params.set('market', marketCode.trim().toLowerCase())
+  }
+  const query = params.toString()
+  const url = query
+    ? `${apiConfig.layout}/custom-tabs?${query}`
+    : `${apiConfig.layout}/custom-tabs`
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) {
+    throw new Error(`Failed to load custom tabs (${res.status})`)
+  }
+  const body = (await res.json()) as { items: ICustomTab[] }
+  return body.items ?? []
+}
+
+/**
+ * Create a custom tab for one market and seed its geo section boards.
+ *
+ * @param label Display name.
+ * @param marketCode Owning market short code such as `us` or `pr`.
+ * @param slug Optional URL slug; derived from label when omitted.
+ * @returns Created custom tab.
+ */
+export function createCustomTab(
+  label: string,
+  marketCode: string,
+  slug?: string,
+): Promise<ICustomTab> {
+  return apiFetch<ICustomTab>(`${apiConfig.layout}/custom-tabs`, {
+    method: 'POST',
+    body: JSON.stringify({
+      label,
+      market_code: marketCode,
+      slug: slug || undefined,
+    }),
+  })
+}
+
+/**
+ * Delete a custom tab and its section documents.
+ *
+ * @param slug Tab slug to remove.
+ */
+export async function deleteCustomTab(slug: string): Promise<void> {
+  await apiFetch<void>(`${apiConfig.layout}/custom-tabs/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * Load the ordered custom section list for a tab and geo scope.
+ *
+ * @param pageName Custom tab slug.
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl`.
+ * @returns Custom section list payload.
+ */
+export function getCustomPageSections(
+  pageName: string,
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<ICustomPageSectionsOut> {
+  const params = new URLSearchParams({ page: pageName, market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<ICustomPageSectionsOut>(
+    `${apiConfig.layout}/custom-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered custom section list and sync layout slots.
+ *
+ * @param pageName Custom tab slug.
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered typed sections.
+ * @param regionCode Optional region code.
+ * @param ads Optional ad placement rows.
+ * @returns Updated custom section list payload.
+ */
+export function putCustomPageSections(
+  pageName: string,
+  marketCode: string,
+  items: Array<{ section_type: CustomPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
+): Promise<ICustomPageSectionsOut> {
+  const params = new URLSearchParams({ page: pageName, market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<ICustomPageSectionsOut>(
+    `${apiConfig.layout}/custom-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items, ads }),
+    },
+  )
+}
+

@@ -35,6 +35,7 @@
   "governmentArchiveEmpty": "Aún no hay noticias en este tema de gobierno.",
   "entertainmentArchiveEmpty": "Aún no hay noticias en este tema de entretenimiento.",
   "healthArchiveEmpty": "Aún no hay noticias en este tema de salud.",
+  "customTabArchiveEmpty": "Aún no hay noticias en este tema.",
   "technologyArchiveEmpty": "Aún no hay noticias colocadas en esta página.",
   "paginationNav": "Paginación",
   "goToPage": "Ir a la página {page}",

@@ -123,6 +123,10 @@ DEFAULT_HEALTH_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
 ]
 
+DEFAULT_CUSTOM_TAB_ADS: list[dict[str, Any]] = [
+    _placement(ad_type="leaderboard", location="masthead"),
+]
+
 DEFAULT_BUSINESS_ADS: list[dict[str, Any]] = [
     _placement(ad_type="leaderboard", location="masthead"),
 ]
@@ -158,6 +162,19 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
         return [dict(row) for row in DEFAULT_BUSINESS_ADS]
     if normalized == PAGE_NAME_TECHNOLOGY:
         return [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
+    # Built-in pages already handled; remaining names are custom tabs (or homepage).
+    if normalized and normalized not in {
+        PAGE_NAME_HOMEPAGE,
+        PAGE_NAME_WORLD,
+        PAGE_NAME_SPORTS,
+        PAGE_NAME_GOVERNMENT,
+        PAGE_NAME_ENTERTAINMENT,
+        PAGE_NAME_HEALTH,
+        PAGE_NAME_BUSINESS,
+        PAGE_NAME_TECHNOLOGY,
+        "politics",
+    }:
+        return [dict(row) for row in DEFAULT_CUSTOM_TAB_ADS]
     return [dict(row) for row in DEFAULT_HOMEPAGE_ADS]
 
 

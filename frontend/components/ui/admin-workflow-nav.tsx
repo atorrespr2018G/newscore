@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useWorkflowBadges } from '@/hooks/use-workflow-badges'
 import {
   ADMIN_WORKFLOW_TABS,
@@ -11,6 +11,7 @@ import {
   type AdminWorkflowTabType,
   type IAdminWorkflowLeafTab,
 } from '@/lib/api/admin-routes'
+import { listCustomTabs, type ICustomTab } from '@/lib/api/layout-client'
 
 /** Sticky offset below the fixed masthead nav bar (~48px). */
 const SIDE_NAV_STICKY_TOP_CLASS = 'top-12'
@@ -23,6 +24,40 @@ interface IAdminWorkflowSideNavLinkProps {
   badgeLabel?: string
   layout: 'vertical' | 'horizontal'
   nested?: boolean
+}
+
+/**
+ * Resolve the visible label for a workflow leaf tab.
+ *
+ * @param child Leaf tab config.
+ * @param tAdmin Admin message translator.
+ * @returns Display label.
+ */
+function leafTabLabel(
+  child: IAdminWorkflowLeafTab,
+  tAdmin: (key: string) => string,
+): string {
+  if (child.label?.trim()) {
+    return child.label.trim()
+  }
+  if (child.labelKey) {
+    return tAdmin(`workflow.${child.labelKey}`)
+  }
+  return child.href
+}
+
+/**
+ * Whether a workflow leaf should render as the active destination.
+ *
+ * @param pathname Current admin pathname.
+ * @param child Leaf tab config.
+ * @returns True when this leaf matches the current route.
+ */
+function isWorkflowLeafActive(pathname: string, child: IAdminWorkflowLeafTab): boolean {
+  if (child.href === '/admin/editor/tabs') {
+    return pathname === '/admin/editor/tabs' || pathname === '/admin/editor/tabs/'
+  }
+  return pathname.startsWith(child.activePrefix)
 }
 
 /**
@@ -75,6 +110,7 @@ interface IAdminWorkflowGroupProps {
   tab: Extract<AdminWorkflowTabType, { children: ReadonlyArray<IAdminWorkflowLeafTab> }>
   pathname: string
   layout: 'vertical' | 'horizontal'
+  extraChildren?: ReadonlyArray<IAdminWorkflowLeafTab>
 }
 
 interface IAdminWorkflowGroupToggleProps {
@@ -140,15 +176,21 @@ function useWorkflowGroupOpen(childActive: boolean): { open: boolean; toggle: ()
 /**
  * Expandable Configuration-style group with nested workflow links.
  *
- * Opens when the user toggles it, and stays open while a child route is active
- * so nested destinations remain visible during navigation.
- *
- * @param props Group tab config, pathname, and layout variant.
+ * @param props Group tab config, pathname, layout variant, and optional extra children.
  * @returns Parent toggle plus nested child links when expanded.
  */
-function AdminWorkflowGroup({ tab, pathname, layout }: IAdminWorkflowGroupProps): JSX.Element {
+function AdminWorkflowGroup({
+  tab,
+  pathname,
+  layout,
+  extraChildren = [],
+}: IAdminWorkflowGroupProps): JSX.Element {
   const tAdmin = useTranslations('admin')
-  const childActive = tab.children.some((child) => pathname.startsWith(child.activePrefix))
+  const children = useMemo(
+    () => [...tab.children, ...extraChildren],
+    [tab.children, extraChildren],
+  )
+  const childActive = children.some((child) => isWorkflowLeafActive(pathname, child))
   const { open, toggle } = useWorkflowGroupOpen(childActive)
   const isVertical = layout === 'vertical'
 
@@ -161,7 +203,7 @@ function AdminWorkflowGroup({ tab, pathname, layout }: IAdminWorkflowGroupProps)
         layout={layout}
         onToggle={toggle}
       />
-      {open ? <AdminWorkflowGroupChildren items={tab.children} pathname={pathname} layout={layout} /> : null}
+      {open ? <AdminWorkflowGroupChildren items={children} pathname={pathname} layout={layout} /> : null}
     </div>
   )
 }
@@ -195,8 +237,8 @@ function AdminWorkflowGroupChildren({
           <AdminWorkflowSideNavLink
             key={child.href}
             href={child.href}
-            label={tAdmin(`workflow.${child.labelKey}`)}
-            active={pathname.startsWith(child.activePrefix)}
+            label={leafTabLabel(child, tAdmin)}
+            active={isWorkflowLeafActive(pathname, child)}
             badgeCount={badgeCount}
             badgeLabel={badgeCount > 0 ? tNav('newItemsBadge', { count: badgeCount }) : undefined}
             layout={layout}
@@ -211,24 +253,54 @@ function AdminWorkflowGroupChildren({
 interface IAdminWorkflowSideNavListProps {
   pathname: string
   layout: 'vertical' | 'horizontal'
+  customTabs: ReadonlyArray<ICustomTab>
+}
+
+/**
+ * Map registered custom tabs to Configuration leaf entries.
+ *
+ * @param tabs Custom tabs from the layout API.
+ * @returns Workflow leaf configs for each tab.
+ */
+function customTabWorkflowLeaves(
+  tabs: ReadonlyArray<ICustomTab>,
+): ReadonlyArray<IAdminWorkflowLeafTab> {
+  return tabs.map((tab) => ({
+    href: `/admin/editor/tabs/${encodeURIComponent(tab.slug)}`,
+    label: `${tab.label} (${tab.market_code.toUpperCase()})`,
+    activePrefix: `/admin/editor/tabs/${tab.slug}`,
+  }))
 }
 
 /**
  * Render the workflow tab list shared by desktop sidebar and mobile strip layouts.
  *
- * @param props Current pathname and layout variant.
+ * @param props Current pathname, layout variant, and custom tabs.
  * @returns Mapped workflow navigation links and expandable groups.
  */
-function AdminWorkflowSideNavList({ pathname, layout }: IAdminWorkflowSideNavListProps): JSX.Element {
+function AdminWorkflowSideNavList({
+  pathname,
+  layout,
+  customTabs,
+}: IAdminWorkflowSideNavListProps): JSX.Element {
   const tAdmin = useTranslations('admin')
   const tNav = useTranslations('navigation')
   const badges = useWorkflowBadges()
+  const customLeaves = customTabWorkflowLeaves(customTabs)
 
   return (
     <>
       {ADMIN_WORKFLOW_TABS.map((tab) => {
         if (isAdminWorkflowGroupTab(tab)) {
-          return <AdminWorkflowGroup key={tab.labelKey} tab={tab} pathname={pathname} layout={layout} />
+          return (
+            <AdminWorkflowGroup
+              key={tab.labelKey}
+              tab={tab}
+              pathname={pathname}
+              layout={layout}
+              extraChildren={customLeaves}
+            />
+          )
         }
 
         const badgeCount = tab.badgeView ? badges[tab.badgeView] : 0
@@ -237,8 +309,8 @@ function AdminWorkflowSideNavList({ pathname, layout }: IAdminWorkflowSideNavLis
           <AdminWorkflowSideNavLink
             key={tab.href}
             href={tab.href}
-            label={tAdmin(`workflow.${tab.labelKey}`)}
-            active={pathname.startsWith(tab.activePrefix)}
+            label={leafTabLabel(tab, tAdmin)}
+            active={isWorkflowLeafActive(pathname, tab)}
             badgeCount={badgeCount}
             badgeLabel={badgeCount > 0 ? tNav('newItemsBadge', { count: badgeCount }) : undefined}
             layout={layout}
@@ -257,6 +329,27 @@ function AdminWorkflowSideNavList({ pathname, layout }: IAdminWorkflowSideNavLis
 export function AdminWorkflowSideNav(): JSX.Element {
   const pathname = usePathname()
   const tAdmin = useTranslations('admin')
+  const [customTabs, setCustomTabs] = useState<ICustomTab[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadTabs(): Promise<void> {
+      try {
+        const tabs = await listCustomTabs()
+        if (!cancelled) {
+          setCustomTabs(tabs)
+        }
+      } catch {
+        if (!cancelled) {
+          setCustomTabs([])
+        }
+      }
+    }
+    void loadTabs()
+    return () => {
+      cancelled = true
+    }
+  }, [pathname])
 
   return (
     <>
@@ -267,14 +360,14 @@ export function AdminWorkflowSideNav(): JSX.Element {
           SIDE_NAV_STICKY_TOP_CLASS,
         ].join(' ')}
       >
-        <AdminWorkflowSideNavList pathname={pathname} layout="horizontal" />
+        <AdminWorkflowSideNavList pathname={pathname} layout="horizontal" customTabs={customTabs} />
       </nav>
 
       <aside
         className={['sticky hidden w-48 shrink-0 self-start md:block', SIDE_NAV_STICKY_TOP_CLASS].join(' ')}
       >
         <nav aria-label={tAdmin('workflow.ariaLabel')} className="flex flex-col gap-1">
-          <AdminWorkflowSideNavList pathname={pathname} layout="vertical" />
+          <AdminWorkflowSideNavList pathname={pathname} layout="vertical" customTabs={customTabs} />
         </nav>
       </aside>
     </>
