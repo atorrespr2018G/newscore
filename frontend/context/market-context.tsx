@@ -155,6 +155,54 @@ function clearPersistedCounty(): void {
 }
 
 /**
+ * Read one persisted scope cookie from the browser.
+ *
+ * @param name Cookie name.
+ * @returns Lowercase cookie value, or null when absent.
+ */
+function readCookieValue(name: string): string | null {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`))
+  const value = match?.[1]?.trim().toLowerCase()
+  return value || null
+}
+
+/**
+ * Mirror localStorage market scope into cookies for SSR.
+ *
+ * Server components read cookies; the masthead reads localStorage on the client.
+ * When they diverge, custom-tab routes 404 even though More shows the tab.
+ *
+ * @returns True when any scope cookie changed.
+ */
+function syncStoredMarketScopeToCookies(): boolean {
+  const storedMarket = readStoredMarket()
+  const storedTown = readStoredLocalityForMarket(storedMarket)
+  const storedCounty = readStoredCountyForScope(storedMarket, storedTown)
+  const cookieMarket = readCookieValue(MARKET_COOKIE_NAME)
+  const cookieTown = readCookieValue(TOWN_COOKIE_NAME)
+  const cookieCounty = readCookieValue(COUNTY_COOKIE_NAME)
+
+  document.cookie = `${MARKET_COOKIE_NAME}=${storedMarket};path=/;max-age=31536000;samesite=lax`
+  if (storedTown) {
+    persistTown(storedTown)
+  } else {
+    clearPersistedTown()
+  }
+  if (storedCounty) {
+    persistCounty(storedCounty)
+  } else {
+    clearPersistedCounty()
+  }
+
+  return (
+    cookieMarket !== storedMarket ||
+    (cookieTown ?? '') !== (storedTown ?? '') ||
+    (cookieCounty ?? '') !== (storedCounty ?? '')
+  )
+}
+
+/**
  * Validate a locality code for the active market.
  *
  * @param marketCode Active market code.
@@ -207,10 +255,14 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
   useEffect(() => {
     const storedMarket = readStoredMarket()
     const storedTown = readStoredLocalityForMarket(storedMarket)
+    const scopeChanged = syncStoredMarketScopeToCookies()
     setMarketCodeState(storedMarket)
     setTownState(storedTown)
     setCountyState(readStoredCountyForScope(storedMarket, storedTown))
-  }, [])
+    if (scopeChanged && !isAdminPathname(window.location.pathname)) {
+      router.refresh()
+    }
+  }, [router])
 
   const setMarketCode = useCallback(
     (code: string) => {
