@@ -17,7 +17,7 @@ from shared.core.homepage_page_sections_sync import (
     SECTION_TYPE_CATEGORY,
     SECTION_TYPE_HERO,
     expand_homepage_section_items,
-    has_ribbon_ad_section,
+    has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
     slugify_section_label,
     sync_homepage_layout_slots,
@@ -316,7 +316,7 @@ async def get_for_market(
     items = expand_homepage_section_items(list(doc.get("items") or []))
     ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_HOMEPAGE)
     now = utc_now().isoformat()
-    if not doc.get(RIBBON_ADS_MIGRATED_FIELD) and not has_ribbon_ad_section(items):
+    if not has_post_hero_ribbon_ad_section(items):
         items = insert_legacy_homepage_ribbon_ads(items)
         await _upsert_sections_doc(
             db,

@@ -133,6 +133,18 @@ def has_ribbon_ad_section(items: list[dict[str, str]]) -> bool:
     return any(item.get("section_type") == SECTION_TYPE_RIBBON_AD for item in items)
 
 
+def has_post_hero_ribbon_ad_section(items: list[dict[str, str]]) -> bool:
+    """Return whether a ribbon row is directly after the Hero row."""
+
+    for index, item in enumerate(items[:-1]):
+        if (
+            item.get("section_type") == SECTION_TYPE_HERO
+            and items[index + 1].get("section_type") == SECTION_TYPE_RIBBON_AD
+        ):
+            return True
+    return False
+
+
 def insert_legacy_homepage_ribbon_ads(items: list[dict[str, str]]) -> list[dict[str, str]]:
     """Insert ribbon rows matching the former homepage heuristic placements.
 
@@ -143,8 +155,19 @@ def insert_legacy_homepage_ribbon_ads(items: list[dict[str, str]]) -> list[dict[
         Copy of ``items`` with ribbon advertisement rows inserted in legacy spots.
     """
 
-    if has_ribbon_ad_section(items):
+    if has_post_hero_ribbon_ad_section(items):
         return [dict(row) for row in items]
+
+    if has_ribbon_ad_section(items):
+        result = []
+        used_slugs = {str(item.get("slug") or "") for item in items}
+        for item in items:
+            result.append(dict(item))
+            if item.get("section_type") == SECTION_TYPE_HERO:
+                ribbon_slug = _next_ribbon_slug(used_slugs)
+                used_slugs.add(ribbon_slug)
+                result.append(_ribbon_ad_item(ribbon_slug))
+        return result
 
     result: list[dict[str, str]] = []
     used_slugs = {str(item.get("slug") or "") for item in items}

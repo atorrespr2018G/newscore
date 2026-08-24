@@ -19,6 +19,7 @@ from shared.core.homepage_page_sections_sync import (
     DEFAULT_HOMEPAGE_SECTION_ITEMS,
     PRESERVED_HOMEPAGE_PAGE_KEYS,
     expand_homepage_section_items,
+    has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
     slugify_section_label,
 )
@@ -85,6 +86,20 @@ def test_insert_legacy_homepage_ribbon_ads_places_post_hero_ribbon() -> None:
         "live",
     ]
     assert items[1]["slug"] == "ad-ribbon"
+
+
+def test_insert_legacy_homepage_ribbon_ads_repairs_existing_ribbon_location() -> None:
+    """Existing regional ribbons do not replace the required post-hero ribbon."""
+
+    items = insert_legacy_homepage_ribbon_ads(
+        [
+            {"section_type": "hero", "slug": "hero", "label": "Hero"},
+            {"section_type": "top_stories", "slug": "us-featured", "label": "Top Stories"},
+            {"section_type": "ribbon_ad", "slug": "ad-ribbon", "label": "Ribbon Advertisement"},
+        ],
+    )
+    assert [row["section_type"] for row in items[:3]] == ["hero", "ribbon_ad", "top_stories"]
+    assert has_post_hero_ribbon_ad_section(items)
 
 
 def test_expand_homepage_section_items_empty_uses_defaults() -> None:

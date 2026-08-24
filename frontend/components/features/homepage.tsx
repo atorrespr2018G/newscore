@@ -482,6 +482,19 @@ function feedHasConfiguredRibbonAds(slots: IFeedSlot[]): boolean {
   return slots.some((slot) => resolveHomepagePageSlotKind(slot) === 'ribbon_ad')
 }
 
+/**
+ * Whether the ordered feed already owns the ribbon immediately after Hero.
+ * Other configured ribbons must not suppress this homepage fallback.
+ */
+function feedHasConfiguredPostHeroRibbonAd(slots: IFeedSlot[]): boolean {
+  const heroIndex = slots.findIndex((slot) => resolveHomepagePageSlotKind(slot) === 'hero')
+  if (heroIndex < 0) {
+    return false
+  }
+  const nextSlot = slots[heroIndex + 1]
+  return nextSlot ? resolveHomepagePageSlotKind(nextSlot) === 'ribbon_ad' : false
+}
+
 function MainPageOrderedSections({
   slots,
   sectionLabel,
@@ -494,6 +507,7 @@ function MainPageOrderedSections({
 }): JSX.Element {
   const orderedSlots = repairLegacyHomepageSlotOrder(slots)
   const useConfiguredRibbons = feedHasConfiguredRibbonAds(orderedSlots)
+  const useConfiguredPostHeroRibbon = feedHasConfiguredPostHeroRibbonAd(orderedSlots)
   const blocks: JSX.Element[] = []
   let index = 0
   let adIndex = 0
@@ -577,7 +591,7 @@ function MainPageOrderedSections({
       !useConfiguredRibbons &&
       shouldInsertHomepageAdBefore(slot, kind, previousSlot, previousKind)
     const beforeAdIndex = showAdBefore ? adIndex++ : null
-    const heroAdIndex = !useConfiguredRibbons && kind === 'hero' ? adIndex++ : null
+    const heroAdIndex = !useConfiguredPostHeroRibbon && kind === 'hero' ? adIndex++ : null
     blocks.push(
       <div key={slot.id} className="space-y-2">
         {beforeAdIndex !== null ? (
