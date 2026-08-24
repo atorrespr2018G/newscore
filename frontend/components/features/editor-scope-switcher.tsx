@@ -13,6 +13,7 @@ import { TECHNOLOGY_PAGE_NAME } from '@/lib/helpers/technology-archive'
 import { listCustomTabs } from '@/lib/api/layout-client'
 import {
   DEFAULT_EDITOR_MARKET_CODE,
+  DEFAULT_EDITOR_PAGE_NAME,
   EDITOR_MARKET_OPTIONS,
   EDITOR_PAGE_OPTIONS,
   type IEditorScope,
@@ -20,6 +21,33 @@ import {
 
 const SELECT_CLASS =
   'mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm capitalize'
+
+/**
+ * Return whether a page name is a built-in Placement option.
+ *
+ * @param pageName Candidate page name.
+ * @returns True when the page is in EDITOR_PAGE_OPTIONS.
+ */
+function isBuiltInEditorPage(pageName: string): boolean {
+  return (EDITOR_PAGE_OPTIONS as ReadonlyArray<string>).includes(pageName)
+}
+
+/**
+ * Resolve the page name to use after a market change.
+ *
+ * Custom tabs are market-scoped. Keep built-in pages; otherwise fall back to
+ * homepage immediately so Placement does not fetch an invalid page/market pair
+ * while the new market's tab list is still loading.
+ *
+ * @param pageName Current or requested page name.
+ * @returns Safe page name for the next market.
+ */
+function pageNameForMarketChange(pageName: string): string {
+  if (isBuiltInEditorPage(pageName)) {
+    return pageName
+  }
+  return DEFAULT_EDITOR_PAGE_NAME
+}
 
 /**
  * Market and page selector that drives every editor read/write scope.
@@ -34,18 +62,26 @@ export function EditorScopeSwitcher(): JSX.Element {
   const tNav = useTranslations('navigation')
   const { scope, setScope } = useEditorScopeContext()
   const [customPageNames, setCustomPageNames] = useState<string[]>([])
+  const [customPagesReady, setCustomPagesReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    // Drop stale market tabs immediately so PR-only pages cannot stay selected
+    // (or listed) while the US tab list is still in flight.
+    setCustomPageNames([])
+    setCustomPagesReady(false)
+
     async function loadCustomPages(): Promise<void> {
       try {
         const tabs = await listCustomTabs(scope.marketCode)
         if (!cancelled) {
           setCustomPageNames(tabs.map((tab) => tab.slug))
+          setCustomPagesReady(true)
         }
       } catch {
         if (!cancelled) {
           setCustomPageNames([])
+          setCustomPagesReady(true)
         }
       }
     }
@@ -55,7 +91,37 @@ export function EditorScopeSwitcher(): JSX.Element {
     }
   }, [scope.marketCode])
 
+  // Safety net: if a custom page is still selected after the new market's tabs
+  // load and it is not in that list, reset to homepage.
+  useEffect(() => {
+    if (!customPagesReady) {
+      return
+    }
+    if (isBuiltInEditorPage(scope.pageName) || customPageNames.includes(scope.pageName)) {
+      return
+    }
+    setScope({
+      marketCode: scope.marketCode,
+      townId: scope.townId,
+      countyId: scope.countyId,
+      pageName: DEFAULT_EDITOR_PAGE_NAME,
+    })
+  }, [
+    customPageNames,
+    customPagesReady,
+    scope.countyId,
+    scope.marketCode,
+    scope.pageName,
+    scope.townId,
+    setScope,
+  ])
+
   const pageOptions = [...EDITOR_PAGE_OPTIONS, ...customPageNames]
+  // Keep the current value selectable until market tabs finish loading / reset,
+  // otherwise a controlled <select> with a missing option freezes the UI.
+  if (!pageOptions.includes(scope.pageName)) {
+    pageOptions.push(scope.pageName)
+  }
 
   /**
    * Apply a partial scope change, resetting town when the market changes.
@@ -63,7 +129,16 @@ export function EditorScopeSwitcher(): JSX.Element {
    * @param patch Scope fields to override.
    */
   function updateScope(patch: Partial<IEditorScope>): void {
-    const nextPage = patch.pageName ?? scope.pageName
+    const marketChanged =
+      patch.marketCode !== undefined && patch.marketCode !== scope.marketCode
+    const requestedPage = patch.pageName ?? scope.pageName
+    const nextPage = marketChanged ? pageNameForMarketChange(requestedPage) : requestedPage
+
+    if (marketChanged) {
+      setCustomPageNames([])
+      setCustomPagesReady(false)
+    }
+
     if (nextPage === TECHNOLOGY_PAGE_NAME) {
       setScope({
         ...scope,
@@ -75,7 +150,7 @@ export function EditorScopeSwitcher(): JSX.Element {
       })
       return
     }
-    setScope({ ...scope, ...patch })
+    setScope({ ...scope, ...patch, pageName: nextPage })
   }
 
   const showLocality =
@@ -92,13 +167,20 @@ export function EditorScopeSwitcher(): JSX.Element {
           {t('editor.scope.market')}
           <select
             value={scope.marketCode}
-            onChange={(event) =>
-              updateScope({
-                marketCode: event.target.value,
+            onChange={(event) => {
+              const nextMarket = event.target.value
+              // Reset custom-tab pages synchronously on market change. Waiting for
+              // listCustomTabs leaves Placement on e.g. page=test + market=us and
+              // the canvas hangs on loading.
+              setCustomPageNames([])
+              setCustomPagesReady(false)
+              setScope({
+                marketCode: nextMarket,
                 townId: null,
                 countyId: null,
+                pageName: pageNameForMarketChange(scope.pageName),
               })
-            }
+            }}
             className={SELECT_CLASS}
           >
             {EDITOR_MARKET_OPTIONS.map((market) => (

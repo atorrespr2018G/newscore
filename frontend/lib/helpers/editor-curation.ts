@@ -2,7 +2,16 @@ import type { IEditorStoryRow } from '@/interfaces/editor-article'
 import type { IArticlePlacement } from '@/lib/helpers/article-placements'
 
 /** Page size used when fetching search results for the editor pool. */
-export const EDITOR_FETCH_PAGE_SIZE = 200
+export const EDITOR_FETCH_PAGE_SIZE = 50
+
+/**
+ * Soft ceiling on how many search pages the News pool will pull in one go.
+ *
+ * Market-only filters (especially PR) can match a huge archive. One page is
+ * enough for the pool preview; paging further blocked the UI when the editor
+ * quickly narrowed to a town.
+ */
+export const MAX_EDITOR_SEARCH_PAGES = 1
 
 /**
  * Multi-field search/filter criteria for the editor story pool.
@@ -179,23 +188,33 @@ export function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[]
 }
 
 /**
- * Fetch every page from a paginated articles endpoint.
+ * Fetch pages from a paginated articles endpoint until exhausted or capped.
  *
  * @param buildUrl Builds the request URL for a page number.
  * @param fetchPage Performs the request for a single page.
- * @returns Combined article rows across all pages.
+ * @param options Optional `maxPages` soft ceiling (unbounded when omitted) and
+ *   `signal` to stop mid-pagination when filters change.
+ * @returns Combined article rows across fetched pages.
+ * @throws DOMException When `signal` aborts before completion.
  */
 export async function fetchAllPaginatedArticles(
   buildUrl: (page: number) => string,
   fetchPage: (url: string) => Promise<IPaginatedArticles>,
+  options?: { maxPages?: number; signal?: AbortSignal },
 ): Promise<IEditorStoryRow[]> {
   const items: IEditorStoryRow[] = []
   let page = 1
+  const maxPages = options?.maxPages
+  const signal = options?.signal
 
   while (true) {
+    if (signal?.aborted) {
+      throw new DOMException('Editor search aborted', 'AbortError')
+    }
     const data = await fetchPage(buildUrl(page))
     items.push(...data.items)
-    if (!data.has_more) {
+    const hitPageCap = maxPages != null && page >= maxPages
+    if (!data.has_more || hitPageCap) {
       break
     }
     page += 1

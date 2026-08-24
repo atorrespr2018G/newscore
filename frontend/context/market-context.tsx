@@ -37,6 +37,33 @@ import { hrefAfterMarketChange } from '@/lib/helpers/custom-tab-market-nav'
 
 export { MARKET_OPTIONS, type IMarketOption }
 
+/**
+ * Return whether the current path is an admin editorial route.
+ *
+ * Admin pages already react to market/town context client-side. Calling
+ * ``router.refresh()`` there reloads the masthead GraphQL feed and can freeze
+ * Editor when switching PR towns.
+ *
+ * @param pathname Current browser pathname.
+ * @returns True when the path is under ``/admin``.
+ */
+function isAdminPathname(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/')
+}
+
+/**
+ * Refresh the App Router only on public site pages.
+ *
+ * @param router Next.js app router.
+ * @param pathname Current browser pathname.
+ */
+function refreshPublicSite(router: ReturnType<typeof useRouter>, pathname: string): void {
+  if (isAdminPathname(pathname)) {
+    return
+  }
+  router.refresh()
+}
+
 interface IMarketContextValue {
   marketCode: string
   town: string | null
@@ -218,12 +245,13 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
       }
 
       void (async () => {
-        const redirectHref = await hrefAfterMarketChange(window.location.pathname, normalized)
+        const pathname = window.location.pathname
+        const redirectHref = await hrefAfterMarketChange(pathname, normalized)
         if (redirectHref) {
           router.push(redirectHref)
           return
         }
-        router.refresh()
+        refreshPublicSite(router, pathname)
       })()
     },
     [marketCode, router],
@@ -251,7 +279,7 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
           persistCounty(restoredCounty)
         }
       }
-      router.refresh()
+      refreshPublicSite(router, window.location.pathname)
     },
     [marketCode, router],
   )
@@ -268,7 +296,7 @@ export function MarketProvider({ children }: IMarketProviderProps): JSX.Element 
       } else {
         clearPersistedCounty()
       }
-      router.refresh()
+      refreshPublicSite(router, window.location.pathname)
     },
     [marketCode, router, town],
   )

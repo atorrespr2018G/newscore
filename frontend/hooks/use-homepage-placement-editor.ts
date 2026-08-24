@@ -80,23 +80,31 @@ export function useHomepagePlacementEditor(
 
   const loadHomepageSlots = useCallback(async () => {
     const loadGeneration = slotLoadGenerationRef.current
-    const layout = await getHomepageLayout(
-      scope.marketCode,
-      scope.pageName,
-      editorScopeRegionCode(scope),
-    )
-    if (loadGeneration !== slotLoadGenerationRef.current) {
-      return
+    try {
+      const layout = await getHomepageLayout(
+        scope.marketCode,
+        scope.pageName,
+        editorScopeRegionCode(scope),
+      )
+      if (loadGeneration !== slotLoadGenerationRef.current) {
+        return
+      }
+      if (!layout.id) {
+        setHomepageSlots([])
+        return
+      }
+      const slots = await getLayoutSlots(layout.id)
+      if (loadGeneration !== slotLoadGenerationRef.current) {
+        return
+      }
+      setHomepageSlots(slots)
+    } catch {
+      // Missing layout for an invalid page/market pair must clear slots, not
+      // leave Placement stuck on the previous market's canvas or spinner.
+      if (loadGeneration === slotLoadGenerationRef.current) {
+        setHomepageSlots([])
+      }
     }
-    if (!layout.id) {
-      setHomepageSlots([])
-      return
-    }
-    const slots = await getLayoutSlots(layout.id)
-    if (loadGeneration !== slotLoadGenerationRef.current) {
-      return
-    }
-    setHomepageSlots(slots)
   }, [scope])
 
   const placementTargets = useMemo(

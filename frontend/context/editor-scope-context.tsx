@@ -63,7 +63,17 @@ export function EditorScopeProvider({
   const setScope = useCallback(
     (nextScope: IEditorScope) => {
       const canonical = canonicalizeEditorScope(nextScope)
-      setScopeState(canonical)
+      setScopeState((previous) => {
+        if (
+          previous.marketCode === canonical.marketCode &&
+          previous.townId === canonical.townId &&
+          previous.countyId === canonical.countyId &&
+          previous.pageName === canonical.pageName
+        ) {
+          return previous
+        }
+        return canonical
+      })
       if (sync) {
         persistEditorScope(canonical)
       }
@@ -77,7 +87,18 @@ export function EditorScopeProvider({
       return
     }
     return subscribeToEditorScope((nextScope) => {
-      setScopeState(canonicalizeEditorScope(nextScope))
+      const canonical = canonicalizeEditorScope(nextScope)
+      setScopeState((previous) => {
+        if (
+          previous.marketCode === canonical.marketCode &&
+          previous.townId === canonical.townId &&
+          previous.countyId === canonical.countyId &&
+          previous.pageName === canonical.pageName
+        ) {
+          return previous
+        }
+        return canonical
+      })
     })
   }, [sync])
 

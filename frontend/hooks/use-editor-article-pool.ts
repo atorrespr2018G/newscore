@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api/rest-client'
 import {
   EDITOR_FETCH_PAGE_SIZE,
   EDITOR_POOL_PAGE_SIZE,
+  MAX_EDITOR_SEARCH_PAGES,
   fetchAllPaginatedArticles,
   mergeArticlePages,
   type IEditorSearchFilters,
@@ -133,10 +134,14 @@ export function useEditorArticlePool(): IEditorArticlePool {
   }, [])
 
   const searchArticles = useCallback(
-    async (filters: IEditorSearchFilters): Promise<IEditorStoryRow[]> => {
+    async (
+      filters: IEditorSearchFilters,
+      signal?: AbortSignal,
+    ): Promise<IEditorStoryRow[]> => {
       return fetchAllPaginatedArticles(
         (page) => `${apiConfig.news}/search?${buildSearchPageParams(page, filters)}`,
-        (url) => apiFetch(url),
+        (url) => apiFetch(url, { signal }),
+        { maxPages: MAX_EDITOR_SEARCH_PAGES, signal },
       )
     },
     [],

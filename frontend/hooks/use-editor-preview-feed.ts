@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import {
   getHomepageLayout,
@@ -44,21 +44,27 @@ export function useEditorPreviewFeed(
         pageName: scope.pageName,
       }),
     enabled,
+    placeholderData: keepPreviousData,
   })
   const slotsQuery = useQuery({
     queryKey: editorKeys.slots(scope),
     queryFn: async () => {
-      const layout = await getHomepageLayout(
-        scope.marketCode,
-        scope.pageName,
-        editorScopeRegionCode(scope),
-      )
-      if (!layout.id) {
+      try {
+        const layout = await getHomepageLayout(
+          scope.marketCode,
+          scope.pageName,
+          editorScopeRegionCode(scope),
+        )
+        if (!layout.id) {
+          return []
+        }
+        return getLayoutSlots(layout.id)
+      } catch {
         return []
       }
-      return getLayoutSlots(layout.id)
     },
     enabled,
+    placeholderData: keepPreviousData,
   })
 
   const refresh = useCallback(async () => {
@@ -72,6 +78,8 @@ export function useEditorPreviewFeed(
   return {
     previewFeed: previewQuery.data ?? null,
     homepageSlots: slotsQuery.data ?? [],
+    // isLoading is true only when there is no data yet; placeholder keeps prior
+    // scope visible while the next market/page feed loads.
     loading: previewQuery.isLoading || slotsQuery.isLoading,
     refreshing: previewQuery.isFetching || slotsQuery.isFetching,
     error:

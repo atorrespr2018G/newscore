@@ -200,13 +200,23 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
     [placement.applyDropPlacement, preview.refresh, scope, setError, setMessage, setSaving, t],
   )
 
+  const loadGenerationRef = useRef(0)
+
   useEffect(() => {
+    const generation = loadGenerationRef.current + 1
+    loadGenerationRef.current = generation
     setLoading(true)
     void Promise.all([placement.loadHomepageSlots(), placement.loadArticlePlacements()])
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : t('editor.errors.loadEditorData'))
+        if (loadGenerationRef.current === generation) {
+          setError(err instanceof Error ? err.message : t('editor.errors.loadEditorData'))
+        }
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (loadGenerationRef.current === generation) {
+          setLoading(false)
+        }
+      })
   }, [placement.loadHomepageSlots, placement.loadArticlePlacements, setLoading, setError, t])
 
   return {

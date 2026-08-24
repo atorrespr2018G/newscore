@@ -91,7 +91,10 @@ export interface IEditorArticlePool {
   loadingMoreArticles: boolean
   loadArticles: () => Promise<void>
   loadMoreArticles: () => Promise<void>
-  searchArticles: (filters: IEditorSearchFilters) => Promise<IEditorStoryRow[]>
+  searchArticles: (
+    filters: IEditorSearchFilters,
+    signal?: AbortSignal,
+  ) => Promise<IEditorStoryRow[]>
   updateArticleRow: (articleId: string, patch: Partial<IEditorStoryRow>) => void
 }
 

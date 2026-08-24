@@ -110,7 +110,10 @@ interface IEditorStoryPoolProps {
   articles: IEditorStoryRow[]
   selectedId: string | null
   placementMap: Map<string, IArticlePlacement[]>
-  onSearch: (filters: IEditorSearchFilters) => Promise<IEditorStoryRow[]>
+  onSearch: (
+    filters: IEditorSearchFilters,
+    signal?: AbortSignal,
+  ) => Promise<IEditorStoryRow[]>
   onSelect: (articleId: string) => void
   categories: ICategoryOut[]
   selectedCategoryIds: string[]
@@ -215,27 +218,31 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
       return
     }
 
-    let cancelled = false
+    const controller = new AbortController()
     setSearchLoading(true)
-    void onSearch(debouncedFilters)
+    void onSearch(debouncedFilters, controller.signal)
       .then((results) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setSearchResults(results)
         }
       })
-      .catch(() => {
-        if (!cancelled) {
-          setSearchResults([])
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return
         }
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+        setSearchResults([])
       })
       .finally(() => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setSearchLoading(false)
         }
       })
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [debouncedFilters, searchActive, onSearch])
 

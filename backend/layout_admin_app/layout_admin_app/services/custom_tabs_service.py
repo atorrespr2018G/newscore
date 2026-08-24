@@ -9,13 +9,13 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.custom_page_sections_sync import (
     default_custom_page_section_items,
-    ensure_market_custom_geo_sections,
     sync_custom_layout_slots,
 )
 from shared.core.custom_tabs import assert_custom_tab_slug_allowed, slugify_tab_label
 from shared.core.exceptions import ConflictError, NotFoundError, ValidationError
 from shared.core.logger import get_logger
 from shared.core.page_ad_placements import default_ads_for_page
+from shared.core.regions import get_region_by_code
 from shared.models.common import utc_now
 from shared.read.collections import CUSTOM_PAGE_SECTIONS_COLLECTION, CUSTOM_TABS_COLLECTION
 from shared.read.market_reads import get_market_by_code
@@ -123,8 +123,11 @@ async def _seed_market_board(
     market_code: str,
     page_name: str,
     label: str,
-) -> list[dict[str, str]]:
-    """Create the market-level sections doc and layout for one tab.
+) -> None:
+    """Create the country-level sections doc and layout for one tab.
+
+    State/town/county boards are created lazily on first Configuration load or
+    save for that locality so Create Tab stays fast (US has 100+ geos).
 
     Args:
         db: Database connection.
@@ -132,17 +135,18 @@ async def _seed_market_board(
         page_name: Tab slug / page name.
         label: Tab display name.
 
-    Returns:
-        Default typed section items used for seeding geo boards.
-
     Raises:
-        ValidationError: When the market document is missing.
+        ValidationError: When the market or country region document is missing.
     """
 
     market = await get_market_by_code(db, market_code)
     if market is None:
         raise ValidationError(f"Market not found: {market_code}")
+    country_region = await get_region_by_code(db, market_code)
+    if country_region is None:
+        raise ValidationError(f"Country region not found: {market_code}")
     market_id = str(market["_id"])
+    region_id = str(country_region["_id"])
     items = default_custom_page_section_items([], hero_label=label)
     ads = default_ads_for_page(page_name)
     now = utc_now().isoformat()
@@ -150,7 +154,7 @@ async def _seed_market_board(
         {
             "page_name": page_name,
             "market_id": market_id,
-            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+            "region_id": region_id,
         },
     )
     if existing is None:
@@ -159,7 +163,7 @@ async def _seed_market_board(
                 "_id": str(uuid4()),
                 "page_name": page_name,
                 "market_id": market_id,
-                "region_id": None,
+                "region_id": region_id,
                 "items": items,
                 "ads": ads,
                 "updated_at": now,
@@ -171,13 +175,15 @@ async def _seed_market_board(
         page_name=page_name,
         parent_label=label,
         items=items,
-        region_id=None,
+        region_id=region_id,
     )
-    return items
 
 
 async def create_tab(db: AsyncIOMotorDatabase, body: CustomTabCreate) -> CustomTabOut:
-    """Register a custom tab for one market and seed that market's geo boards.
+    """Register a custom tab for one market and seed its country board.
+
+    Locality boards (states, towns, counties) are created on demand when the
+    Configuration editor opens or saves that geo scope.
 
     Args:
         db: Database connection.
@@ -218,18 +224,11 @@ async def create_tab(db: AsyncIOMotorDatabase, body: CustomTabCreate) -> CustomT
         "updated_at": now,
     }
     await db[CUSTOM_TABS_COLLECTION].insert_one(doc)
-    items = await _seed_market_board(
+    await _seed_market_board(
         db,
         market_code=market_code,
         page_name=slug,
         label=label,
-    )
-    await ensure_market_custom_geo_sections(
-        db,
-        market_code=market_code,
-        page_name=slug,
-        label=label,
-        items=items,
     )
     logger.info("Created custom tab %s for market %s", slug, market_code)
     return _to_out(doc)

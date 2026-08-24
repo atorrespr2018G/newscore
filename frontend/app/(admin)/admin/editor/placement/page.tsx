@@ -31,15 +31,13 @@ export default function EditorPlacementPage(): JSX.Element {
         <PlacementBanner saving={board.saving} onPublish={board.publishHomepageChanges} />
       ) : null}
 
-      {board.loading ? (
-        <div className="mt-6">
+      <div className="mt-6">
+        {board.loading && board.previewFeed == null ? (
           <EditorCanvasSkeleton />
-        </div>
-      ) : (
-        <div className="mt-6">
+        ) : (
           <PlacementWorkspace board={board} />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -109,18 +107,21 @@ function PlacementBanner({ saving, onPublish }: IPlacementBannerProps): JSX.Elem
 function PlacementWorkspace({ board }: { board: IEditorPlacementBoard }): JSX.Element {
   const feed = board.previewFeed
   const slots = board.homepageSlots
-  // Drop targets are keyed by layout slot ids. The preview feed can resolve a
-  // moment before scoped slots finish loading (especially after Market PR hydrate),
-  // which leaves Politics cards non-droppable. Wait until ids overlap.
+  const stillFetching = board.previewLoading || board.loading
+  // Drop targets are keyed by layout slot ids. While fetches are in flight, hide
+  // the feed until slot ids overlap so Politics cards stay droppable. Once both
+  // fetches settle, always release the canvas — empty or never-aligned slots
+  // (e.g. custom tab + wrong market) must not lock loading forever.
   const slotsAligned =
     feed != null &&
     slots.length > 0 &&
     feed.slots.some((feedSlot) => slots.some((slot) => slot.id === feedSlot.id))
+  const canvasFeed = slotsAligned || !stillFetching ? feed : null
 
   return (
     <HomepagePlacementCanvas
-      feed={slotsAligned ? feed : null}
-      loading={board.previewLoading || board.loading || (feed != null && !slotsAligned)}
+      feed={canvasFeed}
+      loading={stillFetching && canvasFeed == null}
       error={board.previewError}
       homepageSlots={slots}
       placementTargets={board.placementTargets}

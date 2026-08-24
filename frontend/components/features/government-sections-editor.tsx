@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import {
@@ -13,6 +13,7 @@ import {
   SortableConfigRow,
   SortableDragPreview,
 } from '@/components/ui/sortable-config-row'
+import { useGenerationLoading } from '@/hooks/use-generation-loading'
 import { useSortableListDrag } from '@/hooks/use-sortable-list-drag'
 import {
   getGovernmentPageSections,
@@ -146,43 +147,31 @@ export function GovernmentSectionsEditor(): JSX.Element {
   const [countyId, setCountyId] = useState<string | null>(null)
   const [rows, setRows] = useState<IEditableSectionRow[]>([])
   const [adRows, setAdRows] = useState<IEditableAdRow[]>([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const showLocality = marketCode === US_MARKET_CODE || marketCode === PUERTO_RICO_MARKET_CODE
   const showFloridaCounty = marketCode === US_MARKET_CODE && localityId === FLORIDA_STATE_CODE
   const regionCode = governmentSectionsRegionCode(marketCode, localityId, countyId)
+  const scopeKey = `${marketCode}:${regionCode}`
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadSections(): Promise<void> {
-      setLoading(true)
-      try {
-        const data = await getGovernmentPageSections(marketCode, regionCode)
-        if (!cancelled) {
-          setRows(toEditableRows(data.items))
-          setAdRows(toEditableAdRows(data.ads))
-        }
-      } catch (error) {
-        if (!cancelled) {
-          const message = error instanceof Error ? error.message : t('governmentPage.loadFailed')
-          pushToast(message, 'error')
-          setRows([])
-          setAdRows([])
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+  const loading = useGenerationLoading(scopeKey, async (isCurrent) => {
+    try {
+      const data = await getGovernmentPageSections(marketCode, regionCode)
+      if (!isCurrent()) {
+        return
       }
+      setRows(toEditableRows(data.items))
+      setAdRows(toEditableAdRows(data.ads))
+    } catch (error) {
+      if (!isCurrent()) {
+        return
+      }
+      const message = error instanceof Error ? error.message : t('governmentPage.loadFailed')
+      pushToast(message, 'error')
+      setRows([])
+      setAdRows([])
     }
-
-    void loadSections()
-    return () => {
-      cancelled = true
-    }
-  }, [marketCode, regionCode, pushToast, t])
+  })
 
   /**
    * Persist the current ordered list for the selected market or locality.
@@ -299,12 +288,17 @@ export function GovernmentSectionsEditor(): JSX.Element {
         ) : null}
       </div>
 
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <p className="text-sm text-neutral-600">{t('governmentPage.loading')}</p>
       ) : (
         <>
-          <GovernmentRowsEditor rows={rows} onChange={setRows} />
-          <PageAdsEditor rows={adRows} onChange={setAdRows} />
+          {loading ? (
+            <p className="mb-2 text-xs text-neutral-500">{t('governmentPage.loading')}</p>
+          ) : null}
+          <div className={loading ? 'pointer-events-none opacity-60' : undefined}>
+            <GovernmentRowsEditor rows={rows} onChange={setRows} />
+            <PageAdsEditor rows={adRows} onChange={setAdRows} />
+          </div>
         </>
       )}
 

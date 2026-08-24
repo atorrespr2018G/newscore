@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import { CustomSectionsEditor } from '@/components/features/custom-sections-editor'
 import { deleteCustomTab, listCustomTabs, type ICustomTab } from '@/lib/api/layout-client'
+import { useGenerationLoading } from '@/hooks/use-generation-loading'
 
 /**
  * Configuration editor for one registered custom tab.
@@ -22,28 +23,23 @@ export default function EditCustomTabPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    async function loadTab(): Promise<void> {
-      try {
-        const tabs = await listCustomTabs()
-        if (cancelled) {
-          return
-        }
-        const match = tabs.find((item) => item.slug === slug) ?? null
-        setTab(match)
-        setError(match ? null : t('customTabs.notFound'))
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : t('customTabs.loadFailed'))
-        }
+  const loading = useGenerationLoading(slug, async (isCurrent) => {
+    try {
+      const tabs = await listCustomTabs()
+      if (!isCurrent()) {
+        return
       }
+      const match = tabs.find((item) => item.slug === slug) ?? null
+      setTab(match)
+      setError(match ? null : t('customTabs.notFound'))
+    } catch (loadError) {
+      if (!isCurrent()) {
+        return
+      }
+      setTab(null)
+      setError(loadError instanceof Error ? loadError.message : t('customTabs.loadFailed'))
     }
-    void loadTab()
-    return () => {
-      cancelled = true
-    }
-  }, [slug, t])
+  })
 
   /**
    * Confirm and delete the custom tab, then return to Create Tab.
@@ -79,7 +75,7 @@ export default function EditCustomTabPage(): JSX.Element {
   if (error) {
     return <p className="text-sm text-red-700">{error}</p>
   }
-  if (!tab) {
+  if (loading || !tab) {
     return <p className="text-sm text-neutral-600">{t('customTabs.loading')}</p>
   }
 
