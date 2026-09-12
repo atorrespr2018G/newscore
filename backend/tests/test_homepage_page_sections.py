@@ -22,6 +22,8 @@ from shared.core.homepage_page_sections_sync import (
     has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
     migrate_legacy_election_section,
+    migrate_remove_primary_more_top_stories,
+    migrate_collapse_consecutive_ribbon_ads,
     slugify_section_label,
 )
 from shared.core.markets import (
@@ -52,6 +54,7 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert types[0] == "hero"
     assert types[1] == "ribbon_ad"
     assert slugs[1] == "ad-ribbon"
+    assert "more-top-stories" not in slugs
     assert "politics" in slugs
     assert "sports" in slugs
     assert "government" in slugs
@@ -67,6 +70,51 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     politics_index = slugs.index("politics")
     assert types[elections_index] == "category"
     assert elections_index == politics_index + 1
+
+
+def test_migrate_remove_primary_more_top_stories_keeps_extra() -> None:
+    """Primary More Top Stories is dropped; Extra Stories remains."""
+
+    items = [
+        {"section_type": "top_stories", "slug": "us-featured", "label": "Top Stories"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon-2", "label": "Ribbon Advertisement"},
+        {"section_type": "more_top_stories", "slug": "more-top-stories", "label": "More Top Stories"},
+        {"section_type": "category", "slug": "politics", "label": "Politics"},
+        {
+            "section_type": "more_top_stories",
+            "slug": "more-top-stories-2",
+            "label": "Extra Stories",
+        },
+    ]
+
+    migrated = migrate_remove_primary_more_top_stories(items)
+
+    assert [item["slug"] for item in migrated] == [
+        "us-featured",
+        "politics",
+        "more-top-stories-2",
+    ]
+
+
+def test_migrate_collapse_consecutive_ribbon_ads_keeps_one() -> None:
+    """Stacked ribbon rows collapse to a single advertisement."""
+
+    items = [
+        {"section_type": "top_stories", "slug": "us-featured", "label": "Top Stories"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon", "label": "Ribbon Advertisement"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon-2", "label": "Ribbon Advertisement"},
+        {"section_type": "category", "slug": "politics", "label": "Politics"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon-3", "label": "Ribbon Advertisement"},
+    ]
+
+    migrated = migrate_collapse_consecutive_ribbon_ads(items)
+
+    assert [item["slug"] for item in migrated] == [
+        "us-featured",
+        "ad-ribbon",
+        "politics",
+        "ad-ribbon-3",
+    ]
 
 
 def test_migrate_legacy_election_section_moves_it_after_politics() -> None:

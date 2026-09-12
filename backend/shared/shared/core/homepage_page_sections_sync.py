@@ -207,11 +207,6 @@ DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_homepage_ri
             "slug": US_FEATURED_POSITION_KEY,
             "label": "Top Stories",
         },
-        {
-            "section_type": SECTION_TYPE_MORE_TOP_STORIES,
-            "slug": MORE_TOP_STORIES_POSITION_KEY,
-            "label": "More Top Stories",
-        },
         {"section_type": SECTION_TYPE_RAIL, "slug": RAIL_POSITION_KEY, "label": "Sports"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "politics", "label": "Politics"},
         {
@@ -358,6 +353,52 @@ def migrate_legacy_election_section(items: list[dict[str, str]]) -> list[dict[st
         migrated.append(election)
     else:
         migrated.insert(politics_index + 1, election)
+    return migrated
+
+
+def migrate_remove_primary_more_top_stories(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Remove the primary homepage More Top Stories row; keep Extra Stories.
+
+    Args:
+        items: Typed homepage section rows.
+
+    Returns:
+        Copy of ``items`` without the ``more-top-stories`` row. A ribbon
+        immediately preceding that row is also dropped so ads do not stack.
+    """
+
+    migrated: list[dict[str, str]] = []
+    for item in items:
+        if (
+            item.get("section_type") == SECTION_TYPE_MORE_TOP_STORIES
+            and item.get("slug") == MORE_TOP_STORIES_POSITION_KEY
+        ):
+            if migrated and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD:
+                migrated.pop()
+            continue
+        migrated.append(dict(item))
+    return migrated
+
+
+def migrate_collapse_consecutive_ribbon_ads(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Keep a single ribbon when consecutive ribbon_ad rows are stacked.
+
+    Args:
+        items: Typed homepage section rows.
+
+    Returns:
+        Copy of ``items`` with back-to-back ribbon advertisements collapsed.
+    """
+
+    migrated: list[dict[str, str]] = []
+    for item in items:
+        if (
+            item.get("section_type") == SECTION_TYPE_RIBBON_AD
+            and migrated
+            and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD
+        ):
+            continue
+        migrated.append(dict(item))
     return migrated
 
 

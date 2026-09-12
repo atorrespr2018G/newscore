@@ -25,6 +25,8 @@ from shared.core.homepage_page_sections_sync import (
     has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
     migrate_legacy_election_section,
+    migrate_remove_primary_more_top_stories,
+    migrate_collapse_consecutive_ribbon_ads,
     slugify_section_label,
     sync_homepage_layout_slots,
 )
@@ -336,7 +338,11 @@ async def get_for_market(
             updated_at=utc_now().isoformat(),
         )
     items = expand_homepage_section_items(list(doc.get("items") or []))
-    migrated_items = migrate_legacy_election_section(items)
+    migrated_items = migrate_collapse_consecutive_ribbon_ads(
+        migrate_remove_primary_more_top_stories(
+            migrate_legacy_election_section(items),
+        ),
+    )
     ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_HOMEPAGE)
     now = utc_now().isoformat()
     if not has_post_hero_ribbon_ad_section(migrated_items):
