@@ -26,7 +26,6 @@ CUSTOM_TABS_COLLECTION = "custom_tabs"
 CUSTOM_PAGE_SECTIONS_COLLECTION = "custom_page_sections"
 HOMEPAGE_PAGE_SECTIONS_COLLECTION = "homepage_page_sections"
 WORLD_PAGE_SECTIONS_COLLECTION = "world_page_sections"
-POLITICS_PAGE_SECTIONS_COLLECTION = "politics_page_sections"
 PLACEMENT_EVENTS_COLLECTION = "placement_events"
 USER_VIEW_STATE_COLLECTION = "user_view_state"
 
@@ -159,13 +158,6 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         [("market_id", 1), ("region_id", 1)],
         unique=True,
         name="world_page_sections_market_region_uq",
-    )
-    await _create_index_compat(
-        db,
-        POLITICS_PAGE_SECTIONS_COLLECTION,
-        [("market_id", 1), ("region_id", 1)],
-        unique=True,
-        name="politics_page_sections_market_region_uq",
     )
     await _create_index_compat(
         db,

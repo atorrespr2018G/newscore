@@ -17,7 +17,6 @@ CUSTOM_TABS_COLLECTION = "custom_tabs"
 CUSTOM_PAGE_SECTIONS_COLLECTION = "custom_page_sections"
 HOMEPAGE_PAGE_SECTIONS_COLLECTION = "homepage_page_sections"
 WORLD_PAGE_SECTIONS_COLLECTION = "world_page_sections"
-POLITICS_PAGE_SECTIONS_COLLECTION = "politics_page_sections"
 WIDGETS_COLLECTION = "widgets"
 # Append-only log of when an article was pinned into a slot, used to badge
 # newly placed stories on the editorial workflow tabs.
