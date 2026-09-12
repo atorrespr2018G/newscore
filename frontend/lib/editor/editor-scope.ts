@@ -55,20 +55,13 @@ export function editorScopeRegionCode(scope: IEditorScope): string {
 }
 
 /**
- * Force Technology onto the shared US board (no market or locality).
+ * Normalize an editor scope before applying it.
+ *
+ * Currently a passthrough; kept for callers that expect a canonicalizer.
  *
  * @param scope Requested editor scope.
- * @returns Scope with Technology pinned to the canonical US layout.
+ * @returns The same scope unchanged.
  */
 export function canonicalizeEditorScope(scope: IEditorScope): IEditorScope {
-  const pageName = scope.pageName.trim().toLowerCase()
-  if (pageName !== TECHNOLOGY_PAGE_NAME) {
-    return scope
-  }
-  return {
-    marketCode: DEFAULT_EDITOR_MARKET_CODE,
-    townId: null,
-    countyId: null,
-    pageName: TECHNOLOGY_PAGE_NAME,
-  }
+  return scope
 }

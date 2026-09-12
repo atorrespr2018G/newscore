@@ -51,7 +51,7 @@ PAGE_NAME_BUSINESS = "business"
 PAGE_NAME_TECHNOLOGY = "technology"
 
 # Pages whose public feed is shared globally (not cloned per market/region).
-MARKET_AGNOSTIC_PAGE_NAMES = frozenset({PAGE_NAME_TECHNOLOGY})
+MARKET_AGNOSTIC_PAGE_NAMES: frozenset[str] = frozenset()
 
 # Compact Baseball-style archive on the Technology page (placement membership).
 TECHNOLOGY_ARCHIVE_POSITION_KEY = "archive"
@@ -67,7 +67,7 @@ def is_market_agnostic_page(page_name: str) -> bool:
     """Return whether a layout page is shared across markets.
 
     Args:
-        page_name: Layout page name such as ``technology``.
+        page_name: Layout page name such as ``homepage``.
 
     Returns:
         True when the page must ignore market and region scope.

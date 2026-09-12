@@ -10,6 +10,7 @@
     "government": "Government",
     "entertainment": "Entertainment",
     "health": "Health",
+    "technology": "Technology",
     "createTab": "Create Tab",
     "mainPage": "Main Page",
     "world": "World",
@@ -521,6 +522,37 @@
     "saveSuccess": "Health list saved. Use Placement → health to pin stories, or tag articles with the new topic category.",
     "saveFailed": "Failed to save health list.",
     "loadFailed": "Failed to load health list."
+  },
+  "technologyPage": {
+    "heading": "Technology sections",
+    "subtitle": "Manage the ordered list of Technology page sections (hero, Top Stories, Live, Archive, and ribbon ads) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving updates layout slots. Place stories under Placement → Page → technology.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows. Archive is pin-only (no category auto-fill). Saving updates Placement → technology for the same market, state, county, or town.",
+    "labelPlaceholder": "Section name",
+    "addType": {
+      "hero": "Add hero",
+      "top_stories": "Add Top Stories",
+      "live": "Add Live",
+      "archive": "Add Archive",
+      "ribbon_ad": "Add Ribbon Advertisement"
+    },
+    "types": {
+      "hero": "Hero",
+      "top_stories": "Top Stories",
+      "live": "Live",
+      "archive": "Archive",
+      "ribbon_ad": "Ribbon Advertisement"
+    },
+    "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading technology list…",
+    "saveSuccess": "Technology list saved. Use Placement → technology to pin stories (including the Archive band).",
+    "saveFailed": "Failed to save technology list.",
+    "loadFailed": "Failed to load technology list."
   },
   "customTabs": {
     "createHeading": "Create tab",

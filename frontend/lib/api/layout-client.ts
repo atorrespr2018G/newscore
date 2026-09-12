@@ -587,6 +587,80 @@ export function putHealthPageSections(
   )
 }
 
+/** Technology page section template used for layout and Placement slots. */
+export type TechnologyPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'archive'
+  | 'ribbon_ad'
+
+/** One ordered section on a technology page. */
+export interface ITechnologyPageSectionItem {
+  section_type: TechnologyPageSectionType
+  slug: string
+  label: string
+}
+
+/** Technology page section list for a market or state region. */
+export interface ITechnologyPageSectionsOut {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: ITechnologyPageSectionItem[]
+  ads: IPageAdPlacementApi[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered technology section list for a market or region.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @returns Technology section list payload.
+ */
+export function getTechnologyPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<ITechnologyPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<ITechnologyPageSectionsOut>(
+    `${apiConfig.layout}/technology-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered technology section list and sync layout slots.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered typed sections (label required; slug optional).
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @param ads Optional ad placement rows.
+ * @returns Updated technology section list payload.
+ */
+export function putTechnologyPageSections(
+  marketCode: string,
+  items: Array<{ section_type: TechnologyPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
+): Promise<ITechnologyPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<ITechnologyPageSectionsOut>(
+    `${apiConfig.layout}/technology-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items, ads }),
+    },
+  )
+}
+
 /** Main landing page section template used for layout and Placement slots. */
 export type MainPageSectionType =
   | 'hero'

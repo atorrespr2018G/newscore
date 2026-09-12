@@ -2678,6 +2678,61 @@ async def _ensure_market_technology_page(
     )
 
 
+async def _ensure_market_technology_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+) -> None:
+    """Seed per-market technology section config and sync the technology layout."""
+
+    from shared.core.technology_page_sections_sync import (
+        default_technology_page_section_items,
+        sync_technology_layout_slots,
+    )
+    from shared.read.collections import TECHNOLOGY_PAGE_SECTIONS_COLLECTION
+
+    items = default_technology_page_section_items()
+    now = _utc_now_iso()
+    existing = await db[TECHNOLOGY_PAGE_SECTIONS_COLLECTION].find_one(
+        {
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        },
+        {"_id": 1},
+    )
+    if existing is not None:
+        await db[TECHNOLOGY_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"items": items, "updated_at": now, "region_id": None}},
+        )
+    else:
+        await db[TECHNOLOGY_PAGE_SECTIONS_COLLECTION].insert_one(
+            {
+                "_id": str(uuid4()),
+                "market_id": market_id,
+                "region_id": None,
+                "items": items,
+                "updated_at": now,
+            },
+        )
+    await sync_technology_layout_slots(db, market_id=market_id, items=items, region_id=None)
+    logger.info(
+        "Seeded technology sections for market %s (%d items)",
+        market_code,
+        len(items),
+    )
+
+
+async def _ensure_us_state_technology_sections(db: AsyncIOMotorDatabase) -> None:
+    """Seed technology lists for US states, Florida counties, and PR towns."""
+
+    from shared.core.technology_page_sections_sync import ensure_geo_technology_sections
+
+    result = await ensure_geo_technology_sections(db)
+    logger.info("Seeded geo technology sections: %s", result)
+
+
 async def _ensure_market_sports_sections(
     db: AsyncIOMotorDatabase,
     *,
@@ -3276,6 +3331,11 @@ async def seed_dev() -> None:
                 display_name_key=str(market["display_name_key"]),
                 slug_to_category_id=slug_to_category_id,
             )
+            await _ensure_market_technology_sections(
+                db,
+                market_id=market_id,
+                market_code=code,
+            )
             await _ensure_market_sports_sections(
                 db,
                 market_id=market_id,
@@ -3319,6 +3379,7 @@ async def seed_dev() -> None:
         await _ensure_us_state_government_sections(db)
         await _ensure_us_state_entertainment_sections(db)
         await _ensure_us_state_health_sections(db)
+        await _ensure_us_state_technology_sections(db)
         await _stamp_government_page_category_fill(db, slug_to_category_id)
         await _stamp_homepage_government_category_fill(db, slug_to_category_id)
         await _stamp_entertainment_page_category_fill(db)

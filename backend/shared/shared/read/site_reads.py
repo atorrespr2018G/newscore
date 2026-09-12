@@ -42,6 +42,7 @@ from shared.read.collections import (
     HEALTH_PAGE_SECTIONS_COLLECTION,
     HOMEPAGE_PAGE_SECTIONS_COLLECTION,
     SPORTS_PAGE_SECTIONS_COLLECTION,
+    TECHNOLOGY_PAGE_SECTIONS_COLLECTION,
     WIDGETS_COLLECTION,
     WORLD_PAGE_SECTIONS_COLLECTION,
 )
@@ -195,6 +196,8 @@ def _page_sections_collection(page_name: str) -> str | None:
         return ENTERTAINMENT_PAGE_SECTIONS_COLLECTION
     if page_name == PAGE_NAME_HEALTH:
         return HEALTH_PAGE_SECTIONS_COLLECTION
+    if page_name == PAGE_NAME_TECHNOLOGY:
+        return TECHNOLOGY_PAGE_SECTIONS_COLLECTION
     if page_name == PAGE_NAME_HOMEPAGE:
         return HOMEPAGE_PAGE_SECTIONS_COLLECTION
     return None
@@ -243,7 +246,7 @@ async def load_page_ad_placements(
     collection = _page_sections_collection(page_name)
     scope_page_name: str | None = None
     if collection is None:
-        if page_name in {PAGE_NAME_BUSINESS, PAGE_NAME_TECHNOLOGY}:
+        if page_name == PAGE_NAME_BUSINESS:
             return default_ads_for_page(page_name)
         if await _is_custom_tab_page(db, page_name):
             collection = CUSTOM_PAGE_SECTIONS_COLLECTION

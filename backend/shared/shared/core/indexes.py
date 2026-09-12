@@ -20,6 +20,7 @@ SPORTS_PAGE_SECTIONS_COLLECTION = "sports_page_sections"
 GOVERNMENT_PAGE_SECTIONS_COLLECTION = "government_page_sections"
 ENTERTAINMENT_PAGE_SECTIONS_COLLECTION = "entertainment_page_sections"
 HEALTH_PAGE_SECTIONS_COLLECTION = "health_page_sections"
+TECHNOLOGY_PAGE_SECTIONS_COLLECTION = "technology_page_sections"
 CUSTOM_TABS_COLLECTION = "custom_tabs"
 CUSTOM_PAGE_SECTIONS_COLLECTION = "custom_page_sections"
 HOMEPAGE_PAGE_SECTIONS_COLLECTION = "homepage_page_sections"
@@ -177,6 +178,13 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         [("market_id", 1), ("region_id", 1)],
         unique=True,
         name="health_page_sections_market_region_uq",
+    )
+    await _create_index_compat(
+        db,
+        TECHNOLOGY_PAGE_SECTIONS_COLLECTION,
+        [("market_id", 1), ("region_id", 1)],
+        unique=True,
+        name="technology_page_sections_market_region_uq",
     )
     await _create_index_compat(
         db,

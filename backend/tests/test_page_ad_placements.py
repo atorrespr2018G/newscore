@@ -14,6 +14,7 @@ if str(_ROOT / "shared") not in sys.path:
 from shared.core.exceptions import ValidationError
 from shared.core.page_ad_placements import (
     DEFAULT_BUSINESS_ADS,
+    DEFAULT_CUSTOM_TAB_ADS,
     DEFAULT_GOVERNMENT_ADS,
     DEFAULT_ENTERTAINMENT_ADS,
     DEFAULT_HOMEPAGE_ADS,
@@ -38,16 +39,20 @@ def test_default_ads_for_page_returns_page_specific_lists() -> None:
     assert default_ads_for_page("entertainment") == [dict(row) for row in DEFAULT_ENTERTAINMENT_ADS]
     assert default_ads_for_page("business") == [dict(row) for row in DEFAULT_BUSINESS_ADS]
     assert default_ads_for_page("technology") == [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
-    assert default_ads_for_page("unknown") == [dict(row) for row in DEFAULT_HOMEPAGE_ADS]
+    assert default_ads_for_page("unknown") == [dict(row) for row in DEFAULT_CUSTOM_TAB_ADS]
 
 
-def test_technology_page_is_market_agnostic() -> None:
-    """Technology news is shared globally and is not scoped to a market."""
+def test_technology_page_is_not_market_agnostic() -> None:
+    """Technology uses normal market/region scope like other section pages."""
 
-    assert is_market_agnostic_page("technology") is True
-    assert is_market_agnostic_page("Technology") is True
+    from shared.core.page_ad_placements import MARKET_AGNOSTIC_PAGE_NAMES, PAGE_NAME_TECHNOLOGY
+
+    assert is_market_agnostic_page("technology") is False
+    assert is_market_agnostic_page("Technology") is False
     assert is_market_agnostic_page("sports") is False
     assert is_market_agnostic_page("homepage") is False
+    assert PAGE_NAME_TECHNOLOGY not in MARKET_AGNOSTIC_PAGE_NAMES
+    assert len(MARKET_AGNOSTIC_PAGE_NAMES) == 0
 
 
 def test_default_homepage_ads_cover_shell_locations() -> None:

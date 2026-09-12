@@ -10,6 +10,7 @@
     "government": "Gobierno",
     "entertainment": "Entretenimiento",
     "health": "Salud",
+    "technology": "Tecnología",
     "createTab": "Crear pestaña",
     "mainPage": "Página principal",
     "world": "Mundo",
@@ -521,6 +522,37 @@
     "saveSuccess": "Lista de salud guardada. Usa Placement → health para fijar historias, o etiqueta artículos con la nueva categoría.",
     "saveFailed": "No se pudo guardar la lista de salud.",
     "loadFailed": "No se pudo cargar la lista de salud."
+  },
+  "technologyPage": {
+    "heading": "Secciones de tecnología",
+    "subtitle": "Administra la lista ordenada de secciones de la página Tecnología (héroe, Principales, En vivo, Archivo y cintas publicitarias) de cada alcance. En EE. UU. hay una lista por estado y por condado de Florida; en PR, una lista por mercado y por pueblo; en otros países, una lista por mercado. Al guardar se actualizan las ranuras. Coloca historias en Placement → Página → technology.",
+    "listHint": "Agrega, quita, renombra o reordena cualquier sección, incluidas las filas de cinta publicitaria. El archivo es solo por fijación (sin autollenado por categoría). Al guardar se actualiza Placement → technology para el mismo mercado, estado, condado o pueblo.",
+    "labelPlaceholder": "Nombre de la sección",
+    "addType": {
+      "hero": "Agregar héroe",
+      "top_stories": "Agregar Principales",
+      "live": "Agregar En vivo",
+      "archive": "Agregar Archivo",
+      "ribbon_ad": "Agregar cinta publicitaria"
+    },
+    "types": {
+      "hero": "Héroe",
+      "top_stories": "Principales",
+      "live": "En vivo",
+      "archive": "Archivo",
+      "ribbon_ad": "Cinta publicitaria"
+    },
+    "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "dragHandle": "Arrastrar para reordenar",
+    "save": "Guardar lista",
+    "saving": "Guardando…",
+    "loading": "Cargando lista de tecnología…",
+    "saveSuccess": "Lista de tecnología guardada. Usa Placement → technology para fijar historias (incluido el Archivo).",
+    "saveFailed": "No se pudo guardar la lista de tecnología.",
+    "loadFailed": "No se pudo cargar la lista de tecnología."
   },
   "customTabs": {
     "createHeading": "Crear pestaña",
