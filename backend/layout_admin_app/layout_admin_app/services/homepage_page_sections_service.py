@@ -8,6 +8,10 @@ from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from shared.core.cache_invalidation import (
+    invalidate_homepage_for_market_ids,
+    invalidate_homepage_for_region_ids,
+)
 from shared.core.exceptions import NotFoundError, ValidationError
 from shared.core.homepage_page_sections_sync import (
     CANONICAL_SLUG_BY_TYPE,
@@ -16,9 +20,11 @@ from shared.core.homepage_page_sections_sync import (
     PRESERVED_HOMEPAGE_PAGE_KEYS,
     SECTION_TYPE_CATEGORY,
     SECTION_TYPE_HERO,
+    SPOTLIGHT_POSITION_KEY,
     expand_homepage_section_items,
     has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
+    migrate_legacy_election_section,
     slugify_section_label,
     sync_homepage_layout_slots,
 )
@@ -47,6 +53,18 @@ RIBBON_ADS_MIGRATED_FIELD = "ribbon_ads_migrated"
 logger = get_logger(__name__)
 
 _SLUG_SAFE_RE = re.compile(r"[^a-z0-9]+")
+
+
+async def _invalidate_homepage_sections_feed(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    region_id: str | None,
+) -> None:
+    if region_id:
+        await invalidate_homepage_for_region_ids(db, [region_id])
+        return
+    await invalidate_homepage_for_market_ids(db, [market_id])
 
 
 def _normalize_slug(value: str) -> str:
@@ -120,7 +138,11 @@ def _normalize_items(items: list[HomepagePageSectionItemIn]) -> list[dict[str, s
             seen_slugs=seen_slugs,
         )
 
-        if section_type == SECTION_TYPE_CATEGORY and slug in PRESERVED_HOMEPAGE_PAGE_KEYS:
+        if (
+            section_type == SECTION_TYPE_CATEGORY
+            and slug in PRESERVED_HOMEPAGE_PAGE_KEYS
+            and slug != SPOTLIGHT_POSITION_KEY
+        ):
             raise ValidationError(f"Category slug '{slug}' is reserved")
 
         if section_type != SECTION_TYPE_CATEGORY:
@@ -314,15 +336,17 @@ async def get_for_market(
             updated_at=utc_now().isoformat(),
         )
     items = expand_homepage_section_items(list(doc.get("items") or []))
+    migrated_items = migrate_legacy_election_section(items)
     ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_HOMEPAGE)
     now = utc_now().isoformat()
-    if not has_post_hero_ribbon_ad_section(items):
-        items = insert_legacy_homepage_ribbon_ads(items)
+    if not has_post_hero_ribbon_ad_section(migrated_items):
+        migrated_items = insert_legacy_homepage_ribbon_ads(migrated_items)
+    if migrated_items != items:
         await _upsert_sections_doc(
             db,
             market_id=market_id,
             region_id=region_id,
-            items=items,
+            items=migrated_items,
             ads=ads,
             now=now,
             ribbon_ads_migrated=True,
@@ -330,7 +354,12 @@ async def get_for_market(
         await sync_homepage_layout_slots(
             db,
             market_id=market_id,
-            items=items,
+            items=migrated_items,
+            region_id=region_id,
+        )
+        await _invalidate_homepage_sections_feed(
+            db,
+            market_id=market_id,
             region_id=region_id,
         )
         return _to_out(
@@ -338,7 +367,7 @@ async def get_for_market(
             market_code=str(market["code"]),
             region_id=region_id,
             region_code=normalized_region,
-            items=items,
+            items=migrated_items,
             ads=ads,
             updated_at=now,
         )
@@ -398,6 +427,11 @@ async def replace_for_market(
         db,
         market_id=market_id,
         items=items,
+        region_id=region_id,
+    )
+    await _invalidate_homepage_sections_feed(
+        db,
+        market_id=market_id,
         region_id=region_id,
     )
     logger.info(

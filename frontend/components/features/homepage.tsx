@@ -275,6 +275,7 @@ function HeroBlock({ articles, enableVideoAd = false }: IHeroBlockProps): JSX.El
 const POST_POLITICS_AD_SECTION_KEYS = ['health', 'finance', 'technology', 'world'] as const
 
 const POLITICS_POSITION_KEY = 'politics'
+const ELECTION_POSITION_KEY = 'midterm-elections'
 const SPORTS_POSITION_KEY = 'sports'
 const HOMEPAGE_PAGE_NAME = 'homepage'
 const SPORTS_PAGE_NAME = 'sports'
@@ -364,14 +365,19 @@ function takeEditorialBand(slots: IFeedSlot[]): { band: IEditorialBandSlots; con
 }
 
 /**
- * Consume consecutive Politics + Sports category rows as the paired module.
+ * Consume consecutive Politics + Elections + Sports compact rows as one module.
  *
  * @param slots Remaining feed slots.
  * @returns Paired slots and count consumed, or null.
  */
-function takePoliticsSportsPair(
+function takePoliticsSectionCluster(
   slots: IFeedSlot[],
-): { politics: IFeedSlot; sports: IFeedSlot | undefined; consumed: number } | null {
+): {
+  politics: IFeedSlot
+  elections: IFeedSlot | undefined
+  sports: IFeedSlot | undefined
+  consumed: number
+} | null {
   const first = slots[0]
   if (!first || normalizedPositionKey(first) !== POLITICS_POSITION_KEY) {
     return null
@@ -379,25 +385,40 @@ function takePoliticsSportsPair(
   if (resolveHomepagePageSlotKind(first) !== 'compact_six') {
     return null
   }
+
   const second = slots[1]
-  if (second && normalizedPositionKey(second) === SPORTS_POSITION_KEY) {
-    return { politics: first, sports: second, consumed: 2 }
+  const secondIsElection =
+    second &&
+    normalizedPositionKey(second) === ELECTION_POSITION_KEY &&
+    resolveHomepagePageSlotKind(second) === 'compact_six'
+  if (secondIsElection) {
+    const third = slots[2]
+    if (third && normalizedPositionKey(third) === SPORTS_POSITION_KEY) {
+      return { politics: first, elections: second, sports: third, consumed: 3 }
+    }
+    return { politics: first, elections: second, sports: undefined, consumed: 2 }
   }
-  return { politics: first, sports: undefined, consumed: 1 }
+
+  if (second && normalizedPositionKey(second) === SPORTS_POSITION_KEY) {
+    return { politics: first, elections: undefined, sports: second, consumed: 2 }
+  }
+  return { politics: first, elections: undefined, sports: undefined, consumed: 1 }
 }
 
-function PoliticsSportsSection({
+function PoliticsClusterSection({
   politicsSlot,
+  electionsSlot,
   sportsSlot,
   adIndex,
   showAdRibbon = true,
 }: {
   politicsSlot: IFeedSlot | undefined
+  electionsSlot: IFeedSlot | undefined
   sportsSlot: IFeedSlot | undefined
   adIndex: number
   showAdRibbon?: boolean
 }): JSX.Element | null {
-  if (!politicsSlot && !sportsSlot) {
+  if (!politicsSlot && !electionsSlot && !sportsSlot) {
     return null
   }
   return (
@@ -411,6 +432,11 @@ function PoliticsSportsSection({
             <HomepageSection slot={politicsSlot} pageName={HOMEPAGE_PAGE_NAME} />
           </Suspense>
         </>
+      ) : null}
+      {electionsSlot ? (
+        <Suspense fallback={<SectionSkeleton />}>
+          <HomepageSection slot={electionsSlot} pageName={HOMEPAGE_PAGE_NAME} />
+        </Suspense>
       ) : null}
       {sportsSlot ? (
         <Suspense fallback={<SectionSkeleton />}>
@@ -545,24 +571,25 @@ function MainPageOrderedSections({
       continue
     }
 
-    const pairTaken = takePoliticsSportsPair(remaining)
-    if (pairTaken) {
-      const pairAdIndex = adIndex
-      if (!useConfiguredRibbons && pairTaken.politics) {
+    const clusterTaken = takePoliticsSectionCluster(remaining)
+    if (clusterTaken) {
+      const clusterAdIndex = adIndex
+      if (!useConfiguredRibbons && clusterTaken.politics) {
         adIndex += 1
       }
       blocks.push(
-        <PoliticsSportsSection
-          key={`${pairTaken.politics.id}-politics-sports`}
-          politicsSlot={pairTaken.politics}
-          sportsSlot={pairTaken.sports}
-          adIndex={pairAdIndex}
+        <PoliticsClusterSection
+          key={`${clusterTaken.politics.id}-politics-cluster`}
+          politicsSlot={clusterTaken.politics}
+          electionsSlot={clusterTaken.elections}
+          sportsSlot={clusterTaken.sports}
+          adIndex={clusterAdIndex}
           showAdRibbon={!useConfiguredRibbons}
         />,
       )
-      previousSlot = pairTaken.sports ?? pairTaken.politics
+      previousSlot = clusterTaken.sports ?? clusterTaken.elections ?? clusterTaken.politics
       previousKind = 'compact_six'
-      index += pairTaken.consumed
+      index += clusterTaken.consumed
       continue
     }
 

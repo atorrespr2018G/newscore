@@ -21,6 +21,7 @@ from shared.core.homepage_page_sections_sync import (
     expand_homepage_section_items,
     has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
+    migrate_legacy_election_section,
     slugify_section_label,
 )
 from shared.core.markets import (
@@ -62,6 +63,31 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert DEFAULT_HOMEPAGE_SECTION_ITEMS[
         slugs.index("more-top-stories-2")
     ]["label"] == "Extra Stories"
+    elections_index = slugs.index("midterm-elections")
+    politics_index = slugs.index("politics")
+    assert types[elections_index] == "category"
+    assert elections_index == politics_index + 1
+
+
+def test_migrate_legacy_election_section_moves_it_after_politics() -> None:
+    """The old Election spotlight becomes the horizontal category section."""
+
+    items = [
+        {"section_type": "more_top_stories", "slug": "more-top-stories", "label": "More Top Stories"},
+        {"section_type": "spotlight", "slug": "midterm-elections", "label": "Elections"},
+        {"section_type": "rail", "slug": "editorial-rail", "label": "Sports"},
+        {"section_type": "category", "slug": "politics", "label": "Politics"},
+    ]
+
+    migrated = migrate_legacy_election_section(items)
+
+    assert [item["slug"] for item in migrated] == [
+        "more-top-stories",
+        "editorial-rail",
+        "politics",
+        "midterm-elections",
+    ]
+    assert migrated[-1]["section_type"] == "category"
 
 
 def test_insert_legacy_homepage_ribbon_ads_places_post_hero_ribbon() -> None:
@@ -174,6 +200,31 @@ def test_normalize_items_renumbers_duplicate_ribbon_slugs() -> None:
     slugs = [row["slug"] for row in resolved]
     assert slugs == ["hero", "ad-ribbon", "ad-ribbon-2", "ad-ribbon-3"]
     assert len(slugs) == len(set(slugs))
+
+
+def test_normalize_items_allows_migrated_election_category() -> None:
+    """The horizontal Election row retains its legacy slot key and pins."""
+
+    from shared.schemas.homepage_page_sections_schemas import HomepagePageSectionItemIn
+    from layout_admin_app.services.homepage_page_sections_service import _normalize_items
+
+    resolved = _normalize_items(
+        [
+            HomepagePageSectionItemIn(
+                section_type="category",
+                label="Elections",
+                slug="midterm-elections",
+            ),
+        ],
+    )
+
+    assert resolved == [
+        {
+            "section_type": "category",
+            "label": "Elections",
+            "slug": "midterm-elections",
+        },
+    ]
 
 
 @pytest.mark.asyncio

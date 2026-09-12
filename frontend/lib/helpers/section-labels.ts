@@ -206,6 +206,17 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
 
   'politics',
 
+  'midterm-elections',
+
+  // Politics page topic rows (Policy, Courts & Law, State Politics, Opinion).
+  'politics-latest',
+
+  'politics-courts',
+
+  'politics-state',
+
+  'politics-opinion',
+
   'technology',
 
   'business',
@@ -355,6 +366,9 @@ export function isCompactSixBandPositionKey(positionKey: string, pageName?: stri
     return true
   }
   if (pageName?.trim().toLowerCase() === 'health' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
+    return true
+  }
+  if (pageName?.trim().toLowerCase() === 'politics' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
     return true
   }
   // Custom tabs use the same compact topic rows as Entertainment/Health.
@@ -639,6 +653,10 @@ export function homepageSectionTitle(
     if (displayName?.trim()) {
       return displayName.trim()
     }
+  }
+  // Politics page topic rows (Policy, Courts & Law, …) use CMS display names.
+  if (page === 'politics' && displayName?.trim()) {
+    return displayName.trim()
   }
   // Custom tab pages: prefer CMS display names for dynamic topic rows.
   if (page && displayName?.trim()) {

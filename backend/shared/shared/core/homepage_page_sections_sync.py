@@ -212,13 +212,13 @@ DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_homepage_ri
             "slug": MORE_TOP_STORIES_POSITION_KEY,
             "label": "More Top Stories",
         },
+        {"section_type": SECTION_TYPE_RAIL, "slug": RAIL_POSITION_KEY, "label": "Sports"},
+        {"section_type": SECTION_TYPE_CATEGORY, "slug": "politics", "label": "Politics"},
         {
-            "section_type": SECTION_TYPE_SPOTLIGHT,
+            "section_type": SECTION_TYPE_CATEGORY,
             "slug": SPOTLIGHT_POSITION_KEY,
             "label": "Elections",
         },
-        {"section_type": SECTION_TYPE_RAIL, "slug": RAIL_POSITION_KEY, "label": "Sports"},
-        {"section_type": SECTION_TYPE_CATEGORY, "slug": "politics", "label": "Politics"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "sports", "label": "Sports"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "government", "label": "Government"},
         {"section_type": SECTION_TYPE_LIVE, "slug": LIVE_POSITION_KEY, "label": "Live"},
@@ -322,6 +322,43 @@ def expand_homepage_section_items(items: list[dict[str, Any]]) -> list[dict[str,
             },
         )
     return resolved or [dict(row) for row in DEFAULT_HOMEPAGE_SECTION_ITEMS]
+
+
+def migrate_legacy_election_section(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Move the primary Election slot from the editorial band to a category row.
+
+    The position key remains ``midterm-elections`` so existing pinned stories
+    survive the presentation upgrade when the matching slot is upserted.
+    """
+
+    election_index = next(
+        (
+            index
+            for index, item in enumerate(items)
+            if item["section_type"] == SECTION_TYPE_SPOTLIGHT
+            and item["slug"] == SPOTLIGHT_POSITION_KEY
+        ),
+        None,
+    )
+    if election_index is None:
+        return [dict(item) for item in items]
+
+    migrated = [dict(item) for item in items]
+    election = migrated.pop(election_index)
+    election["section_type"] = SECTION_TYPE_CATEGORY
+    politics_index = next(
+        (
+            index
+            for index, item in enumerate(migrated)
+            if item["section_type"] == SECTION_TYPE_CATEGORY and item["slug"] == "politics"
+        ),
+        None,
+    )
+    if politics_index is None:
+        migrated.append(election)
+    else:
+        migrated.insert(politics_index + 1, election)
+    return migrated
 
 
 def default_homepage_page_section_items() -> list[dict[str, str]]:
