@@ -10,6 +10,10 @@ from shared.models.entertainment_page_sections import (
     EntertainmentPageSections,
 )
 from shared.models.health_page_sections import HealthPageSectionItem, HealthPageSections
+from shared.models.business_page_sections import (
+    BusinessPageSectionItem,
+    BusinessPageSections,
+)
 from shared.models.technology_page_sections import (
     TechnologyPageSectionItem,
     TechnologyPageSections,
@@ -35,6 +39,8 @@ __all__ = [
     "EntertainmentPageSections",
     "HealthPageSectionItem",
     "HealthPageSections",
+    "BusinessPageSectionItem",
+    "BusinessPageSections",
     "TechnologyPageSectionItem",
     "TechnologyPageSections",
     "CustomTab",

@@ -1,0 +1,502 @@
+"""Per-market / per-region business page section list CRUD and layout sync."""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+from uuid import uuid4
+
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from shared.core.exceptions import NotFoundError, ValidationError
+from shared.core.logger import get_logger
+from shared.core.page_ad_placements import (
+    PAGE_NAME_BUSINESS,
+    default_ads_for_page,
+    normalize_ads,
+    resolve_ads_list,
+)
+from shared.core.regions import get_region_by_code
+from shared.core.business_page_sections_sync import (
+    CANONICAL_SLUG_BY_TYPE,
+    DEFAULT_BUSINESS_TOPIC_LABELS,
+    PREFERRED_SLUG_PREFIX_BY_TYPE,
+    PRESERVED_BUSINESS_PAGE_KEYS,
+    SECTION_TYPE_HERO,
+    SECTION_TYPE_BUSINESS,
+    default_business_page_section_items,
+    expand_legacy_business_section_items,
+    has_ribbon_ad_section,
+    insert_legacy_business_ribbon_ads,
+    slugify_business_label,
+    sync_business_layout_slots,
+)
+
+from shared.models.common import utc_now
+from shared.read.collections import BUSINESS_PAGE_SECTIONS_COLLECTION
+from shared.read.market_reads import get_market_by_code
+from shared.schemas.page_ad_placements_schemas import PageAdPlacementOut
+from shared.schemas.business_page_sections_schemas import (
+    BusinessPageSectionItemIn,
+    BusinessPageSectionItemOut,
+    BusinessPageSectionsOut,
+    BusinessPageSectionsUpdate,
+)
+
+RIBBON_ADS_MIGRATED_FIELD = "ribbon_ads_migrated"
+
+logger = get_logger(__name__)
+
+_SLUG_SAFE_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _normalize_slug(value: str) -> str:
+    """Normalize an explicit slug, preserving hyphenated section keys."""
+
+    normalized = _SLUG_SAFE_RE.sub("-", value.strip().lower()).strip("-")
+    if not normalized:
+        raise ValidationError("Section slug must contain letters or numbers")
+    return normalized
+
+
+def _unique_preferred_slug(prefix: str, seen_slugs: set[str]) -> str:
+    """Pick an unused slug for repeatable section types (ribbon_ad, etc.)."""
+
+    if prefix not in seen_slugs:
+        return prefix
+    suffix = 2
+    while f"{prefix}-{suffix}" in seen_slugs:
+        suffix += 1
+    return f"{prefix}-{suffix}"
+
+
+def _resolve_item_slug(
+    *,
+    section_type: str,
+    label: str,
+    slug: str | None,
+    seen_slugs: set[str],
+) -> str:
+    """Pick a unique position_key for one section row."""
+
+    if section_type == SECTION_TYPE_HERO:
+        return CANONICAL_SLUG_BY_TYPE[SECTION_TYPE_HERO]
+
+    if slug:
+        return _normalize_slug(slug)
+
+    canonical = CANONICAL_SLUG_BY_TYPE.get(section_type)
+    if canonical and canonical not in seen_slugs:
+        return canonical
+
+    preferred_prefix = PREFERRED_SLUG_PREFIX_BY_TYPE.get(section_type)
+    if preferred_prefix:
+        return _unique_preferred_slug(preferred_prefix, seen_slugs)
+
+    return slugify_business_label(label)
+
+
+def _normalize_items(items: list[BusinessPageSectionItemIn]) -> list[dict[str, str]]:
+    """Normalize incoming items to unique typed slug/label rows in order."""
+
+    resolved: list[dict[str, str]] = []
+    seen_slugs: set[str] = set()
+    hero_count = 0
+
+    for item in items:
+        label = item.label.strip()
+        if not label:
+            raise ValidationError("Section label cannot be empty")
+
+        section_type = item.section_type
+        if section_type == SECTION_TYPE_HERO:
+            hero_count += 1
+            if hero_count > 1:
+                raise ValidationError("Only one hero section is allowed")
+
+        slug = _resolve_item_slug(
+            section_type=section_type,
+            label=label,
+            slug=item.slug,
+            seen_slugs=seen_slugs,
+        )
+
+        if section_type == SECTION_TYPE_BUSINESS and slug in PRESERVED_BUSINESS_PAGE_KEYS:
+            raise ValidationError(f"Business slug '{slug}' is reserved")
+
+        if section_type != SECTION_TYPE_BUSINESS:
+            expected = CANONICAL_SLUG_BY_TYPE.get(section_type)
+            if expected and slug == expected:
+                pass
+            elif (
+                section_type not in PREFERRED_SLUG_PREFIX_BY_TYPE
+                and slug in PRESERVED_BUSINESS_PAGE_KEYS
+                and slug != expected
+            ):
+                raise ValidationError(
+                    f"Slug '{slug}' is reserved for another section type",
+                )
+
+        if slug in seen_slugs:
+            # Prefer auto-renumbering over failing so clients can add + reorder
+            # empty-slug rows (e.g. new ribbon ads) before save.
+            preferred = PREFERRED_SLUG_PREFIX_BY_TYPE.get(section_type)
+            slug = _unique_preferred_slug(preferred or slug, seen_slugs)
+
+        seen_slugs.add(slug)
+        resolved.append(
+            {
+                "section_type": section_type,
+                "slug": slug,
+                "label": label,
+            },
+        )
+    return resolved
+
+
+async def _resolve_market(db: AsyncIOMotorDatabase, market_code: str) -> dict[str, Any]:
+    """Load a market document by code or raise NotFoundError."""
+
+    market = await get_market_by_code(db, market_code)
+    if market is None:
+        raise NotFoundError(f"Market not found: {market_code}")
+    return market
+
+
+async def _resolve_region_scope(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_code: str,
+    region_code: str | None,
+) -> tuple[str | None, str | None]:
+    """Resolve optional region code to (region_id, normalized region_code).
+
+    Args:
+        db: Database connection.
+        market_code: Market short code for the request.
+        region_code: Optional region code such as ``us-fl``.
+
+    Returns:
+        Tuple of region document id and normalized code, or (None, None).
+
+    Raises:
+        NotFoundError: When the region code is unknown.
+        ValidationError: When the region does not belong to the market.
+    """
+
+    normalized = (region_code or "").strip().lower() or None
+    if not normalized:
+        return None, None
+
+    region = await get_region_by_code(db, normalized)
+    if region is None:
+        raise NotFoundError(f"Region not found: {normalized}")
+
+    country_code = str(region.get("country_code") or "").strip().lower()
+    if country_code and country_code != market_code.strip().lower():
+        raise ValidationError(
+            f"Region '{normalized}' does not belong to market '{market_code}'",
+        )
+    return str(region["_id"]), normalized
+
+
+def _sections_query(*, market_id: str, region_id: str | None) -> dict[str, Any]:
+    """Build the unique-scope filter for a business sections document."""
+
+    if region_id is not None:
+        return {"market_id": market_id, "region_id": region_id}
+    # Match explicit null and legacy docs that omit region_id.
+    return {
+        "market_id": market_id,
+        "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+    }
+
+
+async def _upsert_sections_doc(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    region_id: str | None,
+    items: list[dict[str, str]],
+    ads: list[dict[str, Any]],
+    now: str,
+    ribbon_ads_migrated: bool = True,
+) -> None:
+    """Insert or replace the business sections document for one scope."""
+
+    query = _sections_query(market_id=market_id, region_id=region_id)
+    existing = await db[BUSINESS_PAGE_SECTIONS_COLLECTION].find_one(query, {"_id": 1})
+    payload = {
+        "items": items,
+        "ads": ads,
+        "updated_at": now,
+        "region_id": region_id,
+        RIBBON_ADS_MIGRATED_FIELD: ribbon_ads_migrated,
+    }
+    if existing is not None:
+        await db[BUSINESS_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": payload},
+        )
+        return
+
+    await db[BUSINESS_PAGE_SECTIONS_COLLECTION].insert_one(
+        {
+            "_id": str(uuid4()),
+            "market_id": market_id,
+            **payload,
+        },
+    )
+
+
+def _ads_out(ads: list[dict[str, Any]]) -> list[PageAdPlacementOut]:
+    """Map stored ad rows to API models."""
+
+    return [PageAdPlacementOut(**row) for row in ads]
+
+
+def _to_out(
+    *,
+    market_id: str,
+    market_code: str,
+    items: list[dict[str, str]],
+    ads: list[dict[str, Any]],
+    updated_at: str,
+    region_id: str | None = None,
+    region_code: str | None = None,
+) -> BusinessPageSectionsOut:
+    """Map stored config to API response."""
+
+    return BusinessPageSectionsOut(
+        market_id=market_id,
+        market_code=market_code,
+        region_id=region_id,
+        region_code=region_code,
+        items=[
+            BusinessPageSectionItemOut(
+                section_type=i["section_type"],  # type: ignore[arg-type]
+                slug=i["slug"],
+                label=i["label"],
+            )
+            for i in items
+        ],
+        ads=_ads_out(ads),
+        updated_at=updated_at,
+    )
+
+
+async def _fallback_business_items(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    region_id: str | None,
+) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+    """Resolve items when the requested business board is missing.
+
+    Country boards (``pr``, ``us``) are what Configuration loads by default.
+    Seed used to write only market-level (``region_id=None``) plus towns, so
+    copy that market list when present; otherwise use the full topic defaults.
+
+    Args:
+        db: Database connection.
+        market_id: Market document id.
+        region_id: Requested region document id, or None for market-level.
+
+    Returns:
+        Tuple of typed section items and ad placement rows.
+    """
+
+    if region_id is not None:
+        source = await db[BUSINESS_PAGE_SECTIONS_COLLECTION].find_one(
+            _sections_query(market_id=market_id, region_id=None),
+        )
+        if source is not None:
+            items = expand_legacy_business_section_items(list(source.get("items") or []))
+            ads = resolve_ads_list(source.get("ads"), page_name=PAGE_NAME_BUSINESS)
+            return items, ads
+    items = default_business_page_section_items(list(DEFAULT_BUSINESS_TOPIC_LABELS))
+    return items, default_ads_for_page(PAGE_NAME_BUSINESS)
+
+
+async def _persist_business_board(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    region_id: str | None,
+    items: list[dict[str, str]],
+    ads: list[dict[str, Any]],
+) -> str:
+    """Write a business board and sync its layout slots.
+
+    Args:
+        db: Database connection.
+        market_id: Market document id.
+        region_id: Region document id, or None for market-level.
+        items: Typed section rows to persist.
+        ads: Ad placement rows to persist.
+
+    Returns:
+        ISO timestamp written as ``updated_at``.
+    """
+
+    now = utc_now().isoformat()
+    await _upsert_sections_doc(
+        db,
+        market_id=market_id,
+        region_id=region_id,
+        items=items,
+        ads=ads,
+        now=now,
+        ribbon_ads_migrated=True,
+    )
+    await sync_business_layout_slots(
+        db,
+        market_id=market_id,
+        items=items,
+        region_id=region_id,
+    )
+    return now
+
+
+async def get_for_market(
+    db: AsyncIOMotorDatabase,
+    market_code: str,
+    *,
+    region_code: str | None = None,
+) -> BusinessPageSectionsOut:
+    """Return the business section list for a market and optional region."""
+
+    market = await _resolve_market(db, market_code)
+    market_id = str(market["_id"])
+    region_id, normalized_region = await _resolve_region_scope(
+        db,
+        market_code=market_code,
+        region_code=region_code,
+    )
+    doc = await db[BUSINESS_PAGE_SECTIONS_COLLECTION].find_one(
+        _sections_query(market_id=market_id, region_id=region_id),
+    )
+    if doc is None:
+        items, ads = await _fallback_business_items(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+        )
+        now = await _persist_business_board(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            items=items,
+            ads=ads,
+        )
+        return _to_out(
+            market_id=market_id,
+            market_code=str(market["code"]),
+            region_id=region_id,
+            region_code=normalized_region,
+            items=items,
+            ads=ads,
+            updated_at=now,
+        )
+    items = expand_legacy_business_section_items(list(doc.get("items") or []))
+    ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_BUSINESS)
+    now = utc_now().isoformat()
+    if not doc.get(RIBBON_ADS_MIGRATED_FIELD) and not has_ribbon_ad_section(items):
+        items = insert_legacy_business_ribbon_ads(items)
+        await _upsert_sections_doc(
+            db,
+            market_id=market_id,
+            region_id=region_id,
+            items=items,
+            ads=ads,
+            now=now,
+            ribbon_ads_migrated=True,
+        )
+        await sync_business_layout_slots(
+            db,
+            market_id=market_id,
+            items=items,
+            region_id=region_id,
+        )
+        return _to_out(
+            market_id=market_id,
+            market_code=str(market["code"]),
+            region_id=region_id,
+            region_code=normalized_region,
+            items=items,
+            ads=ads,
+            updated_at=now,
+        )
+    if not doc.get(RIBBON_ADS_MIGRATED_FIELD):
+        await db[BUSINESS_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": doc["_id"]},
+            {"$set": {RIBBON_ADS_MIGRATED_FIELD: True}},
+        )
+    return _to_out(
+        market_id=market_id,
+        market_code=str(market["code"]),
+        region_id=region_id,
+        region_code=normalized_region,
+        items=items,
+        ads=ads,
+        updated_at=str(doc.get("updated_at") or now),
+    )
+
+
+async def replace_for_market(
+    db: AsyncIOMotorDatabase,
+    market_code: str,
+    body: BusinessPageSectionsUpdate,
+    *,
+    region_code: str | None = None,
+) -> BusinessPageSectionsOut:
+    """Replace the business section list and sync the matching business layout."""
+
+    market = await _resolve_market(db, market_code)
+    market_id = str(market["_id"])
+    region_id, normalized_region = await _resolve_region_scope(
+        db,
+        market_code=market_code,
+        region_code=region_code,
+    )
+    items = _normalize_items(body.items)
+    if body.ads is None:
+        existing = await db[BUSINESS_PAGE_SECTIONS_COLLECTION].find_one(
+            _sections_query(market_id=market_id, region_id=region_id),
+        )
+        ads = resolve_ads_list(
+            None if existing is None else existing.get("ads"),
+            page_name=PAGE_NAME_BUSINESS,
+        )
+    else:
+        ads = normalize_ads(list(body.ads))
+    now = utc_now().isoformat()
+    await _upsert_sections_doc(
+        db,
+        market_id=market_id,
+        region_id=region_id,
+        items=items,
+        ads=ads,
+        now=now,
+    )
+    await sync_business_layout_slots(
+        db,
+        market_id=market_id,
+        items=items,
+        region_id=region_id,
+    )
+    logger.info(
+        "Updated business page sections for market %s region %s (%d items)",
+        market_code,
+        normalized_region,
+        len(items),
+    )
+    return _to_out(
+        market_id=market_id,
+        market_code=str(market["code"]),
+        region_id=region_id,
+        region_code=normalized_region,
+        items=items,
+        ads=ads,
+        updated_at=now,
+    )

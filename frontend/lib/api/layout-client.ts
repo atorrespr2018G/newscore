@@ -514,6 +514,80 @@ export function putEntertainmentPageSections(
   )
 }
 
+/** Business page section template used for layout and Placement slots. */
+export type BusinessPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'business'
+  | 'ribbon_ad'
+
+/** One ordered section on a business page. */
+export interface IBusinessPageSectionItem {
+  section_type: BusinessPageSectionType
+  slug: string
+  label: string
+}
+
+/** Business page section list for a market or state region. */
+export interface IBusinessPageSectionsOut {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: IBusinessPageSectionItem[]
+  ads: IPageAdPlacementApi[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered business section list for a market or region.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @returns Business section list payload.
+ */
+export function getBusinessPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<IBusinessPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IBusinessPageSectionsOut>(
+    `${apiConfig.layout}/business-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered business section list and sync layout slots.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered typed sections (label required; slug optional).
+ * @param regionCode Optional region code such as `us-fl` for per-state lists.
+ * @param ads Optional ad placement rows.
+ * @returns Updated business section list payload.
+ */
+export function putBusinessPageSections(
+  marketCode: string,
+  items: Array<{ section_type: BusinessPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
+): Promise<IBusinessPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IBusinessPageSectionsOut>(
+    `${apiConfig.layout}/business-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items, ads }),
+    },
+  )
+}
+
 /** Health page section template used for layout and Placement slots. */
 export type HealthPageSectionType =
   | 'hero'
@@ -806,6 +880,83 @@ export function putWorldPageSections(
   }
   return apiFetch<IWorldPageSectionsOut>(
     `${apiConfig.layout}/world-page-sections?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ items, ads }),
+    },
+  )
+}
+
+/** Politics page section template used for layout and Placement slots. */
+export type PoliticsPageSectionType =
+  | 'hero'
+  | 'top_stories'
+  | 'live'
+  | 'more_top_stories'
+  | 'spotlight'
+  | 'rail'
+  | 'category'
+  | 'ribbon_ad'
+
+/** One ordered section on the Politics page. */
+export interface IPoliticsPageSectionItem {
+  section_type: PoliticsPageSectionType
+  slug: string
+  label: string
+}
+
+/** Politics-page section list for a market or geo region. */
+export interface IPoliticsPageSectionsOut {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  items: IPoliticsPageSectionItem[]
+  ads: IPageAdPlacementApi[]
+  updated_at: string
+}
+
+/**
+ * Load the ordered Politics-page section list for a market or region.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl` for per-geo lists.
+ * @returns Politics-page section list payload.
+ */
+export function getPoliticsPageSections(
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<IPoliticsPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IPoliticsPageSectionsOut>(
+    `${apiConfig.layout}/politics-page-sections?${params.toString()}`,
+  )
+}
+
+/**
+ * Replace the ordered Politics-page section list and sync layout slots.
+ *
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param items Ordered section rows to persist.
+ * @param regionCode Optional region code such as `us-fl`.
+ * @param ads Optional page-level ad placements.
+ * @returns Updated Politics-page section list payload.
+ */
+export function putPoliticsPageSections(
+  marketCode: string,
+  items: Array<{ section_type: PoliticsPageSectionType; label: string; slug?: string }>,
+  regionCode?: string | null,
+  ads?: IPageAdPlacementApi[],
+): Promise<IPoliticsPageSectionsOut> {
+  const params = new URLSearchParams({ market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IPoliticsPageSectionsOut>(
+    `${apiConfig.layout}/politics-page-sections?${params.toString()}`,
     {
       method: 'PUT',
       body: JSON.stringify({ items, ads }),

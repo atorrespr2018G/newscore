@@ -17,7 +17,7 @@ import {
   toggleCategory,
   toggleRootCategory,
 } from '@/lib/helpers/category-selection'
-import { resolveBusinessSubcategories } from '@/lib/helpers/business-category-options'
+import { resolveBusinessSubcategories, loadBusinessTopicSlugs } from '@/lib/helpers/business-category-options'
 import {
   loadEntertainmentTopicSlugs,
   resolveEntertainmentSubcategories,
@@ -132,11 +132,16 @@ export function CategoryChipGroup({
     queryKey: ['editor', 'health-page-section-slugs', marketCode ?? 'all'],
     queryFn: () => loadHealthTopicSlugs(marketCode),
   })
+  const businessSectionsQuery = useQuery({
+    queryKey: ['editor', 'business-page-section-slugs', marketCode ?? 'all'],
+    queryFn: () => loadBusinessTopicSlugs(marketCode),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
   const worldRegionSlugs = worldSectionsQuery.data ?? []
   const governmentTopicSlugs = governmentSectionsQuery.data ?? []
   const entertainmentTopicSlugs = entertainmentSectionsQuery.data ?? []
   const healthTopicSlugs = healthSectionsQuery.data ?? []
+  const businessTopicSlugs = businessSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const worldParent = findCategoryBySlug(categories, WORLD_CATEGORY_SLUG)
   const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
@@ -154,7 +159,7 @@ export function CategoryChipGroup({
   const healthSelected = healthParent != null && selectedCategoryIds.includes(healthParent.id)
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
   const worldChildren = resolveWorldRegionSubcategories(categories, worldRegionSlugs)
-  const businessChildren = resolveBusinessSubcategories(categories)
+  const businessChildren = resolveBusinessSubcategories(categories, businessTopicSlugs)
   const governmentChildren = resolveGovernmentSubcategories(categories, governmentTopicSlugs)
   const entertainmentChildren = resolveEntertainmentSubcategories(
     categories,

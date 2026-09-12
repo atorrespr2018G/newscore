@@ -19,6 +19,7 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from admin_app.helpers.password_helpers import hash_password
 from shared.core.entertainment_page_sections_sync import DEFAULT_ENTERTAINMENT_TOPIC_LABELS
 from shared.core.health_page_sections_sync import DEFAULT_HEALTH_TOPIC_LABELS
+from shared.core.business_page_sections_sync import DEFAULT_BUSINESS_TOPIC_LABELS
 from shared.core.indexes import ensure_indexes
 from shared.core.page_ad_placements import (
     PAGE_NAME_TECHNOLOGY,
@@ -1526,6 +1527,9 @@ ENTERTAINMENT_SECTION_LABELS: list[str] = list(DEFAULT_ENTERTAINMENT_TOPIC_LABEL
 # Health page topics using the Entertainment landing template (no World band).
 HEALTH_SECTION_LABELS: list[str] = list(DEFAULT_HEALTH_TOPIC_LABELS)
 
+# Business page topics matching Economía beat categories (no World band).
+BUSINESS_SECTION_LABELS: list[str] = list(DEFAULT_BUSINESS_TOPIC_LABELS)
+
 GOVERNMENT_CHILD_CATEGORIES: list[dict[str, str]] = [
     {
         "name": "Executive",
@@ -2892,6 +2896,61 @@ async def _ensure_us_state_entertainment_sections(db: AsyncIOMotorDatabase) -> N
     logger.info("Seeded geo entertainment sections: %s", result)
 
 
+async def _ensure_market_business_sections(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+) -> None:
+    """Seed per-market business section config and sync the business layout."""
+
+    from shared.core.business_page_sections_sync import (
+        default_business_page_section_items,
+        sync_business_layout_slots,
+    )
+    from shared.read.collections import BUSINESS_PAGE_SECTIONS_COLLECTION
+
+    items = default_business_page_section_items(BUSINESS_SECTION_LABELS)
+    now = _utc_now_iso()
+    existing = await db[BUSINESS_PAGE_SECTIONS_COLLECTION].find_one(
+        {
+            "market_id": market_id,
+            "$or": [{"region_id": None}, {"region_id": {"$exists": False}}],
+        },
+        {"_id": 1},
+    )
+    if existing is not None:
+        await db[BUSINESS_PAGE_SECTIONS_COLLECTION].update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"items": items, "updated_at": now, "region_id": None}},
+        )
+    else:
+        await db[BUSINESS_PAGE_SECTIONS_COLLECTION].insert_one(
+            {
+                "_id": str(uuid4()),
+                "market_id": market_id,
+                "region_id": None,
+                "items": items,
+                "updated_at": now,
+            },
+        )
+    await sync_business_layout_slots(db, market_id=market_id, items=items, region_id=None)
+    logger.info(
+        "Seeded business sections for market %s (%d items)",
+        market_code,
+        len(items),
+    )
+
+
+async def _ensure_us_state_business_sections(db: AsyncIOMotorDatabase) -> None:
+    """Seed business lists for US states, Florida counties, and PR towns."""
+
+    from shared.core.business_page_sections_sync import ensure_geo_business_sections
+
+    result = await ensure_geo_business_sections(db, labels=BUSINESS_SECTION_LABELS)
+    logger.info("Seeded geo business sections: %s", result)
+
+
 async def _ensure_market_health_sections(
     db: AsyncIOMotorDatabase,
     *,
@@ -3324,6 +3383,11 @@ async def seed_dev() -> None:
                 slug_to_category_id=slug_to_category_id,
                 pinned_article_ids=article_ids,
             )
+            await _ensure_market_business_sections(
+                db,
+                market_id=market_id,
+                market_code=code,
+            )
             await _ensure_market_technology_page(
                 db,
                 market_id=market_id,
@@ -3379,6 +3443,7 @@ async def seed_dev() -> None:
         await _ensure_us_state_government_sections(db)
         await _ensure_us_state_entertainment_sections(db)
         await _ensure_us_state_health_sections(db)
+        await _ensure_us_state_business_sections(db)
         await _ensure_us_state_technology_sections(db)
         await _stamp_government_page_category_fill(db, slug_to_category_id)
         await _stamp_homepage_government_category_fill(db, slug_to_category_id)

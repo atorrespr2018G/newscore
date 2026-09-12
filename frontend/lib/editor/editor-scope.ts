@@ -28,6 +28,7 @@ export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = [
   'government',
   'entertainment',
   'health',
+  'business',
   TECHNOLOGY_PAGE_NAME,
 ]
 

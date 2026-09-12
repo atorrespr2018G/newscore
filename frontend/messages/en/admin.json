@@ -10,7 +10,9 @@
     "government": "Government",
     "entertainment": "Entertainment",
     "health": "Health",
+    "business": "Business",
     "technology": "Technology",
+    "politics": "Politics",
     "createTab": "Create Tab",
     "mainPage": "Main Page",
     "world": "World",
@@ -523,6 +525,37 @@
     "saveFailed": "Failed to save health list.",
     "loadFailed": "Failed to load health list."
   },
+  "businessPage": {
+    "heading": "Business sections",
+    "subtitle": "Manage the ordered list of Business (Economía) page sections (hero, Top Stories, Live, and beat rows) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → business.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows between beats. Saving updates Placement → business for the same market, state, county, or town. Compact beat rows also keep an ad ribbon every two rows.",
+    "labelPlaceholder": "Section name",
+    "addType": {
+      "hero": "Add hero",
+      "top_stories": "Add Top Stories",
+      "live": "Add Live",
+      "business": "Add business beat",
+      "ribbon_ad": "Add Ribbon Advertisement"
+    },
+    "types": {
+      "hero": "Hero",
+      "top_stories": "Top Stories",
+      "live": "Live",
+      "business": "Business",
+      "ribbon_ad": "Ribbon Advertisement"
+    },
+    "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading business list…",
+    "saveSuccess": "Business list saved. Use Placement → business to pin stories, or tag articles with the new beat category.",
+    "saveFailed": "Failed to save business list.",
+    "loadFailed": "Failed to load business list."
+  },
   "technologyPage": {
     "heading": "Technology sections",
     "subtitle": "Manage the ordered list of Technology page sections (hero, Top Stories, Live, Archive, and ribbon ads) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving updates layout slots. Place stories under Placement → Page → technology.",
@@ -553,6 +586,43 @@
     "saveSuccess": "Technology list saved. Use Placement → technology to pin stories (including the Archive band).",
     "saveFailed": "Failed to save technology list.",
     "loadFailed": "Failed to load technology list."
+  },
+  "politicsPage": {
+    "heading": "Politics sections",
+    "subtitle": "Manage the ordered list of Politics page sections (hero, Congress, Elections, White House, Policy, and more) for each scope. US uses one list per state and Florida county; PR uses one list for the market and each town; other countries use one list for the market. Saving creates categories and layout slots. Place stories under Placement → Page → politics.",
+    "listHint": "Add, remove, rename, or reorder any section—including Ribbon Advertisement rows. Saving updates Placement → politics for the same market, state, county, or town. The public Politics page follows this order.",
+    "labelPlaceholder": "Section name",
+    "addType": {
+      "hero": "Add hero",
+      "top_stories": "Add Top Stories",
+      "live": "Add Live",
+      "more_top_stories": "Add Extra Stories",
+      "spotlight": "Add spotlight",
+      "rail": "Add rail",
+      "category": "Add category",
+      "ribbon_ad": "Add Ribbon Advertisement"
+    },
+    "types": {
+      "hero": "Hero",
+      "top_stories": "Top Stories",
+      "live": "Live",
+      "more_top_stories": "Extra Stories",
+      "spotlight": "Spotlight",
+      "rail": "Rail",
+      "category": "Category",
+      "ribbon_ad": "Ribbon Advertisement"
+    },
+    "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
+    "moveUp": "Up",
+    "moveDown": "Down",
+    "dragHandle": "Drag to reorder",
+    "save": "Save list",
+    "saving": "Saving…",
+    "loading": "Loading Politics list…",
+    "saveSuccess": "Politics list saved. Use Placement → politics to pin stories, or tag articles with the new category.",
+    "saveFailed": "Failed to save Politics list.",
+    "loadFailed": "Failed to load Politics list."
   },
   "customTabs": {
     "createHeading": "Create tab",

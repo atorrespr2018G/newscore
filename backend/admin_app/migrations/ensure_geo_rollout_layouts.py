@@ -4,9 +4,9 @@ Creates independent homepage and world placement boards for:
 - United States + all states + all Florida counties
 - Puerto Rico + all municipalities
 
-Also creates independent sports, government, entertainment, and health boards for US
-states, Florida counties, and Puerto Rico towns. Entertainment and Health also get US and
-Puerto Rico country boards. Deactivates legacy market layouts for uk/ca/au when
+Also creates independent sports, government, entertainment, health, and business boards
+for US states, Florida counties, and Puerto Rico towns. Entertainment, Health, and Business
+also get US and Puerto Rico country boards. Deactivates legacy market layouts for uk/ca/au when
 present.
 """
 
@@ -27,6 +27,10 @@ from shared.core.entertainment_page_sections_sync import (
 from shared.core.health_page_sections_sync import (
     DEFAULT_HEALTH_TOPIC_LABELS,
     ensure_geo_health_sections,
+)
+from shared.core.business_page_sections_sync import (
+    DEFAULT_BUSINESS_TOPIC_LABELS,
+    ensure_geo_business_sections,
 )
 from shared.core.government_page_sections_sync import ensure_geo_government_sections
 from shared.core.sports_page_sections_sync import ensure_geo_sports_sections
@@ -122,6 +126,10 @@ async def run() -> dict[str, Any]:
             db,
             labels=list(DEFAULT_HEALTH_TOPIC_LABELS),
         )
+        business_sections = await ensure_geo_business_sections(
+            db,
+            labels=list(DEFAULT_BUSINESS_TOPIC_LABELS),
+        )
         deactivated_legacy_layouts = await _deactivate_legacy_market_layouts(db)
         return {
             **ensured,
@@ -129,6 +137,7 @@ async def run() -> dict[str, Any]:
             "geo_government_sections": government_sections,
             "geo_entertainment_sections": entertainment_sections,
             "geo_health_sections": health_sections,
+            "geo_business_sections": business_sections,
             "deactivated_legacy_layouts": deactivated_legacy_layouts,
         }
     finally:

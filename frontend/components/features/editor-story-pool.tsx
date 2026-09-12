@@ -31,7 +31,7 @@ import {
   SPORTS_CATEGORY_SLUG,
   findCategoryBySlug,
 } from '@/lib/helpers/category-selection'
-import { resolveBusinessSubcategories } from '@/lib/helpers/business-category-options'
+import { resolveBusinessSubcategories, loadBusinessTopicSlugs } from '@/lib/helpers/business-category-options'
 import {
   loadEntertainmentTopicSlugs,
   resolveEntertainmentSubcategories,
@@ -676,11 +676,16 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
     queryKey: ['editor', 'health-page-section-slugs', 'all'],
     queryFn: () => loadHealthTopicSlugs(),
   })
+  const businessSectionsQuery = useQuery({
+    queryKey: ['editor', 'business-page-section-slugs', 'all'],
+    queryFn: () => loadBusinessTopicSlugs(),
+  })
   const sportSlugs = sportsSectionsQuery.data ?? []
   const worldRegionSlugs = worldSectionsQuery.data ?? []
   const governmentTopicSlugs = governmentSectionsQuery.data ?? []
   const entertainmentTopicSlugs = entertainmentSectionsQuery.data ?? []
   const healthTopicSlugs = healthSectionsQuery.data ?? []
+  const businessTopicSlugs = businessSectionsQuery.data ?? []
   const sportsParent = findCategoryBySlug(categories, SPORTS_CATEGORY_SLUG)
   const businessParent = findCategoryBySlug(categories, BUSINESS_CATEGORY_SLUG)
   const governmentParent = findCategoryBySlug(categories, GOVERNMENT_CATEGORY_SLUG)
@@ -694,7 +699,7 @@ function PoolPrimaryFilters(props: IPoolPrimaryFiltersProps): JSX.Element {
     entertainmentParent != null && filters.categoryId === entertainmentParent.id
   const healthSelected = healthParent != null && filters.categoryId === healthParent.id
   const sportsChildren = resolveSportSubcategories(categories, sportSlugs)
-  const businessChildren = resolveBusinessSubcategories(categories)
+  const businessChildren = resolveBusinessSubcategories(categories, businessTopicSlugs)
   const governmentChildren = resolveGovernmentSubcategories(categories, governmentTopicSlugs)
   const entertainmentChildren = resolveEntertainmentSubcategories(
     categories,
