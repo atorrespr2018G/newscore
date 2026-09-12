@@ -230,21 +230,6 @@ DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_homepage_ri
             "label": "Technology",
         },
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "business", "label": "Business"},
-        {
-            "section_type": SECTION_TYPE_MORE_TOP_STORIES,
-            "slug": f"{MORE_TOP_STORIES_POSITION_KEY}-2",
-            "label": "Extra Stories",
-        },
-        {
-            "section_type": SECTION_TYPE_SPOTLIGHT,
-            "slug": f"{SPOTLIGHT_POSITION_KEY}-2",
-            "label": "World watch",
-        },
-        {
-            "section_type": SECTION_TYPE_RAIL,
-            "slug": f"{RAIL_POSITION_KEY}-2",
-            "label": "Featured",
-        },
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "us", "label": "US"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "style", "label": "Style"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "travel", "label": "Travel"},
@@ -254,8 +239,18 @@ DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_homepage_ri
 # Spotlight position keys that fill from a specific category slug.
 SPOTLIGHT_CATEGORY_BY_SLUG = {
     SPOTLIGHT_POSITION_KEY: "politics",
-    f"{SPOTLIGHT_POSITION_KEY}-2": "world",
 }
+
+EXTRA_STORIES_POSITION_KEY = f"{MORE_TOP_STORIES_POSITION_KEY}-2"
+WORLD_WATCH_POSITION_KEY = f"{SPOTLIGHT_POSITION_KEY}-2"
+FEATURED_RAIL_POSITION_KEY = f"{RAIL_POSITION_KEY}-2"
+REMOVED_EXTRA_STORIES_BAND_KEYS = frozenset(
+    {
+        EXTRA_STORIES_POSITION_KEY,
+        WORLD_WATCH_POSITION_KEY,
+        FEATURED_RAIL_POSITION_KEY,
+    },
+)
 
 HERO_ARTICLE_LIMIT = 12
 TOP_STORIES_ARTICLE_LIMIT = 12
@@ -357,7 +352,7 @@ def migrate_legacy_election_section(items: list[dict[str, str]]) -> list[dict[st
 
 
 def migrate_remove_primary_more_top_stories(items: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Remove the primary homepage More Top Stories row; keep Extra Stories.
+    """Remove the primary homepage More Top Stories row.
 
     Args:
         items: Typed homepage section rows.
@@ -374,6 +369,32 @@ def migrate_remove_primary_more_top_stories(items: list[dict[str, str]]) -> list
             and item.get("slug") == MORE_TOP_STORIES_POSITION_KEY
         ):
             if migrated and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD:
+                migrated.pop()
+            continue
+        migrated.append(dict(item))
+    return migrated
+
+
+def migrate_remove_extra_stories_band(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Remove Extra Stories, World watch, and Featured from the homepage stack.
+
+    Args:
+        items: Typed homepage section rows.
+
+    Returns:
+        Copy of ``items`` without the Extra Stories editorial band. A ribbon
+        immediately preceding Extra Stories is also dropped.
+    """
+
+    migrated: list[dict[str, str]] = []
+    for item in items:
+        slug = str(item.get("slug") or "")
+        if slug in REMOVED_EXTRA_STORIES_BAND_KEYS:
+            if (
+                slug == EXTRA_STORIES_POSITION_KEY
+                and migrated
+                and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD
+            ):
                 migrated.pop()
             continue
         migrated.append(dict(item))
@@ -398,6 +419,31 @@ def migrate_collapse_consecutive_ribbon_ads(items: list[dict[str, str]]) -> list
             and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD
         ):
             continue
+        migrated.append(dict(item))
+    return migrated
+
+
+def migrate_ensure_ribbon_before_live(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Insert a horizontal ribbon advertisement immediately before Live.
+
+    Args:
+        items: Typed homepage section rows.
+
+    Returns:
+        Copy of ``items`` with a ribbon_ad row before Live when one is missing.
+    """
+
+    migrated: list[dict[str, str]] = []
+    used_slugs = {str(item.get("slug") or "") for item in items}
+    for item in items:
+        if item.get("section_type") == SECTION_TYPE_LIVE:
+            previous_is_ribbon = (
+                bool(migrated) and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD
+            )
+            if not previous_is_ribbon:
+                ribbon_slug = _next_ribbon_slug(used_slugs)
+                used_slugs.add(ribbon_slug)
+                migrated.append(_ribbon_ad_item(ribbon_slug))
         migrated.append(dict(item))
     return migrated
 

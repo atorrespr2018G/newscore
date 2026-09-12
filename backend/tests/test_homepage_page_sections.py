@@ -23,7 +23,9 @@ from shared.core.homepage_page_sections_sync import (
     insert_legacy_homepage_ribbon_ads,
     migrate_legacy_election_section,
     migrate_remove_primary_more_top_stories,
+    migrate_remove_extra_stories_band,
     migrate_collapse_consecutive_ribbon_ads,
+    migrate_ensure_ribbon_before_live,
     slugify_section_label,
 )
 from shared.core.markets import (
@@ -47,7 +49,7 @@ def test_slugify_section_label_hyphenates() -> None:
 
 
 def test_default_homepage_section_items_cover_landing_bands() -> None:
-    """Seed defaults include Politics, Sports, Live, Entertainment, Extra Stories."""
+    """Seed defaults include Politics, Sports, Live, and Entertainment."""
 
     types = [row["section_type"] for row in DEFAULT_HOMEPAGE_SECTION_ITEMS]
     slugs = [row["slug"] for row in DEFAULT_HOMEPAGE_SECTION_ITEMS]
@@ -55,6 +57,9 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert types[1] == "ribbon_ad"
     assert slugs[1] == "ad-ribbon"
     assert "more-top-stories" not in slugs
+    assert "more-top-stories-2" not in slugs
+    assert "midterm-elections-2" not in slugs
+    assert "editorial-rail-2" not in slugs
     assert "politics" in slugs
     assert "sports" in slugs
     assert "government" in slugs
@@ -62,18 +67,14 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert "entertainment" in slugs
     assert "technology" in slugs
     assert "business" in slugs
-    assert "more-top-stories-2" in slugs
-    assert DEFAULT_HOMEPAGE_SECTION_ITEMS[
-        slugs.index("more-top-stories-2")
-    ]["label"] == "Extra Stories"
     elections_index = slugs.index("midterm-elections")
     politics_index = slugs.index("politics")
     assert types[elections_index] == "category"
     assert elections_index == politics_index + 1
 
 
-def test_migrate_remove_primary_more_top_stories_keeps_extra() -> None:
-    """Primary More Top Stories is dropped; Extra Stories remains."""
+def test_migrate_remove_primary_more_top_stories_keeps_other_rows() -> None:
+    """Primary More Top Stories is dropped without touching later rows."""
 
     items = [
         {"section_type": "top_stories", "slug": "us-featured", "label": "Top Stories"},
@@ -96,6 +97,31 @@ def test_migrate_remove_primary_more_top_stories_keeps_extra() -> None:
     ]
 
 
+def test_migrate_remove_extra_stories_band_drops_trio() -> None:
+    """Extra Stories, World watch, and Featured are removed together."""
+
+    items = [
+        {"section_type": "category", "slug": "business", "label": "Business"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon-5", "label": "Ribbon Advertisement"},
+        {
+            "section_type": "more_top_stories",
+            "slug": "more-top-stories-2",
+            "label": "Extra Stories",
+        },
+        {
+            "section_type": "spotlight",
+            "slug": "midterm-elections-2",
+            "label": "World watch",
+        },
+        {"section_type": "rail", "slug": "editorial-rail-2", "label": "Featured"},
+        {"section_type": "category", "slug": "us", "label": "US"},
+    ]
+
+    migrated = migrate_remove_extra_stories_band(items)
+
+    assert [item["slug"] for item in migrated] == ["business", "us"]
+
+
 def test_migrate_collapse_consecutive_ribbon_ads_keeps_one() -> None:
     """Stacked ribbon rows collapse to a single advertisement."""
 
@@ -114,6 +140,44 @@ def test_migrate_collapse_consecutive_ribbon_ads_keeps_one() -> None:
         "ad-ribbon",
         "politics",
         "ad-ribbon-3",
+    ]
+
+
+def test_migrate_ensure_ribbon_before_live_inserts_when_missing() -> None:
+    """A Live section without a preceding ribbon gets one inserted."""
+
+    items = [
+        {"section_type": "category", "slug": "government", "label": "Government"},
+        {"section_type": "live", "slug": "health", "label": "Live"},
+        {"section_type": "category", "slug": "finance", "label": "Health"},
+    ]
+
+    migrated = migrate_ensure_ribbon_before_live(items)
+
+    assert [item["slug"] for item in migrated] == [
+        "government",
+        "ad-ribbon",
+        "health",
+        "finance",
+    ]
+    assert migrated[1]["section_type"] == "ribbon_ad"
+
+
+def test_migrate_ensure_ribbon_before_live_skips_when_present() -> None:
+    """Existing ribbon before Live is left unchanged."""
+
+    items = [
+        {"section_type": "category", "slug": "government", "label": "Government"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon-4", "label": "Ribbon Advertisement"},
+        {"section_type": "live", "slug": "health", "label": "Live"},
+    ]
+
+    migrated = migrate_ensure_ribbon_before_live(items)
+
+    assert [item["slug"] for item in migrated] == [
+        "government",
+        "ad-ribbon-4",
+        "health",
     ]
 
 
