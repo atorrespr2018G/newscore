@@ -15,6 +15,11 @@
     "world": "World",
     "preview": "Preview"
   },
+  "confirmDialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "removeTitle": "Remove item?"
+  },
   "reporter": {
     "title": "Reporter",
     "subtitle": "Upload news title, body, images, and video.",
@@ -411,6 +416,7 @@
       "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
     "moveUp": "Up",
     "moveDown": "Down",
     "dragHandle": "Drag to reorder",
@@ -443,6 +449,7 @@
       "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
     "moveUp": "Up",
     "moveDown": "Down",
     "dragHandle": "Drag to reorder",
@@ -473,6 +480,7 @@
       "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
     "moveUp": "Up",
     "moveDown": "Down",
     "dragHandle": "Drag to reorder",
@@ -503,6 +511,7 @@
       "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
     "moveUp": "Up",
     "moveDown": "Down",
     "dragHandle": "Drag to reorder",
@@ -544,6 +553,7 @@
       "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
     "moveUp": "Up",
     "moveDown": "Down",
     "dragHandle": "Drag to reorder",
@@ -617,6 +627,7 @@
       "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
     "moveUp": "Up",
     "moveDown": "Down",
     "dragHandle": "Drag to reorder",
@@ -653,6 +664,7 @@
       "ribbon_ad": "Ribbon Advertisement"
     },
     "remove": "Remove",
+    "removeConfirm": "Remove “{label}” from this list? The list will be saved.",
     "moveUp": "Up",
     "moveDown": "Down",
     "dragHandle": "Drag to reorder",

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   PageAdsEditor,
   toApiAdRows,
@@ -157,6 +158,7 @@ export function CustomSectionsEditor({
   const [rows, setRows] = useState<IEditableSectionRow[]>([])
   const [adRows, setAdRows] = useState<IEditableAdRow[]>([])
   const [saving, setSaving] = useState(false)
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null)
 
   const showLocality = marketCode === US_MARKET_CODE || marketCode === PUERTO_RICO_MARKET_CODE
   const showFloridaCounty = marketCode === US_MARKET_CODE && localityId === FLORIDA_STATE_CODE
@@ -183,10 +185,12 @@ export function CustomSectionsEditor({
   })
 
   /**
-   * Persist the current ordered list for the selected market or locality.
+   * Persist an ordered section list (and current ads) for the selected scope.
+   *
+   * @param nextRows Rows to save; defaults to current editor state.
    */
-  async function handleSave(): Promise<void> {
-    const items = rows
+  async function persistRows(nextRows: IEditableSectionRow[] = rows): Promise<void> {
+    const items = nextRows
       .map((row) => ({
         section_type: row.sectionType,
         label: row.label.trim(),
@@ -213,6 +217,54 @@ export function CustomSectionsEditor({
       setSaving(false)
     }
   }
+
+  /**
+   * Persist the current ordered list for the selected market or locality.
+   */
+  async function handleSave(): Promise<void> {
+    await persistRows(rows)
+  }
+
+  /**
+   * Open the remove confirmation dialog for a section row.
+   *
+   * @param index Index of the row to remove.
+   */
+  function handleRemoveRow(index: number): void {
+    if (saving) {
+      return
+    }
+    if (!rows[index]) {
+      return
+    }
+    setPendingRemoveIndex(index)
+  }
+
+  /**
+   * Cancel a pending section removal.
+   */
+  function handleCancelRemove(): void {
+    setPendingRemoveIndex(null)
+  }
+
+  /**
+   * Remove the pending section and persist the updated list.
+   */
+  async function handleConfirmRemove(): Promise<void> {
+    if (pendingRemoveIndex === null || saving) {
+      return
+    }
+    const nextRows = rows.filter((_, rowIndex) => rowIndex !== pendingRemoveIndex)
+    setPendingRemoveIndex(null)
+    setRows(nextRows)
+    await persistRows(nextRows)
+  }
+
+  const pendingRemoveRow =
+    pendingRemoveIndex === null ? null : rows[pendingRemoveIndex] ?? null
+  const pendingRemoveLabel = pendingRemoveRow
+    ? pendingRemoveRow.label.trim() || t(`customTabs.types.${pendingRemoveRow.sectionType}`)
+    : ''
 
   /**
    * Switch state/town and clear county unless Florida remains selected.
@@ -290,12 +342,28 @@ export function CustomSectionsEditor({
             <p className="mb-2 text-xs text-neutral-500">{t('customTabs.loading')}</p>
           ) : null}
           <div className={loading ? 'pointer-events-none opacity-60' : undefined}>
-            <CustomRowsEditor rows={rows} onChange={setRows} tabLabel={tabLabel} />
+            <CustomRowsEditor
+              rows={rows}
+              onChange={setRows}
+              onRemove={handleRemoveRow}
+              tabLabel={tabLabel}
+            />
             <PageAdsEditor rows={adRows} onChange={setAdRows} />
           </div>
         </>
       )}
 
+
+      {pendingRemoveRow ? (
+        <ConfirmDialog
+          title={t('confirmDialog.removeTitle')}
+          message={t('customTabs.removeConfirm', { label: pendingRemoveLabel })}
+          confirmLabel={t('confirmDialog.confirm')}
+          cancelLabel={t('confirmDialog.cancel')}
+          onConfirm={() => void handleConfirmRemove()}
+          onCancel={handleCancelRemove}
+        />
+      ) : null}
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
@@ -316,10 +384,12 @@ export function CustomSectionsEditor({
 function CustomRowsEditor({
   rows,
   onChange,
+  onRemove,
   tabLabel,
 }: {
   rows: IEditableSectionRow[]
   onChange: (rows: IEditableSectionRow[]) => void
+  onRemove: (index: number) => void
   tabLabel: string
 }): JSX.Element {
   const t = useTranslations('admin')
@@ -344,10 +414,6 @@ function CustomRowsEditor({
       return
     }
     onChange(moveListItem(rows, index, nextIndex))
-  }
-
-  function removeRow(index: number): void {
-    onChange(rows.filter((_, rowIndex) => rowIndex !== index))
   }
 
   function addSection(sectionType: CustomPageSectionType): void {
@@ -397,7 +463,7 @@ function CustomRowsEditor({
               rowCount={rows.length}
               onUpdate={updateRow}
               onMove={moveRow}
-              onRemove={removeRow}
+              onRemove={onRemove}
             />
           </SortableConfigRow>
         ))}

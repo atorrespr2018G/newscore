@@ -15,6 +15,11 @@
     "world": "Mundo",
     "preview": "Vista previa"
   },
+  "confirmDialog": {
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "removeTitle": "¿Quitar elemento?"
+  },
   "reporter": {
     "title": "Reportero",
     "subtitle": "Sube el titular, el cuerpo, las imágenes y el video de la noticia.",
@@ -411,6 +416,7 @@
       "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "dragHandle": "Arrastrar para reordenar",
@@ -443,6 +449,7 @@
       "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "dragHandle": "Arrastrar para reordenar",
@@ -473,6 +480,7 @@
       "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "dragHandle": "Arrastrar para reordenar",
@@ -503,6 +511,7 @@
       "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "dragHandle": "Arrastrar para reordenar",
@@ -544,6 +553,7 @@
       "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "dragHandle": "Arrastrar para reordenar",
@@ -571,6 +581,7 @@
     "enabled": "Activo",
     "add": "Agregar anuncio",
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "types": {
@@ -617,6 +628,7 @@
       "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "dragHandle": "Arrastrar para reordenar",
@@ -653,6 +665,7 @@
       "ribbon_ad": "Cinta publicitaria"
     },
     "remove": "Quitar",
+    "removeConfirm": "¿Quitar “{label}” de esta lista? La lista se guardará.",
     "moveUp": "Subir",
     "moveDown": "Bajar",
     "dragHandle": "Arrastrar para reordenar",
