@@ -18,6 +18,7 @@ import {
   isCompactSixBandPositionKey,
   isUsBandPositionKey,
   sectionAnchorId,
+  shouldOmitUsaHomepageSection,
 } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
 import { politicsArchiveHref } from '@/lib/helpers/politics-archive'
@@ -87,6 +88,9 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   const editor = useEditorPlacement()
   const articles = visibleArticlesForSection(slot)
   const showEmptyPlacementShell = articles.length === 0 && editor != null
+  if (shouldOmitUsaHomepageSection(marketCode, pageName, slot.positionKey)) {
+    return null
+  }
   if (articles.length === 0 && !showEmptyPlacementShell) {
     return null
   }

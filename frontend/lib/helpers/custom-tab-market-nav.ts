@@ -21,6 +21,8 @@ const BUILTIN_SITE_SEGMENTS = new Set([
   'reporter',
   'sports',
   'technology',
+  'style',
+  'travel',
   'world',
 ])
 

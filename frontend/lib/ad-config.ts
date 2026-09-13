@@ -70,6 +70,12 @@ export const STICKY_RIBBON_AD_HEIGHT_PX = 108
 /** Default ribbon min-height in px (matches AD_VARIANT_SHELL_CLASS.ribbon). */
 export const RIBBON_AD_MIN_HEIGHT_PX = 192
 
+/** Homepage first in-feed ribbon is 25% taller than the default ribbon (192 → 240). */
+export const HOMEPAGE_FIRST_RIBBON_AD_MIN_HEIGHT_PX = 240
+
+/** Tailwind override for the taller first homepage ribbon (literal for JIT). */
+export const HOMEPAGE_FIRST_RIBBON_AD_SHELL_CLASS = '!min-h-[240px] w-full'
+
 /** Article in-content ribbon is 50% taller than the default ribbon (192 → 288). */
 export const ARTICLE_RIBBON_AD_MIN_HEIGHT_PX = 288
 

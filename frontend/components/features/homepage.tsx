@@ -22,8 +22,11 @@ import {
 } from '@/lib/helpers/feed-layout'
 import type { IEditorialBandSlots, HomepagePageSlotKind } from '@/lib/helpers/feed-layout'
 import { shouldRenderHomepageGridAd } from '@/lib/helpers/homepage-ad-placement'
+import { shouldOmitUsaHomepageSection } from '@/lib/helpers/section-labels'
+import { useMarket } from '@/context/market-context'
 import { deckBelowTitle } from '@/lib/helpers/text-helpers'
 import { AdSlot } from '@/components/ui/ad-slot'
+import { HOMEPAGE_FIRST_RIBBON_AD_SHELL_CLASS } from '@/lib/ad-config'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { HeroVideoAdScope } from '@/context/hero-video-ad-context'
 import { usePageAds, useSyncPageAdPlacements } from '@/context/page-ads-context'
@@ -71,6 +74,28 @@ function RightPromo(): JSX.Element {
 }
 
 /**
+ * Shell class for a homepage in-feed ribbon.
+ *
+ * @param index - Zero-based ribbon occurrence on the page.
+ * @param enlargeFirst - When true, the first ribbon is 25% taller than default.
+ * @returns Tailwind override for the first enlarged ribbon, otherwise undefined.
+ */
+function homepageRibbonShellClass(index: number, enlargeFirst: boolean): string | undefined {
+  if (!enlargeFirst || index !== 0) {
+    return undefined
+  }
+  return HOMEPAGE_FIRST_RIBBON_AD_SHELL_CLASS
+}
+
+/** Props for a homepage in-feed advertisement ribbon. */
+interface IAdRibbonProps {
+  index?: number
+  location?: PageAdLocation
+  anchorSlug?: string | null
+  enlargeFirst?: boolean
+}
+
+/**
  * Homepage section ribbon backed by the shared AdSlot mock/GAM unit.
  *
  * Presence is owned by ribbon_ad section rows or leftover heuristics, not
@@ -80,11 +105,8 @@ function AdRibbon({
   index = 0,
   location = 'before_section',
   anchorSlug,
-}: {
-  index?: number
-  location?: PageAdLocation
-  anchorSlug?: string | null
-}): JSX.Element {
+  enlargeFirst = false,
+}: IAdRibbonProps): JSX.Element {
   const t = useTranslations('common')
   const { variantFor } = usePageAds()
 
@@ -94,17 +116,38 @@ function AdRibbon({
         slotKey="homepage-section-ribbon"
         index={index}
         variant={variantFor(location, 'ribbon', anchorSlug)}
+        className={homepageRibbonShellClass(index, enlargeFirst)}
       />
     </section>
   )
 }
 
 /**
+ * In-feed ribbon on the main homepage: the first occurrence is 25% taller.
+ *
+ * @param props - Ribbon index, location, and optional section anchor.
+ * @returns The homepage in-feed advertisement ribbon.
+ */
+function MainPageAdRibbon(props: Omit<IAdRibbonProps, 'enlargeFirst'>): JSX.Element {
+  return <AdRibbon {...props} enlargeFirst />
+}
+
+/**
  * Post-hero homepage ribbon.
  *
  * Shown only when the section list has no ribbon_ad rows.
+ *
+ * @param props.index - Zero-based ribbon occurrence.
+ * @param props.enlargeFirst - When true, the first ribbon is 25% taller.
+ * @returns The post-hero advertisement ribbon.
  */
-function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element {
+function HeroAdRibbon({
+  index = 0,
+  enlargeFirst = false,
+}: {
+  index?: number
+  enlargeFirst?: boolean
+}): JSX.Element {
   const t = useTranslations('common')
   const { variantFor } = usePageAds()
 
@@ -114,6 +157,7 @@ function HeroAdRibbon({ index = 0 }: { index?: number }): JSX.Element {
         slotKey="homepage-hero-after"
         index={index}
         variant={variantFor('after_hero', 'ribbon')}
+        className={homepageRibbonShellClass(index, enlargeFirst)}
       />
     </section>
   )
@@ -284,6 +328,8 @@ const GOVERNMENT_PAGE_NAME = 'government'
 const ENTERTAINMENT_PAGE_NAME = 'entertainment'
 const HEALTH_PAGE_NAME = 'health'
 const TECHNOLOGY_PAGE_NAME = 'technology'
+const STYLE_PAGE_NAME = 'style'
+const TRAVEL_PAGE_NAME = 'travel'
 const SPORTS_SECTION_PAIR_SIZE = 2
 const LIVE_CAROUSEL_ARTICLE_LIMIT = 20
 
@@ -424,7 +470,7 @@ function PoliticsClusterSection({
       {politicsSlot ? (
         <>
           {showAdRibbon ? (
-            <AdRibbon index={adIndex} location="before_section" anchorSlug="politics" />
+            <MainPageAdRibbon index={adIndex} location="before_section" anchorSlug="politics" />
           ) : null}
           <Suspense fallback={<SectionSkeleton />}>
             <HomepageSection slot={politicsSlot} pageName={HOMEPAGE_PAGE_NAME} />
@@ -457,7 +503,7 @@ function HomepagePageSlotBlock({
   pageName?: string
 }): JSX.Element | null {
   if (kind === 'ribbon_ad') {
-    return <AdRibbon index={adIndex} />
+    return <MainPageAdRibbon index={adIndex} />
   }
   if (kind === 'hero') {
     return (
@@ -524,6 +570,7 @@ function MainPageOrderedSections({
   /** Layout page name for page-specific section labels (e.g. world). */
   pageName?: string
 }): JSX.Element {
+  const { marketCode } = useMarket()
   const orderedSlots = repairLegacyHomepageSlotOrder(slots)
   const useConfiguredRibbons = feedHasConfiguredRibbonAds(orderedSlots)
   const useConfiguredPostHeroRibbon = feedHasConfiguredPostHeroRibbonAd(orderedSlots)
@@ -542,7 +589,7 @@ function MainPageOrderedSections({
       blocks.push(
         <div key={`${bandTaken.band.lead.id}-band`} className="space-y-2">
           {bandAdIndex !== null ? (
-            <AdRibbon
+            <MainPageAdRibbon
               index={bandAdIndex}
               location="before_section"
               anchorSlug={normalizedPositionKey(bandTaken.band.lead)}
@@ -590,6 +637,10 @@ function MainPageOrderedSections({
       index += 1
       continue
     }
+    if (shouldOmitUsaHomepageSection(marketCode, pageName, normalizedPositionKey(slot))) {
+      index += 1
+      continue
+    }
     const kind = resolveHomepagePageSlotKind(slot)
     const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
     if (kind === 'ribbon_ad') {
@@ -618,14 +669,14 @@ function MainPageOrderedSections({
     blocks.push(
       <div key={slot.id} className="space-y-2">
         {beforeAdIndex !== null ? (
-          <AdRibbon
+          <MainPageAdRibbon
             index={beforeAdIndex}
             location="before_section"
             anchorSlug={normalizedPositionKey(slot)}
           />
         ) : null}
         <HomepagePageSlotBlock slot={slot} kind={kind} title={title} pageName={pageName} />
-        {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} /> : null}
+        {heroAdIndex !== null ? <HeroAdRibbon index={heroAdIndex} enlargeFirst /> : null}
       </div>,
     )
     previousSlot = slot
@@ -825,7 +876,9 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
     pageName === GOVERNMENT_PAGE_NAME ||
     pageName === ENTERTAINMENT_PAGE_NAME ||
     pageName === HEALTH_PAGE_NAME ||
-    pageName === TECHNOLOGY_PAGE_NAME
+    pageName === TECHNOLOGY_PAGE_NAME ||
+    pageName === STYLE_PAGE_NAME ||
+    pageName === TRAVEL_PAGE_NAME
 
   if (useSportsSectionRows) {
     return (
@@ -1012,6 +1065,42 @@ export function CustomTabPage({
  */
 export function TechnologyPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
   const { data, loading, error } = usePageFeed(TECHNOLOGY_PAGE_NAME)
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
+ * Style landing using the sports-page hero, Top Stories, and Live band.
+ * The paginated archive is rendered by the route without a Style heading.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Style page component.
+ */
+export function StylePage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = usePageFeed(STYLE_PAGE_NAME)
+  const feedData = data ?? initialFeed
+
+  return (
+    <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>
+      {(feed) => <HomepageContent feed={feed} options={{ useSportsSectionRows: true }} />}
+    </HomepageFeedShell>
+  )
+}
+
+/**
+ * Travel landing using the sports-page hero, Top Stories, and Live band.
+ * The paginated archive is rendered by the route without a Travel heading.
+ *
+ * @param initialFeed Optional server-rendered fallback feed.
+ * @returns Travel page component.
+ */
+export function TravelPage({ initialFeed }: { initialFeed?: IHomepageFeed }): JSX.Element {
+  const { data, loading, error } = usePageFeed(TRAVEL_PAGE_NAME)
   const feedData = data ?? initialFeed
 
   return (

@@ -156,8 +156,6 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
 const HIDDEN_HOMEPAGE_SECTION_KEYS = new Set([
   'sport',
-  'travel',
-  'style',
   'us',
   'us-featured',
   'midterm-elections',
@@ -184,6 +182,10 @@ export const HOMEPAGE_POST_POLITICS_SECTION_KEYS = [
   'technology',
 
   'business',
+
+  'style',
+
+  'travel',
 
 ] as const
 
@@ -227,6 +229,10 @@ export const COMPACT_SIX_BAND_POSITION_KEYS = new Set([
   'technology',
 
   'business',
+
+  'style',
+
+  'travel',
 
   'world-latest',
 
@@ -332,6 +338,37 @@ const SPORTS_PAGE_NON_COMPACT_KEYS = new Set([
   'archive',
 ])
 
+/** Built-in landings whose extra rows use the compact six-card carousel. */
+const COMPACT_SIX_LANDING_PAGE_NAMES = new Set([
+  'sports',
+  'government',
+  'business',
+  'technology',
+  'entertainment',
+  'health',
+  'politics',
+  'style',
+  'travel',
+])
+
+/** Layout page names that are not market custom tabs. */
+const BUILTIN_LAYOUT_PAGE_NAMES = new Set(['homepage', 'world', ...COMPACT_SIX_LANDING_PAGE_NAMES])
+
+/**
+ * Whether a landing page slot should render as a compact six-card row.
+ *
+ * @param pageName Layout page name such as `style`.
+ * @param positionKey Slot position key.
+ * @returns True for compact topic rows on built-in or custom-tab landings.
+ */
+function usesCompactSixLandingRows(pageName: string | undefined, positionKey: string): boolean {
+  const page = pageName?.trim().toLowerCase()
+  if (!page || SPORTS_PAGE_NON_COMPACT_KEYS.has(positionKey)) {
+    return false
+  }
+  return COMPACT_SIX_LANDING_PAGE_NAMES.has(page) || !BUILTIN_LAYOUT_PAGE_NAMES.has(page)
+}
+
 
 
 export const COMPACT_SIX_BAND_ARTICLE_LIMIT = 6
@@ -356,39 +393,7 @@ export function isCompactSixBandPositionKey(positionKey: string, pageName?: stri
   if (COMPACT_SIX_BAND_POSITION_KEYS.has(normalized)) {
     return true
   }
-  // Admin-added Sports page rows reuse the same carousel as landing/world.
-  if (pageName?.trim().toLowerCase() === 'sports' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
-    return true
-  }
-  if (pageName?.trim().toLowerCase() === 'government' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
-    return true
-  }
-  if (pageName?.trim().toLowerCase() === 'business' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
-    return true
-  }
-  if (pageName?.trim().toLowerCase() === 'technology' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
-    return true
-  }
-  if (pageName?.trim().toLowerCase() === 'entertainment' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
-    return true
-  }
-  if (pageName?.trim().toLowerCase() === 'health' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
-    return true
-  }
-  if (pageName?.trim().toLowerCase() === 'politics' && !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)) {
-    return true
-  }
-  // Custom tabs use the same compact topic rows as Entertainment/Health.
-  if (
-    pageName &&
-    !['homepage', 'world', 'sports', 'government', 'business', 'technology', 'entertainment', 'health', 'politics'].includes(
-      pageName.trim().toLowerCase(),
-    ) &&
-    !SPORTS_PAGE_NON_COMPACT_KEYS.has(normalized)
-  ) {
-    return true
-  }
-  return false
+  return usesCompactSixLandingRows(pageName, normalized)
 }
 
 
@@ -399,6 +404,33 @@ export function isUsBandPositionKey(positionKey: string): boolean {
 
   return normalized === 'us' || normalized === 'us-featured'
 
+}
+
+const HOMEPAGE_PAGE_NAME = 'homepage'
+
+/**
+ * Whether the main-page USA / Top Stories band should be omitted.
+ *
+ * USA editions are already US news, so the USA module is redundant there.
+ *
+ * @param marketCode Reader or editor market code.
+ * @param pageName Layout page name such as `homepage`.
+ * @param positionKey Slot position key.
+ * @returns True for `us` / `us-featured` on the US homepage.
+ */
+export function shouldOmitUsaHomepageSection(
+  marketCode: string,
+  pageName: string | undefined,
+  positionKey: string,
+): boolean {
+  if (marketCode.trim().toLowerCase() !== 'us') {
+    return false
+  }
+  const page = (pageName ?? HOMEPAGE_PAGE_NAME).trim().toLowerCase()
+  if (page !== HOMEPAGE_PAGE_NAME) {
+    return false
+  }
+  return isUsBandPositionKey(positionKey)
 }
 
 
@@ -430,6 +462,10 @@ const POSITION_KEY_OVERRIDES_DISPLAY_NAME = new Set([
   'technology',
 
   'business',
+
+  'style',
+
+  'travel',
 
   'sports',
 
@@ -702,6 +738,10 @@ const SECTION_PAGE_ROUTES: Record<string, string> = {
 
   technology: '/technology',
 
+  style: '/style',
+
+  travel: '/travel',
+
 }
 
 
@@ -725,6 +765,10 @@ const SECTION_PAGE_NAMES: Record<string, string> = {
   business: 'business',
 
   technology: 'technology',
+
+  style: 'style',
+
+  travel: 'travel',
 
 }
 

@@ -49,6 +49,8 @@ PAGE_NAME_ENTERTAINMENT = "entertainment"
 PAGE_NAME_HEALTH = "health"
 PAGE_NAME_BUSINESS = "business"
 PAGE_NAME_TECHNOLOGY = "technology"
+PAGE_NAME_STYLE = "style"
+PAGE_NAME_TRAVEL = "travel"
 
 # Pages whose public feed is shared globally (not cloned per market/region).
 MARKET_AGNOSTIC_PAGE_NAMES: frozenset[str] = frozenset()
@@ -141,7 +143,8 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
 
     Args:
         page_name: ``homepage``, ``world``, ``sports``, ``government``,
-            ``entertainment``, ``health``, ``business``, or ``technology``.
+            ``entertainment``, ``health``, ``business``, ``technology``,
+            ``style``, or ``travel``.
 
     Returns:
         A deep-copied default ads list for that page.
@@ -162,6 +165,8 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
         return [dict(row) for row in DEFAULT_BUSINESS_ADS]
     if normalized == PAGE_NAME_TECHNOLOGY:
         return [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
+    if normalized in {PAGE_NAME_STYLE, PAGE_NAME_TRAVEL}:
+        return [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
     # Built-in pages already handled; remaining names are custom tabs (or homepage).
     if normalized and normalized not in {
         PAGE_NAME_HOMEPAGE,
@@ -172,6 +177,8 @@ def default_ads_for_page(page_name: str) -> list[dict[str, Any]]:
         PAGE_NAME_HEALTH,
         PAGE_NAME_BUSINESS,
         PAGE_NAME_TECHNOLOGY,
+        PAGE_NAME_STYLE,
+        PAGE_NAME_TRAVEL,
         "politics",
     }:
         return [dict(row) for row in DEFAULT_CUSTOM_TAB_ADS]

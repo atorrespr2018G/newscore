@@ -60,6 +60,35 @@ LOCALITY_SCOPED_PAGE_NAMES = frozenset(
 )
 
 
+def _omit_usa_homepage_layout_slots(
+    slots: list[dict[str, Any]],
+    *,
+    page_name: str,
+    market_code: str,
+) -> list[dict[str, Any]]:
+    """Drop USA modules from US-market homepage feeds.
+
+    Imported lazily to avoid a circular import with homepage_page_sections_sync.
+
+    Args:
+        slots: Layout slots in order.
+        page_name: Layout page name.
+        market_code: Market short code.
+
+    Returns:
+        ``slots`` unchanged unless this is the US homepage, then without
+        ``us-featured`` and ``us``.
+    """
+
+    from shared.core.homepage_page_sections_sync import omit_usa_homepage_layout_slots
+
+    return omit_usa_homepage_layout_slots(
+        slots,
+        page_name=page_name,
+        market_code=market_code,
+    )
+
+
 async def _is_custom_tab_page(db: AsyncIOMotorDatabase, page_name: str) -> bool:
     """Return whether ``page_name`` is a registered custom tab slug."""
 
@@ -595,7 +624,11 @@ async def get_home_feed(
                     loader=loader,
                 ),
             )
-            for slot in active_layout["slots"]
+            for slot in _omit_usa_homepage_layout_slots(
+                active_layout["slots"],
+                page_name=normalized_page,
+                market_code=market_code,
+            )
         ]
 
     out_slots = await build_slots(layout, active_base_queries=base_queries, active_town=town)
@@ -715,7 +748,11 @@ async def get_home_feed_preview(
                     loader=loader,
                 ),
             )
-            for slot in active_layout["slots"]
+            for slot in _omit_usa_homepage_layout_slots(
+                active_layout["slots"],
+                page_name=normalized_page,
+                market_code=market_code,
+            )
         ]
 
     out_slots = await build_slots(layout, active_base_queries=base_queries, active_town=town)

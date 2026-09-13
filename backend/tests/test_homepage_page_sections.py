@@ -25,8 +25,10 @@ from shared.core.homepage_page_sections_sync import (
     migrate_remove_election_section,
     migrate_remove_primary_more_top_stories,
     migrate_remove_extra_stories_band,
+    migrate_remove_usa_section,
     migrate_collapse_consecutive_ribbon_ads,
     migrate_ensure_ribbon_before_live,
+    omit_usa_homepage_layout_slots,
     slugify_section_label,
 )
 from shared.core.markets import (
@@ -68,6 +70,8 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert "entertainment" in slugs
     assert "technology" in slugs
     assert "business" in slugs
+    assert "style" in slugs
+    assert "travel" in slugs
     assert "midterm-elections" not in slugs
     politics_index = slugs.index("politics")
     sports_index = slugs.index("sports")
@@ -216,6 +220,58 @@ def test_migrate_remove_election_section_drops_homepage_row() -> None:
     migrated = migrate_remove_election_section(items)
 
     assert [item["slug"] for item in migrated] == ["politics", "sports"]
+
+
+def test_migrate_remove_usa_section_drops_band_and_keeps_post_hero_ribbon() -> None:
+    """USA Top Stories and US category are removed; the post-hero ribbon stays."""
+
+    items = [
+        {"section_type": "hero", "slug": "hero", "label": "Hero"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon", "label": "Ribbon Advertisement"},
+        {"section_type": "top_stories", "slug": "us-featured", "label": "Top Stories"},
+        {"section_type": "category", "slug": "politics", "label": "Politics"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon-6", "label": "Ribbon Advertisement"},
+        {"section_type": "category", "slug": "us", "label": "US"},
+        {"section_type": "category", "slug": "style", "label": "Style"},
+    ]
+
+    migrated = migrate_remove_usa_section(items)
+
+    assert [item["slug"] for item in migrated] == [
+        "hero",
+        "ad-ribbon",
+        "politics",
+        "style",
+    ]
+
+
+def test_omit_usa_homepage_layout_slots_only_strips_us_homepage() -> None:
+    """USA slots drop on the US homepage and stay on other pages and markets."""
+
+    slots = [
+        {"position_key": "hero"},
+        {"position_key": "us-featured"},
+        {"position_key": "politics"},
+        {"position_key": "us"},
+    ]
+    omitted = omit_usa_homepage_layout_slots(
+        slots,
+        page_name="homepage",
+        market_code="us",
+    )
+    assert [slot["position_key"] for slot in omitted] == ["hero", "politics"]
+    unchanged = omit_usa_homepage_layout_slots(
+        slots,
+        page_name="homepage",
+        market_code="pr",
+    )
+    assert unchanged == slots
+    world = omit_usa_homepage_layout_slots(
+        slots,
+        page_name="world",
+        market_code="us",
+    )
+    assert world == slots
 
 
 def test_insert_legacy_homepage_ribbon_ads_places_post_hero_ribbon() -> None:

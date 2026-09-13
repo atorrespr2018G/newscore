@@ -28,11 +28,13 @@ from shared.core.homepage_page_sections_sync import (
     migrate_remove_election_section,
     migrate_remove_primary_more_top_stories,
     migrate_remove_extra_stories_band,
+    migrate_remove_usa_section,
     migrate_collapse_consecutive_ribbon_ads,
     migrate_ensure_ribbon_before_live,
     slugify_section_label,
     sync_homepage_layout_slots,
 )
+from shared.core.markets import DEFAULT_MARKET_CODE
 
 from shared.core.logger import get_logger
 from shared.core.page_ad_placements import (
@@ -274,6 +276,33 @@ async def _upsert_sections_doc(
     )
 
 
+def _migrated_homepage_items(items: list[dict[str, str]], market_code: str) -> list[dict[str, str]]:
+    """Apply stored-list migrations, dropping the USA band on US editions.
+
+    Args:
+        items: Expanded homepage section rows.
+        market_code: Market short code.
+
+    Returns:
+        Migrated copy of ``items``.
+    """
+
+    migrated = migrate_collapse_consecutive_ribbon_ads(
+        migrate_ensure_ribbon_before_live(
+            migrate_remove_extra_stories_band(
+                migrate_remove_election_section(
+                    migrate_remove_primary_more_top_stories(
+                        migrate_legacy_election_section(items),
+                    ),
+                ),
+            ),
+        ),
+    )
+    if market_code.strip().lower() == DEFAULT_MARKET_CODE:
+        return migrate_remove_usa_section(migrated)
+    return migrated
+
+
 def _ads_out(ads: list[dict[str, Any]]) -> list[PageAdPlacementOut]:
     """Map stored ad rows to API models."""
 
@@ -328,12 +357,16 @@ async def get_for_market(
     doc = await db[HOMEPAGE_PAGE_SECTIONS_COLLECTION].find_one(
         _sections_query(market_id=market_id, region_id=region_id),
     )
+    resolved_market_code = str(market["code"])
     if doc is None:
-        items = [dict(row) for row in DEFAULT_HOMEPAGE_SECTION_ITEMS]
+        items = _migrated_homepage_items(
+            [dict(row) for row in DEFAULT_HOMEPAGE_SECTION_ITEMS],
+            resolved_market_code,
+        )
         ads = default_ads_for_page(PAGE_NAME_HOMEPAGE)
         return _to_out(
             market_id=market_id,
-            market_code=str(market["code"]),
+            market_code=resolved_market_code,
             region_id=region_id,
             region_code=normalized_region,
             items=items,
@@ -341,17 +374,7 @@ async def get_for_market(
             updated_at=utc_now().isoformat(),
         )
     items = expand_homepage_section_items(list(doc.get("items") or []))
-    migrated_items = migrate_collapse_consecutive_ribbon_ads(
-        migrate_ensure_ribbon_before_live(
-            migrate_remove_extra_stories_band(
-                migrate_remove_election_section(
-                    migrate_remove_primary_more_top_stories(
-                        migrate_legacy_election_section(items),
-                    ),
-                ),
-            ),
-        ),
-    )
+    migrated_items = _migrated_homepage_items(items, resolved_market_code)
     ads = resolve_ads_list(doc.get("ads"), page_name=PAGE_NAME_HOMEPAGE)
     now = utc_now().isoformat()
     if not has_post_hero_ribbon_ad_section(migrated_items):

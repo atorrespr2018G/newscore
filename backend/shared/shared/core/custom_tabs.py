@@ -31,6 +31,8 @@ RESERVED_CUSTOM_TAB_SLUGS = frozenset(
         "reporter",
         "sports",
         "technology",
+        "style",
+        "travel",
         "world",
     },
 )

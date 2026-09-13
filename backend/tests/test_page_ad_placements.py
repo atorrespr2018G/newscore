@@ -39,6 +39,8 @@ def test_default_ads_for_page_returns_page_specific_lists() -> None:
     assert default_ads_for_page("entertainment") == [dict(row) for row in DEFAULT_ENTERTAINMENT_ADS]
     assert default_ads_for_page("business") == [dict(row) for row in DEFAULT_BUSINESS_ADS]
     assert default_ads_for_page("technology") == [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
+    assert default_ads_for_page("style") == [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
+    assert default_ads_for_page("travel") == [dict(row) for row in DEFAULT_TECHNOLOGY_ADS]
     assert default_ads_for_page("unknown") == [dict(row) for row in DEFAULT_CUSTOM_TAB_ADS]
 
 
@@ -68,7 +70,17 @@ def test_default_homepage_ads_cover_shell_locations() -> None:
 def test_default_ads_omit_stacking_ribbon_locations() -> None:
     """Page defaults leave in-feed ribbons to the section list."""
 
-    for page_name in ("homepage", "world", "sports", "government", "entertainment", "business", "technology"):
+    for page_name in (
+        "homepage",
+        "world",
+        "sports",
+        "government",
+        "entertainment",
+        "business",
+        "technology",
+        "style",
+        "travel",
+    ):
         for row in default_ads_for_page(page_name):
             assert row["location"] not in STACKING_AD_LOCATIONS
 

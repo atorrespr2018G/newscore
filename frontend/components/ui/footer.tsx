@@ -8,6 +8,8 @@ const FOOTER_SECTION_KEYS = [
   'world',
   'technology',
   'business',
+  'style',
+  'travel',
   'health',
   'finance',
   'entertainment',

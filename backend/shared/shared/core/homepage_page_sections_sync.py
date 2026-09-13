@@ -11,6 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from shared.core.exceptions import ValidationError
 from shared.core.logger import get_logger
 from shared.core.markets import (
+    DEFAULT_MARKET_CODE,
     PRESENTATION_EDITORIAL_LEAD,
     PRESENTATION_EDITORIAL_SPOTLIGHT,
     PRESENTATION_FEATURED_BAND,
@@ -32,6 +33,10 @@ logger = get_logger(__name__)
 HOMEPAGE_PAGE_NAME = "homepage"
 HERO_POSITION_KEY = "hero"
 US_FEATURED_POSITION_KEY = "us-featured"
+US_CATEGORY_POSITION_KEY = "us"
+USA_HOMEPAGE_SECTION_KEYS = frozenset(
+    {US_FEATURED_POSITION_KEY, US_CATEGORY_POSITION_KEY},
+)
 LIVE_POSITION_KEY = "health"
 MORE_TOP_STORIES_POSITION_KEY = "more-top-stories"
 SPOTLIGHT_POSITION_KEY = "midterm-elections"
@@ -344,6 +349,85 @@ def migrate_legacy_election_section(items: list[dict[str, str]]) -> list[dict[st
     else:
         migrated.insert(politics_index + 1, election)
     return migrated
+
+
+def is_usa_homepage_section_key(slug: str) -> bool:
+    """Return whether a position key is the main-page USA / Top Stories module.
+
+    Args:
+        slug: Layout position key or section slug.
+
+    Returns:
+        True for ``us-featured`` (Top Stories) and category ``us``.
+    """
+
+    return slug.strip().lower() in USA_HOMEPAGE_SECTION_KEYS
+
+
+def _is_post_hero_ribbon(items: list[dict[str, str]]) -> bool:
+    """Return whether the last row is the ribbon immediately after Hero."""
+
+    return (
+        len(items) >= 2
+        and items[-1].get("section_type") == SECTION_TYPE_RIBBON_AD
+        and items[-2].get("section_type") == SECTION_TYPE_HERO
+    )
+
+
+def migrate_remove_usa_section(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Remove the homepage USA band and US category from a section list.
+
+    Args:
+        items: Typed homepage section rows.
+
+    Returns:
+        Copy of ``items`` without ``us-featured`` and category ``us``. A ribbon
+        immediately preceding those rows is dropped unless it is the post-hero
+        advertisement.
+    """
+
+    migrated: list[dict[str, str]] = []
+    for item in items:
+        slug = str(item.get("slug") or "")
+        if is_usa_homepage_section_key(slug):
+            if (
+                migrated
+                and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD
+                and not _is_post_hero_ribbon(migrated)
+            ):
+                migrated.pop()
+            continue
+        migrated.append(dict(item))
+    return migrated
+
+
+def omit_usa_homepage_layout_slots(
+    slots: list[dict[str, Any]],
+    *,
+    page_name: str,
+    market_code: str,
+) -> list[dict[str, Any]]:
+    """Drop USA modules from US-market homepage feeds.
+
+    Args:
+        slots: Layout slots in order.
+        page_name: Layout page name.
+        market_code: Market short code.
+
+    Returns:
+        ``slots`` unchanged unless this is the US homepage, then without
+        ``us-featured`` and ``us``.
+    """
+
+    if page_name.strip().lower() != HOMEPAGE_PAGE_NAME:
+        return slots
+    if market_code.strip().lower() != DEFAULT_MARKET_CODE:
+        return slots
+    return [
+        slot
+        for slot in slots
+        if not is_usa_homepage_section_key(str(slot.get("position_key") or ""))
+    ]
 
 
 def migrate_remove_election_section(items: list[dict[str, str]]) -> list[dict[str, str]]:

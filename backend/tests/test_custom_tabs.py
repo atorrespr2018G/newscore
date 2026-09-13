@@ -48,6 +48,8 @@ def test_reserved_custom_tab_slugs() -> None:
     """Built-in page names cannot be claimed by custom tabs."""
 
     assert "health" in RESERVED_CUSTOM_TAB_SLUGS
+    assert "style" in RESERVED_CUSTOM_TAB_SLUGS
+    assert "travel" in RESERVED_CUSTOM_TAB_SLUGS
     assert slugify_tab_label("My Science") == "my-science"
     try:
         assert_custom_tab_slug_allowed("entertainment")

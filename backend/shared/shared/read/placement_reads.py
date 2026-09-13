@@ -33,6 +33,8 @@ DEFAULT_EDITOR_PAGE_NAMES = (
     "health",
     "business",
     "technology",
+    "style",
+    "travel",
 )
 DEFAULT_QUERY_RULE_LIMIT = 10
 

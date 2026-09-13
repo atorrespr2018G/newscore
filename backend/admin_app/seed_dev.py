@@ -22,7 +22,9 @@ from shared.core.health_page_sections_sync import DEFAULT_HEALTH_TOPIC_LABELS
 from shared.core.business_page_sections_sync import DEFAULT_BUSINESS_TOPIC_LABELS
 from shared.core.indexes import ensure_indexes
 from shared.core.page_ad_placements import (
+    PAGE_NAME_STYLE,
     PAGE_NAME_TECHNOLOGY,
+    PAGE_NAME_TRAVEL,
     TECHNOLOGY_ARCHIVE_PIN_LIMIT,
     TECHNOLOGY_HERO_ARTICLE_LIMIT,
     TECHNOLOGY_LIVE_ARTICLE_LIMIT,
@@ -377,11 +379,29 @@ US_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Design week spotlights sustainable materials",
         "Luxury brands lean into quiet luxury trend",
         "Home editors share small-space makeover ideas",
+        "Runway shows revive archival silhouettes for spring",
+        "Independent jewelers find new buyers online",
+        "Museum fashion exhibit traces denim through decades",
+        "Beauty labs debut refillable packaging for prestige lines",
+        "Interior studios mix vintage finds with modular sofas",
+        "Streetwear labels collaborate with heritage mills",
+        "Photographers document everyday style in midsize cities",
+        "Textile startups recycle ocean plastic into knitwear",
+        "Stylists share capsule-wardrobe rules for travel weeks",
     ],
     "travel": [
         "Airlines add routes as international demand surges",
         "National parks set new visitor capacity rules",
         "Cruise industry unveils carbon-reduction targets",
+        "Rail operators restore overnight sleeper service",
+        "Coastal towns expand ferry links for summer weekends",
+        "Passport offices cut wait times with extra staffing",
+        "Hotel groups open boutique properties in secondary cities",
+        "Airports trial biometric lanes to speed international arrivals",
+        "Tour operators add off-season packages to ease crowding",
+        "Island carriers add early-morning hops for business travelers",
+        "Travel insurers expand coverage for weather delays",
+        "Guidebooks highlight neighborhood food walks over landmarks",
     ],
     # Sports hero + Top Stories each need 12 articles for the full 3-column layout
     # (right rail uses pinned indices 10–11 / 8–11).
@@ -569,11 +589,29 @@ CO_ARTICLE_STORIES: dict[str, list[SeedStory]] = {
         "Semana de diseño destaca materiales sostenibles",
         "Marcas de lujo apuestan por estética sobria",
         "Ideas de decoración para espacios pequeños",
+        "Pasarelas recuperan siluetas de archivo para primavera",
+        "Joyeros independientes ganan compradores en línea",
+        "Museo traza la historia del denim en nueva muestra",
+        "Laboratorios de belleza lanzan envases recargables",
+        "Estudios de interiores mezclan vintage y sofas modulares",
+        "Marcas streetwear colaboran con telares tradicionales",
+        "Fotógrafos documentan el estilo cotidiano en ciudades medianas",
+        "Startups textiles reciclan plástico oceánico en punto",
+        "Estilistas proponen guardarropas cápsula para viajes",
     ],
     "travel": [
         "Aerolíneas suman rutas por demanda internacional",
         "Parques nacionales ajustan cupos de visitantes",
         "Industria de cruceros fija metas de reducción de carbono",
+        "Trenes restauran servicio nocturno con literas",
+        "Pueblos costeros amplían ferris para fines de semana",
+        "Oficinas de pasaportes reducen esperas con más personal",
+        "Cadenas hoteleras abren boutiques en ciudades secundarias",
+        "Aeropuertos prueban carriles biométricos en llegadas",
+        "Operadores lanzan paquetes de temporada baja",
+        "Aerolíneas insulares suman vuelos tempranos de negocios",
+        "Aseguradoras amplían cobertura por retrasos climáticos",
+        "Guías destacan rutas gastronómicas de barrio",
     ],
     # Sports hero + Top Stories each need 12 articles for the full 3-column layout.
     "sports": [
@@ -936,7 +974,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "position_key": "style",
         "order_index": 13,
         "category_slug": "style",
-        "limit": 4,
+        "limit": 12,
         "presentation_type": "grid_4",
         "display_name_us": "Style",
         "display_name_co": "Estilo",
@@ -945,12 +983,35 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "position_key": "travel",
         "order_index": 14,
         "category_slug": "travel",
-        "limit": 4,
+        "limit": 12,
         "presentation_type": "grid_4",
         "display_name_us": "Travel",
         "display_name_co": "Viajes",
     },
 ]
+
+
+USA_HOMEPAGE_OMITTED_POSITION_KEYS = frozenset({"us-featured", "us"})
+
+
+def homepage_slot_specs_for_market(market_code: str) -> list[dict[str, Any]]:
+    """Return homepage seed slots, omitting the USA band on US editions.
+
+    Args:
+        market_code: Market short code such as ``us`` or ``pr``.
+
+    Returns:
+        Slot specs for that market's main page.
+    """
+
+    if market_code.strip().lower() != "us":
+        return HOMEPAGE_SLOT_SPECS
+    return [
+        spec
+        for spec in HOMEPAGE_SLOT_SPECS
+        if spec["position_key"] not in USA_HOMEPAGE_OMITTED_POSITION_KEYS
+    ]
+
 
 WORLD_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
     {
@@ -1239,6 +1300,53 @@ TECHNOLOGY_PAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "display_name_co": "Lo último",
     },
 ]
+
+
+def _landing_specs_for_category(
+    specs: list[dict[str, Any]],
+    *,
+    category_slug: str,
+    hero_us: str,
+    hero_co: str,
+) -> list[dict[str, Any]]:
+    """Copy a category-landing slot list onto another category.
+
+    Args:
+        specs: Source slot specs, typically TECHNOLOGY_PAGE_SLOT_SPECS.
+        category_slug: Category used to auto-fill hero, Top Stories, and Live.
+        hero_us: English hero display name.
+        hero_co: Spanish hero display name.
+
+    Returns:
+        Independent slot spec dicts for the target category landing.
+    """
+
+    cloned: list[dict[str, Any]] = []
+    for spec in specs:
+        row = dict(spec)
+        if row.get("category_slug"):
+            row["category_slug"] = category_slug
+        if row.get("position_key") == "hero":
+            row["display_name_us"] = hero_us
+            row["display_name_co"] = hero_co
+        cloned.append(row)
+    return cloned
+
+
+STYLE_CATEGORY_SLUG = "style"
+TRAVEL_CATEGORY_SLUG = "travel"
+STYLE_PAGE_SLOT_SPECS = _landing_specs_for_category(
+    TECHNOLOGY_PAGE_SLOT_SPECS,
+    category_slug=STYLE_CATEGORY_SLUG,
+    hero_us="Style",
+    hero_co="Estilo",
+)
+TRAVEL_PAGE_SLOT_SPECS = _landing_specs_for_category(
+    TECHNOLOGY_PAGE_SLOT_SPECS,
+    category_slug=TRAVEL_CATEGORY_SLUG,
+    hero_us="Travel",
+    hero_co="Viajes",
+)
 
 
 # Twelve stories per beat so compact carousels paginate (6 + 6).
@@ -2544,7 +2652,7 @@ async def _ensure_market_homepage(
     await _ensure_market_page(
         db,
         page_name="homepage",
-        slot_specs=HOMEPAGE_SLOT_SPECS,
+        slot_specs=homepage_slot_specs_for_market(market_code),
         market_id=market_id,
         market_code=market_code,
         display_name_key=display_name_key,
@@ -2670,6 +2778,60 @@ async def _ensure_market_technology_page(
         display_name_key=display_name_key,
         slug_to_category_id=slug_to_category_id,
         pinned_article_ids=technology_ids,
+    )
+
+
+async def _ensure_market_style_page(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+    display_name_key: str,
+    slug_to_category_id: dict[str, str],
+) -> None:
+    """Seed Style hero/Top Stories/Live plus a pin-only archive."""
+
+    style_ids = await _published_article_ids_for_category(
+        db,
+        market_id=market_id,
+        category_id=slug_to_category_id[STYLE_CATEGORY_SLUG],
+    )
+    await _ensure_market_page(
+        db,
+        page_name=PAGE_NAME_STYLE,
+        slot_specs=STYLE_PAGE_SLOT_SPECS,
+        market_id=market_id,
+        market_code=market_code,
+        display_name_key=display_name_key,
+        slug_to_category_id=slug_to_category_id,
+        pinned_article_ids=style_ids,
+    )
+
+
+async def _ensure_market_travel_page(
+    db: AsyncIOMotorDatabase,
+    *,
+    market_id: str,
+    market_code: str,
+    display_name_key: str,
+    slug_to_category_id: dict[str, str],
+) -> None:
+    """Seed Travel hero/Top Stories/Live plus a pin-only archive."""
+
+    travel_ids = await _published_article_ids_for_category(
+        db,
+        market_id=market_id,
+        category_id=slug_to_category_id[TRAVEL_CATEGORY_SLUG],
+    )
+    await _ensure_market_page(
+        db,
+        page_name=PAGE_NAME_TRAVEL,
+        slot_specs=TRAVEL_PAGE_SLOT_SPECS,
+        market_id=market_id,
+        market_code=market_code,
+        display_name_key=display_name_key,
+        slug_to_category_id=slug_to_category_id,
+        pinned_article_ids=travel_ids,
     )
 
 
@@ -3390,6 +3552,20 @@ async def seed_dev() -> None:
                 db,
                 market_id=market_id,
                 market_code=code,
+            )
+            await _ensure_market_style_page(
+                db,
+                market_id=market_id,
+                market_code=code,
+                display_name_key=str(market["display_name_key"]),
+                slug_to_category_id=slug_to_category_id,
+            )
+            await _ensure_market_travel_page(
+                db,
+                market_id=market_id,
+                market_code=code,
+                display_name_key=str(market["display_name_key"]),
+                slug_to_category_id=slug_to_category_id,
             )
             await _ensure_market_sports_sections(
                 db,

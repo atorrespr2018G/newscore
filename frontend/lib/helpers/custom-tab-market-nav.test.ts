@@ -15,6 +15,8 @@ describe('custom-tab-market-nav', () => {
   it('treats built-in pages as non-custom', () => {
     expect(isPossibleCustomTabPath('/entertainment')).toBe(false)
     expect(isPossibleCustomTabPath('/health/fitness')).toBe(false)
+    expect(isPossibleCustomTabPath('/style')).toBe(false)
+    expect(isPossibleCustomTabPath('/travel')).toBe(false)
     expect(isPossibleCustomTabPath('/test')).toBe(true)
   })
 })

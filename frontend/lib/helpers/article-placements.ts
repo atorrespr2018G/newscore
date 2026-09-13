@@ -19,6 +19,8 @@ const PAGE_LABELS: Record<string, string> = {
   health: 'Health',
   business: 'Business',
   technology: 'Technology',
+  style: 'Style',
+  travel: 'Travel',
 }
 
 /**

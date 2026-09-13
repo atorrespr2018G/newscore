@@ -79,6 +79,8 @@
     "healthDescription": "Fitness, food, sleep, family, and wellness.",
     "healthTopicDescription": "Latest {topic} health news and updates.",
     "politicsTopicDescription": "Latest {topic} politics news and updates.",
-    "technologyDescription": "Technology news, gadgets, and innovation."
+    "technologyDescription": "Technology news, gadgets, and innovation.",
+    "styleDescription": "Fashion, design, beauty, and living.",
+    "travelDescription": "Destinations, airlines, and trip news."
   }
 }

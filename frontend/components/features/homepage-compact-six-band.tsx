@@ -107,6 +107,8 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
       'entertainment',
       'health',
       'politics',
+      'style',
+      'travel',
     ].includes(pageName.trim().toLowerCase())
       ? customTabTopicPath(pageName, slot.positionKey)
       : null) ??

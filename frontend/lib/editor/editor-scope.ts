@@ -32,6 +32,8 @@ export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = [
   'health',
   'business',
   TECHNOLOGY_PAGE_NAME,
+  'style',
+  'travel',
 ]
 
 /** Market codes an editor can curate from the scope switcher. */
