@@ -1,3 +1,4 @@
+import { POLITICS_PAGE_NAME } from '@/lib/helpers/politics-archive'
 import { toRegionCode } from '@/lib/region-code'
 import { TECHNOLOGY_PAGE_NAME } from '@/lib/helpers/technology-archive'
 
@@ -23,6 +24,7 @@ export const DEFAULT_EDITOR_SCOPE: IEditorScope = {
 /** Curatable layout pages an editor can switch between. */
 export const EDITOR_PAGE_OPTIONS: ReadonlyArray<string> = [
   'homepage',
+  POLITICS_PAGE_NAME,
   'world',
   'sports',
   'government',

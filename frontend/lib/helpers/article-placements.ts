@@ -11,9 +11,14 @@ export interface IArticlePlacement {
 
 const PAGE_LABELS: Record<string, string> = {
   homepage: 'Homepage',
+  politics: 'Politics',
   world: 'World',
   sports: 'Sports',
   government: 'Government',
+  entertainment: 'Entertainment',
+  health: 'Health',
+  business: 'Business',
+  technology: 'Technology',
 }
 
 /**
