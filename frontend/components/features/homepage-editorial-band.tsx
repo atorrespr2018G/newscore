@@ -5,7 +5,10 @@ import type { IFeedSlot } from '@/interfaces/feed'
 import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import { ArchiveSectionLink } from '@/components/ui/archive-section-link'
 import { HomepageStoryThumb } from '@/components/ui/homepage-story-thumb'
-import { COMPACT_SIDE_THUMB_WIDTH } from '@/components/ui/story-card'
+import {
+  COMPACT_SIDE_THUMB_HEIGHT,
+  COMPACT_SIDE_THUMB_WIDTH,
+} from '@/components/ui/story-card'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { PlacementSlotScope } from '@/context/editor-placement-context'
 import { PlacementOverlay, PlacementSectionDropZone } from '@/components/features/placement-overlay'
@@ -24,6 +27,38 @@ import { AdSlot } from '@/components/ui/ad-slot'
 import { usePageAds } from '@/context/page-ads-context'
 
 export const MORE_TOP_STORIES_KEY = 'more-top-stories'
+
+const POLITICS_PAGE_NAME = 'politics'
+const COMPACT_SIDE_THUMB_ENLARGE_SCALE = 1.2
+const POLITICS_COMPACT_NEWS_SCREEN_SCALE = 1.5
+const COMPACT_SIDE_THUMB_WIDTH_ENLARGED = Math.round(
+  COMPACT_SIDE_THUMB_WIDTH * COMPACT_SIDE_THUMB_ENLARGE_SCALE,
+)
+
+interface ICompactNewsScreenThumbSize {
+  width: number
+  height?: number
+}
+
+/**
+ * Compact side-thumb size for editorial-column news screens.
+ *
+ * Politics Congress, Elections, and White House thumbs are 50% larger than
+ * the default enlarged editorial thumbs.
+ *
+ * @param pageName Layout page name such as `politics`.
+ * @returns Width and optional height for compact news-screen thumbs.
+ */
+function compactNewsScreenThumbSize(pageName?: string): ICompactNewsScreenThumbSize {
+  if (pageName?.trim().toLowerCase() === POLITICS_PAGE_NAME) {
+    return {
+      width: Math.round(COMPACT_SIDE_THUMB_WIDTH_ENLARGED * POLITICS_COMPACT_NEWS_SCREEN_SCALE),
+      height: Math.round(COMPACT_SIDE_THUMB_HEIGHT * POLITICS_COMPACT_NEWS_SCREEN_SCALE),
+    }
+  }
+
+  return { width: COMPACT_SIDE_THUMB_WIDTH_ENLARGED }
+}
 
 /**
  * Archive href for an editorial-column heading on World or Politics.
@@ -90,6 +125,7 @@ function EditorialBandColumns({
   const moreArticles = isMoreTopStories
     ? moreTopStoriesSlot.articles.slice(0, MORE_TOP_STORIES_PINNED_LIMIT)
     : moreTopStoriesSlot.articles
+  const compactThumb = compactNewsScreenThumbSize(pageName)
 
   return (
     <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-8">
@@ -103,6 +139,7 @@ function EditorialBandColumns({
               showHeadlineLinks={!hideLeadHeadlineLinks}
               showTrailingNewsScreen={showTrailingNewsScreen}
               maxArticles={isMoreTopStories ? MORE_TOP_STORIES_PINNED_LIMIT : undefined}
+              compactThumb={compactThumb}
             />
             <PlacementSectionDropZone />
           </div>
@@ -117,6 +154,7 @@ function EditorialBandColumns({
               href={editorialColumnArchiveHref(pageName, spotlightSlot.positionKey)}
               articles={spotlightSlot.articles}
               showTrailingNewsScreen={showTrailingNewsScreen}
+              compactThumb={compactThumb}
             />
             <PlacementSectionDropZone />
           </div>
@@ -132,6 +170,7 @@ function EditorialBandColumns({
               positionKey={rightRailSlot.positionKey}
               articles={rightRailSlot.articles}
               showTrailingNewsScreen={showTrailingNewsScreen}
+              compactThumb={compactThumb}
             />
             <PlacementSectionDropZone />
           </div>
@@ -141,6 +180,7 @@ function EditorialBandColumns({
           positionKey={undefined}
           articles={[]}
           showTrailingNewsScreen={showTrailingNewsScreen}
+          compactThumb={compactThumb}
         />
       )}
     </div>
@@ -157,9 +197,10 @@ interface IEditorialColumnProps {
   showTrailingNewsScreen?: boolean
   /** Optional article cap before splitting into lead, compact, and headline zones. */
   maxArticles?: number
+  /** Side-thumb size for the compact news screens below the lead. */
+  compactThumb: ICompactNewsScreenThumbSize
 }
 
-const COMPACT_SIDE_THUMB_WIDTH_ENLARGED = Math.round(COMPACT_SIDE_THUMB_WIDTH * 1.2)
 const EDITORIAL_STORY_CARD_PROPS = { plainTitle: true } as const
 
 function ColumnHeading({ title, href }: { title: string; href?: string | null }): JSX.Element {
@@ -188,10 +229,10 @@ function LeadRailCards({ articles }: { articles: IArticle[] }): JSX.Element {
 
 function CompactSideCards({
   articles,
-  sideThumbWidth,
+  compactThumb,
 }: {
   articles: IArticle[]
-  sideThumbWidth?: number
+  compactThumb?: ICompactNewsScreenThumbSize
 }): JSX.Element {
   return (
     <div className="mt-4 space-y-4">
@@ -201,7 +242,8 @@ function CompactSideCards({
           article={article}
           variant="compact"
           layout="side"
-          sideThumbWidth={sideThumbWidth}
+          sideThumbWidth={compactThumb?.width}
+          sideThumbHeight={compactThumb?.height}
           {...EDITORIAL_STORY_CARD_PROPS}
         />
       ))}
@@ -241,6 +283,7 @@ function EditorialColumn({
   showHeadlineLinks = true,
   showTrailingNewsScreen = false,
   maxArticles,
+  compactThumb,
 }: IEditorialColumnProps): JSX.Element {
   const { leads, compacts, headlines, trailingArticle } = splitEditorialColumnArticles({
     articles,
@@ -255,13 +298,13 @@ function EditorialColumn({
       <ColumnHeading title={title} href={href} />
       <LeadRailCards articles={leads} />
       {compacts.length > 0 ? (
-        <CompactSideCards articles={compacts} sideThumbWidth={COMPACT_SIDE_THUMB_WIDTH_ENLARGED} />
+        <CompactSideCards articles={compacts} compactThumb={compactThumb} />
       ) : null}
       {showHeadlineLinks && headlines.length > 0 ? (
         <HeadlineList articles={headlines} className="mt-4 divide-y divide-neutral-200" />
       ) : null}
       {trailingArticle ? (
-        <CompactSideCards articles={[trailingArticle]} sideThumbWidth={COMPACT_SIDE_THUMB_WIDTH_ENLARGED} />
+        <CompactSideCards articles={[trailingArticle]} compactThumb={compactThumb} />
       ) : null}
     </div>
   )
@@ -280,6 +323,7 @@ interface IRightRailColumnProps {
   positionKey?: string
   articles: IArticle[]
   showTrailingNewsScreen?: boolean
+  compactThumb: ICompactNewsScreenThumbSize
 }
 
 interface IRightRailSlices {
@@ -366,6 +410,7 @@ function RightRailColumn({
   positionKey,
   articles,
   showTrailingNewsScreen = false,
+  compactThumb,
 }: IRightRailColumnProps): JSX.Element {
   const tHome = useTranslations('home')
   const sponsoredAndFeaturedLabel = tHome('editorialBand.sponsoredAndFeatured')
@@ -375,7 +420,7 @@ function RightRailColumn({
     usesNewsScreen,
     showTrailingNewsScreen,
   )
-  const sideThumbWidth = usesNewsScreen ? COMPACT_SIDE_THUMB_WIDTH_ENLARGED : undefined
+  const sideThumb = usesNewsScreen ? compactThumb : undefined
 
   return (
     <div className="flex flex-col" aria-label={title ?? sponsoredAndFeaturedLabel}>
@@ -384,11 +429,11 @@ function RightRailColumn({
       {usesNewsScreen && headlines.length > 0 ? (
         <HeadlineList articles={headlines} className="mt-4 divide-y divide-neutral-200" compact />
       ) : null}
-      {leads.length > 0 ? <CompactSideCards articles={leads} sideThumbWidth={sideThumbWidth} /> : null}
+      {leads.length > 0 ? <CompactSideCards articles={leads} compactThumb={sideThumb} /> : null}
       {!usesNewsScreen && headlines.length > 0 ? (
         <HeadlineList articles={headlines} className="mt-4 space-y-3" compact />
       ) : null}
-      {trailingArticle ? <CompactSideCards articles={[trailingArticle]} sideThumbWidth={sideThumbWidth} /> : null}
+      {trailingArticle ? <CompactSideCards articles={[trailingArticle]} compactThumb={sideThumb} /> : null}
     </div>
   )
 }
