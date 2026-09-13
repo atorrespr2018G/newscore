@@ -25,6 +25,7 @@ from shared.core.homepage_page_sections_sync import (
     has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
     migrate_legacy_election_section,
+    migrate_remove_election_section,
     migrate_remove_primary_more_top_stories,
     migrate_remove_extra_stories_band,
     migrate_collapse_consecutive_ribbon_ads,
@@ -343,8 +344,10 @@ async def get_for_market(
     migrated_items = migrate_collapse_consecutive_ribbon_ads(
         migrate_ensure_ribbon_before_live(
             migrate_remove_extra_stories_band(
-                migrate_remove_primary_more_top_stories(
-                    migrate_legacy_election_section(items),
+                migrate_remove_election_section(
+                    migrate_remove_primary_more_top_stories(
+                        migrate_legacy_election_section(items),
+                    ),
                 ),
             ),
         ),

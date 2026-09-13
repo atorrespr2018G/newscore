@@ -357,6 +357,9 @@ function takeEditorialBand(slots: IFeedSlot[]): { band: IEditorialBandSlots; con
   if (resolveHomepagePageSlotKind(spotlight) !== 'editorial_spotlight') {
     return null
   }
+  if (normalizedPositionKey(spotlight) === ELECTION_POSITION_KEY) {
+    return null
+  }
   const rail = slots[2]
   if (rail && resolveHomepagePageSlotKind(rail) === 'rail_compact') {
     return { band: { lead, spotlight, rail }, consumed: 3 }
@@ -365,7 +368,9 @@ function takeEditorialBand(slots: IFeedSlot[]): { band: IEditorialBandSlots; con
 }
 
 /**
- * Consume consecutive Politics + Elections + Sports compact rows as one module.
+ * Consume consecutive Politics + Sports compact rows as one module.
+ *
+ * Leftover homepage Elections rows are skipped, not rendered.
  *
  * @param slots Remaining feed slots.
  * @returns Paired slots and count consumed, or null.
@@ -374,7 +379,6 @@ function takePoliticsSectionCluster(
   slots: IFeedSlot[],
 ): {
   politics: IFeedSlot
-  elections: IFeedSlot | undefined
   sports: IFeedSlot | undefined
   consumed: number
 } | null {
@@ -386,39 +390,33 @@ function takePoliticsSectionCluster(
     return null
   }
 
-  const second = slots[1]
-  const secondIsElection =
-    second &&
-    normalizedPositionKey(second) === ELECTION_POSITION_KEY &&
-    resolveHomepagePageSlotKind(second) === 'compact_six'
-  if (secondIsElection) {
-    const third = slots[2]
-    if (third && normalizedPositionKey(third) === SPORTS_POSITION_KEY) {
-      return { politics: first, elections: second, sports: third, consumed: 3 }
-    }
-    return { politics: first, elections: second, sports: undefined, consumed: 2 }
+  let consumed = 1
+  let cursor = 1
+  const second = slots[cursor]
+  if (second && normalizedPositionKey(second) === ELECTION_POSITION_KEY) {
+    consumed += 1
+    cursor += 1
   }
 
-  if (second && normalizedPositionKey(second) === SPORTS_POSITION_KEY) {
-    return { politics: first, elections: undefined, sports: second, consumed: 2 }
+  const sportsSlot = slots[cursor]
+  if (sportsSlot && normalizedPositionKey(sportsSlot) === SPORTS_POSITION_KEY) {
+    return { politics: first, sports: sportsSlot, consumed: consumed + 1 }
   }
-  return { politics: first, elections: undefined, sports: undefined, consumed: 1 }
+  return { politics: first, sports: undefined, consumed }
 }
 
 function PoliticsClusterSection({
   politicsSlot,
-  electionsSlot,
   sportsSlot,
   adIndex,
   showAdRibbon = true,
 }: {
   politicsSlot: IFeedSlot | undefined
-  electionsSlot: IFeedSlot | undefined
   sportsSlot: IFeedSlot | undefined
   adIndex: number
   showAdRibbon?: boolean
 }): JSX.Element | null {
-  if (!politicsSlot && !electionsSlot && !sportsSlot) {
+  if (!politicsSlot && !sportsSlot) {
     return null
   }
   return (
@@ -432,11 +430,6 @@ function PoliticsClusterSection({
             <HomepageSection slot={politicsSlot} pageName={HOMEPAGE_PAGE_NAME} />
           </Suspense>
         </>
-      ) : null}
-      {electionsSlot ? (
-        <Suspense fallback={<SectionSkeleton />}>
-          <HomepageSection slot={electionsSlot} pageName={HOMEPAGE_PAGE_NAME} />
-        </Suspense>
       ) : null}
       {sportsSlot ? (
         <Suspense fallback={<SectionSkeleton />}>
@@ -581,19 +574,22 @@ function MainPageOrderedSections({
         <PoliticsClusterSection
           key={`${clusterTaken.politics.id}-politics-cluster`}
           politicsSlot={clusterTaken.politics}
-          electionsSlot={clusterTaken.elections}
           sportsSlot={clusterTaken.sports}
           adIndex={clusterAdIndex}
           showAdRibbon={!useConfiguredRibbons}
         />,
       )
-      previousSlot = clusterTaken.sports ?? clusterTaken.elections ?? clusterTaken.politics
+      previousSlot = clusterTaken.sports ?? clusterTaken.politics
       previousKind = 'compact_six'
       index += clusterTaken.consumed
       continue
     }
 
     const slot = orderedSlots[index]
+    if (normalizedPositionKey(slot) === ELECTION_POSITION_KEY) {
+      index += 1
+      continue
+    }
     const kind = resolveHomepagePageSlotKind(slot)
     const title = slot.displayName?.trim() || sectionLabel(slot.positionKey)
     if (kind === 'ribbon_ad') {

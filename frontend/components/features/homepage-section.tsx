@@ -20,6 +20,7 @@ import {
   sectionAnchorId,
 } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
+import { politicsArchiveHref } from '@/lib/helpers/politics-archive'
 import { worldArchiveHref } from '@/lib/helpers/world-archive'
 import { ArchiveSectionLink } from '@/components/ui/archive-section-link'
 
@@ -140,6 +141,7 @@ export function HomepageSection({ slot, pageName }: IHomepageSectionProps): JSX.
   const title = homepageSectionTitle(slot.positionKey, slot.displayName)
   const archiveHref =
     worldArchiveHref(pageName, slot.positionKey) ??
+    politicsArchiveHref(pageName, slot.positionKey) ??
     homepageSectionLandingHref(pageName, slot.positionKey)
   const anchorId = sectionAnchorId(slot.positionKey)
   const variant = cardVariantForPresentation(slot.presentationType)

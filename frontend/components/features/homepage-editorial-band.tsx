@@ -17,12 +17,30 @@ import {
   splitEditorialColumnArticles,
 } from '@/lib/helpers/feed-layout'
 import { sectionAnchorId } from '@/lib/helpers/section-labels'
+import { politicsArchiveHref } from '@/lib/helpers/politics-archive'
 import { worldArchiveHref } from '@/lib/helpers/world-archive'
 import { useTranslations } from 'next-intl'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { usePageAds } from '@/context/page-ads-context'
 
 export const MORE_TOP_STORIES_KEY = 'more-top-stories'
+
+/**
+ * Archive href for an editorial-column heading on World or Politics.
+ *
+ * @param pageName Layout page name such as `world` or `politics`.
+ * @param positionKey Slot position key such as `more-top-stories`.
+ * @returns Nested archive path, or null when the heading should stay plain.
+ */
+function editorialColumnArchiveHref(
+  pageName: string | undefined,
+  positionKey: string,
+): string | null {
+  return (
+    worldArchiveHref(pageName, positionKey) ??
+    politicsArchiveHref(pageName, positionKey)
+  )
+}
 
 interface IHomepageEditorialBandProps {
   moreTopStoriesSlot: IFeedSlot
@@ -80,7 +98,7 @@ function EditorialBandColumns({
           <div>
             <EditorialColumn
               title={homepageSectionTitle(moreTopStoriesSlot.positionKey, moreTopStoriesSlot.displayName)}
-              href={worldArchiveHref(pageName, moreTopStoriesSlot.positionKey)}
+              href={editorialColumnArchiveHref(pageName, moreTopStoriesSlot.positionKey)}
               articles={moreArticles}
               showHeadlineLinks={!hideLeadHeadlineLinks}
               showTrailingNewsScreen={showTrailingNewsScreen}
@@ -96,7 +114,7 @@ function EditorialBandColumns({
           <div>
             <EditorialColumn
               title={homepageSectionTitle(spotlightSlot.positionKey, spotlightSlot.displayName)}
-              href={worldArchiveHref(pageName, spotlightSlot.positionKey)}
+              href={editorialColumnArchiveHref(pageName, spotlightSlot.positionKey)}
               articles={spotlightSlot.articles}
               showTrailingNewsScreen={showTrailingNewsScreen}
             />
@@ -110,7 +128,7 @@ function EditorialBandColumns({
           <div>
             <RightRailColumn
               title={homepageSectionTitle(rightRailSlot.positionKey, rightRailSlot.displayName)}
-              href={worldArchiveHref(pageName, rightRailSlot.positionKey)}
+              href={editorialColumnArchiveHref(pageName, rightRailSlot.positionKey)}
               positionKey={rightRailSlot.positionKey}
               articles={rightRailSlot.articles}
               showTrailingNewsScreen={showTrailingNewsScreen}

@@ -17,6 +17,7 @@ import { businessArchiveHref } from '@/lib/helpers/business-archive'
 import { entertainmentArchiveHref } from '@/lib/helpers/entertainment-archive'
 import { governmentArchiveHref } from '@/lib/helpers/government-archive'
 import { healthArchiveHref } from '@/lib/helpers/health-archive'
+import { politicsArchiveHref } from '@/lib/helpers/politics-archive'
 import { customTabTopicPath } from '@/lib/helpers/custom-tab-archive'
 import { sportArchiveHref } from '@/lib/helpers/sport-archive'
 import { worldArchiveHref } from '@/lib/helpers/world-archive'
@@ -94,6 +95,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
     governmentArchiveHref(pageName, slot.positionKey) ??
     entertainmentArchiveHref(pageName, slot.positionKey) ??
     healthArchiveHref(pageName, slot.positionKey) ??
+    politicsArchiveHref(pageName, slot.positionKey) ??
     (pageName &&
     ![
       'homepage',

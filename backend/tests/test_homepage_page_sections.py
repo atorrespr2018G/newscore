@@ -22,6 +22,7 @@ from shared.core.homepage_page_sections_sync import (
     has_post_hero_ribbon_ad_section,
     insert_legacy_homepage_ribbon_ads,
     migrate_legacy_election_section,
+    migrate_remove_election_section,
     migrate_remove_primary_more_top_stories,
     migrate_remove_extra_stories_band,
     migrate_collapse_consecutive_ribbon_ads,
@@ -67,10 +68,10 @@ def test_default_homepage_section_items_cover_landing_bands() -> None:
     assert "entertainment" in slugs
     assert "technology" in slugs
     assert "business" in slugs
-    elections_index = slugs.index("midterm-elections")
+    assert "midterm-elections" not in slugs
     politics_index = slugs.index("politics")
-    assert types[elections_index] == "category"
-    assert elections_index == politics_index + 1
+    sports_index = slugs.index("sports")
+    assert sports_index == politics_index + 1
 
 
 def test_migrate_remove_primary_more_top_stories_keeps_other_rows() -> None:
@@ -200,6 +201,21 @@ def test_migrate_legacy_election_section_moves_it_after_politics() -> None:
         "midterm-elections",
     ]
     assert migrated[-1]["section_type"] == "category"
+
+
+def test_migrate_remove_election_section_drops_homepage_row() -> None:
+    """Homepage Elections is removed without touching later rows."""
+
+    items = [
+        {"section_type": "category", "slug": "politics", "label": "Politics"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon-3", "label": "Ribbon Advertisement"},
+        {"section_type": "category", "slug": "midterm-elections", "label": "Elections"},
+        {"section_type": "category", "slug": "sports", "label": "Sports"},
+    ]
+
+    migrated = migrate_remove_election_section(items)
+
+    assert [item["slug"] for item in migrated] == ["politics", "sports"]
 
 
 def test_insert_legacy_homepage_ribbon_ads_places_post_hero_ribbon() -> None:

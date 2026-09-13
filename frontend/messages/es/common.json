@@ -35,6 +35,7 @@
   "governmentArchiveEmpty": "Aún no hay noticias en este tema de gobierno.",
   "entertainmentArchiveEmpty": "Aún no hay noticias en este tema de entretenimiento.",
   "healthArchiveEmpty": "Aún no hay noticias en este tema de salud.",
+  "politicsArchiveEmpty": "Aún no hay noticias en este tema de política.",
   "customTabArchiveEmpty": "Aún no hay noticias en este tema.",
   "technologyArchiveEmpty": "Aún no hay noticias colocadas en esta página.",
   "paginationNav": "Paginación",
@@ -77,6 +78,7 @@
     "entertainmentTopicDescription": "Últimas noticias y actualizaciones de {topic}.",
     "healthDescription": "Fitness, comida, sueño, familia y bienestar.",
     "healthTopicDescription": "Últimas noticias y actualizaciones de {topic}.",
+    "politicsTopicDescription": "Últimas noticias y actualizaciones de {topic}.",
     "technologyDescription": "Noticias de tecnología, dispositivos e innovación."
   }
 }

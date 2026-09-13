@@ -209,11 +209,6 @@ DEFAULT_HOMEPAGE_SECTION_ITEMS: list[dict[str, str]] = insert_legacy_homepage_ri
         },
         {"section_type": SECTION_TYPE_RAIL, "slug": RAIL_POSITION_KEY, "label": "Sports"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "politics", "label": "Politics"},
-        {
-            "section_type": SECTION_TYPE_CATEGORY,
-            "slug": SPOTLIGHT_POSITION_KEY,
-            "label": "Elections",
-        },
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "sports", "label": "Sports"},
         {"section_type": SECTION_TYPE_CATEGORY, "slug": "government", "label": "Government"},
         {"section_type": SECTION_TYPE_LIVE, "slug": LIVE_POSITION_KEY, "label": "Live"},
@@ -348,6 +343,27 @@ def migrate_legacy_election_section(items: list[dict[str, str]]) -> list[dict[st
         migrated.append(election)
     else:
         migrated.insert(politics_index + 1, election)
+    return migrated
+
+
+def migrate_remove_election_section(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Remove the homepage Elections row from a section list.
+
+    Args:
+        items: Typed homepage section rows.
+
+    Returns:
+        Copy of ``items`` without ``midterm-elections``. A ribbon immediately
+        preceding that row is also dropped so ads do not stack.
+    """
+
+    migrated: list[dict[str, str]] = []
+    for item in items:
+        if str(item.get("slug") or "") == SPOTLIGHT_POSITION_KEY:
+            if migrated and migrated[-1].get("section_type") == SECTION_TYPE_RIBBON_AD:
+                migrated.pop()
+            continue
+        migrated.append(dict(item))
     return migrated
 
 

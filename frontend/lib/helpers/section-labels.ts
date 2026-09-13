@@ -154,7 +154,14 @@ const SECTION_TRANSLATION_KEYS = new Set([
 
 
 
-const HIDDEN_HOMEPAGE_SECTION_KEYS = new Set(['sport', 'travel', 'style', 'us', 'us-featured'])
+const HIDDEN_HOMEPAGE_SECTION_KEYS = new Set([
+  'sport',
+  'travel',
+  'style',
+  'us',
+  'us-featured',
+  'midterm-elections',
+])
 
 
 
@@ -784,6 +791,18 @@ export function entertainmentPagePath(slug: string): string {
 export function healthPagePath(slug: string): string {
   const normalized = slug.trim().toLowerCase()
   return `/health/${encodeURIComponent(normalized)}`
+}
+
+
+/**
+ * Dedicated archive path for a Politics topic slug.
+ *
+ * @param slug Topic section slug such as `congress`.
+ * @returns Path like `/politics/congress`.
+ */
+export function politicsPagePath(slug: string): string {
+  const normalized = slug.trim().toLowerCase()
+  return `/politics/${encodeURIComponent(normalized)}`
 }
 
 

@@ -835,17 +835,8 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
         "display_name_co": "Colombia",
     },
     {
-        "position_key": "midterm-elections",
-        "order_index": 2,
-        "category_slug": "politics",
-        "limit": 4,
-        "presentation_type": "editorial_spotlight",
-        "display_name_us": "Elections",
-        "display_name_co": "Elecciones",
-    },
-    {
         "position_key": "editorial-rail",
-        "order_index": 3,
+        "order_index": 2,
         "limit": 5,
         "presentation_type": "rail_compact",
         "display_name_us": "Sports",
@@ -853,7 +844,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "politics",
-        "order_index": 4,
+        "order_index": 3,
         "category_slug": "politics",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -862,7 +853,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "sports",
-        "order_index": 5,
+        "order_index": 4,
         "category_slug": "sports",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -871,7 +862,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "government",
-        "order_index": 6,
+        "order_index": 5,
         "category_slug": "government",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -880,7 +871,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "health",
-        "order_index": 7,
+        "order_index": 6,
         "category_slug": "health",
         "limit": 20,
         "presentation_type": "live_carousel",
@@ -889,7 +880,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "finance",
-        "order_index": 8,
+        "order_index": 7,
         "category_slug": "finance",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -898,7 +889,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "entertainment",
-        "order_index": 9,
+        "order_index": 8,
         "category_slug": "entertainment",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -907,7 +898,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "world",
-        "order_index": 10,
+        "order_index": 9,
         "category_slug": "world",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -916,7 +907,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "technology",
-        "order_index": 11,
+        "order_index": 10,
         "category_slug": "technology",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -925,7 +916,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "business",
-        "order_index": 12,
+        "order_index": 11,
         "category_slug": "business",
         "limit": 12,
         "presentation_type": "grid_4",
@@ -934,7 +925,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "us",
-        "order_index": 13,
+        "order_index": 12,
         "category_slug": "us",
         "limit": 7,
         "presentation_type": "grid_4",
@@ -943,7 +934,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "style",
-        "order_index": 14,
+        "order_index": 13,
         "category_slug": "style",
         "limit": 4,
         "presentation_type": "grid_4",
@@ -952,7 +943,7 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
     },
     {
         "position_key": "travel",
-        "order_index": 15,
+        "order_index": 14,
         "category_slug": "travel",
         "limit": 4,
         "presentation_type": "grid_4",
