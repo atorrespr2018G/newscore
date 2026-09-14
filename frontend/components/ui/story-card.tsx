@@ -83,6 +83,26 @@ const COMPACT_SIDE_TITLE_CLASS = 'text-[16px] font-extrabold'
 const PLAIN_COMPACT_SIDE_TITLE_CLASS = 'text-[16px] font-normal'
 const DEFAULT_TITLE_CLASS = 'text-[15px] font-extrabold'
 const PLAIN_DEFAULT_TITLE_CLASS = 'text-[15px] font-normal'
+/** Tailwind text-size utilities, including arbitrary px values like text-[18px]. */
+const TITLE_SIZE_OVERRIDE_PATTERN = /(?:^|\s)text-(?:\[?\d|xs|sm|base|lg|xl)/
+/** Tailwind line-height utilities, including arbitrary px values like leading-[22px]. */
+const LEADING_OVERRIDE_PATTERN = /(?:^|\s)leading-(?:\[?\d|none|tight|snug|normal|relaxed|loose)/
+
+function titleSizeClass(
+  dense: boolean,
+  plainTitle: boolean,
+  titleClassName?: string,
+): string {
+  const hasOverride = Boolean(titleClassName && TITLE_SIZE_OVERRIDE_PATTERN.test(titleClassName))
+  const weightClass = plainTitle ? 'font-normal' : 'font-extrabold'
+  if (hasOverride) {
+    return weightClass
+  }
+  if (dense) {
+    return plainTitle ? PLAIN_COMPACT_SIDE_TITLE_CLASS : COMPACT_SIDE_TITLE_CLASS
+  }
+  return plainTitle ? PLAIN_DEFAULT_TITLE_CLASS : DEFAULT_TITLE_CLASS
+}
 
 function showsSummaryBelowMedia(
   variant: StoryCardVariant,
@@ -561,13 +581,10 @@ function StoryTitle({
   as,
 }: IStoryTitleProps): JSX.Element {
   const Tag = as ?? (plainTitle ? 'p' : 'h3')
-  const sizeClass = dense
-    ? plainTitle
-      ? PLAIN_COMPACT_SIDE_TITLE_CLASS
-      : COMPACT_SIDE_TITLE_CLASS
-    : plainTitle
-      ? PLAIN_DEFAULT_TITLE_CLASS
-      : DEFAULT_TITLE_CLASS
+  const sizeClass = titleSizeClass(dense, plainTitle, titleClassName)
+  const hasLeadingOverride = Boolean(
+    titleClassName && LEADING_OVERRIDE_PATTERN.test(titleClassName),
+  )
 
   return (
     <div className={className}>
@@ -576,7 +593,8 @@ function StoryTitle({
       ) : null}
       <Tag
         className={[
-          'mt-1 line-clamp-3 overflow-hidden leading-snug text-neutral-950',
+          'mt-1 line-clamp-3 overflow-hidden text-neutral-950',
+          hasLeadingOverride ? '' : 'leading-snug',
           titleHoverClass(underlineOnHover),
           sizeClass,
           plainTitle ? 'font-serif' : '',
@@ -595,10 +613,14 @@ interface IStorySummaryProps {
 }
 
 function StorySummary({ summary, className }: IStorySummaryProps): JSX.Element {
+  const hasSizeOverride = Boolean(className && TITLE_SIZE_OVERRIDE_PATTERN.test(className))
+  const hasLeadingOverride = Boolean(className && LEADING_OVERRIDE_PATTERN.test(className))
   return (
     <p
       className={[
-        'mt-2 line-clamp-3 overflow-hidden text-sm leading-relaxed text-neutral-800',
+        'mt-2 line-clamp-3 overflow-hidden text-neutral-800',
+        hasLeadingOverride ? '' : 'leading-relaxed',
+        hasSizeOverride ? '' : 'text-sm',
         className ?? '',
       ].join(' ')}
     >
