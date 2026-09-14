@@ -28,6 +28,8 @@ const MOBILE_ARTICLES_PER_PAGE = 2
 const TABLET_ARTICLES_PER_PAGE = 3
 const DESKTOP_BREAKPOINT = 1024
 const TABLET_BREAKPOINT = 640
+/** Headline size for compact six-card carousel stories. */
+const COMPACT_SIX_TITLE_CLASS = 'text-[16px]'
 
 function articlesPerPageForWidth(width: number): number {
   if (width >= DESKTOP_BREAKPOINT) {
@@ -140,7 +142,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
                             article={article}
                             variant="grid"
                             plainTitle
-                            titleClassName="text-[13px]"
+                            titleClassName={COMPACT_SIX_TITLE_CLASS}
                             editorDroppable
                           />
                         ))}
@@ -173,7 +175,7 @@ export function HomepageCompactSixBand({ slot, pageName }: IHomepageCompactSixBa
                 article={article}
                 variant="grid"
                 plainTitle
-                titleClassName="text-[13px]"
+                titleClassName={COMPACT_SIX_TITLE_CLASS}
                 editorDroppable
               />
             ))}
