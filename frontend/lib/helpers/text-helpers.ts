@@ -28,6 +28,9 @@ export function isSeedDemoBody(text: string | null | undefined): boolean {
 /** Clamp deck/headline copy that sits below lead media to three lines. */
 export const BELOW_MEDIA_TEXT_CLASS = 'line-clamp-3 overflow-hidden'
 
+/** Title and deck type for homepage hero side rails and Top Stories side rails. */
+export const HOMEPAGE_SIDE_TEXT_CLASS = 'font-serif text-[18px] font-normal leading-[22px]'
+
 /**
  * Append the shared below-media clamp class to an optional className.
  *

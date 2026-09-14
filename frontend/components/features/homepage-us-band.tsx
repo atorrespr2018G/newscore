@@ -12,7 +12,7 @@ import { ArchiveSectionLink } from '@/components/ui/archive-section-link'
 import { homepageSectionLandingHref, sectionAnchorId } from '@/lib/helpers/section-labels'
 import { useTranslations } from 'next-intl'
 import { splitUsFeaturedArticles } from '@/lib/helpers/feed-layout'
-import { belowMediaTextClass } from '@/lib/helpers/text-helpers'
+import { belowMediaTextClass, HOMEPAGE_SIDE_TEXT_CLASS } from '@/lib/helpers/text-helpers'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { usePageAds } from '@/context/page-ads-context'
 
@@ -197,7 +197,10 @@ function UsSideTextLinks({ articles }: { articles: IArticle[] }): JSX.Element {
             <PlacementOverlay article={article} editorDroppable>
               <EditorialArticleLink
                 article={article}
-                className="group block font-sans text-[17px] font-normal leading-snug text-neutral-950 hover:text-neutral-950 hover:underline"
+                className={[
+                  'group block text-neutral-950 hover:text-neutral-950 hover:underline',
+                  HOMEPAGE_SIDE_TEXT_CLASS,
+                ].join(' ')}
               >
                 <span className="line-clamp-3">{article.title}</span>
               </EditorialArticleLink>
@@ -227,7 +230,9 @@ function UsSideStory({ article }: { article: IArticle }): JSX.Element {
               />
             </div>
           </div>
-          <p className="mt-3 line-clamp-3 overflow-hidden font-sans text-[17px] font-normal leading-snug text-neutral-950 group-hover:underline">
+          <p
+            className={`mt-3 ${belowMediaTextClass(HOMEPAGE_SIDE_TEXT_CLASS)} text-neutral-950 group-hover:underline`}
+          >
             {article.title}
           </p>
         </EditorialArticleLink>

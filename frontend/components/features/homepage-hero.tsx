@@ -8,10 +8,7 @@ import { EditorialArticleLink } from '@/components/ui/editorial-article-link'
 import { HomepageStoryCard } from '@/components/ui/homepage-story-card'
 import { HeroVideoAdScope } from '@/context/hero-video-ad-context'
 import { splitDefaultHeroArticles } from '@/lib/helpers/feed-layout'
-import { deckBelowTitle } from '@/lib/helpers/text-helpers'
-
-/** Headline and deck size/line-height for homepage hero side columns. */
-const HERO_SIDE_TEXT_CLASS = 'text-[18px] leading-[22px]'
+import { deckBelowTitle, HOMEPAGE_SIDE_TEXT_CLASS } from '@/lib/helpers/text-helpers'
 
 interface IHeroBlockProps {
   articles: IArticle[]
@@ -63,8 +60,8 @@ function HeroLeftRail({ articles }: { articles: IArticle[] }): JSX.Element {
             layout="stacked"
             titleFirst={idx === 0}
             showSummary={idx === 0}
-            titleClassName={HERO_SIDE_TEXT_CLASS}
-            summaryClassName={HERO_SIDE_TEXT_CLASS}
+            titleClassName={HOMEPAGE_SIDE_TEXT_CLASS}
+            summaryClassName={HOMEPAGE_SIDE_TEXT_CLASS}
           />
         ))}
       </div>
@@ -195,8 +192,8 @@ function HeroRightRail({ articles }: { articles: IArticle[] }): JSX.Element {
               variant="rail"
               titleFirst={idx === 0}
               showSummary={idx === 0}
-              titleClassName={HERO_SIDE_TEXT_CLASS}
-              summaryClassName={HERO_SIDE_TEXT_CLASS}
+              titleClassName={HOMEPAGE_SIDE_TEXT_CLASS}
+              summaryClassName={HOMEPAGE_SIDE_TEXT_CLASS}
             />
           ))}
         </div>
