@@ -37,6 +37,8 @@ type HomepageFeed {
   pageName: String!
   adPlacements: [AdPlacement!]!
   slots: [HomepageSlot!]!
+  isEnabled: Boolean!
+  disabledPageNames: [String!]!
 }
 
 type HomepageSlot {

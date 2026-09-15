@@ -22,6 +22,14 @@
     "cancel": "Cancelar",
     "removeTitle": "¿Quitar elemento?"
   },
+  "pageVisibility": {
+    "enabled": "La página es visible",
+    "hint": "Desactívela para ocultar la página en esta área y en todos los pueblos, estados o condados que dependan de ella. Una localidad más específica aún se puede apagar por separado.",
+    "inherited": "Oculta porque esta página está desactivada en {region}. Actívela allí para mostrarla aquí.",
+    "loading": "Cargando visibilidad de la página…",
+    "loadFailed": "No se pudo cargar la visibilidad de la página.",
+    "saveFailed": "No se pudo actualizar la visibilidad de la página."
+  },
   "reporter": {
     "title": "Reportero",
     "subtitle": "Sube el titular, el cuerpo, las imágenes y el video de la noticia.",

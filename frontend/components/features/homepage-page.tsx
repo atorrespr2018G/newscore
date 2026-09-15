@@ -16,6 +16,8 @@ import {
   TECHNOLOGY_PAGE_NAME,
   TRAVEL_PAGE_NAME,
 } from '@/lib/helpers/homepage-page-names'
+import { isPublicPageEnabled } from '@/lib/helpers/page-visibility'
+import { notFound } from 'next/navigation'
 
 interface IInitialFeedProps {
   initialFeed?: IHomepageFeed
@@ -71,6 +73,9 @@ function NamedHomepagePage({
 }): JSX.Element {
   const { data, loading, error } = usePageFeed(pageName)
   const feedData = data ?? initialFeed
+  if (feedData && !isPublicPageEnabled(feedData)) {
+    notFound()
+  }
 
   return (
     <HomepageFeedShell feedData={feedData} loading={loading} error={error ?? undefined}>

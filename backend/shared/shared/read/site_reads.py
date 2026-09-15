@@ -20,6 +20,7 @@ from shared.core.regions import (
 )
 from shared.read.article_query import article_query_with_category
 from shared.read.article_reads import article_out, list_by_ids_for_preview, list_published_by_ids
+from shared.read.layout_reads import get_active_layout
 from shared.core.page_ad_placements import (
     PAGE_NAME_BUSINESS,
     PAGE_NAME_GOVERNMENT,
@@ -47,7 +48,7 @@ from shared.read.collections import (
     WIDGETS_COLLECTION,
     WORLD_PAGE_SECTIONS_COLLECTION,
 )
-from shared.read.layout_reads import get_active_layout
+from shared.core.page_visibility import resolve_feed_visibility
 from shared.read.loaders import AuthorNameLoader
 from shared.read.market_reads import get_market_by_code
 from shared.read.slot_pinned_ids import slot_with_preview_pins
@@ -210,6 +211,8 @@ def _empty_feed(
         "region_code": region_code,
         "slots": [],
         "ad_placements": default_ads_for_page(page_name),
+        "is_enabled": True,
+        "disabled_page_names": [],
     }
 
 
@@ -583,6 +586,22 @@ async def get_home_feed(
         )
 
     market_id = str(market["_id"])
+    visibility = await resolve_feed_visibility(
+        db,
+        page_name=normalized_page,
+        market_id=market_id,
+        market_code=market_code,
+        region_id=region_id,
+    )
+    if normalized_page != PAGE_NAME_HOMEPAGE and not visibility["is_enabled"]:
+        return {
+            **_empty_feed(
+                page_name=normalized_page,
+                market_code=market_code,
+                region_code=requested_region_code,
+            ),
+            **visibility,
+        }
     if region_id:
         await ensure_exact_page_layout(db, region_id=region_id, page_name=normalized_page)
     layout = await get_active_layout(
@@ -592,11 +611,14 @@ async def get_home_feed(
         page_name=normalized_page,
     )
     if layout is None:
-        return _empty_feed(
-            page_name=normalized_page,
-            market_code=market_code,
-            region_code=requested_region_code,
-        )
+        return {
+            **_empty_feed(
+                page_name=normalized_page,
+                market_code=market_code,
+                region_code=requested_region_code,
+            ),
+            **visibility,
+        }
 
     loader = AuthorNameLoader(db)
     region_scope_ids = await _region_scope_ids(db, region_id, page_name=normalized_page)
@@ -676,6 +698,7 @@ async def get_home_feed(
         "region_code": requested_region_code,
         "slots": out_slots,
         "ad_placements": ad_placements,
+        **visibility,
     }
 
 

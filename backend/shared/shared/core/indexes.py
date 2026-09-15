@@ -26,6 +26,7 @@ CUSTOM_TABS_COLLECTION = "custom_tabs"
 CUSTOM_PAGE_SECTIONS_COLLECTION = "custom_page_sections"
 HOMEPAGE_PAGE_SECTIONS_COLLECTION = "homepage_page_sections"
 WORLD_PAGE_SECTIONS_COLLECTION = "world_page_sections"
+PAGE_VISIBILITY_COLLECTION = "page_visibility"
 PLACEMENT_EVENTS_COLLECTION = "placement_events"
 USER_VIEW_STATE_COLLECTION = "user_view_state"
 
@@ -213,6 +214,13 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         [("page_name", 1), ("market_id", 1), ("region_id", 1)],
         unique=True,
         name="custom_page_sections_page_market_region_uq",
+    )
+    await _create_index_compat(
+        db,
+        PAGE_VISIBILITY_COLLECTION,
+        [("page_name", 1), ("market_id", 1), ("region_id", 1)],
+        unique=True,
+        name="page_visibility_page_market_region_uq",
     )
 
     # Badge query scans placement events by market scoped to a recency window.

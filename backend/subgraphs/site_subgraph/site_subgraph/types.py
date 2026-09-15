@@ -56,6 +56,8 @@ class HomepageFeed:
     page_name: str
     slots: list[HomepageSlot]
     ad_placements: list[AdPlacement]
+    is_enabled: bool = True
+    disabled_page_names: list[str] = strawberry.field(default_factory=list)
 
 
 def _ad_placements_from_raw(raw: dict[str, Any]) -> list[AdPlacement]:
@@ -96,6 +98,12 @@ def _feed_from_cache(raw: dict[str, Any]) -> HomepageFeed:
         page_name=str(raw.get("page_name") or "homepage"),
         slots=slots,
         ad_placements=_ad_placements_from_raw(raw),
+        is_enabled=bool(raw.get("is_enabled", True)),
+        disabled_page_names=[
+            str(name).strip().lower()
+            for name in (raw.get("disabled_page_names") or [])
+            if str(name).strip()
+        ],
     )
 
 

@@ -21,6 +21,7 @@ from layout_admin_app.routers.custom_page_sections import router as custom_page_
 from layout_admin_app.routers.government_page_sections import router as government_page_sections_router
 from layout_admin_app.routers.sports_page_sections import router as sports_page_sections_router
 from layout_admin_app.routers.world_page_sections import router as world_page_sections_router
+from layout_admin_app.routers.page_visibility import router as page_visibility_router
 from layout_admin_app.routers.utils import register_exception_handlers
 from layout_admin_app.routers.widgets import router as widgets_router
 from layout_admin_app.routers.workflow import router as workflow_router
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(custom_tabs_router)
     app.include_router(custom_page_sections_router)
     app.include_router(world_page_sections_router)
+    app.include_router(page_visibility_router)
     app.include_router(widgets_router)
     app.include_router(workflow_router)
 

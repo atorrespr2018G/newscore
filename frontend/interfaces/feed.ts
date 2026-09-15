@@ -15,5 +15,9 @@ export interface IHomepageFeed {
   pageName: string
   slots: IFeedSlot[]
   adPlacements: IPageAdPlacement[]
+  /** False when this landing is disabled for the active geo. */
+  isEnabled: boolean
+  /** Layout page names hidden for the active geo (includes ancestor disables). */
+  disabledPageNames: string[]
 }
 

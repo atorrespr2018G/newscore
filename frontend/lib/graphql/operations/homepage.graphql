@@ -2,6 +2,8 @@ query HomepageFeed($market: String!, $town: String, $regionCode: String, $pageNa
   homepageFeed(market: $market, town: $town, regionCode: $regionCode, pageName: $pageName) {
     layoutId
     pageName
+    isEnabled
+    disabledPageNames
     adPlacements {
       adType
       location

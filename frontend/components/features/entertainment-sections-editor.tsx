@@ -10,6 +10,7 @@ import {
   toEditableAdRows,
   type IEditableAdRow,
 } from '@/components/features/page-ads-editor'
+import { PageEnabledToggle } from '@/components/features/page-enabled-toggle'
 import {
   SortableConfigRow,
   SortableDragPreview,
@@ -336,6 +337,12 @@ export function EntertainmentSectionsEditor(): JSX.Element {
           </label>
         ) : null}
       </div>
+
+      <PageEnabledToggle
+        pageName={ENTERTAINMENT_EDITOR_PAGE_NAME}
+        marketCode={marketCode}
+        regionCode={regionCode}
+      />
 
       {loading && rows.length === 0 ? (
         <p className="text-sm text-neutral-600">{t('entertainmentPage.loading')}</p>

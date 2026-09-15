@@ -10,6 +10,7 @@ import {
   toEditableAdRows,
   type IEditableAdRow,
 } from '@/components/features/page-ads-editor'
+import { PageEnabledToggle } from '@/components/features/page-enabled-toggle'
 import {
   SortableConfigRow,
   SortableDragPreview,
@@ -333,6 +334,12 @@ export function CustomSectionsEditor({
           </label>
         ) : null}
       </div>
+
+      <PageEnabledToggle
+        pageName={pageName}
+        marketCode={marketCode}
+        regionCode={regionCode}
+      />
 
       {loading && rows.length === 0 ? (
         <p className="text-sm text-neutral-600">{t('customTabs.loading')}</p>

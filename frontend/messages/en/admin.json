@@ -22,6 +22,14 @@
     "cancel": "Cancel",
     "removeTitle": "Remove item?"
   },
+  "pageVisibility": {
+    "enabled": "Page is visible",
+    "hint": "Turn this off to hide the page in this area and every town, state, or county under it. A more specific locality can still be turned off on its own.",
+    "inherited": "Hidden because this page is disabled at {region}. Turn it back on there to show it here.",
+    "loading": "Loading page visibility…",
+    "loadFailed": "Failed to load page visibility.",
+    "saveFailed": "Failed to update page visibility."
+  },
   "reporter": {
     "title": "Reporter",
     "subtitle": "Upload news title, body, images, and video.",

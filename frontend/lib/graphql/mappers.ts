@@ -142,6 +142,8 @@ export function mapHomepageFeed(data: {
   homepageFeed: {
     layoutId: string | null
     pageName: string
+    isEnabled?: boolean | null
+    disabledPageNames?: string[] | null
     adPlacements?: Array<{
       adType: string
       location: string
@@ -165,6 +167,8 @@ export function mapHomepageFeed(data: {
   return {
     layoutId: feed.layoutId ?? '',
     pageName: feed.pageName,
+    isEnabled: feed.isEnabled !== false,
+    disabledPageNames: (feed.disabledPageNames ?? []).map((name) => name.trim().toLowerCase()),
     adPlacements,
     slots: feed.slots.map((slot) => ({
       id: slot.id,

@@ -5,6 +5,7 @@ import { useSyncPageAdPlacements } from '@/context/page-ads-context'
 import { MainPageOrderedSections } from '@/components/features/homepage-slot-walk'
 import { SportsPageSections } from '@/components/features/sports-page-sections'
 import { isSportsStylePageName } from '@/lib/helpers/homepage-page-names'
+import { omitDisabledLandingSlots } from '@/lib/helpers/page-visibility'
 import type { IHomepageFeed } from '@/interfaces/feed'
 
 const HOMEPAGE_STACK_CLASS =
@@ -31,7 +32,11 @@ export function HomepageContent({ feed, options }: IHomepageContentProps): JSX.E
   const pageName = feed.pageName.trim().toLowerCase()
   const { sectionLabel } = useSectionLabels(pageName)
   useSyncPageAdPlacements(feed.adPlacements)
-  const slots = feed.slots ?? []
+  const slots = omitDisabledLandingSlots(
+    feed.slots ?? [],
+    feed.disabledPageNames,
+    pageName,
+  )
   if (slots.length === 0) {
     return <div className="text-neutral-600">No homepage slots configured.</div>
   }

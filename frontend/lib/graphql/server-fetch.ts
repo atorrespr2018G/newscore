@@ -1,4 +1,5 @@
 import { print } from 'graphql'
+import { notFound } from 'next/navigation'
 
 import type { IArticleConnection, IArticleDetail } from '@/interfaces/article'
 import type { IHomepageFeed } from '@/interfaces/feed'
@@ -10,6 +11,7 @@ import {
   HOMEPAGE_FEED_QUERY,
   PAGE_ARCHIVE_ARTICLES_QUERY,
 } from '@/lib/graphql/operations'
+import { isPublicPageEnabled } from '@/lib/helpers/page-visibility'
 import { toRegionCode } from '@/lib/region-code'
 import {
   TECHNOLOGY_ARCHIVE_POSITION_KEY,
@@ -69,13 +71,14 @@ export async function fetchPageFeed(
   town?: string | null,
   county?: string | null,
 ): Promise<IHomepageFeed | undefined> {
+  let feed: IHomepageFeed
   try {
     const regionCode = toRegionCode(market, town, county)
     const data = await fetchGraphql<{ homepageFeed: Parameters<typeof mapHomepageFeed>[0]['homepageFeed'] }>(
       print(HOMEPAGE_FEED_QUERY),
       { market, town: town ?? null, regionCode, pageName },
     )
-    return mapHomepageFeed(data)
+    feed = mapHomepageFeed(data)
   } catch (error) {
     console.error('Failed to fetch page feed', {
       market,
@@ -86,6 +89,10 @@ export async function fetchPageFeed(
     })
     throw error
   }
+  if (!isPublicPageEnabled(feed)) {
+    notFound()
+  }
+  return feed
 }
 
 /**

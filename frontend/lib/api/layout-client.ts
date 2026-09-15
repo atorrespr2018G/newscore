@@ -189,6 +189,8 @@ export function mapPreviewFeedToHomepageFeed(payload: IPreviewFeedOut): IHomepag
   return {
     layoutId: payload.layout_id ?? '',
     pageName: payload.page_name,
+    isEnabled: true,
+    disabledPageNames: [],
     adPlacements,
     slots: payload.slots.map((slot) => ({
       id: slot.id,
@@ -1029,6 +1031,70 @@ export function putCustomPageSections(
     {
       method: 'PUT',
       body: JSON.stringify({ items, ads }),
+    },
+  )
+}
+
+/** Enablement for one landing page at one geo scope. */
+export interface IPageVisibilityOut {
+  page_name: string
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  is_enabled: boolean
+  is_effectively_enabled: boolean
+  disabled_by_region_code: string | null
+  inherited: boolean
+  updated_at: string
+}
+
+/**
+ * Load whether a landing page is enabled at a market or region scope.
+ *
+ * @param pageName Layout page name such as `sports`.
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param regionCode Optional region code such as `us-fl`.
+ * @returns Visibility payload including inherited parent disables.
+ */
+export function getPageVisibility(
+  pageName: string,
+  marketCode: string,
+  regionCode?: string | null,
+): Promise<IPageVisibilityOut> {
+  const params = new URLSearchParams({ page: pageName, market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IPageVisibilityOut>(
+    `${apiConfig.layout}/page-visibility?${params.toString()}`,
+  )
+}
+
+/**
+ * Enable or disable a landing page at a market or region scope.
+ *
+ * @param pageName Layout page name such as `sports`.
+ * @param marketCode Market code such as `pr` or `us`.
+ * @param isEnabled False hides the page here and in nested geos.
+ * @param regionCode Optional region code such as `us-fl`.
+ * @returns Updated visibility payload.
+ */
+export function putPageVisibility(
+  pageName: string,
+  marketCode: string,
+  isEnabled: boolean,
+  regionCode?: string | null,
+): Promise<IPageVisibilityOut> {
+  const params = new URLSearchParams({ page: pageName, market: marketCode })
+  if (regionCode) {
+    params.set('region', regionCode)
+  }
+  return apiFetch<IPageVisibilityOut>(
+    `${apiConfig.layout}/page-visibility?${params.toString()}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ is_enabled: isEnabled }),
     },
   )
 }

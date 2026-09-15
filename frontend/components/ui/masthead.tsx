@@ -19,6 +19,7 @@ import {
   sectionKeyFromPathname,
   sectionNavHref,
 } from '@/lib/helpers/section-labels'
+import { isLandingDisabled } from '@/lib/helpers/page-visibility'
 import { PRESENTATION_GRID_4 } from '@/lib/presentation-types'
 import { AdSlot } from '@/components/ui/ad-slot'
 import { usePageAds } from '@/context/page-ads-context'
@@ -262,8 +263,11 @@ function buildFallbackNavLinks(
   pathname: string,
   activeSection: string | undefined,
   sectionLabel: (positionKey: string) => string,
+  disabledPageNames?: readonly string[],
 ): IMastheadNavLink[] {
-  return DEFAULT_MASTHEAD_SECTION_KEYS.map((positionKey) => {
+  return DEFAULT_MASTHEAD_SECTION_KEYS.filter(
+    (positionKey) => !isLandingDisabled(positionKey, disabledPageNames),
+  ).map((positionKey) => {
     const href = sectionNavHref(positionKey)
 
     return {
@@ -278,9 +282,10 @@ function buildFallbackNavLinks(
 /**
  * Load custom tabs for the masthead More menu for the active market.
  *
- * @returns Registered custom tabs for the current market (empty when unavailable).
+ * @param disabledPageNames Layout page names hidden for the active geo.
+ * @returns Registered custom tabs that are still enabled for this geo.
  */
-function useCustomTabs(): ReadonlyArray<ICustomTab> {
+function useCustomTabs(disabledPageNames: readonly string[]): ReadonlyArray<ICustomTab> {
   const { marketCode } = useMarket()
   const [tabs, setTabs] = useState<ICustomTab[]>([])
 
@@ -304,20 +309,22 @@ function useCustomTabs(): ReadonlyArray<ICustomTab> {
     }
   }, [marketCode])
 
-  return tabs
+  return tabs.filter((tab) => !disabledPageNames.includes(tab.slug))
 }
 
 function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
   const pathname = usePathname()
   const { data: feed } = useFeed()
   const { sectionLabel, homepageSectionTitle } = useSectionLabels()
+  const disabledPageNames = feed?.disabledPageNames
 
   const navSlots =
     feed?.slots.filter(
       (s) =>
         s.presentationType === PRESENTATION_GRID_4 &&
         s.displayName &&
-        isHomepageSectionVisible(s.positionKey),
+        isHomepageSectionVisible(s.positionKey) &&
+        !isLandingDisabled(s.positionKey, disabledPageNames),
     ) ?? []
 
   const dynamicNavLinks = navSlots.map((s) => {
@@ -332,13 +339,19 @@ function useMastheadNavLinks(activeSection?: string): IMastheadNavLink[] {
     }
   })
 
-  const fallbackNavLinks = buildFallbackNavLinks(pathname, activeSection, sectionLabel)
+  const fallbackNavLinks = buildFallbackNavLinks(
+    pathname,
+    activeSection,
+    sectionLabel,
+    disabledPageNames,
+  )
   return dynamicNavLinks.length > 0 ? dynamicNavLinks : fallbackNavLinks
 }
 
 function MastheadSectionNavigation({ activeSection }: ISectionNavigationProps): JSX.Element {
   const navLinks = useMastheadNavLinks(activeSection)
-  const customTabs = useCustomTabs()
+  const { data: feed } = useFeed()
+  const customTabs = useCustomTabs(feed?.disabledPageNames ?? [])
   const pathname = usePathname()
   const t = useTranslations('navigation')
 
@@ -359,7 +372,8 @@ function MastheadMobileSectionNavigation({
   onNavigate,
 }: ISectionNavigationProps & { mobileOpen: boolean; onNavigate: () => void }): JSX.Element | null {
   const navLinks = useMastheadNavLinks(activeSection)
-  const customTabs = useCustomTabs()
+  const { data: feed } = useFeed()
+  const customTabs = useCustomTabs(feed?.disabledPageNames ?? [])
   const t = useTranslations('navigation')
 
   return (

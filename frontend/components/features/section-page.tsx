@@ -10,6 +10,8 @@ import { ArticleLeadMedia } from '@/components/ui/article-lead-media'
 import { useSectionLabels } from '@/hooks/use-section-labels'
 import { useTranslations } from 'next-intl'
 import { articleImageSrc, isDataUri } from '@/lib/helpers/image-src'
+import { isPublicPageEnabled } from '@/lib/helpers/page-visibility'
+import { notFound } from 'next/navigation'
 import {
   buildEditorialBands,
   editorialSlotIds,
@@ -514,6 +516,9 @@ export function SectionPage({
   const feedData = data ?? initialFeed
   useSyncPageAdPlacements(feedData?.adPlacements)
 
+  if (feedData && !isPublicPageEnabled(feedData)) {
+    notFound()
+  }
   if (loading && !feedData) return <LoadingState message={t('loading')} />
   if (error && !feedData) return <ErrorState message={t('failedToLoad', { message: error.message })} />
 
@@ -669,7 +674,7 @@ export function PoliticsPage({ initialFeed }: { initialFeed?: IHomepageFeed }): 
       leftRailCount: 6,
       leftRailTextLinkCount: 0,
       hideLastLeftRailTextLink: false,
-      centerScreenNewsCount: 4,
+      centerScreenNewsCount: 3,
       rightScreenNewsCount: 1,
       rightRailTextLinkCount: 6,
       rightCardCount: 1,
