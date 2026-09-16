@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from layout_admin_app.services import layout_service, slot_service
+from layout_admin_app.services import worldwide_placement_service
 from shared.core.auth import TokenPayload, require_role
 from shared.core.db import get_db
 from shared.core.exceptions import NotFoundError
@@ -23,6 +24,8 @@ from shared.schemas.layout_schemas import (
     LayoutUpdate,
     PublishPlacementsOut,
     SlotOut,
+    WorldwidePlacementOut,
+    WorldwidePlacementRequest,
 )
 
 router = APIRouter(prefix="/layouts")
@@ -114,6 +117,24 @@ async def publish_layout_placements(
         market_code=market,
         town=town,
         region_code=region_code,
+        actor_id=current_user.sub,
+    )
+
+
+@router.post("/place-worldwide", response_model=WorldwidePlacementOut)
+async def place_article_worldwide(
+    body: WorldwidePlacementRequest,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
+) -> WorldwidePlacementOut:
+    """Pin one article into a slot across all effective markets.
+
+    Uses next-available positioning when the requested index is occupied.
+    """
+
+    return await worldwide_placement_service.place_across_markets(
+        db,
+        body,
         actor_id=current_user.sub,
     )
 

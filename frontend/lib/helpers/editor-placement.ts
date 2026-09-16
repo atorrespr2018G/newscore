@@ -5,6 +5,8 @@ import {
   assignPinnedIdAtIndex,
   clearPinnedId,
   insertPinnedIdAtIndex,
+  placeLocalPinnedIdAvoidingGlobals,
+  placeWorldwidePinnedIdAtIndex,
   pinnedIdAtIndex,
   removePinnedIdAtIndex,
   swapPinnedIdsAtIndices,
@@ -130,6 +132,13 @@ export function buildReorderPlacementMutation(
   }
 }
 
+export interface IPlacementConflictOptions {
+  /** Whether the incoming story is worldwide. */
+  incomingWorldwide?: boolean
+  /** Worldwide article ids already present in the layout pins. */
+  worldwideIds?: ReadonlySet<string>
+}
+
 /**
  * Build the minimum patch set required to move an article into a target slot cell.
  *
@@ -138,6 +147,7 @@ export function buildReorderPlacementMutation(
  * @param targetSlotId Destination slot id.
  * @param targetIndex Zero-based destination index.
  * @param targetOccupantId Article id currently occupying the target cell, if any.
+ * @param conflictOptions Worldwide vs local conflict rules.
  * @returns Slot updates and previous location metadata.
  */
 export function buildPlacementMutation(
@@ -146,6 +156,7 @@ export function buildPlacementMutation(
   targetSlotId: string,
   targetIndex: number,
   targetOccupantId: string | null = null,
+  conflictOptions: IPlacementConflictOptions = {},
 ): IPlacementMutationResult {
   const editorSlots = slots.map((slot) => slotForEditorPlacement(slot))
   const targetSlot = editorSlots.find((slot) => slot.id === targetSlotId)
@@ -177,12 +188,32 @@ export function buildPlacementMutation(
 
   const targetBase = updates.find((update) => update.slotId === targetSlotId)?.draftPinnedIds ?? targetSlot.pinned_ids
   const pinnedLimit = resolveSlotPinnedLimit(targetSlot)
-  const usesShiftDownPlacement =
-    isShiftDownPlacementPositionKey(targetSlot.position_key) ||
-    targetSlot.presentation_type.trim().toLowerCase() === PRESENTATION_FEATURED_BAND
-  const nextTargetIds = usesShiftDownPlacement
-    ? insertPinnedIdAtIndex(targetBase, articleId, targetIndex, pinnedLimit)
-    : assignPinnedIdAtIndex(targetBase, articleId, targetIndex, targetOccupantId, pinnedLimit)
+  const worldwideIds = conflictOptions.worldwideIds ?? new Set<string>()
+  let nextTargetIds: string[]
+  if (conflictOptions.incomingWorldwide) {
+    nextTargetIds = placeWorldwidePinnedIdAtIndex(
+      targetBase,
+      articleId,
+      targetIndex,
+      worldwideIds,
+      pinnedLimit,
+    )
+  } else if (worldwideIds.size > 0) {
+    nextTargetIds = placeLocalPinnedIdAvoidingGlobals(
+      targetBase,
+      articleId,
+      targetIndex,
+      worldwideIds,
+      pinnedLimit,
+    )
+  } else {
+    const usesShiftDownPlacement =
+      isShiftDownPlacementPositionKey(targetSlot.position_key) ||
+      targetSlot.presentation_type.trim().toLowerCase() === PRESENTATION_FEATURED_BAND
+    nextTargetIds = usesShiftDownPlacement
+      ? insertPinnedIdAtIndex(targetBase, articleId, targetIndex, pinnedLimit)
+      : assignPinnedIdAtIndex(targetBase, articleId, targetIndex, targetOccupantId, pinnedLimit)
+  }
   const existingTarget = updates.find((update) => update.slotId === targetSlotId)
   if (existingTarget) {
     existingTarget.draftPinnedIds = nextTargetIds
@@ -229,9 +260,11 @@ export function appendCategoryCascadeUpdates(
   slots: ISlotOut[],
   articleId: string,
   cascadeSlotIds: string[],
+  conflictOptions: IPlacementConflictOptions = {},
 ): IPlacementMutationResult {
   const slotById = new Map(slots.map((slot) => [slot.id, slot]))
   const updates = result.updates.map((update) => ({ ...update }))
+  const worldwideIds = conflictOptions.worldwideIds ?? new Set<string>()
 
   for (const slotId of cascadeSlotIds) {
     const slot = slotById.get(slotId)
@@ -239,7 +272,12 @@ export function appendCategoryCascadeUpdates(
       continue
     }
     const base = resolveCascadeBase({ ...result, updates }, slot)
-    const nextIds = insertPinnedIdAtIndex(base, articleId, 0, resolveSlotPinnedLimit(slot))
+    const limit = resolveSlotPinnedLimit(slot)
+    const nextIds = conflictOptions.incomingWorldwide
+      ? placeWorldwidePinnedIdAtIndex(base, articleId, 0, worldwideIds, limit)
+      : worldwideIds.size > 0
+        ? placeLocalPinnedIdAvoidingGlobals(base, articleId, 0, worldwideIds, limit)
+        : insertPinnedIdAtIndex(base, articleId, 0, limit)
     const existing = updates.find((update) => update.slotId === slotId)
     if (existing) {
       existing.draftPinnedIds = nextIds

@@ -28,6 +28,8 @@ class Article(BaseModel):
     story_id: str | None = None
     international_potential: int | None = None
     market_ids: list[str] = []
+    worldwide: bool = False
+    excluded_market_ids: list[str] = []
     town_id: str | None = None
     direct_region_ids: list[str] = []
     effective_region_ids: list[str] = []

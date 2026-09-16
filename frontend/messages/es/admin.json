@@ -302,6 +302,24 @@
       "notRated": "Sin calificar",
       "save": "Guardar categorías"
     },
+    "worldwide": {
+      "toggle": "Mundial — todos los mercados",
+      "hint": "Se aplica a cada mercado y a sus estados, condados y pueblos. Excluye los mercados que no quieras.",
+      "excludeHeading": "Excluir mercados",
+      "excludeHint": "Los mercados marcados (y sus localidades) no recibirán esta noticia.",
+      "placementHeading": "Colocar en todos los mercados",
+      "slot": "Espacio",
+      "position": "Posición",
+      "placeButton": "Colocar en el espacio elegido",
+      "placing": "Colocando…",
+      "placementHint": "Guarda primero la configuración mundial. La colocación también se replica al soltar una noticia mundial. Si el lugar está ocupado, usa la siguiente posición libre.",
+      "placementResult": "Colocada en {placed} tableros ({skipped} omitidos).",
+      "slots": {
+        "hero": "Héroe / Principales",
+        "moreTopStories": "Más noticias principales",
+        "moreTopStories2": "Más noticias principales (2)"
+      }
+    },
     "placement": {
       "staged": "Se preparó \"{title}\" en {destination}{cascade}. Publica la portada para que aparezca.",
       "stagedMove": "Se preparó el traslado de \"{title}\" de {from} a {destination}{cascade}. Publica la portada para que aparezca.",
@@ -327,6 +345,7 @@
     "errors": {
       "loadCategories": "No se pudieron cargar las categorías",
       "loadDetail": "No se pudo cargar el detalle del artículo",
+      "worldwidePlacement": "No se pudo colocar la noticia en todos los mercados",
       "selectCategory": "Selecciona al menos una categoría.",
       "titleTooShort": "El titular debe tener al menos 3 caracteres.",
       "bodyTooShort": "El cuerpo debe tener al menos 10 caracteres.",

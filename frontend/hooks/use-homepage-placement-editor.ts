@@ -30,6 +30,14 @@ import {
   formatRemoveMessage,
   resolveCategoryCascadeSlotIds,
 } from '@/lib/helpers/editor-placement-messages'
+import {
+  fanOutWorldwidePlacementMutation,
+  summarizeWorldwideFanOut,
+} from '@/lib/helpers/worldwide-placement-fanout'
+import { apiConfig } from '@/lib/api/config'
+import { apiFetch } from '@/lib/api/rest-client'
+import type { IArticleDetail } from '@/interfaces/editor-article'
+import { editorPinnedIds } from '@/lib/helpers/slot-editor-pinned-ids'
 import { notifyWorkflowBadgesRefresh } from '@/lib/api/workflow-badges-client'
 import { editorScopeRegionCode, type IEditorScope } from '@/lib/editor/editor-scope'
 import type { IEditorStatus, IHomepagePlacementEditor } from '@/interfaces/editor-article'
@@ -206,17 +214,50 @@ export function useHomepagePlacementEditor(
         return false
       }
       const cascadeSlotIds = await resolveDropCascadeSlotIds(articleId, target)
+      const pinIds = new Set<string>()
+      for (const slot of homepageSlotsRef.current) {
+        for (const pin of editorPinnedIds(slot)) {
+          if (pin.trim()) {
+            pinIds.add(pin)
+          }
+        }
+      }
+      pinIds.add(articleId)
+      const worldwideFlags = await Promise.all(
+        [...pinIds].map(async (id) => {
+          try {
+            const detail = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${id}`)
+            return [id, Boolean(detail.worldwide)] as const
+          } catch {
+            return [id, false] as const
+          }
+        }),
+      )
+      const worldwideIds = new Set(
+        worldwideFlags.filter(([, isWorldwide]) => isWorldwide).map(([id]) => id),
+      )
+      const conflictOptions = {
+        incomingWorldwide: worldwideIds.has(articleId),
+        worldwideIds,
+      }
       const baseMutation = buildPlacementMutation(
         homepageSlotsRef.current,
         articleId,
         target.slotId,
         target.index,
         target.articleId,
+        conflictOptions,
       )
       const mutation = cascadeSlotIds.length
-        ? appendCategoryCascadeUpdates(baseMutation, homepageSlotsRef.current, articleId, cascadeSlotIds)
+        ? appendCategoryCascadeUpdates(
+            baseMutation,
+            homepageSlotsRef.current,
+            articleId,
+            cascadeSlotIds,
+            conflictOptions,
+          )
         : baseMutation
-      return runPlacementMutation(mutation, (previousSlots) =>
+      const ok = await runPlacementMutation(mutation, (previousSlots) =>
         formatPlacementMessage({
           t,
           mutation,
@@ -228,8 +269,31 @@ export function useHomepagePlacementEditor(
           pageName: scope.pageName,
         }),
       )
+      if (!ok) {
+        return false
+      }
+      try {
+        const fanOut = await fanOutWorldwidePlacementMutation({
+          articleId,
+          pageName: scope.pageName,
+          slots: homepageSlotsRef.current,
+          mutation,
+        })
+        if (fanOut && fanOut.length > 0) {
+          const summary = summarizeWorldwideFanOut(fanOut)
+          setMessage(
+            t('editor.worldwide.placementResult', {
+              placed: summary.placed,
+              skipped: summary.skipped,
+            }),
+          )
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('editor.errors.worldwidePlacement'))
+      }
+      return true
     },
-    [articleTitleById, resolveDropCascadeSlotIds, runPlacementMutation, scope.pageName, t],
+    [articleTitleById, resolveDropCascadeSlotIds, runPlacementMutation, scope.pageName, setError, setMessage, t],
   )
 
   const applyRemovePlacement = useCallback(

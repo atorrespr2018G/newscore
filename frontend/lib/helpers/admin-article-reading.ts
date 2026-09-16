@@ -26,6 +26,8 @@ export interface IAdminArticleDetailOut {
   international_potential?: number | null
   max_image_count?: number
   market_ids?: string[]
+  worldwide?: boolean
+  excluded_market_ids?: string[]
   direct_region_ids?: string[]
   effective_region_ids?: string[]
   primary_region_id?: string | null

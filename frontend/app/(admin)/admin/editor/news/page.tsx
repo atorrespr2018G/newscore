@@ -140,6 +140,12 @@ function EditorStoryPoolSection({ news }: { news: IEditorNews }): JSX.Element {
           setSelectedCategoryIds={news.setSelectedCategoryIds}
           internationalPotential={news.internationalPotential}
           setInternationalPotential={news.setInternationalPotential}
+          worldwide={news.worldwide}
+          setWorldwide={news.setWorldwide}
+          excludedMarketIds={news.excludedMarketIds}
+          setExcludedMarketIds={news.setExcludedMarketIds}
+          onPlacementResult={news.handleWorldwidePlacementResult}
+          onPlacementError={news.handleWorldwidePlacementError}
           storyId={news.storyId}
           setStoryId={news.setStoryId}
           storyGroups={news.storyGroups}

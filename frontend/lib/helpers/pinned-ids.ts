@@ -60,6 +60,132 @@ function clampPinnedIdsToMaxLength(pinnedIds: string[], maxLength: number | null
 }
 
 /**
+ * Trim pins to capacity while keeping worldwide stories when possible.
+ *
+ * @param pinnedIds Candidate pinned ids.
+ * @param maxLength Slot capacity.
+ * @param worldwideIds Known worldwide article ids.
+ * @param protectedId Worldwide article that must remain when provided.
+ * @returns Clamped pin list.
+ */
+export function clampPinnedIdsPreservingGlobals(
+  pinnedIds: string[],
+  maxLength: number | null,
+  worldwideIds: ReadonlySet<string>,
+  protectedId = '',
+): string[] {
+  if (maxLength == null || maxLength <= 0 || pinnedIds.length <= maxLength) {
+    return pinnedIds
+  }
+  const next = [...pinnedIds]
+  const keepId = protectedId.trim()
+  while (next.length > maxLength) {
+    let removed = false
+    for (let index = next.length - 1; index >= 0; index -= 1) {
+      const pin = next[index]?.trim() ?? ''
+      if (!pin) {
+        next.splice(index, 1)
+        removed = true
+        break
+      }
+      if (pin === keepId) {
+        continue
+      }
+      if (!worldwideIds.has(pin)) {
+        next.splice(index, 1)
+        removed = true
+        break
+      }
+    }
+    if (removed) {
+      continue
+    }
+    for (let index = next.length - 1; index >= 0; index -= 1) {
+      if ((next[index]?.trim() ?? '') !== keepId) {
+        next.splice(index, 1)
+        removed = true
+        break
+      }
+    }
+    if (!removed) {
+      break
+    }
+  }
+  return next
+}
+
+/**
+ * Insert a worldwide story at the requested index, shifting others down.
+ *
+ * @param pinnedIds Current pinned ids.
+ * @param articleId Worldwide article id.
+ * @param targetIndex Preferred zero-based index.
+ * @param worldwideIds Known worldwide ids in the slot.
+ * @param maxLength Optional capacity.
+ * @returns Updated pins.
+ */
+export function placeWorldwidePinnedIdAtIndex(
+  pinnedIds: string[],
+  articleId: string,
+  targetIndex: number,
+  worldwideIds: ReadonlySet<string> = new Set(),
+  maxLength: number | null = null,
+): string[] {
+  const withoutArticle = clearPinnedId(pinnedIds, articleId)
+  const next = [...withoutArticle]
+  while (next.length <= targetIndex) {
+    next.push(PINNED_ID_EMPTY)
+  }
+  next.splice(targetIndex, 0, articleId)
+  const globals = new Set(worldwideIds)
+  globals.add(articleId)
+  return normalizePinnedIdsForSave(
+    clampPinnedIdsPreservingGlobals(next, maxLength, globals, articleId),
+  )
+}
+
+/**
+ * Place a local story without overwriting worldwide pins.
+ *
+ * @param pinnedIds Current pinned ids.
+ * @param articleId Local article id.
+ * @param targetIndex Preferred zero-based index.
+ * @param worldwideIds Known worldwide ids in the slot.
+ * @param maxLength Optional capacity.
+ * @returns Updated pins.
+ */
+export function placeLocalPinnedIdAvoidingGlobals(
+  pinnedIds: string[],
+  articleId: string,
+  targetIndex: number,
+  worldwideIds: ReadonlySet<string>,
+  maxLength: number | null = null,
+): string[] {
+  const withoutArticle = clearPinnedId(pinnedIds, articleId)
+  const next = [...withoutArticle]
+  let index = Math.max(0, targetIndex)
+  while (true) {
+    while (next.length <= index) {
+      next.push(PINNED_ID_EMPTY)
+    }
+    const occupant = next[index]?.trim() ?? ''
+    if (!occupant || !worldwideIds.has(occupant)) {
+      break
+    }
+    index += 1
+  }
+  const occupant = next[index]?.trim() ?? ''
+  if (occupant && !worldwideIds.has(occupant)) {
+    next.splice(index, 0, articleId)
+  } else {
+    next[index] = articleId
+  }
+  return normalizePinnedIdsForSave(
+    clampPinnedIdsPreservingGlobals(next, maxLength, worldwideIds, ''),
+  )
+}
+
+/**
  * Insert an article id at a landing index and shift remaining ids down.
  *
  * @param pinnedIds Current pinned article ids.

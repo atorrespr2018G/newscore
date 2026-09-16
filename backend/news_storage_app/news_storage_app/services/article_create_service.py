@@ -19,8 +19,8 @@ from news_storage_app.helpers.article_slug import _ensure_unique_slug
 from news_storage_app.helpers.article_validation import (
     _resolve_create_max_image_count,
     _validate_category_ids,
-    _validate_market_ids,
 )
+from news_storage_app.helpers.article_worldwide import resolve_article_market_targeting
 from news_storage_app.helpers.slug_helpers import slugify_title
 from shared.core.exceptions import ValidationError
 from shared.helpers.html_sanitize import sanitize_article_html
@@ -36,6 +36,8 @@ class _PreparedArticleFields:
 
     slug: str
     market_ids: list[str]
+    worldwide: bool
+    excluded_market_ids: list[str]
     category_ids: list[str]
     media_ids: list[str]
     thumbnail_url: str | None
@@ -68,7 +70,12 @@ async def _prepare_new_article(
         raise ValidationError("Title cannot produce a slug")
     repo = ArticleRepository(db)
     slug = await _ensure_unique_slug(repo, slug=base_slug)
-    market_ids = await _validate_market_ids(db, body.market_ids)
+    market_ids, worldwide, excluded_market_ids = await resolve_article_market_targeting(
+        db,
+        worldwide=bool(body.worldwide),
+        market_ids=list(body.market_ids or []),
+        excluded_market_ids=list(body.excluded_market_ids or []),
+    )
     category_ids = await _validate_category_ids(db, body.category_ids)
     max_image_count = _resolve_create_max_image_count(body, actor_role)
     media_ids = _normalize_media_ids(body.media_ids)
@@ -78,6 +85,8 @@ async def _prepare_new_article(
     return _PreparedArticleFields(
         slug=slug,
         market_ids=market_ids,
+        worldwide=worldwide,
+        excluded_market_ids=excluded_market_ids,
         category_ids=category_ids,
         media_ids=media_ids,
         thumbnail_url=thumbnail_url,
@@ -119,6 +128,8 @@ def _new_article_doc(
         "story_id": body.story_id,
         "international_potential": body.international_potential,
         "market_ids": fields.market_ids,
+        "worldwide": fields.worldwide,
+        "excluded_market_ids": fields.excluded_market_ids,
         "tags": body.tags,
         "thumbnail_url": fields.thumbnail_url,
         "media_ids": fields.media_ids,

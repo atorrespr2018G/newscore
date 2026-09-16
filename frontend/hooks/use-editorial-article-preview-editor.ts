@@ -20,6 +20,7 @@ import {
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
 import type { IArticleDetail as IReadingArticleDetail } from '@/interfaces/article'
 import type { IArticleDetail, ILoadedMedia } from '@/interfaces/editor-article'
+import type { IWorldwidePlacementOut } from '@/lib/api/layout-client'
 import { uploadMediaInto, validateArticleEdits } from '@/lib/helpers/article-detail-editor'
 
 export interface IEditorialArticlePreviewEditor {
@@ -40,6 +41,10 @@ export interface IEditorialArticlePreviewEditor {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  worldwide: boolean
+  setWorldwide: Dispatch<SetStateAction<boolean>>
+  excludedMarketIds: string[]
+  setExcludedMarketIds: Dispatch<SetStateAction<string[]>>
   storyId: string
   setStoryId: Dispatch<SetStateAction<string>>
   storyGroups: IStoryGroupOut[]
@@ -52,6 +57,8 @@ export interface IEditorialArticlePreviewEditor {
   loadArticle: (articleId: string) => Promise<IReadingArticleDetail>
   saveChanges: () => Promise<boolean>
   publishArticle: () => Promise<void>
+  handleWorldwidePlacementResult: (result: IWorldwidePlacementOut) => void
+  handleWorldwidePlacementError: (message: string) => void
   reset: () => void
 }
 
@@ -75,6 +82,8 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
   const [categories, setCategories] = useState<ICategoryOut[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
+  const [worldwide, setWorldwide] = useState(false)
+  const [excludedMarketIds, setExcludedMarketIds] = useState<string[]>([])
   const [storyId, setStoryId] = useState('')
   const [storyGroups, setStoryGroups] = useState<IStoryGroupOut[]>([])
   const [isDirty, setIsDirty] = useState(false)
@@ -117,6 +126,8 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
       setMaxImageCount(article.max_image_count)
       setSelectedCategoryIds(article.category_ids ?? [])
       setInternationalPotential(article.international_potential ?? null)
+      setWorldwide(Boolean(article.worldwide))
+      setExcludedMarketIds(article.excluded_market_ids ?? [])
       setStoryId(article.story_id ?? '')
       setMediaItems(galleryItems)
       setIsDirty(false)
@@ -141,6 +152,8 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
       story_id: detail.story_id,
       international_potential: detail.international_potential ?? null,
       market_ids: detail.market_ids ?? [],
+      worldwide: Boolean(detail.worldwide),
+      excluded_market_ids: detail.excluded_market_ids ?? [],
       direct_region_ids: detail.direct_region_ids ?? [],
       effective_region_ids: detail.effective_region_ids ?? [],
       primary_region_id: detail.primary_region_id ?? null,
@@ -200,6 +213,8 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
     setMaxImageCount(5)
     setSelectedCategoryIds([])
     setInternationalPotential(null)
+    setWorldwide(false)
+    setExcludedMarketIds([])
     setStoryId('')
     setIsDirty(false)
     setSaving(false)
@@ -269,11 +284,15 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
           category_ids: selectedCategoryIds,
           story_id: storyId.trim(),
           international_potential: internationalPotential,
+          worldwide,
+          excluded_market_ids: worldwide ? excludedMarketIds : [],
         }),
       })
       setEditDetail(updated)
       setTitle(updated.title ?? '')
       setBody(updated.body ?? '')
+      setWorldwide(Boolean(updated.worldwide))
+      setExcludedMarketIds(updated.excluded_market_ids ?? [])
       const galleryItems = await buildArticleGalleryMedia({
         media_ids: updated.media_ids,
         thumbnail_url: updated.thumbnail_url,
@@ -302,6 +321,8 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
     selectedCategoryIds,
     storyId,
     internationalPotential,
+    worldwide,
+    excludedMarketIds,
     refreshStoryGroups,
     scope,
     t,
@@ -325,6 +346,21 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
     }
   }, [editDetail, scope, t])
 
+  const handleWorldwidePlacementResult = useCallback(
+    (result: IWorldwidePlacementOut) => {
+      const placed = result.results.filter((row) => row.status === 'placed').length
+      const skipped = result.results.filter((row) => row.status === 'skipped').length
+      setEditMessage(t('editor.worldwide.placementResult', { placed, skipped }))
+      setEditError(null)
+    },
+    [t],
+  )
+
+  const handleWorldwidePlacementError = useCallback((message: string) => {
+    setEditError(message)
+    setEditMessage(null)
+  }, [])
+
   return {
     editDetail,
     title,
@@ -343,6 +379,10 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    worldwide,
+    setWorldwide,
+    excludedMarketIds,
+    setExcludedMarketIds,
     storyId,
     setStoryId,
     storyGroups,
@@ -355,6 +395,8 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
     loadArticle,
     saveChanges,
     publishArticle,
+    handleWorldwidePlacementResult,
+    handleWorldwidePlacementError,
     reset,
   }
 }

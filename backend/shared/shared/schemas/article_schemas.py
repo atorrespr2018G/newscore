@@ -45,7 +45,9 @@ class ArticleCreate(BaseModel):
     international_potential: int | None = Field(
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
     )
-    market_ids: list[str] = Field(..., min_length=1)
+    market_ids: list[str] = Field(default_factory=list)
+    worldwide: bool = False
+    excluded_market_ids: list[str] = []
     direct_region_ids: list[str] = []
     region_visibility_mode: RegionVisibilityMode = "upward_only"
     primary_region_id: str | None = None
@@ -69,6 +71,8 @@ class ArticleUpdate(BaseModel):
         None, ge=MIN_INTERNATIONAL_POTENTIAL, le=MAX_INTERNATIONAL_POTENTIAL
     )
     market_ids: list[str] | None = Field(None, min_length=1)
+    worldwide: bool | None = None
+    excluded_market_ids: list[str] | None = None
     direct_region_ids: list[str] | None = None
     region_visibility_mode: RegionVisibilityMode | None = None
     primary_region_id: str | None = None
@@ -107,6 +111,8 @@ class ArticleDetailOut(ArticleOut):
     story_id: str | None = None
     international_potential: int | None
     market_ids: list[str]
+    worldwide: bool = False
+    excluded_market_ids: list[str] = []
     direct_region_ids: list[str] = []
     effective_region_ids: list[str] = []
     region_visibility_mode: RegionVisibilityMode = "upward_only"

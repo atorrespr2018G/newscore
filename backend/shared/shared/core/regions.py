@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from shared.core.worldwide import market_eligibility_clauses, market_eligibility_filter
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 MARKETS_COLLECTION = "markets"
@@ -276,7 +277,7 @@ def region_scope_article_filter(
         clauses.append({"effective_region_ids": {"$in": unique_scope}})
         clauses.append({"direct_region_ids": {"$in": unique_scope}})
     if market_id and str(market_id).strip():
-        clauses.append({"market_ids": str(market_id).strip()})
+        clauses.extend(market_eligibility_clauses(str(market_id).strip()))
     if not clauses:
         return {"_id": {"$in": []}}
     if len(clauses) == 1:
@@ -303,7 +304,7 @@ def legacy_market_scope_article_filter(
     """
 
     _ = town
-    return {"market_ids": market_id}
+    return market_eligibility_filter(market_id)
 
 
 async def effective_region_ids(

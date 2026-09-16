@@ -35,6 +35,10 @@ interface IEditorialArticlePreviewContextValue {
   setSelectedCategoryIds: ReturnType<typeof useEditorialArticlePreviewEditor>['setSelectedCategoryIds']
   internationalPotential: number | null
   setInternationalPotential: ReturnType<typeof useEditorialArticlePreviewEditor>['setInternationalPotential']
+  worldwide: boolean
+  setWorldwide: ReturnType<typeof useEditorialArticlePreviewEditor>['setWorldwide']
+  excludedMarketIds: string[]
+  setExcludedMarketIds: ReturnType<typeof useEditorialArticlePreviewEditor>['setExcludedMarketIds']
   storyId: string
   setStoryId: ReturnType<typeof useEditorialArticlePreviewEditor>['setStoryId']
   storyGroups: ReturnType<typeof useEditorialArticlePreviewEditor>['storyGroups']
@@ -46,6 +50,8 @@ interface IEditorialArticlePreviewContextValue {
   editLoading: boolean
   saveChanges: () => Promise<boolean>
   publishArticle: () => Promise<void>
+  handleWorldwidePlacementResult: (result: import('@/lib/api/layout-client').IWorldwidePlacementOut) => void
+  handleWorldwidePlacementError: (message: string) => void
   refreshReadingDetail: () => Promise<void>
 }
 
@@ -160,6 +166,10 @@ export function EditorialArticlePreviewProvider({
     setSelectedCategoryIds: editorFields.setSelectedCategoryIds,
     internationalPotential: editorFields.internationalPotential,
     setInternationalPotential: editorFields.setInternationalPotential,
+    worldwide: editorFields.worldwide,
+    setWorldwide: editorFields.setWorldwide,
+    excludedMarketIds: editorFields.excludedMarketIds,
+    setExcludedMarketIds: editorFields.setExcludedMarketIds,
     storyId: editorFields.storyId,
     setStoryId: editorFields.setStoryId,
     storyGroups: editorFields.storyGroups,
@@ -171,6 +181,8 @@ export function EditorialArticlePreviewProvider({
     editLoading: editorFields.editLoading,
     saveChanges,
     publishArticle,
+    handleWorldwidePlacementResult: editorFields.handleWorldwidePlacementResult,
+    handleWorldwidePlacementError: editorFields.handleWorldwidePlacementError,
     refreshReadingDetail,
   }
 

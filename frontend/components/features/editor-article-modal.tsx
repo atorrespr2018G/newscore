@@ -12,6 +12,7 @@ import { RichTextEditor, type IRichTextToolbarLabels } from '@/components/ui/ric
 import { FLORIDA_COUNTY_OPTIONS, FLORIDA_STATE_CODE } from '@/lib/florida-counties'
 import type { ICategoryOut } from '@/lib/api/category-client'
 import type { IStoryGroupOut } from '@/lib/api/story-group-client'
+import type { IWorldwidePlacementOut } from '@/lib/api/layout-client'
 import { toRegionCode } from '@/lib/region-code'
 import { PUERTO_RICO_MARKET_CODE, PUERTO_RICO_TOWN_OPTIONS } from '@/lib/puerto-rico-towns'
 import { US_MARKET_CODE, US_STATE_OPTIONS } from '@/lib/us-states'
@@ -34,6 +35,12 @@ interface IEditorArticleModalProps {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  worldwide: boolean
+  setWorldwide: Dispatch<SetStateAction<boolean>>
+  excludedMarketIds: string[]
+  setExcludedMarketIds: Dispatch<SetStateAction<string[]>>
+  onPlacementResult: (result: IWorldwidePlacementOut) => void
+  onPlacementError: (message: string) => void
   storyId: string
   setStoryId: Dispatch<SetStateAction<string>>
   storyGroups: IStoryGroupOut[]
@@ -233,11 +240,19 @@ function ModalBody(props: IEditorArticleEditPanelProps): JSX.Element {
       </div>
 
       <InlineArticleTaxonomyEditor
+        articleId={props.detail?.id ?? ''}
         categories={props.categories}
         selectedCategoryIds={props.selectedCategoryIds}
         setSelectedCategoryIds={wrapWithDirty(props.setSelectedCategoryIds, props.onDirty)}
         internationalPotential={props.internationalPotential}
         setInternationalPotential={wrapWithDirty(props.setInternationalPotential, props.onDirty)}
+        worldwide={props.worldwide}
+        setWorldwide={props.setWorldwide}
+        excludedMarketIds={props.excludedMarketIds}
+        setExcludedMarketIds={props.setExcludedMarketIds}
+        onDirty={props.onDirty}
+        onPlacementResult={props.onPlacementResult}
+        onPlacementError={props.onPlacementError}
       />
 
       <div className="block text-sm font-medium text-neutral-700">

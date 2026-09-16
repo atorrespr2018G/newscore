@@ -41,6 +41,8 @@ export interface IArticleDetail {
   story_id: string | null
   international_potential: number | null
   market_ids: string[]
+  worldwide?: boolean
+  excluded_market_ids?: string[]
   direct_region_ids: string[]
   effective_region_ids: string[]
   primary_region_id: string | null
@@ -122,6 +124,10 @@ export interface IArticleDetailEditor {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  worldwide: boolean
+  setWorldwide: Dispatch<SetStateAction<boolean>>
+  excludedMarketIds: string[]
+  setExcludedMarketIds: Dispatch<SetStateAction<string[]>>
   storyId: string
   setStoryId: Dispatch<SetStateAction<string>>
   storyGroups: IStoryGroupOut[]
@@ -132,6 +138,8 @@ export interface IArticleDetailEditor {
   saveArticleChanges: () => Promise<boolean>
   publishSelected: () => Promise<void>
   publishArticleById: (articleId: string) => Promise<void>
+  handleWorldwidePlacementResult: (result: IWorldwidePlacementOut) => void
+  handleWorldwidePlacementError: (message: string) => void
 }
 
 /** Homepage slot placement state and actions. */

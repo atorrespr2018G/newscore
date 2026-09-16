@@ -22,8 +22,8 @@ from news_storage_app.helpers.article_slug import _apply_slug_update
 from news_storage_app.helpers.article_validation import (
     _check_reporter_permissions,
     _validate_category_ids,
-    _validate_market_ids,
 )
+from news_storage_app.helpers.article_worldwide import resolve_article_market_targeting
 from news_storage_app.services.article_read_service import get_by_id
 from shared.core.exceptions import NotFoundError, ValidationError
 from shared.helpers.html_sanitize import sanitize_article_html
@@ -122,6 +122,60 @@ async def _normalize_update_categories(
     update_doc["category_id"] = normalized[0]
 
 
+async def _normalize_update_market_targeting(
+    db: AsyncIOMotorDatabase,
+    *,
+    existing: dict[str, Any],
+    update_doc: dict[str, Any],
+) -> None:
+    """Resolve worldwide / exclusion targeting on article update.
+
+    Mutates ``update_doc`` in place when worldwide, exclusions, or market ids
+    change.
+
+    Args:
+        db: Database connection.
+        existing: Current article document.
+        update_doc: Pending update fields.
+
+    Raises:
+        ValidationError: If targeting resolves to an empty market set.
+    """
+
+    touching_targeting = (
+        "worldwide" in update_doc
+        or "excluded_market_ids" in update_doc
+        or "market_ids" in update_doc
+    )
+    if not touching_targeting:
+        return
+
+    worldwide = (
+        bool(update_doc["worldwide"])
+        if "worldwide" in update_doc
+        else bool(existing.get("worldwide"))
+    )
+    exclusions = (
+        list(update_doc["excluded_market_ids"])
+        if "excluded_market_ids" in update_doc
+        else list(existing.get("excluded_market_ids") or [])
+    )
+    explicit_markets = (
+        list(update_doc["market_ids"])
+        if "market_ids" in update_doc
+        else list(existing.get("market_ids") or [])
+    )
+    market_ids, worldwide, exclusions = await resolve_article_market_targeting(
+        db,
+        worldwide=worldwide,
+        market_ids=explicit_markets,
+        excluded_market_ids=exclusions,
+    )
+    update_doc["market_ids"] = market_ids
+    update_doc["worldwide"] = worldwide
+    update_doc["excluded_market_ids"] = exclusions
+
+
 async def update(
     db: AsyncIOMotorDatabase,
     *,
@@ -151,8 +205,7 @@ async def update(
     existing = await get_by_id(db, article_id)
     update_doc = _build_update_doc(body)
     _check_reporter_permissions(update_doc, actor_role)
-    if "market_ids" in update_doc:
-        update_doc["market_ids"] = await _validate_market_ids(db, list(update_doc["market_ids"]))
+    await _normalize_update_market_targeting(db, existing=existing, update_doc=update_doc)
     await apply_update_region_fields(db, existing=existing, update_doc=update_doc)
     await _normalize_update_categories(db, update_doc=update_doc)
     await _normalize_update_media(db, existing=existing, update_doc=update_doc)

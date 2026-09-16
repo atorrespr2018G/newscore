@@ -16,6 +16,7 @@ from shared.core.regions import (
     region_scope_article_filter,
     resolve_region_code_from_legacy,
 )
+from shared.core.worldwide import market_eligibility_filter
 from shared.read.article_query import article_query_with_category
 from shared.read.collections import ARTICLES_COLLECTION
 from shared.read.layout_reads import get_active_layout
@@ -69,7 +70,7 @@ def _merge_article_ids(pinned_ids: list[str], query_ids: list[str], limit: int) 
 def _published_market_query(market_id: str) -> dict[str, Any]:
     """Mongo filter for published articles in a market."""
 
-    return {"status": "published", "market_ids": market_id}
+    return {"status": "published", **market_eligibility_filter(market_id)}
 
 
 def _published_scope_query(

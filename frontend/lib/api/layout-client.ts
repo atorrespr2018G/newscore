@@ -21,6 +21,43 @@ export interface IPageAdPlacementApi {
   anchor_slug?: string | null
 }
 
+/** Market edition returned by the layout admin markets list. */
+export interface IMarketOut {
+  id: string
+  code: string
+  label: string
+}
+
+/** Result of pinning one article onto a market/region board. */
+export interface IWorldwidePlacementMarketResult {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  slot_id: string | null
+  position: number | null
+  status: 'placed' | 'skipped'
+  reason: string | null
+}
+
+/** Summary returned by POST /layouts/place-worldwide. */
+export interface IWorldwidePlacementOut {
+  article_id: string
+  page_name: string
+  position_key: string
+  requested_position: number
+  results: IWorldwidePlacementMarketResult[]
+}
+
+/** Payload for worldwide placement fan-out. */
+export interface IWorldwidePlacementRequest {
+  article_id: string
+  page_name?: string
+  position_key: string
+  position: number
+  publish?: boolean
+}
+
 /** Layout metadata returned by the layout admin API. */
 export interface ILayoutOut {
   id: string
@@ -252,6 +289,30 @@ export function patchSlotDraftPinnedIds(slotId: string, draftPinnedIds: string[]
   return apiFetch<ISlotOut>(`${apiConfig.layout}/slots/${slotId}`, {
     method: 'PATCH',
     body: JSON.stringify({ draft_pinned_ids: draftPinnedIds }),
+  })
+}
+
+/**
+ * List markets for worldwide targeting and exclusions.
+ *
+ * @returns Markets ordered by code.
+ */
+export function listMarkets(): Promise<IMarketOut[]> {
+  return apiFetch<IMarketOut[]>(`${apiConfig.layout}/markets`)
+}
+
+/**
+ * Pin one article into a slot across all effective markets.
+ *
+ * @param payload Article id, slot key, and preferred position.
+ * @returns Per-market placement results.
+ */
+export function placeArticleWorldwide(
+  payload: IWorldwidePlacementRequest,
+): Promise<IWorldwidePlacementOut> {
+  return apiFetch<IWorldwidePlacementOut>(`${apiConfig.layout}/layouts/place-worldwide`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   })
 }
 

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from shared.core.cors import cors_allow_credentials, cors_allow_origins
 
 from layout_admin_app.routers.layouts import router as layouts_router
+from layout_admin_app.routers.markets import router as markets_router
 from layout_admin_app.routers.homepage_page_sections import router as homepage_page_sections_router
 from layout_admin_app.routers.slots import router as slots_router
 from layout_admin_app.routers.entertainment_page_sections import router as entertainment_page_sections_router
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     app.include_router(layouts_router)
+    app.include_router(markets_router)
     app.include_router(slots_router)
     app.include_router(homepage_page_sections_router)
     app.include_router(sports_page_sections_router)

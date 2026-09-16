@@ -79,9 +79,16 @@ async def _invalidate_feeds_for_update(
     market_ids_changed = "market_ids" in update_doc and update_doc["market_ids"] != list(
         existing.get("market_ids") or []
     )
+    worldwide_changed = "worldwide" in update_doc and bool(update_doc["worldwide"]) != bool(
+        existing.get("worldwide")
+    )
+    exclusions_changed = "excluded_market_ids" in update_doc and list(
+        update_doc["excluded_market_ids"] or []
+    ) != list(existing.get("excluded_market_ids") or [])
+    targeting_changed = market_ids_changed or worldwide_changed or exclusions_changed
     if doc.get("status") == "published" or status_changed:
         await _invalidate_article_feed(db, doc)
-    if market_ids_changed and existing.get("status") == "published":
+    if targeting_changed and existing.get("status") == "published":
         old_market_ids = [str(mid) for mid in (existing.get("market_ids") or [])]
         combined = list({*old_market_ids, *[str(mid) for mid in (doc.get("market_ids") or [])]})
         await invalidate_homepage_for_market_ids(db, combined)

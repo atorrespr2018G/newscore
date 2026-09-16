@@ -117,3 +117,36 @@ class ArticlePlacementsOut(BaseModel):
 
     placements: dict[str, list[ArticlePlacementOut]]
 
+
+class WorldwidePlacementRequest(BaseModel):
+    """Request body for pinning one article across markets."""
+
+    article_id: str = Field(..., min_length=1)
+    page_name: str = Field("homepage", min_length=1, max_length=120)
+    position_key: str = Field(..., min_length=1, max_length=120)
+    position: int = Field(0, ge=0)
+    publish: bool = False
+
+
+class WorldwidePlacementMarketResult(BaseModel):
+    """Per-board outcome of a worldwide placement fan-out."""
+
+    market_id: str
+    market_code: str
+    region_id: str | None = None
+    region_code: str | None = None
+    slot_id: str | None = None
+    position: int | None = None
+    status: Literal["placed", "skipped"]
+    reason: str | None = None
+
+
+class WorldwidePlacementOut(BaseModel):
+    """Summary of a worldwide placement fan-out."""
+
+    article_id: str
+    page_name: str
+    position_key: str
+    requested_position: int
+    results: list[WorldwidePlacementMarketResult]
+

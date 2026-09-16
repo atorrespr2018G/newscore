@@ -9,6 +9,7 @@ import { EditorArticleModal } from '@/components/features/editor-article-modal'
 import { clearDraggingArticleId, setDraggingArticleId } from '@/lib/editor/editor-drag-store'
 import type { ICategoryOut } from '@/lib/api/category-client'
 import type { IStoryGroupOut } from '@/lib/api/story-group-client'
+import type { IWorldwidePlacementOut } from '@/lib/api/layout-client'
 import type { IArticleDetail, IEditorStoryRow, ILoadedMedia } from '@/interfaces/editor-article'
 import { editorArticleRowToPreview } from '@/lib/helpers/editor-article-preview'
 import {
@@ -120,6 +121,12 @@ interface IEditorStoryPoolProps {
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  worldwide: boolean
+  setWorldwide: Dispatch<SetStateAction<boolean>>
+  excludedMarketIds: string[]
+  setExcludedMarketIds: Dispatch<SetStateAction<string[]>>
+  onPlacementResult: (result: IWorldwidePlacementOut) => void
+  onPlacementError: (message: string) => void
   storyId: string
   setStoryId: Dispatch<SetStateAction<string>>
   storyGroups: IStoryGroupOut[]
@@ -163,6 +170,12 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    worldwide,
+    setWorldwide,
+    excludedMarketIds,
+    setExcludedMarketIds,
+    onPlacementResult,
+    onPlacementError,
     storyId,
     setStoryId,
     storyGroups,
@@ -406,6 +419,12 @@ export function EditorStoryPool(props: IEditorStoryPoolProps): JSX.Element {
         setSelectedCategoryIds={setSelectedCategoryIds}
         internationalPotential={internationalPotential}
         setInternationalPotential={setInternationalPotential}
+        worldwide={worldwide}
+        setWorldwide={setWorldwide}
+        excludedMarketIds={excludedMarketIds}
+        setExcludedMarketIds={setExcludedMarketIds}
+        onPlacementResult={onPlacementResult}
+        onPlacementError={onPlacementError}
         storyId={storyId}
         setStoryId={setStoryId}
         storyGroups={storyGroups}

@@ -3,19 +3,29 @@
 import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import type { ICategoryOut } from '@/lib/api/category-client'
+import type { IWorldwidePlacementOut } from '@/lib/api/layout-client'
 import { CategoryChipGroup } from '@/components/features/category-chip-group'
+import { WorldwideArticleControls } from '@/components/features/worldwide-article-controls'
 import { INTERNATIONAL_POTENTIAL_OPTIONS } from '@/lib/helpers/category-selection'
 
 interface IInlineArticleTaxonomyEditorProps {
+  articleId: string
   categories: ICategoryOut[]
   selectedCategoryIds: string[]
   setSelectedCategoryIds: Dispatch<SetStateAction<string[]>>
   internationalPotential: number | null
   setInternationalPotential: Dispatch<SetStateAction<number | null>>
+  worldwide: boolean
+  setWorldwide: Dispatch<SetStateAction<boolean>>
+  excludedMarketIds: string[]
+  setExcludedMarketIds: Dispatch<SetStateAction<string[]>>
+  onDirty: () => void
+  onPlacementResult: (result: IWorldwidePlacementOut) => void
+  onPlacementError: (message: string) => void
 }
 
 /**
- * Category and international-potential controls for a selected story.
+ * Category, international-potential, and worldwide targeting controls.
  *
  * Save is owned by the consolidated inline editor that hosts this component,
  * so a single action persists taxonomy and media changes together.
@@ -24,11 +34,19 @@ interface IInlineArticleTaxonomyEditorProps {
  * @returns The taxonomy editing controls.
  */
 export function InlineArticleTaxonomyEditor({
+  articleId,
   categories,
   selectedCategoryIds,
   setSelectedCategoryIds,
   internationalPotential,
   setInternationalPotential,
+  worldwide,
+  setWorldwide,
+  excludedMarketIds,
+  setExcludedMarketIds,
+  onDirty,
+  onPlacementResult,
+  onPlacementError,
 }: IInlineArticleTaxonomyEditorProps): JSX.Element {
   return (
     <div className="space-y-4">
@@ -41,6 +59,16 @@ export function InlineArticleTaxonomyEditor({
       <EditorInternationalPotentialSelect
         internationalPotential={internationalPotential}
         setInternationalPotential={setInternationalPotential}
+      />
+      <WorldwideArticleControls
+        articleId={articleId}
+        worldwide={worldwide}
+        setWorldwide={setWorldwide}
+        excludedMarketIds={excludedMarketIds}
+        setExcludedMarketIds={setExcludedMarketIds}
+        onDirty={onDirty}
+        onPlacementResult={onPlacementResult}
+        onPlacementError={onPlacementError}
       />
     </div>
   )

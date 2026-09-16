@@ -28,6 +28,7 @@ import type {
   IEditorStoryRow,
   ILoadedMedia,
 } from '@/interfaces/editor-article'
+import type { IWorldwidePlacementOut } from '@/lib/api/layout-client'
 
 function scopesEqual(a: IEditorScope, b: IEditorScope): boolean {
   return (
@@ -66,6 +67,8 @@ export function useArticleDetailEditor(
   const [categories, setCategories] = useState<ICategoryOut[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [internationalPotential, setInternationalPotential] = useState<number | null>(null)
+  const [worldwide, setWorldwide] = useState(false)
+  const [excludedMarketIds, setExcludedMarketIds] = useState<string[]>([])
   const [storyId, setStoryId] = useState('')
   const [storyGroups, setStoryGroups] = useState<IStoryGroupOut[]>([])
   const [isDirty, setIsDirty] = useState(false)
@@ -151,6 +154,8 @@ export function useArticleDetailEditor(
         setMaxImageCount(article.max_image_count)
         setSelectedCategoryIds(article.category_ids ?? [])
         setInternationalPotential(article.international_potential ?? null)
+        setWorldwide(Boolean(article.worldwide))
+        setExcludedMarketIds(article.excluded_market_ids ?? [])
         setStoryId(article.story_id ?? '')
         const galleryItems = await buildArticleGalleryMedia({
           media_ids: article.media_ids,
@@ -239,11 +244,15 @@ export function useArticleDetailEditor(
           // drops null but keeps an empty string, so this is how unassign works.
           story_id: storyId.trim(),
           international_potential: internationalPotential,
+          worldwide,
+          excluded_market_ids: worldwide ? excludedMarketIds : [],
         }),
       })
       setDetail(updated)
       setTitle(updated.title ?? '')
       setBody(updated.body ?? '')
+      setWorldwide(Boolean(updated.worldwide))
+      setExcludedMarketIds(updated.excluded_market_ids ?? [])
       const galleryItems = await buildArticleGalleryMedia({
         media_ids: updated.media_ids,
         thumbnail_url: updated.thumbnail_url,
@@ -276,6 +285,8 @@ export function useArticleDetailEditor(
     selectedCategoryIds,
     storyId,
     internationalPotential,
+    worldwide,
+    excludedMarketIds,
     updateArticleRow,
     refreshStoryGroups,
     scope,
@@ -326,6 +337,24 @@ export function useArticleDetailEditor(
     [updateArticleRow, scope, setDetail, setError, setMessage, setSaving, t],
   )
 
+  const handleWorldwidePlacementResult = useCallback(
+    (result: IWorldwidePlacementOut) => {
+      const placed = result.results.filter((row) => row.status === 'placed').length
+      const skipped = result.results.filter((row) => row.status === 'skipped').length
+      setMessage(t('editor.worldwide.placementResult', { placed, skipped }))
+      setError(null)
+    },
+    [setError, setMessage, t],
+  )
+
+  const handleWorldwidePlacementError = useCallback(
+    (message: string) => {
+      setError(message)
+      setMessage(null)
+    },
+    [setError, setMessage],
+  )
+
   return {
     selectedId,
     articleIdInput,
@@ -349,6 +378,10 @@ export function useArticleDetailEditor(
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    worldwide,
+    setWorldwide,
+    excludedMarketIds,
+    setExcludedMarketIds,
     storyId,
     setStoryId,
     storyGroups,
@@ -359,5 +392,7 @@ export function useArticleDetailEditor(
     saveArticleChanges,
     publishSelected,
     publishArticleById,
+    handleWorldwidePlacementResult,
+    handleWorldwidePlacementError,
   }
 }

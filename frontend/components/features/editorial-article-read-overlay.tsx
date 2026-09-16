@@ -144,6 +144,10 @@ export function EditorialArticleReadOverlay(): JSX.Element | null {
     setSelectedCategoryIds,
     internationalPotential,
     setInternationalPotential,
+    worldwide,
+    setWorldwide,
+    excludedMarketIds,
+    setExcludedMarketIds,
     storyId,
     setStoryId,
     storyGroups,
@@ -156,6 +160,8 @@ export function EditorialArticleReadOverlay(): JSX.Element | null {
     markDirty,
     saveChanges,
     publishArticle,
+    handleWorldwidePlacementResult,
+    handleWorldwidePlacementError,
     editError,
     editMessage,
     editLoading,
@@ -254,6 +260,12 @@ export function EditorialArticleReadOverlay(): JSX.Element | null {
               setSelectedCategoryIds={setSelectedCategoryIds}
               internationalPotential={internationalPotential}
               setInternationalPotential={setInternationalPotential}
+              worldwide={worldwide}
+              setWorldwide={setWorldwide}
+              excludedMarketIds={excludedMarketIds}
+              setExcludedMarketIds={setExcludedMarketIds}
+              onPlacementResult={handleWorldwidePlacementResult}
+              onPlacementError={handleWorldwidePlacementError}
               storyId={storyId}
               setStoryId={setStoryId}
               storyGroups={storyGroups}

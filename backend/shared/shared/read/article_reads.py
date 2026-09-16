@@ -9,6 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from shared.core.exceptions import NotFoundError
 from shared.core.pagination import PaginationParams
+from shared.core.worldwide import apply_market_eligibility, market_eligibility_filter
 from shared.read.collections import ARTICLES_COLLECTION, CATEGORIES_COLLECTION
 from shared.read.loaders import AuthorNameLoader
 from shared.schemas.article_schemas import (
@@ -43,7 +44,7 @@ def _apply_pinned_scope_filters(
     """
 
     if market_id and require_market:
-        query["market_ids"] = market_id
+        query.update(market_eligibility_filter(market_id))
 
 
 def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
@@ -80,6 +81,10 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         story_id=doc.get("story_id"),
         international_potential=doc.get("international_potential"),
         market_ids=[str(mid) for mid in (doc.get("market_ids") or [])],
+        worldwide=bool(doc.get("worldwide")),
+        excluded_market_ids=[
+            str(mid) for mid in (doc.get("excluded_market_ids") or []) if str(mid).strip()
+        ],
         direct_region_ids=[str(rid) for rid in (doc.get("direct_region_ids") or [])],
         effective_region_ids=[str(rid) for rid in (doc.get("effective_region_ids") or [])],
         region_visibility_mode=str(doc.get("region_visibility_mode") or "upward_only"),
@@ -164,7 +169,9 @@ async def _published_doc_by_slug(
 
     query: dict[str, Any] = {"slug": slug, "status": "published"}
     if market_id:
-        scoped = await db[ARTICLES_COLLECTION].find_one({**query, "market_ids": market_id})
+        scoped = await db[ARTICLES_COLLECTION].find_one(
+            apply_market_eligibility(query, market_id)
+        )
         if scoped is not None:
             return scoped
     return await db[ARTICLES_COLLECTION].find_one(query)
@@ -247,7 +254,7 @@ async def list_category_articles(
         "$or": [{"category_id": category_id}, {"category_ids": category_id}],
     }
     if market_id:
-        query["market_ids"] = market_id
+        query = apply_market_eligibility(query, market_id)
     total = await db[ARTICLES_COLLECTION].count_documents(query)
     cursor = (
         db[ARTICLES_COLLECTION]
@@ -304,7 +311,7 @@ async def list_story_updates(
         "_id": {"$ne": exclude_id},
     }
     if market_id:
-        query["market_ids"] = market_id
+        query = apply_market_eligibility(query, market_id)
     cursor = (
         db[ARTICLES_COLLECTION].find(query).sort("published_at", -1).limit(limit)
     )
@@ -375,7 +382,7 @@ async def search_published(
 
     q: dict[str, Any] = {"status": "published", "$text": {"$search": query}}
     if market_id:
-        q["market_ids"] = market_id
+        q = apply_market_eligibility(q, market_id)
     cursor = (
         db[ARTICLES_COLLECTION]
         .find(q, {"score": {"$meta": "textScore"}})

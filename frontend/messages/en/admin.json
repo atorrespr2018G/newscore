@@ -302,6 +302,24 @@
       "notRated": "Not rated",
       "save": "Save categories"
     },
+    "worldwide": {
+      "toggle": "Worldwide — all markets",
+      "hint": "Applies to every market and its states, counties, and towns. Exclude markets you do not want.",
+      "excludeHeading": "Exclude markets",
+      "excludeHint": "Checked markets (and their localities) will not receive this story.",
+      "placementHeading": "Place across markets",
+      "slot": "Slot",
+      "position": "Position",
+      "placeButton": "Place in selected slot",
+      "placing": "Placing…",
+      "placementHint": "Save worldwide settings first. Placement also fans out automatically when you drop a worldwide story. Occupied spots use the next free position.",
+      "placementResult": "Placed worldwide on {placed} boards ({skipped} skipped).",
+      "slots": {
+        "hero": "Hero / Top stories",
+        "moreTopStories": "More top stories",
+        "moreTopStories2": "More top stories (2)"
+      }
+    },
     "placement": {
       "staged": "Staged \"{title}\" in {destination}{cascade}. Publish homepage to go live.",
       "stagedMove": "Staged move of \"{title}\" from {from} to {destination}{cascade}. Publish homepage to go live.",
@@ -327,6 +345,7 @@
     "errors": {
       "loadCategories": "Failed to load categories",
       "loadDetail": "Failed to load article detail",
+      "worldwidePlacement": "Failed to place story across markets",
       "selectCategory": "Select at least one category.",
       "titleTooShort": "Headline must be at least 3 characters.",
       "bodyTooShort": "Body must be at least 10 characters.",
