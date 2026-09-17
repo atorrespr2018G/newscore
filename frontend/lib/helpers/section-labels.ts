@@ -409,14 +409,15 @@ export function isUsBandPositionKey(positionKey: string): boolean {
 const HOMEPAGE_PAGE_NAME = 'homepage'
 
 /**
- * Whether the main-page USA / Top Stories band should be omitted.
+ * Whether the trailing US category should be omitted on the main page.
  *
- * USA editions are already US news, so the USA module is redundant there.
+ * USA editions still show Top Stories (`us-featured`); only the redundant
+ * bottom `us` category is hidden.
  *
  * @param marketCode Reader or editor market code.
  * @param pageName Layout page name such as `homepage`.
  * @param positionKey Slot position key.
- * @returns True for `us` / `us-featured` on the US homepage.
+ * @returns True for category `us` on the US homepage.
  */
 export function shouldOmitUsaHomepageSection(
   marketCode: string,
@@ -430,7 +431,7 @@ export function shouldOmitUsaHomepageSection(
   if (page !== HOMEPAGE_PAGE_NAME) {
     return false
   }
-  return isUsBandPositionKey(positionKey)
+  return positionKey.trim().toLowerCase() === 'us'
 }
 
 

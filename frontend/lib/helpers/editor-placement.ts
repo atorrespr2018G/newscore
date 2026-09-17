@@ -163,7 +163,9 @@ export function buildPlacementMutation(
   if (!targetSlot) {
     throw new Error('Target slot was not found.')
   }
-  if (targetSlot.content_type !== 'articles') {
+  const contentType = (targetSlot.content_type ?? '').trim().toLowerCase()
+  // Legacy region clones sometimes omit content_type; treat blank as articles.
+  if (contentType && contentType !== 'articles') {
     throw new Error('Selected target cannot hold articles.')
   }
 

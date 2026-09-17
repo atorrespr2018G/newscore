@@ -34,9 +34,8 @@ HOMEPAGE_PAGE_NAME = "homepage"
 HERO_POSITION_KEY = "hero"
 US_FEATURED_POSITION_KEY = "us-featured"
 US_CATEGORY_POSITION_KEY = "us"
-USA_HOMEPAGE_SECTION_KEYS = frozenset(
-    {US_FEATURED_POSITION_KEY, US_CATEGORY_POSITION_KEY},
-)
+# US editions omit only the trailing US category; Top Stories (us-featured) stays.
+USA_HOMEPAGE_SECTION_KEYS = frozenset({US_CATEGORY_POSITION_KEY})
 LIVE_POSITION_KEY = "health"
 MORE_TOP_STORIES_POSITION_KEY = "more-top-stories"
 SPOTLIGHT_POSITION_KEY = "midterm-elections"
@@ -352,13 +351,13 @@ def migrate_legacy_election_section(items: list[dict[str, str]]) -> list[dict[st
 
 
 def is_usa_homepage_section_key(slug: str) -> bool:
-    """Return whether a position key is the main-page USA / Top Stories module.
+    """Return whether a position key is the trailing US category on the main page.
 
     Args:
         slug: Layout position key or section slug.
 
     Returns:
-        True for ``us-featured`` (Top Stories) and category ``us``.
+        True for category ``us`` (not Top Stories / ``us-featured``).
     """
 
     return slug.strip().lower() in USA_HOMEPAGE_SECTION_KEYS
@@ -375,15 +374,15 @@ def _is_post_hero_ribbon(items: list[dict[str, str]]) -> bool:
 
 
 def migrate_remove_usa_section(items: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Remove the homepage USA band and US category from a section list.
+    """Remove the trailing US category from a US-edition section list.
 
     Args:
         items: Typed homepage section rows.
 
     Returns:
-        Copy of ``items`` without ``us-featured`` and category ``us``. A ribbon
-        immediately preceding those rows is dropped unless it is the post-hero
-        advertisement.
+        Copy of ``items`` without category ``us``. A ribbon immediately
+        preceding that row is dropped unless it is the post-hero advertisement.
+        Top Stories (``us-featured``) is preserved.
     """
 
     migrated: list[dict[str, str]] = []
@@ -407,7 +406,7 @@ def omit_usa_homepage_layout_slots(
     page_name: str,
     market_code: str,
 ) -> list[dict[str, Any]]:
-    """Drop USA modules from US-market homepage feeds.
+    """Drop the trailing US category from US-market homepage feeds.
 
     Args:
         slots: Layout slots in order.
@@ -416,7 +415,7 @@ def omit_usa_homepage_layout_slots(
 
     Returns:
         ``slots`` unchanged unless this is the US homepage, then without
-        ``us-featured`` and ``us``.
+        category ``us``. Top Stories (``us-featured``) is kept.
     """
 
     if page_name.strip().lower() != HOMEPAGE_PAGE_NAME:
@@ -428,6 +427,48 @@ def omit_usa_homepage_layout_slots(
         for slot in slots
         if not is_usa_homepage_section_key(str(slot.get("position_key") or ""))
     ]
+
+
+def migrate_ensure_top_stories(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Insert Top Stories after the post-hero ribbon when it is missing.
+
+    Args:
+        items: Typed homepage section rows.
+
+    Returns:
+        Copy of ``items`` with ``us-featured`` restored when absent.
+    """
+
+    if any(str(item.get("slug") or "") == US_FEATURED_POSITION_KEY for item in items):
+        return [dict(item) for item in items]
+
+    top_stories = {
+        "section_type": SECTION_TYPE_TOP_STORIES,
+        "slug": US_FEATURED_POSITION_KEY,
+        "label": DEFAULT_LABEL_BY_TYPE[SECTION_TYPE_TOP_STORIES],
+    }
+    migrated: list[dict[str, str]] = []
+    inserted = False
+    for index, item in enumerate(items):
+        migrated.append(dict(item))
+        if inserted:
+            continue
+        next_item = items[index + 1] if index + 1 < len(items) else None
+        if item.get("section_type") == SECTION_TYPE_HERO:
+            if next_item is None or next_item.get("section_type") != SECTION_TYPE_RIBBON_AD:
+                migrated.append(dict(top_stories))
+                inserted = True
+            continue
+        if (
+            item.get("section_type") == SECTION_TYPE_RIBBON_AD
+            and index > 0
+            and items[index - 1].get("section_type") == SECTION_TYPE_HERO
+        ):
+            migrated.append(dict(top_stories))
+            inserted = True
+    if not inserted:
+        migrated.insert(0, dict(top_stories))
+    return migrated
 
 
 def migrate_remove_election_section(items: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -695,6 +736,7 @@ async def _upsert_layout_slot(
         "order_index": order_index,
         "display_name": display_name,
         "presentation_type": presentation_type,
+        "content_type": "articles",
         "updated_at": now,
     }
     if existing is not None:

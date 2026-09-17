@@ -74,11 +74,13 @@ def _clamp_pinned_ids(pinned_ids: list[str], limit: int | None) -> list[str]:
 
 def _to_out(doc: dict[str, Any]) -> SlotOut:
     draft_pinned_ids = doc.get("draft_pinned_ids")
+    raw_content_type = str(doc.get("content_type") or "").strip().lower()
+    content_type = raw_content_type if raw_content_type else "articles"
     return SlotOut(
         id=str(doc["_id"]),
         layout_id=str(doc["layout_id"]),
         position_key=doc["position_key"],
-        content_type=doc["content_type"],
+        content_type=content_type,  # type: ignore[arg-type]
         display_name=doc.get("display_name"),
         presentation_type=str(doc.get("presentation_type") or "grid_4"),
         pinned_ids=list(doc.get("pinned_ids") or []),

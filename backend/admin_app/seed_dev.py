@@ -991,11 +991,12 @@ HOMEPAGE_SLOT_SPECS: list[dict[str, Any]] = [
 ]
 
 
-USA_HOMEPAGE_OMITTED_POSITION_KEYS = frozenset({"us-featured", "us"})
+# US editions omit only the trailing US category; Top Stories stays.
+USA_HOMEPAGE_OMITTED_POSITION_KEYS = frozenset({"us"})
 
 
 def homepage_slot_specs_for_market(market_code: str) -> list[dict[str, Any]]:
-    """Return homepage seed slots, omitting the USA band on US editions.
+    """Return homepage seed slots, omitting the US category on US editions.
 
     Args:
         market_code: Market short code such as ``us`` or ``pr``.

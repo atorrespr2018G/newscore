@@ -222,8 +222,8 @@ def test_migrate_remove_election_section_drops_homepage_row() -> None:
     assert [item["slug"] for item in migrated] == ["politics", "sports"]
 
 
-def test_migrate_remove_usa_section_drops_band_and_keeps_post_hero_ribbon() -> None:
-    """USA Top Stories and US category are removed; the post-hero ribbon stays."""
+def test_migrate_remove_usa_section_drops_us_category_and_keeps_top_stories() -> None:
+    """Trailing US category is removed; Top Stories and the post-hero ribbon stay."""
 
     items = [
         {"section_type": "hero", "slug": "hero", "label": "Hero"},
@@ -240,13 +240,14 @@ def test_migrate_remove_usa_section_drops_band_and_keeps_post_hero_ribbon() -> N
     assert [item["slug"] for item in migrated] == [
         "hero",
         "ad-ribbon",
+        "us-featured",
         "politics",
         "style",
     ]
 
 
-def test_omit_usa_homepage_layout_slots_only_strips_us_homepage() -> None:
-    """USA slots drop on the US homepage and stay on other pages and markets."""
+def test_omit_usa_homepage_layout_slots_only_strips_us_category() -> None:
+    """US category drops on the US homepage; Top Stories stays."""
 
     slots = [
         {"position_key": "hero"},
@@ -259,7 +260,11 @@ def test_omit_usa_homepage_layout_slots_only_strips_us_homepage() -> None:
         page_name="homepage",
         market_code="us",
     )
-    assert [slot["position_key"] for slot in omitted] == ["hero", "politics"]
+    assert [slot["position_key"] for slot in omitted] == [
+        "hero",
+        "us-featured",
+        "politics",
+    ]
     unchanged = omit_usa_homepage_layout_slots(
         slots,
         page_name="homepage",
@@ -272,6 +277,28 @@ def test_omit_usa_homepage_layout_slots_only_strips_us_homepage() -> None:
         market_code="us",
     )
     assert world == slots
+
+
+def test_migrate_ensure_top_stories_inserts_after_post_hero_ribbon() -> None:
+    """Missing Top Stories is restored after the Hero ribbon."""
+
+    from shared.core.homepage_page_sections_sync import migrate_ensure_top_stories
+
+    items = [
+        {"section_type": "hero", "slug": "hero", "label": "Hero"},
+        {"section_type": "ribbon_ad", "slug": "ad-ribbon", "label": "Ribbon Advertisement"},
+        {"section_type": "category", "slug": "politics", "label": "Politics"},
+    ]
+
+    migrated = migrate_ensure_top_stories(items)
+
+    assert [item["slug"] for item in migrated] == [
+        "hero",
+        "ad-ribbon",
+        "us-featured",
+        "politics",
+    ]
+    assert migrated[2]["section_type"] == "top_stories"
 
 
 def test_insert_legacy_homepage_ribbon_ads_places_post_hero_ribbon() -> None:

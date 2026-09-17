@@ -27,6 +27,7 @@ from shared.core.homepage_page_sections_sync import (
     migrate_legacy_election_section,
     migrate_remove_election_section,
     migrate_remove_primary_more_top_stories,
+    migrate_ensure_top_stories,
     migrate_remove_extra_stories_band,
     migrate_remove_usa_section,
     migrate_collapse_consecutive_ribbon_ads,
@@ -277,7 +278,7 @@ async def _upsert_sections_doc(
 
 
 def _migrated_homepage_items(items: list[dict[str, str]], market_code: str) -> list[dict[str, str]]:
-    """Apply stored-list migrations, dropping the USA band on US editions.
+    """Apply stored-list migrations, restoring Top Stories and dropping US category.
 
     Args:
         items: Expanded homepage section rows.
@@ -292,7 +293,9 @@ def _migrated_homepage_items(items: list[dict[str, str]], market_code: str) -> l
             migrate_remove_extra_stories_band(
                 migrate_remove_election_section(
                     migrate_remove_primary_more_top_stories(
-                        migrate_legacy_election_section(items),
+                        migrate_ensure_top_stories(
+                            migrate_legacy_election_section(items),
+                        ),
                     ),
                 ),
             ),
