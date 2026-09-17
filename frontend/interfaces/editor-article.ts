@@ -43,9 +43,23 @@ export interface IArticleDetail {
   market_ids: string[]
   worldwide?: boolean
   excluded_market_ids?: string[]
+  /** Layout boards where this story is currently pinned. */
+  placement_refs?: IArticlePlacementRef[]
   direct_region_ids: string[]
   effective_region_ids: string[]
   primary_region_id: string | null
+}
+
+/** One layout slot where an article is pinned (from article detail). */
+export interface IArticlePlacementRef {
+  market_id: string
+  market_code: string
+  region_id: string | null
+  region_code: string | null
+  slot_id: string
+  page_name: string
+  position_key: string
+  position: number
 }
 
 export interface IEditorScopeDebug {

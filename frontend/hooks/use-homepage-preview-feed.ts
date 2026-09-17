@@ -11,6 +11,7 @@ import {
 import { useEditorPreviewFeed } from '@/hooks/use-editor-preview-feed'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import type { ISlotOut } from '@/lib/api/layout-client'
+import { purgeEditorPreviewCaches } from '@/lib/editor/purge-editor-preview-caches'
 import { editorKeys } from '@/lib/editor/query-keys'
 
 interface IUseHomepagePreviewFeedResult {
@@ -46,12 +47,15 @@ export function useHomepagePreviewFeed(): IUseHomepagePreviewFeedResult {
     if (!pathname.startsWith('/admin/preview') || staleToken === 0) {
       return
     }
-    const invalidateScope = staleScope ?? scope
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: editorKeys.previewFeed(invalidateScope) }),
-      queryClient.invalidateQueries({ queryKey: editorKeys.slots(invalidateScope) }),
-    ])
-  }, [pathname, queryClient, scope, staleScope, staleToken])
+    if (staleScope == null) {
+      purgeEditorPreviewCaches(queryClient)
+    } else {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: editorKeys.previewFeed(staleScope) }),
+        queryClient.invalidateQueries({ queryKey: editorKeys.slots(staleScope) }),
+      ])
+    }
+  }, [pathname, queryClient, staleScope, staleToken])
 
   useEffect(() => {
     const onVisibilityChange = (): void => {

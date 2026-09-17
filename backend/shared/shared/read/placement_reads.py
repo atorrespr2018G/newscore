@@ -21,7 +21,10 @@ from shared.read.article_query import article_query_with_category
 from shared.read.collections import ARTICLES_COLLECTION
 from shared.read.layout_reads import get_active_layout
 from shared.read.market_reads import get_market_by_code
-from shared.read.slot_pinned_ids import effective_pinned_ids_for_preview
+from shared.read.slot_pinned_ids import (
+    effective_excluded_ids_for_preview,
+    effective_pinned_ids_for_preview,
+)
 from shared.schemas.layout_schemas import ArticlePlacementOut
 
 DEFAULT_EDITOR_PAGE_NAMES = (
@@ -176,6 +179,14 @@ async def _article_ids_for_slot(
         if use_draft_pins
         else list(slot.get("pinned_ids") or []),
     )
+    excluded_ids = set(
+        _compact_pinned_ids(
+            effective_excluded_ids_for_preview(slot)
+            if use_draft_pins
+            else list(slot.get("excluded_ids") or []),
+        )
+    )
+    pinned_ids = [article_id for article_id in pinned_ids if article_id not in excluded_ids]
     query_rule = slot.get("query_rule")
     if not isinstance(query_rule, dict):
         return pinned_ids
@@ -194,7 +205,7 @@ async def _article_ids_for_slot(
         query_rule=query_rule,
         base_queries=base_queries,
         limit=limit,
-        excluded_ids=set(pinned_ids),
+        excluded_ids=excluded_ids | set(pinned_ids),
     )
     return _merge_article_ids(pinned_ids, query_ids, limit)
 

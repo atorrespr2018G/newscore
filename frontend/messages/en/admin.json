@@ -314,6 +314,10 @@
       "placing": "Placing…",
       "placementHint": "Save worldwide settings first. Placement also fans out automatically when you drop a worldwide story. Occupied spots use the next free position.",
       "placementResult": "Placed worldwide on {placed} boards ({skipped} skipped).",
+      "unplaceResult": "Removed \"{title}\" from {count, plural, one {# board} other {# boards}}.",
+      "placedOnHeading": "Currently placed on",
+      "placedOnEmpty": "Not placed on any boards yet.",
+      "placedOnRow": "{region} · {slot} #{position}",
       "slots": {
         "hero": "Hero / Top stories",
         "moreTopStories": "More top stories",
@@ -346,6 +350,7 @@
       "loadCategories": "Failed to load categories",
       "loadDetail": "Failed to load article detail",
       "worldwidePlacement": "Failed to place story across markets",
+      "worldwideUnplace": "Failed to remove story from all placements",
       "selectCategory": "Select at least one category.",
       "titleTooShort": "Headline must be at least 3 characters.",
       "bodyTooShort": "Body must be at least 10 characters.",

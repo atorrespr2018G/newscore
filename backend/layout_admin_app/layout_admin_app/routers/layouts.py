@@ -24,6 +24,8 @@ from shared.schemas.layout_schemas import (
     LayoutUpdate,
     PublishPlacementsOut,
     SlotOut,
+    UnplaceArticleOut,
+    UnplaceArticleRequest,
     WorldwidePlacementOut,
     WorldwidePlacementRequest,
 )
@@ -133,6 +135,21 @@ async def place_article_worldwide(
     """
 
     return await worldwide_placement_service.place_across_markets(
+        db,
+        body,
+        actor_id=current_user.sub,
+    )
+
+
+@router.post("/unplace-article", response_model=UnplaceArticleOut)
+async def unplace_article_everywhere(
+    body: UnplaceArticleRequest,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: TokenPayload = Depends(require_role("editor", "admin")),
+) -> UnplaceArticleOut:
+    """Remove an article from every layout board where it is pinned."""
+
+    return await worldwide_placement_service.unplace_across_markets(
         db,
         body,
         actor_id=current_user.sub,

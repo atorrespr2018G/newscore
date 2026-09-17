@@ -14,9 +14,12 @@ from shared.core.exceptions import NotFoundError, ValidationError
 from shared.core.layout_ensure import ensure_exact_page_layout
 from shared.core.regions import REGIONS_COLLECTION, get_region_by_code
 from shared.core.worldwide import effective_market_ids, list_markets, normalize_excluded_market_ids
+from shared.models.common import utc_now
 from shared.read.collections import ARTICLES_COLLECTION, LAYOUTS_COLLECTION, SLOTS_COLLECTION
 from shared.schemas.layout_schemas import (
     SlotUpdate,
+    UnplaceArticleOut,
+    UnplaceArticleRequest,
     WorldwidePlacementMarketResult,
     WorldwidePlacementOut,
     WorldwidePlacementRequest,
@@ -514,10 +517,205 @@ async def place_across_markets(
                 )
             )
 
+    await _persist_placement_refs(
+        db,
+        article_id=body.article_id,
+        page_name=page_name,
+        position_key=position_key,
+        results=results,
+    )
+
     return WorldwidePlacementOut(
         article_id=body.article_id,
         page_name=page_name,
         position_key=position_key,
         requested_position=body.position,
         results=results,
+    )
+
+
+def clear_article_from_pins(pinned_ids: list[str], article_id: str) -> list[str]:
+    """Remove an article id from a pin list and trim trailing empties.
+
+    Args:
+        pinned_ids: Current pin list.
+        article_id: Article id to clear.
+
+    Returns:
+        Updated pin list without the article.
+    """
+
+    article = _normalize_pin(article_id)
+    cleared = [
+        "" if _normalize_pin(pin) == article else pin
+        for pin in pinned_ids
+    ]
+    while cleared and not _normalize_pin(cleared[-1]):
+        cleared.pop()
+    return cleared
+
+
+def _ref_dict_from_result(
+    result: WorldwidePlacementMarketResult,
+    *,
+    page_name: str,
+    position_key: str,
+) -> dict[str, Any] | None:
+    """Build a placement_refs document entry from a fan-out result row."""
+
+    if result.status != "placed" or not result.slot_id:
+        return None
+    return {
+        "market_id": result.market_id,
+        "market_code": result.market_code,
+        "region_id": result.region_id,
+        "region_code": result.region_code,
+        "slot_id": result.slot_id,
+        "page_name": page_name,
+        "position_key": position_key,
+        "position": int(result.position or 0),
+    }
+
+
+async def _persist_placement_refs(
+    db: AsyncIOMotorDatabase,
+    *,
+    article_id: str,
+    page_name: str,
+    position_key: str,
+    results: list[WorldwidePlacementMarketResult],
+) -> None:
+    """Merge fan-out placements onto the article's ``placement_refs``.
+
+    Replaces prior refs for the same ``page_name`` + ``position_key`` so a
+    re-place refreshes where the story lives without dropping other slots.
+
+    Args:
+        db: Database connection.
+        article_id: Article being placed.
+        page_name: Layout page name.
+        position_key: Slot position key.
+        results: Fan-out outcomes.
+    """
+
+    article = await db[ARTICLES_COLLECTION].find_one({"_id": article_id}, {"placement_refs": 1})
+    if article is None:
+        raise NotFoundError("Article not found")
+
+    existing = [
+        ref
+        for ref in (article.get("placement_refs") or [])
+        if isinstance(ref, dict)
+        and not (
+            str(ref.get("page_name") or "").strip().lower() == page_name
+            and str(ref.get("position_key") or "").strip() == position_key
+        )
+    ]
+    for result in results:
+        ref = _ref_dict_from_result(result, page_name=page_name, position_key=position_key)
+        if ref is not None:
+            existing.append(ref)
+
+    await db[ARTICLES_COLLECTION].update_one(
+        {"_id": article_id},
+        {
+            "$set": {
+                "placement_refs": existing,
+                "updated_at": utc_now().isoformat(),
+            }
+        },
+    )
+
+
+async def _slots_containing_article(
+    db: AsyncIOMotorDatabase,
+    article_id: str,
+) -> list[dict[str, Any]]:
+    """Return every slot whose live or draft pins include ``article_id``.
+
+    Args:
+        db: Database connection.
+        article_id: Article id to find.
+
+    Returns:
+        Slot documents that currently pin the article.
+    """
+
+    article = _normalize_pin(article_id)
+    if not article:
+        return []
+    cursor = db[SLOTS_COLLECTION].find(
+        {
+            "$or": [
+                {"pinned_ids": article},
+                {"draft_pinned_ids": article},
+            ]
+        }
+    )
+    return [doc async for doc in cursor]
+
+
+async def unplace_across_markets(
+    db: AsyncIOMotorDatabase,
+    body: UnplaceArticleRequest,
+    *,
+    actor_id: str | None = None,
+) -> UnplaceArticleOut:
+    """Remove an article from every layout placement and clear its refs.
+
+    Clears both live and draft pins so a remove on one board deletes the story
+    from every other board where it was placed.
+
+    Args:
+        db: Database connection.
+        body: Unplace request.
+        actor_id: Optional auditing actor id.
+
+    Returns:
+        Summary of cleared slots.
+
+    Raises:
+        NotFoundError: If the article does not exist.
+    """
+
+    article_id = _normalize_pin(body.article_id)
+    article = await db[ARTICLES_COLLECTION].find_one({"_id": article_id}, {"_id": 1})
+    if article is None:
+        raise NotFoundError("Article not found")
+
+    slots = await _slots_containing_article(db, article_id)
+    cleared_ids: list[str] = []
+    for slot in slots:
+        live = clear_article_from_pins(list(slot.get("pinned_ids") or []), article_id)
+        draft_raw = slot.get("draft_pinned_ids")
+        draft = (
+            clear_article_from_pins(list(draft_raw or []), article_id)
+            if draft_raw is not None
+            else None
+        )
+        update_body = SlotUpdate(pinned_ids=live)
+        if draft is not None:
+            update_body = SlotUpdate(pinned_ids=live, draft_pinned_ids=draft)
+        await slot_service.update(
+            db,
+            slot_id=str(slot["_id"]),
+            body=update_body,
+            actor_id=actor_id,
+        )
+        cleared_ids.append(str(slot["_id"]))
+
+    await db[ARTICLES_COLLECTION].update_one(
+        {"_id": article_id},
+        {
+            "$set": {
+                "placement_refs": [],
+                "updated_at": utc_now().isoformat(),
+            }
+        },
+    )
+
+    return UnplaceArticleOut(
+        article_id=article_id,
+        cleared_slot_ids=cleared_ids,
+        cleared_count=len(cleared_ids),
     )

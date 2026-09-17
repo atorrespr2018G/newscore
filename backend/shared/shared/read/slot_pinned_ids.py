@@ -1,4 +1,4 @@
-"""Helpers for resolving live vs draft slot pinned article ids."""
+"""Helpers for resolving live vs draft slot pinned and excluded article ids."""
 
 from __future__ import annotations
 
@@ -21,8 +21,24 @@ def effective_pinned_ids_for_preview(slot: dict[str, Any]) -> list[str]:
     return list(slot.get("pinned_ids") or [])
 
 
+def effective_excluded_ids_for_preview(slot: dict[str, Any]) -> list[str]:
+    """Return draft exclusions when staged; otherwise live exclusions.
+
+    Args:
+        slot: Slot document or layout-read slot dict.
+
+    Returns:
+        Article ids editors have removed from this slot's auto-fill.
+    """
+
+    draft_excluded_ids = slot.get("draft_excluded_ids")
+    if draft_excluded_ids is not None:
+        return list(draft_excluded_ids)
+    return list(slot.get("excluded_ids") or [])
+
+
 def slot_with_preview_pins(slot: dict[str, Any]) -> dict[str, Any]:
-    """Return a slot copy whose pinned_ids reflect staged editor placements.
+    """Return a slot copy whose pins/exclusions reflect staged editor placements.
 
     Args:
         slot: Slot document or layout-read slot dict.
@@ -33,4 +49,5 @@ def slot_with_preview_pins(slot: dict[str, Any]) -> dict[str, Any]:
 
     preview_slot = dict(slot)
     preview_slot["pinned_ids"] = effective_pinned_ids_for_preview(slot)
+    preview_slot["excluded_ids"] = effective_excluded_ids_for_preview(slot)
     return preview_slot

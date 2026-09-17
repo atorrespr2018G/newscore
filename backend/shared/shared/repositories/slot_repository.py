@@ -63,21 +63,34 @@ class SlotRepository:
             return_document=ReturnDocument.AFTER,
         )
 
-    async def promote_draft_pins(
+    async def promote_draft_placements(
         self,
         slot_id: str,
         *,
         pinned_ids: list[str],
+        excluded_ids: list[str],
+        clear_draft_pins: bool,
+        clear_draft_exclusions: bool,
         updated_at: str,
     ) -> dict[str, Any] | None:
-        """Copy staged draft pins to live pins and clear the draft field."""
+        """Copy staged draft pins/exclusions to live fields and clear drafts."""
 
+        set_fields: dict[str, Any] = {"updated_at": updated_at}
+        if clear_draft_pins:
+            set_fields["pinned_ids"] = pinned_ids
+        if clear_draft_exclusions:
+            set_fields["excluded_ids"] = excluded_ids
+        update_doc: dict[str, Any] = {"$set": set_fields}
+        unset_fields: dict[str, str] = {}
+        if clear_draft_pins:
+            unset_fields["draft_pinned_ids"] = ""
+        if clear_draft_exclusions:
+            unset_fields["draft_excluded_ids"] = ""
+        if unset_fields:
+            update_doc["$unset"] = unset_fields
         return await self._slots.find_one_and_update(
             {"_id": slot_id},
-            {
-                "$set": {"pinned_ids": pinned_ids, "updated_at": updated_at},
-                "$unset": {"draft_pinned_ids": ""},
-            },
+            update_doc,
             return_document=ReturnDocument.AFTER,
         )
 

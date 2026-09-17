@@ -74,6 +74,8 @@ class SlotUpdate(BaseModel):
     presentation_type: str | None = Field(None, min_length=1, max_length=120)
     pinned_ids: list[str] | None = None
     draft_pinned_ids: list[str] | None = None
+    excluded_ids: list[str] | None = None
+    draft_excluded_ids: list[str] | None = None
     query_rule: dict | None = None
     order_index: int | None = None
 
@@ -89,6 +91,8 @@ class SlotOut(BaseModel):
     presentation_type: str
     pinned_ids: list[str]
     draft_pinned_ids: list[str] | None = None
+    excluded_ids: list[str] = []
+    draft_excluded_ids: list[str] | None = None
     query_rule: dict | None
     order_index: int
     updated_at: str
@@ -149,4 +153,18 @@ class WorldwidePlacementOut(BaseModel):
     position_key: str
     requested_position: int
     results: list[WorldwidePlacementMarketResult]
+
+
+class UnplaceArticleRequest(BaseModel):
+    """Request body for clearing an article from every layout placement."""
+
+    article_id: str = Field(..., min_length=1)
+
+
+class UnplaceArticleOut(BaseModel):
+    """Summary of clearing an article from all layout placements."""
+
+    article_id: str
+    cleared_slot_ids: list[str]
+    cleared_count: int
 

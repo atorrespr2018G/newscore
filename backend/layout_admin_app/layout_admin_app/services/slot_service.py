@@ -74,6 +74,7 @@ def _clamp_pinned_ids(pinned_ids: list[str], limit: int | None) -> list[str]:
 
 def _to_out(doc: dict[str, Any]) -> SlotOut:
     draft_pinned_ids = doc.get("draft_pinned_ids")
+    draft_excluded_ids = doc.get("draft_excluded_ids")
     raw_content_type = str(doc.get("content_type") or "").strip().lower()
     content_type = raw_content_type if raw_content_type else "articles"
     return SlotOut(
@@ -85,6 +86,8 @@ def _to_out(doc: dict[str, Any]) -> SlotOut:
         presentation_type=str(doc.get("presentation_type") or "grid_4"),
         pinned_ids=list(doc.get("pinned_ids") or []),
         draft_pinned_ids=list(draft_pinned_ids) if draft_pinned_ids is not None else None,
+        excluded_ids=list(doc.get("excluded_ids") or []),
+        draft_excluded_ids=list(draft_excluded_ids) if draft_excluded_ids is not None else None,
         query_rule=doc.get("query_rule"),
         order_index=int(doc.get("order_index") or 0),
         updated_at=doc.get("updated_at", ""),
@@ -160,6 +163,7 @@ async def create(
         "display_name": body.display_name,
         "presentation_type": body.presentation_type,
         "pinned_ids": [],
+        "excluded_ids": [],
         "query_rule": None,
         "order_index": body.order_index,
         "updated_at": now,
@@ -217,7 +221,9 @@ async def publish_draft_pins_for_layout(
     published_count = 0
 
     for doc in docs:
-        if doc.get("draft_pinned_ids") is None:
+        has_draft_pins = doc.get("draft_pinned_ids") is not None
+        has_draft_exclusions = doc.get("draft_excluded_ids") is not None
+        if not has_draft_pins and not has_draft_exclusions:
             continue
         slot_id = str(doc["_id"])
         staged_article_ids = [
@@ -226,15 +232,28 @@ async def publish_draft_pins_for_layout(
             if article_id and str(article_id).strip()
         ]
         pinned_limit = _resolve_slot_pinned_limit(doc)
-        live_pins = _clamp_pinned_ids(list(doc.get("draft_pinned_ids") or []), pinned_limit)
-        updated = await repo.promote_draft_pins(
+        live_pins = (
+            _clamp_pinned_ids(list(doc.get("draft_pinned_ids") or []), pinned_limit)
+            if has_draft_pins
+            else list(doc.get("pinned_ids") or [])
+        )
+        live_exclusions = (
+            list(doc.get("draft_excluded_ids") or [])
+            if has_draft_exclusions
+            else list(doc.get("excluded_ids") or [])
+        )
+        updated = await repo.promote_draft_placements(
             slot_id,
             pinned_ids=live_pins,
+            excluded_ids=live_exclusions,
+            clear_draft_pins=has_draft_pins,
+            clear_draft_exclusions=has_draft_exclusions,
             updated_at=now,
         )
         if updated is not None:
             published_count += 1
-            await clear_placement_events(db, slot_id=slot_id, article_ids=staged_article_ids)
+            if staged_article_ids:
+                await clear_placement_events(db, slot_id=slot_id, article_ids=staged_article_ids)
 
     if published_count > 0:
         await repo.touch_layout(layout_id, now)

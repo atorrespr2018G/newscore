@@ -5,6 +5,7 @@ import {
   assignPinnedIdAtIndex,
   clearPinnedId,
   insertPinnedIdAtIndex,
+  normalizePinnedIdsForSave,
   placeLocalPinnedIdAvoidingGlobals,
   placeWorldwidePinnedIdAtIndex,
   pinnedIdAtIndex,
@@ -20,6 +21,7 @@ export type PlacementMoveDirectionType = 'up' | 'down'
 export interface ISlotPinnedUpdate {
   slotId: string
   draftPinnedIds: string[]
+  draftExcludedIds?: string[]
 }
 
 export interface IPlacementMutationResult {
@@ -48,27 +50,72 @@ function resolveArticleSlot(slots: ISlotOut[], slotId: string): ISlotOut {
 }
 
 /**
- * Build the patch set required to remove a story from a slot cell.
+ * Append an article id to a slot's exclusion list without duplicates.
+ *
+ * @param excludedIds Current excluded article ids.
+ * @param articleId Article id to exclude from auto-fill.
+ * @returns Updated exclusion list.
+ */
+function appendExcludedId(excludedIds: string[], articleId: string): string[] {
+  if (excludedIds.includes(articleId)) {
+    return [...excludedIds]
+  }
+  return [...excludedIds, articleId]
+}
+
+/**
+ * Drop an article id from a slot's exclusion list.
+ *
+ * @param excludedIds Current excluded article ids.
+ * @param articleId Article id that should be allowed in auto-fill again.
+ * @returns Updated exclusion list.
+ */
+function removeExcludedId(excludedIds: string[], articleId: string): string[] {
+  return excludedIds.filter((id) => id !== articleId)
+}
+
+/**
+ * Build the patch set required to remove a story from a slot.
+ *
+ * Clears a pin when present and always stages an exclusion so category
+ * auto-fill cannot put the same story back into the carousel.
  *
  * @param slots Current homepage slots.
  * @param slotId Slot id holding the story.
- * @param index Zero-based cell index to clear.
+ * @param articleId Story id to remove from the slot.
+ * @param index Optional pinned cell index when the story is pinned.
  * @returns Single-slot update plus the cleared location metadata.
- * @throws Error When the cell is empty or the slot is invalid.
+ * @throws Error When the slot is invalid or the article id is empty.
  */
 export function buildRemovePlacementMutation(
   slots: ISlotOut[],
   slotId: string,
-  index: number,
+  articleId: string,
+  index: number | null = null,
 ): IPlacementMutationResult {
-  const slot = resolveArticleSlot(slots, slotId)
-  if (pinnedIdAtIndex(slot.pinned_ids, index) === null) {
+  const normalizedId = articleId.trim()
+  if (!normalizedId) {
     throw new Error('There is no story to remove from this cell.')
   }
+  const slot = resolveArticleSlot(slots, slotId)
+  const pinnedIndex =
+    index != null && pinnedIdAtIndex(slot.pinned_ids, index) === normalizedId
+      ? index
+      : slot.pinned_ids.findIndex((id) => id === normalizedId)
+  const nextPins =
+    pinnedIndex >= 0
+      ? removePinnedIdAtIndex(slot.pinned_ids, pinnedIndex)
+      : normalizePinnedIdsForSave([...slot.pinned_ids])
   return {
-    updates: [{ slotId, draftPinnedIds: removePinnedIdAtIndex(slot.pinned_ids, index) }],
+    updates: [
+      {
+        slotId,
+        draftPinnedIds: nextPins,
+        draftExcludedIds: appendExcludedId(slot.excluded_ids ?? [], normalizedId),
+      },
+    ],
     fromSlotId: slotId,
-    fromIndex: index,
+    fromIndex: pinnedIndex >= 0 ? pinnedIndex : index,
   }
 }
 
@@ -217,10 +264,22 @@ export function buildPlacementMutation(
       : assignPinnedIdAtIndex(targetBase, articleId, targetIndex, targetOccupantId, pinnedLimit)
   }
   const existingTarget = updates.find((update) => update.slotId === targetSlotId)
+  const clearedExclusions = removeExcludedId(targetSlot.excluded_ids ?? [], articleId)
+  const exclusionPatch =
+    clearedExclusions.length !== (targetSlot.excluded_ids ?? []).length
+      ? { draftExcludedIds: clearedExclusions }
+      : {}
   if (existingTarget) {
     existingTarget.draftPinnedIds = nextTargetIds
+    if (exclusionPatch.draftExcludedIds) {
+      existingTarget.draftExcludedIds = exclusionPatch.draftExcludedIds
+    }
   } else {
-    updates.push({ slotId: targetSlotId, draftPinnedIds: nextTargetIds })
+    updates.push({
+      slotId: targetSlotId,
+      draftPinnedIds: nextTargetIds,
+      ...exclusionPatch,
+    })
   }
 
   return { updates, fromSlotId, fromIndex }

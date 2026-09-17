@@ -1,5 +1,5 @@
 import { apiConfig } from '@/lib/api/config'
-import { patchSlotDraftPinnedIds, type ISlotOut } from '@/lib/api/layout-client'
+import { patchSlotDraftPlacement, type ISlotOut } from '@/lib/api/layout-client'
 import { apiFetch } from '@/lib/api/rest-client'
 import type { IPlacementMutationResult, PlacementMoveDirectionType } from '@/lib/helpers/editor-placement'
 import { resolveSlotLabel, type IPlacementTarget } from '@/lib/helpers/editor-placement-targets'
@@ -54,17 +54,35 @@ export async function commitPlacementMutation(
   onOptimistic: (slots: ISlotOut[]) => void,
 ): Promise<ISlotOut[]> {
   const optimisticById = new Map(
-    mutation.updates.map((update) => [update.slotId, update.draftPinnedIds]),
+    mutation.updates.map((update) => [
+      update.slotId,
+      {
+        draftPinnedIds: update.draftPinnedIds,
+        draftExcludedIds: update.draftExcludedIds,
+      },
+    ]),
   )
-  const optimisticSlots = previousSlots.map((slot) =>
-    optimisticById.has(slot.id)
-      ? { ...slot, draft_pinned_ids: optimisticById.get(slot.id) ?? [] }
-      : slot,
-  )
+  const optimisticSlots = previousSlots.map((slot) => {
+    const update = optimisticById.get(slot.id)
+    if (!update) {
+      return slot
+    }
+    return {
+      ...slot,
+      draft_pinned_ids: update.draftPinnedIds,
+      ...(update.draftExcludedIds !== undefined
+        ? { draft_excluded_ids: update.draftExcludedIds }
+        : {}),
+    }
+  })
   onOptimistic(optimisticSlots)
   const updatedSlots = await Promise.all(
     mutation.updates.map(async (update) =>
-      patchSlotDraftPinnedIds(update.slotId, update.draftPinnedIds),
+      patchSlotDraftPlacement(
+        update.slotId,
+        update.draftPinnedIds,
+        update.draftExcludedIds,
+      ),
     ),
   )
   const updatedById = new Map(updatedSlots.map((slot) => [slot.id, slot]))

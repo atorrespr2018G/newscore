@@ -18,6 +18,7 @@ from shared.schemas.article_schemas import (
     STORY_UPDATES_LIMIT,
     ArticleDetailOut,
     ArticleOut,
+    ArticlePlacementRefOut,
     StoryGroupOut,
 )
 from shared.schemas.common import PaginatedResponse
@@ -69,6 +70,41 @@ def article_out(doc: dict[str, Any], *, author_name: str) -> ArticleOut:
     )
 
 
+def _placement_refs_from_doc(doc: dict[str, Any]) -> list[ArticlePlacementRefOut]:
+    """Map persisted placement ref dicts to response models.
+
+    Args:
+        doc: Raw article document.
+
+    Returns:
+        Valid placement refs; skips malformed entries.
+    """
+
+    refs: list[ArticlePlacementRefOut] = []
+    for raw in doc.get("placement_refs") or []:
+        if not isinstance(raw, dict):
+            continue
+        slot_id = str(raw.get("slot_id") or "").strip()
+        page_name = str(raw.get("page_name") or "").strip()
+        position_key = str(raw.get("position_key") or "").strip()
+        market_id = str(raw.get("market_id") or "").strip()
+        if not slot_id or not page_name or not position_key or not market_id:
+            continue
+        refs.append(
+            ArticlePlacementRefOut(
+                market_id=market_id,
+                market_code=str(raw.get("market_code") or "").strip(),
+                region_id=(str(raw["region_id"]) if raw.get("region_id") else None),
+                region_code=(str(raw["region_code"]) if raw.get("region_code") else None),
+                slot_id=slot_id,
+                page_name=page_name,
+                position_key=position_key,
+                position=int(raw.get("position") or 0),
+            )
+        )
+    return refs
+
+
 def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetailOut:
     """Map a Mongo article document to ArticleDetailOut."""
 
@@ -85,6 +121,7 @@ def article_detail_out(doc: dict[str, Any], *, author_name: str) -> ArticleDetai
         excluded_market_ids=[
             str(mid) for mid in (doc.get("excluded_market_ids") or []) if str(mid).strip()
         ],
+        placement_refs=_placement_refs_from_doc(doc),
         direct_region_ids=[str(rid) for rid in (doc.get("direct_region_ids") or [])],
         effective_region_ids=[str(rid) for rid in (doc.get("effective_region_ids") or [])],
         region_visibility_mode=str(doc.get("region_visibility_mode") or "upward_only"),

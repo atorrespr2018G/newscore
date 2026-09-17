@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import {
@@ -9,6 +9,9 @@ import {
   type IMarketOut,
   type IWorldwidePlacementOut,
 } from '@/lib/api/layout-client'
+import { apiConfig } from '@/lib/api/config'
+import { apiFetch } from '@/lib/api/rest-client'
+import type { IArticleDetail, IArticlePlacementRef } from '@/interfaces/editor-article'
 import {
   WORLDWIDE_PLACEMENT_SLOT_OPTIONS,
   worldwideSlotMaxPosition,
@@ -46,6 +49,20 @@ export function WorldwideArticleControls({
   const [positionKey, setPositionKey] = useState(WORLDWIDE_PLACEMENT_SLOT_OPTIONS[0].positionKey)
   const [position, setPosition] = useState(0)
   const [placing, setPlacing] = useState(false)
+  const [placementRefs, setPlacementRefs] = useState<IArticlePlacementRef[]>([])
+
+  const refreshPlacementRefs = useCallback(async (): Promise<void> => {
+    if (!articleId) {
+      setPlacementRefs([])
+      return
+    }
+    try {
+      const detail = await apiFetch<IArticleDetail>(`${apiConfig.news}/articles/${articleId}`)
+      setPlacementRefs(detail.placement_refs ?? [])
+    } catch {
+      setPlacementRefs([])
+    }
+  }, [articleId])
 
   useEffect(() => {
     let cancelled = false
@@ -64,6 +81,10 @@ export function WorldwideArticleControls({
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    void refreshPlacementRefs()
+  }, [refreshPlacementRefs])
 
   const maxPosition = worldwideSlotMaxPosition(positionKey)
 
@@ -96,6 +117,7 @@ export function WorldwideArticleControls({
         position,
         publish: true,
       })
+      await refreshPlacementRefs()
       onPlacementResult(result)
     } catch (err) {
       onPlacementError(err instanceof Error ? err.message : t('editor.errors.worldwidePlacement'))
@@ -149,6 +171,26 @@ export function WorldwideArticleControls({
       {worldwide ? (
         <div className="space-y-2 border-t border-neutral-200 pt-3">
           <p className="text-sm font-medium text-neutral-700">{t('editor.worldwide.placementHeading')}</p>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-neutral-600">
+              {t('editor.worldwide.placedOnHeading')}
+            </p>
+            {placementRefs.length === 0 ? (
+              <p className="text-xs text-neutral-500">{t('editor.worldwide.placedOnEmpty')}</p>
+            ) : (
+              <ul className="max-h-28 space-y-0.5 overflow-y-auto text-xs text-neutral-700">
+                {placementRefs.map((ref) => (
+                  <li key={`${ref.slot_id}:${ref.position_key}:${ref.position}`}>
+                    {t('editor.worldwide.placedOnRow', {
+                      region: ref.region_code || ref.market_code || ref.market_id,
+                      slot: ref.position_key,
+                      position: ref.position + 1,
+                    })}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="flex flex-wrap gap-3">
             <label className="text-sm text-neutral-700">
               {t('editor.worldwide.slot')}

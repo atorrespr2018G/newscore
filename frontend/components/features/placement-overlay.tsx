@@ -111,7 +111,7 @@ function PlacementCellToolbar(props: IPlacementCellToolbarProps): JSX.Element {
 
   return (
     <div
-      className="absolute right-1 top-1 z-10 flex flex-wrap justify-end gap-1 opacity-0 transition-opacity group-hover/placement:opacity-100 group-focus-within/placement:opacity-100"
+      className="absolute right-1 top-1 z-10 flex flex-wrap justify-end gap-1"
       onKeyDown={(event) => event.stopPropagation()}
     >
       <button
@@ -367,14 +367,15 @@ function isArticleNewlyPlaced(
  * Make a rendered homepage card interactive inside the editor canvas.
  *
  * A card backed by a staged pin gets the full move/remove toolbar and inserts a
- * dropped story before it. A backfill or empty card opted into `editorDroppable`
- * accepts a drop that appends the story after the slot's pins. The public site
- * (no editor context) renders the children untouched.
+ * dropped story before it. Any other visible card (including category auto-fill
+ * in carousels) still exposes Remove so editors can exclude that story from the
+ * slot. Backfill/empty cards opted into `editorDroppable` also accept drops.
+ * The public site (no editor context) renders the children untouched.
  *
  * @param props The article, whether the card accepts drops, and the card markup.
  * @returns The card, optionally wrapped with placement controls.
  */
-export function PlacementOverlay({ article, editorDroppable, children }: IPlacementOverlayProps): JSX.Element {
+export function PlacementOverlay({ article, editorDroppable: _editorDroppable, children }: IPlacementOverlayProps): JSX.Element {
   const editor = useEditorPlacement()
   const slotId = usePlacementSlotId()
   const highlight = usePlacementHighlight()
@@ -407,16 +408,23 @@ export function PlacementOverlay({ article, editorDroppable, children }: IPlacem
       )
     }
   }
-  if (isNewlyPlaced) {
-    return <PlacementHighlightCard>{children}</PlacementHighlightCard>
-  }
-  if (editorDroppable && info.templateTarget) {
-    const appendTarget: IPlacementTarget = {
+  if (info.templateTarget) {
+    const removableTarget: IPlacementTarget = {
       ...info.templateTarget,
-      index: info.appendIndex,
-      articleId: null,
+      index: pinnedIndex ?? info.appendIndex,
+      articleId: article.id,
     }
-    return <PlacementDropOnlyCard target={appendTarget}>{children}</PlacementDropOnlyCard>
+    return (
+      <PlacementEditableCard
+        target={removableTarget}
+        isSelected={article.id === editor.selectedArticleId}
+        isNewlyPlaced={isNewlyPlaced}
+        canMoveUp={false}
+        canMoveDown={false}
+      >
+        {children}
+      </PlacementEditableCard>
+    )
   }
   return <>{children}</>
 }

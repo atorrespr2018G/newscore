@@ -14,6 +14,19 @@ RegionVisibilityMode = Literal["upward_only", "explicit_only", "custom"]
 ArticleSourceType = Literal["reporter", "media_desk"]
 
 
+class ArticlePlacementRef(BaseModel):
+    """Record of one layout slot where an article is pinned."""
+
+    market_id: str
+    market_code: str = ""
+    region_id: str | None = None
+    region_code: str | None = None
+    slot_id: str
+    page_name: str
+    position_key: str
+    position: int = 0
+
+
 class Article(BaseModel):
     """Represents an article document as stored in MongoDB."""
 
@@ -30,6 +43,7 @@ class Article(BaseModel):
     market_ids: list[str] = []
     worldwide: bool = False
     excluded_market_ids: list[str] = []
+    placement_refs: list[ArticlePlacementRef] = []
     town_id: str | None = None
     direct_region_ids: list[str] = []
     effective_region_ids: list[str] = []

@@ -314,6 +314,10 @@
       "placing": "Colocando…",
       "placementHint": "Guarda primero la configuración mundial. La colocación también se replica al soltar una noticia mundial. Si el lugar está ocupado, usa la siguiente posición libre.",
       "placementResult": "Colocada en {placed} tableros ({skipped} omitidos).",
+      "unplaceResult": "Se quitó \"{title}\" de {count, plural, one {# tablero} other {# tableros}}.",
+      "placedOnHeading": "Actualmente colocada en",
+      "placedOnEmpty": "Aún no está colocada en ningún tablero.",
+      "placedOnRow": "{region} · {slot} #{position}",
       "slots": {
         "hero": "Héroe / Principales",
         "moreTopStories": "Más noticias principales",
@@ -346,6 +350,7 @@
       "loadCategories": "No se pudieron cargar las categorías",
       "loadDetail": "No se pudo cargar el detalle del artículo",
       "worldwidePlacement": "No se pudo colocar la noticia en todos los mercados",
+      "worldwideUnplace": "No se pudo quitar la noticia de todas las colocaciones",
       "selectCategory": "Selecciona al menos una categoría.",
       "titleTooShort": "El titular debe tener al menos 3 caracteres.",
       "bodyTooShort": "El cuerpo debe tener al menos 10 caracteres.",

@@ -326,12 +326,29 @@ def test_slot_with_preview_pins_replaces_live_pins() -> None:
         "content_type": "articles",
         "pinned_ids": ["live-1"],
         "draft_pinned_ids": ["draft-1"],
+        "excluded_ids": ["live-x"],
+        "draft_excluded_ids": ["draft-x"],
     }
 
     preview_slot = slot_with_preview_pins(slot)
 
     assert slot["pinned_ids"] == ["live-1"]
+    assert slot["excluded_ids"] == ["live-x"]
     assert preview_slot["pinned_ids"] == ["draft-1"]
+    assert preview_slot["excluded_ids"] == ["draft-x"]
+
+
+def test_effective_excluded_ids_for_preview_prefers_draft() -> None:
+    """Preview exclusion resolution prefers staged draft exclusions."""
+
+    from shared.read.slot_pinned_ids import effective_excluded_ids_for_preview
+
+    slot = {
+        "excluded_ids": ["live-x"],
+        "draft_excluded_ids": ["draft-x"],
+    }
+
+    assert effective_excluded_ids_for_preview(slot) == ["draft-x"]
 
 
 @pytest.mark.asyncio

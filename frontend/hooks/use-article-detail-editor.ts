@@ -338,13 +338,21 @@ export function useArticleDetailEditor(
   )
 
   const handleWorldwidePlacementResult = useCallback(
-    (result: IWorldwidePlacementOut) => {
+    async (result: IWorldwidePlacementOut) => {
       const placed = result.results.filter((row) => row.status === 'placed').length
       const skipped = result.results.filter((row) => row.status === 'skipped').length
       setMessage(t('editor.worldwide.placementResult', { placed, skipped }))
       setError(null)
+      try {
+        const updated = await apiFetch<IArticleDetail>(
+          `${apiConfig.news}/articles/${result.article_id}`,
+        )
+        setDetail(updated)
+      } catch {
+        // Placement succeeded; detail refresh is best-effort for placement_refs.
+      }
     },
-    [setError, setMessage, t],
+    [setDetail, setError, setMessage, t],
   )
 
   const handleWorldwidePlacementError = useCallback(

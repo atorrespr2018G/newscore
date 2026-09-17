@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "shared"))
 sys.path.insert(0, str(ROOT / "layout_admin_app"))
 
 from layout_admin_app.services.worldwide_placement_service import (  # noqa: E402
+    clear_article_from_pins,
     place_global_article_in_pins,
     place_local_article_in_pins,
 )
@@ -116,3 +117,11 @@ def test_local_skips_global_cell() -> None:
     assert index == 1
     assert pins[0] == "g1"
     assert pins[1] == "local-new"
+
+
+def test_clear_article_from_pins_removes_and_trims() -> None:
+    """Unplace clears the article id and trailing empty cells."""
+
+    assert clear_article_from_pins(["a", "target", "b", ""], "target") == ["a", "", "b"]
+    assert clear_article_from_pins(["target"], "target") == []
+    assert clear_article_from_pins(["a", "target"], "missing") == ["a", "target"]

@@ -2,7 +2,9 @@ import { apiConfig } from '@/lib/api/config'
 import { apiFetch } from '@/lib/api/rest-client'
 import {
   placeArticleWorldwide,
+  unplaceArticleEverywhere,
   type ISlotOut,
+  type IUnplaceArticleOut,
   type IWorldwidePlacementOut,
 } from '@/lib/api/layout-client'
 import type { IArticleDetail } from '@/interfaces/editor-article'
@@ -25,10 +27,7 @@ export async function fetchArticleIsWorldwide(articleId: string): Promise<boolea
  * Calls place-worldwide once per updated slot so category cascades follow the
  * same positions as the local Placement drop.
  *
- * @param articleId Story being placed.
- * @param pageName Layout page name.
- * @param slots Current layout slots (for position keys).
- * @param mutation Local placement mutation that was just committed.
+ * @param options Article id, page, slots, and local mutation to fan out.
  * @returns Combined fan-out results, or null when the story is not worldwide.
  */
 export async function fanOutWorldwidePlacementMutation(options: {
@@ -67,6 +66,18 @@ export async function fanOutWorldwidePlacementMutation(options: {
   }
 
   return results
+}
+
+/**
+ * Remove a story from every layout board where it is pinned.
+ *
+ * @param articleId Story being removed.
+ * @returns Unplace summary.
+ */
+export async function unplaceArticleFromAllBoards(
+  articleId: string,
+): Promise<IUnplaceArticleOut> {
+  return unplaceArticleEverywhere({ article_id: articleId })
 }
 
 /**

@@ -35,6 +35,19 @@ STORY_UPDATES_LIMIT = 6
 STORY_GROUPS_LIMIT = 100
 
 
+class ArticlePlacementRefOut(BaseModel):
+    """One layout slot where an article is pinned (denormalized on the article)."""
+
+    market_id: str
+    market_code: str = ""
+    region_id: str | None = None
+    region_code: str | None = None
+    slot_id: str
+    page_name: str
+    position_key: str
+    position: int = 0
+
+
 class ArticleCreate(BaseModel):
     """Request body for POST /articles."""
 
@@ -113,6 +126,7 @@ class ArticleDetailOut(ArticleOut):
     market_ids: list[str]
     worldwide: bool = False
     excluded_market_ids: list[str] = []
+    placement_refs: list[ArticlePlacementRefOut] = []
     direct_region_ids: list[str] = []
     effective_region_ids: list[str] = []
     region_visibility_mode: RegionVisibilityMode = "upward_only"

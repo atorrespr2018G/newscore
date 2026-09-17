@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
 import { apiConfig } from '@/lib/api/config'
 import { apiFetch } from '@/lib/api/rest-client'
 import { useEditorScope } from '@/context/editor-scope-context'
 import { REPORTER_UPLOAD_STATUS } from '@/lib/helpers/editor-curation'
 import { notifyEditorialPreviewStale, subscribeToEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
+import { purgeEditorPreviewCaches } from '@/lib/editor/purge-editor-preview-caches'
 import {
   buildPlacementTargets,
   type IPlacementTarget,
@@ -128,6 +130,7 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
   const articleTitleByIdRef = useRef<Map<string, string>>(new Map())
   const placement = useHomepagePlacementEditor(status, scope, articleTitleByIdRef.current, categories)
   const preview = useEditorPreviewFeed(scope, true)
+  const queryClient = useQueryClient()
 
   // Prefer preview slots (always fetched for the active scope) unless local
   // placement state already has slots for this scope. Avoids US slot ids paired
@@ -158,17 +161,21 @@ export function useEditorPlacementBoard(): IEditorPlacementBoard {
   }, [homepageSlots, placement.homepageSlots, placement.replaceHomepageSlots])
 
   // Pull a fresh feed whenever any window marks the homepage stale so the
-  // WYSIWYG placement canvas stays current.
+  // WYSIWYG placement canvas stays current. Null scope = worldwide place/unplace:
+  // purge every cached market board so switching scope cannot flash a deleted story.
   const refreshRef = useRef(preview.refresh)
   refreshRef.current = preview.refresh
   const loadSlotsRef = useRef(placement.loadHomepageSlots)
   loadSlotsRef.current = placement.loadHomepageSlots
   useEffect(() => {
-    return subscribeToEditorialPreviewStale(() => {
+    return subscribeToEditorialPreviewStale((payload) => {
+      if (payload.scope == null) {
+        purgeEditorPreviewCaches(queryClient)
+      }
       void refreshRef.current()
       void loadSlotsRef.current()
     })
-  }, [])
+  }, [queryClient])
 
   const { setLoading, setError, setMessage, setSaving } = status
 

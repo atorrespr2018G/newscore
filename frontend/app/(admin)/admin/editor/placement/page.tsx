@@ -107,16 +107,14 @@ function PlacementBanner({ saving, onPublish }: IPlacementBannerProps): JSX.Elem
 function PlacementWorkspace({ board }: { board: IEditorPlacementBoard }): JSX.Element {
   const feed = board.previewFeed
   const slots = board.homepageSlots
-  const stillFetching = board.previewLoading || board.loading
-  // Drop targets are keyed by layout slot ids. While fetches are in flight, hide
-  // the feed until slot ids overlap so Politics cards stay droppable. Once both
-  // fetches settle, always release the canvas — empty or never-aligned slots
-  // (e.g. custom tab + wrong market) must not lock loading forever.
+  const stillFetching = board.previewLoading || board.loading || board.refreshing
+  // Never paint a feed while any scope fetch is in flight. Showing a cached
+  // prior market/county board causes deleted worldwide stories to flash.
   const slotsAligned =
     feed != null &&
     slots.length > 0 &&
     feed.slots.some((feedSlot) => slots.some((slot) => slot.id === feedSlot.id))
-  const canvasFeed = slotsAligned || !stillFetching ? feed : null
+  const canvasFeed = !stillFetching && (slotsAligned || feed != null) ? feed : null
 
   return (
     <HomepagePlacementCanvas

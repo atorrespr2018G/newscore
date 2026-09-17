@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   getHomepageLayout,
   getLayoutSlots,
@@ -21,6 +22,7 @@ import { buildPlacementTargets, type IPlacementTarget } from '@/lib/helpers/edit
 import { isHeroOrTopStoriesPositionKey } from '@/lib/helpers/feed-layout'
 import { layoutHasUnpublishedPlacementChanges } from '@/lib/helpers/slot-editor-pinned-ids'
 import { notifyEditorialPreviewStale } from '@/lib/helpers/editorial-preview-events'
+import { purgeEditorPreviewCaches } from '@/lib/editor/purge-editor-preview-caches'
 import {
   commitPlacementMutation,
   fetchArticleCategoryIds,
@@ -38,6 +40,7 @@ import { apiConfig } from '@/lib/api/config'
 import { apiFetch } from '@/lib/api/rest-client'
 import type { IArticleDetail } from '@/interfaces/editor-article'
 import { editorPinnedIds } from '@/lib/helpers/slot-editor-pinned-ids'
+import { pinnedIdAtIndex } from '@/lib/helpers/pinned-ids'
 import { notifyWorkflowBadgesRefresh } from '@/lib/api/workflow-badges-client'
 import { editorScopeRegionCode, type IEditorScope } from '@/lib/editor/editor-scope'
 import type { IEditorStatus, IHomepagePlacementEditor } from '@/interfaces/editor-article'
@@ -62,6 +65,7 @@ export function useHomepagePlacementEditor(
 ): IHomepagePlacementEditor {
   const t = useTranslations('admin')
   const { setError, setMessage, setSaving } = status
+  const queryClient = useQueryClient()
   const [homepageSlots, setHomepageSlots] = useState<ISlotOut[]>([])
   const homepageSlotsRef = useRef(homepageSlots)
   const slotLoadGenerationRef = useRef(0)
@@ -281,31 +285,46 @@ export function useHomepagePlacementEditor(
         })
         if (fanOut && fanOut.length > 0) {
           const summary = summarizeWorldwideFanOut(fanOut)
+          purgeEditorPreviewCaches(queryClient)
           setMessage(
             t('editor.worldwide.placementResult', {
               placed: summary.placed,
               skipped: summary.skipped,
             }),
           )
+          notifyEditorialPreviewStale(null)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : t('editor.errors.worldwidePlacement'))
       }
       return true
     },
-    [articleTitleById, resolveDropCascadeSlotIds, runPlacementMutation, scope.pageName, setError, setMessage, t],
+    [articleTitleById, queryClient, resolveDropCascadeSlotIds, runPlacementMutation, scope.pageName, setError, setMessage, t],
   )
 
   const applyRemovePlacement = useCallback(
     async (target: IPlacementTarget) => {
+      const slot = homepageSlotsRef.current.find((item) => item.id === target.slotId)
+      const pinnedArticleId = slot
+        ? pinnedIdAtIndex(editorPinnedIds(slot), target.index)
+        : null
+      const articleId = target.articleId?.trim() || pinnedArticleId
+      if (!articleId) {
+        setError(t('editor.errors.placementFailed'))
+        return
+      }
       const mutation = buildRemovePlacementMutation(
         homepageSlotsRef.current,
         target.slotId,
+        articleId,
         target.index,
       )
-      await runPlacementMutation(mutation, () => formatRemoveMessage(t, target, articleTitleById))
+      const messageTarget: IPlacementTarget = { ...target, articleId }
+      await runPlacementMutation(mutation, () =>
+        formatRemoveMessage(t, messageTarget, articleTitleById),
+      )
     },
-    [articleTitleById, runPlacementMutation, t],
+    [articleTitleById, runPlacementMutation, setError, t],
   )
 
   const applyMovePlacement = useCallback(

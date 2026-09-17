@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { IHomepageFeed } from '@/interfaces/feed'
 import {
   getHomepageLayout,
@@ -24,6 +24,9 @@ interface IUseEditorPreviewFeedResult {
 /**
  * Read scoped homepage preview feed and slots using TanStack Query.
  *
+ * Does not keep the previous market's feed as placeholder data — that caused
+ * deleted worldwide stories to flash when switching market/county/town.
+ *
  * @param scope Active editor scope.
  * @param enabled Enables fetching for mounted preview routes only.
  * @returns Preview feed state and refresh handler.
@@ -44,7 +47,6 @@ export function useEditorPreviewFeed(
         pageName: scope.pageName,
       }),
     enabled,
-    placeholderData: keepPreviousData,
   })
   const slotsQuery = useQuery({
     queryKey: editorKeys.slots(scope),
@@ -64,7 +66,6 @@ export function useEditorPreviewFeed(
       }
     },
     enabled,
-    placeholderData: keepPreviousData,
   })
 
   const refresh = useCallback(async () => {
@@ -76,11 +77,11 @@ export function useEditorPreviewFeed(
   }, [previewQuery, queryClient, scope, slotsQuery])
 
   return {
-    previewFeed: previewQuery.data ?? null,
-    homepageSlots: slotsQuery.data ?? [],
-    // isLoading is true only when there is no data yet; placeholder keeps prior
-    // scope visible while the next market/page feed loads.
-    loading: previewQuery.isLoading || slotsQuery.isLoading,
+    // Hide cached boards while a scope fetch is in flight so deleted worldwide
+    // stories cannot flash when switching market/county/town.
+    previewFeed: previewQuery.isFetching ? null : (previewQuery.data ?? null),
+    homepageSlots: slotsQuery.isFetching ? [] : (slotsQuery.data ?? []),
+    loading: previewQuery.isLoading || slotsQuery.isLoading || previewQuery.isFetching || slotsQuery.isFetching,
     refreshing: previewQuery.isFetching || slotsQuery.isFetching,
     error:
       previewQuery.error instanceof Error

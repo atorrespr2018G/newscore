@@ -94,6 +94,8 @@ export interface ISlotOut {
   presentation_type: string
   pinned_ids: string[]
   draft_pinned_ids: string[] | null
+  excluded_ids?: string[]
+  draft_excluded_ids?: string[] | null
   query_rule: Record<string, unknown> | null
   order_index: number
   updated_at: string
@@ -293,6 +295,32 @@ export function patchSlotDraftPinnedIds(slotId: string, draftPinnedIds: string[]
 }
 
 /**
+ * Patch staged pins and/or exclusions for a slot in one request.
+ *
+ * @param slotId Slot id to update.
+ * @param draftPinnedIds Optional ordered draft pinned article ids.
+ * @param draftExcludedIds Optional article ids removed from this slot's fill.
+ * @returns Updated slot payload.
+ */
+export function patchSlotDraftPlacement(
+  slotId: string,
+  draftPinnedIds?: string[],
+  draftExcludedIds?: string[],
+): Promise<ISlotOut> {
+  const body: Record<string, string[]> = {}
+  if (draftPinnedIds !== undefined) {
+    body.draft_pinned_ids = draftPinnedIds
+  }
+  if (draftExcludedIds !== undefined) {
+    body.draft_excluded_ids = draftExcludedIds
+  }
+  return apiFetch<ISlotOut>(`${apiConfig.layout}/slots/${slotId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+/**
  * List markets for worldwide targeting and exclusions.
  *
  * @returns Markets ordered by code.
@@ -311,6 +339,33 @@ export function placeArticleWorldwide(
   payload: IWorldwidePlacementRequest,
 ): Promise<IWorldwidePlacementOut> {
   return apiFetch<IWorldwidePlacementOut>(`${apiConfig.layout}/layouts/place-worldwide`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Payload for clearing an article from every layout placement. */
+export interface IUnplaceArticleRequest {
+  article_id: string
+}
+
+/** Summary returned by POST /layouts/unplace-article. */
+export interface IUnplaceArticleOut {
+  article_id: string
+  cleared_slot_ids: string[]
+  cleared_count: number
+}
+
+/**
+ * Remove an article from every layout board where it is pinned.
+ *
+ * @param payload Article id to clear.
+ * @returns Summary of cleared slots.
+ */
+export function unplaceArticleEverywhere(
+  payload: IUnplaceArticleRequest,
+): Promise<IUnplaceArticleOut> {
+  return apiFetch<IUnplaceArticleOut>(`${apiConfig.layout}/layouts/unplace-article`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })

@@ -347,11 +347,19 @@ export function useEditorialArticlePreviewEditor(): IEditorialArticlePreviewEdit
   }, [editDetail, scope, t])
 
   const handleWorldwidePlacementResult = useCallback(
-    (result: IWorldwidePlacementOut) => {
+    async (result: IWorldwidePlacementOut) => {
       const placed = result.results.filter((row) => row.status === 'placed').length
       const skipped = result.results.filter((row) => row.status === 'skipped').length
       setEditMessage(t('editor.worldwide.placementResult', { placed, skipped }))
       setEditError(null)
+      try {
+        const updated = await apiFetch<IArticleDetail>(
+          `${apiConfig.news}/articles/${result.article_id}`,
+        )
+        setEditDetail(updated)
+      } catch {
+        // Placement succeeded; detail refresh is best-effort for placement_refs.
+      }
     },
     [t],
   )

@@ -12,6 +12,29 @@ from shared.read.collections import LAYOUTS_COLLECTION, SLOTS_COLLECTION
 from shared.read.market_reads import get_market_by_code
 
 
+def _serialize_layout_slot(slot: dict[str, Any]) -> dict[str, Any]:
+    """Serialize a Mongo slot document for layout feed readers."""
+
+    return {
+        "id": str(slot["_id"]),
+        "position_key": slot.get("position_key"),
+        "content_type": str(slot.get("content_type") or "articles"),
+        "display_name": slot.get("display_name"),
+        "presentation_type": str(slot.get("presentation_type") or "grid_4"),
+        "pinned_ids": list(slot.get("pinned_ids") or []),
+        "draft_pinned_ids": (
+            list(slot["draft_pinned_ids"]) if slot.get("draft_pinned_ids") is not None else None
+        ),
+        "excluded_ids": list(slot.get("excluded_ids") or []),
+        "draft_excluded_ids": (
+            list(slot["draft_excluded_ids"])
+            if slot.get("draft_excluded_ids") is not None
+            else None
+        ),
+        "query_rule": slot.get("query_rule"),
+    }
+
+
 async def get_active_layout(
     db: AsyncIOMotorDatabase,
     *,
@@ -51,23 +74,7 @@ async def get_active_layout(
         "layout_id": layout_id,
         "page_name": layout["page_name"],
         "market_id": market_id,
-        "slots": [
-            {
-                "id": str(slot["_id"]),
-                "position_key": slot.get("position_key"),
-                "content_type": str(slot.get("content_type") or "articles"),
-                "display_name": slot.get("display_name"),
-                "presentation_type": str(slot.get("presentation_type") or "grid_4"),
-                "pinned_ids": list(slot.get("pinned_ids") or []),
-                "draft_pinned_ids": (
-                    list(slot["draft_pinned_ids"])
-                    if slot.get("draft_pinned_ids") is not None
-                    else None
-                ),
-                "query_rule": slot.get("query_rule"),
-            }
-            for slot in slots
-        ],
+        "slots": [_serialize_layout_slot(slot) for slot in slots],
     }
 
 
@@ -106,23 +113,7 @@ async def _get_active_layout_by_region(
             "region_id": current_region_id,
             "resolved_region_id": current_region_id,
             "requested_region_id": region_id,
-            "slots": [
-                {
-                    "id": str(slot["_id"]),
-                    "position_key": slot.get("position_key"),
-                    "content_type": str(slot.get("content_type") or "articles"),
-                    "display_name": slot.get("display_name"),
-                    "presentation_type": str(slot.get("presentation_type") or "grid_4"),
-                    "pinned_ids": list(slot.get("pinned_ids") or []),
-                    "draft_pinned_ids": (
-                        list(slot["draft_pinned_ids"])
-                        if slot.get("draft_pinned_ids") is not None
-                        else None
-                    ),
-                    "query_rule": slot.get("query_rule"),
-                }
-                for slot in slots
-            ],
+            "slots": [_serialize_layout_slot(slot) for slot in slots],
         }
 
     return None

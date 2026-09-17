@@ -342,6 +342,11 @@ async def _resolve_slot_articles_with_pinned_loader(
         return []
 
     pinned_ids = _compact_pinned_ids(list(slot.get("pinned_ids") or []))
+    excluded_ids = {
+        article_id
+        for article_id in _compact_pinned_ids(list(slot.get("excluded_ids") or []))
+    }
+    pinned_ids = [article_id for article_id in pinned_ids if article_id not in excluded_ids]
     query_rule = slot.get("query_rule")
 
     pinned_articles = await _load_pinned_articles(
@@ -371,7 +376,7 @@ async def _resolve_slot_articles_with_pinned_loader(
         base_queries=base_queries,
         loader=loader,
         limit=limit,
-        excluded_ids={article.id for article in pinned_articles},
+        excluded_ids=excluded_ids | {article.id for article in pinned_articles},
     )
     return _merge_slot_articles(pinned_articles, query_articles, limit)
 
